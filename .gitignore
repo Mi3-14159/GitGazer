@@ -1,0 +1,13 @@
+# terraform
+.terraform/
+backend.tf
+terraform.tfvars
+.terraform.lock.hcl
+
+# NodeJS
+node_modules/
+*.env
+
+#
+tmp/
+dist/
