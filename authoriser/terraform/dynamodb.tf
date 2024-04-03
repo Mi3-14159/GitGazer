@@ -15,7 +15,7 @@ resource "aws_dynamodb_table" "tokens" {
   }
 
   ttl {
-    attribute_name = "ttl"
+    attribute_name = "expiry"
     enabled        = true
   }
 

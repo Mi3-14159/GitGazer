@@ -1,0 +1,98 @@
+import {getLogger} from '../logger';
+import {getParameter} from '../ssm';
+import {
+    tokenRepository,
+} from '../repository';
+import { Token, TokenType } from 'src/models/dynamodb';
+
+const log = getLogger();
+
+export class GithubAuthController {
+    async handleLoginPathCreation(redirectUriBasePath: string): Promise<string> {
+        log.debug({msg: 'handle login page creation', data: {redirectUriBasePath}});
+
+        const valueString = await getParameter(process.env.GH_CLIENT_CONFIG_NAME);
+        const ghClientConfig = JSON.parse(valueString);
+
+        return `<a href="https://github.com/login/oauth/authorize?client_id=${ghClientConfig.id}&redirect_uri=${redirectUriBasePath}/auth/github/callback">Login with GitHub</a>`;
+    }
+      
+    async exchangeCode(code: string): Promise<any> {
+        const valueString = await getParameter(process.env.GH_CLIENT_CONFIG_NAME);
+        const ghClientConfig = JSON.parse(valueString);
+
+        const params = new URLSearchParams({
+          client_id: ghClientConfig.id,
+          client_secret: ghClientConfig.secret,
+          code: code,
+        });
+      
+        const response = await fetch('https://github.com/login/oauth/access_token', {
+          method: 'POST',
+          body: params,
+          headers: { Accept: 'application/json' },
+        });
+      
+        if (response.ok) {
+          return await response.json();
+        }
+
+        throw new Error(`Failed to exchange code ${code} for token.`);
+    }
+
+    async userInfo(token: string): Promise<any> {
+        const response = await fetch('https://api.github.com/user', {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      
+        if (response.ok) {
+            return await response.json();
+        }
+
+        throw new Error(`Failed to get user info with token ${token}.`);
+      }
+
+    async handleCallback(code: string): Promise<unknown> {
+        log.info('handle github callback');
+
+        const tokenData = await this.exchangeCode(code);
+        const {
+            access_token,
+            expires_in,
+            refresh_token,
+            refresh_token_expires_in,
+        } = tokenData;
+
+        if (access_token) {
+            const userInfoData = await this.userInfo(access_token);
+            const {name, handle} = userInfoData.login;
+
+            const accessToken: Token = {
+                userName: name,
+                tokenType: TokenType.ACCESS,
+                token: access_token,
+                expiry: Date.now() / 1000 + expires_in,
+            };
+            await tokenRepository.put(accessToken);
+
+            const refreshToken: Token = {
+                userName: name,
+                tokenType: TokenType.REFRESH,
+                token: refresh_token,
+                expiry: Date.now() / 1000 + refresh_token_expires_in,
+            };
+            await tokenRepository.put(refreshToken);
+
+            return {
+                body: `Successfully authorized! Welcome, ${name} (${handle}).`,
+            };
+        }
+
+        throw new Error(`Authorized, but unable to exchange code ${code} for token.`);
+    }
+}

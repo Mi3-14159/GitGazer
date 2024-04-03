@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "lib": ["es2021", "dom"],
+    "removeComments": true,
+    "moduleResolution": "node",
+    "noUnusedLocals": false,
+    "experimentalDecorators": true, // Enables experimental support for ES7 decorators.
+    "emitDecoratorMetadata": true, // Emit design-type metadata for decorated declarations in source.
+    "noUnusedParameters": true,
+    "target": "es5",
+    "outDir": "dist",
+    "esModuleInterop": true,
+    "baseUrl": "./",
+    "resolveJsonModule": true
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules/**/*"],
+  "types": ["jest", "node"]
+}
