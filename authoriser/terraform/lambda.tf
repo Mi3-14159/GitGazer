@@ -8,12 +8,13 @@ module "this" {
   handler          = "index.handler"
   runtime          = "nodejs20.x"
   source_code_hash = filebase64sha256(local.artifact)
-  timeout          = 3
+  timeout          = 5
   publish          = true
   environment = {
     variables = {
       ENVIRONMENT           = terraform.workspace
       GH_CLIENT_CONFIG_NAME = aws_ssm_parameter.gh_client_config.name
+      TOKENS_TABLE_NAME     = aws_dynamodb_table.tokens.name
     }
   }
   kms_key_arn                       = aws_kms_key.tokens.arn

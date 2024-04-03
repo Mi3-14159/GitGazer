@@ -1,9 +1,7 @@
 import {getLogger} from '../logger';
 import {getParameter} from '../ssm';
-import {
-    tokenRepository,
-} from '../repository';
-import { Token, TokenType } from 'src/models/dynamodb';
+import {tokenRepository} from '../repository';
+import { Token, TokenType } from '../models/dynamodb';
 
 const log = getLogger();
 
@@ -70,26 +68,31 @@ export class GithubAuthController {
 
         if (access_token) {
             const userInfoData = await this.userInfo(access_token);
-            const {name, handle} = userInfoData.login;
+            const {id, name, login} = userInfoData;
 
             const accessToken: Token = {
-                userName: name,
-                tokenType: TokenType.ACCESS,
+                userId: id,
+                userHandle: login,
+                type: TokenType.ACCESS,
                 token: access_token,
-                expiry: Date.now() / 1000 + expires_in,
+                createdAt: Math.floor(new Date().getTime() / 1000),
+                expireAt: Math.floor(new Date().getTime() / 1000) + expires_in,
             };
-            await tokenRepository.put(accessToken);
 
             const refreshToken: Token = {
-                userName: name,
-                tokenType: TokenType.REFRESH,
+                userId: id,
+                userHandle: login,
+                type: TokenType.REFRESH,
                 token: refresh_token,
-                expiry: Date.now() / 1000 + refresh_token_expires_in,
+                createdAt: Math.floor(new Date().getTime() / 1000),
+                expireAt: Math.floor(new Date().getTime() / 1000) + refresh_token_expires_in,
             };
+
+            await tokenRepository.put(accessToken);
             await tokenRepository.put(refreshToken);
 
             return {
-                body: `Successfully authorized! Welcome, ${name} (${handle}).`,
+                body: `Successfully authorized! Welcome, ${name} (${login}).`,
             };
         }
 

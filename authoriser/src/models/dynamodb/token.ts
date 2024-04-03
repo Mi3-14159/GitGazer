@@ -1,23 +1,30 @@
 export enum TokenType {
-    ACCESS,
-    REFRESH
+    ACCESS = "ACCESS",
+    REFRESH = "REFRESH",
 }
 
 export interface Token {
-    userName: string
-    tokenType: TokenType
+    userId: number
+    userHandle: string
+    type: TokenType
     token: string
-    expiry: number
+    createdAt: number
+    expireAt: number
 }
 
 export const isToken = (item: any): item is Token => {
-    // check if userName is a string
-    if (typeof item.userName !== 'string') {
+    // check if userId is a string
+    if (typeof item.userId !== 'number') {
         return false;
     }
 
-    // check if tokenType is a number
-    if (typeof item.tokenType !== 'number') {
+    // check if userHandle is a string
+    if (typeof item.userHandle !== 'string') {
+        return false;
+    }
+
+    // check if type is a number
+    if (typeof item.type !== 'string') {
         return false;
     }
 
@@ -26,8 +33,13 @@ export const isToken = (item: any): item is Token => {
         return false;
     }
 
-    // check if expiry is a number
-    if (typeof item.expiry !== 'number') {
+    // check if createdAt is a number
+    if (typeof item.createdAt !== 'number' || item.createdAt <= 0) {
+        return false;
+    }
+
+    // check if expireAt is a number
+    if (typeof item.expireAt !== 'number' || item.expireAt < item.createdAt) {
         return false;
     }
 

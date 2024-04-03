@@ -1,7 +1,7 @@
 import {PutCommandOutput} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '../../logger';
-import {getItem, putItem} from '../_base';
+import {putItem, queryItems} from '../_base';
 import { RepositoryError } from '../errors';
 import { Token, TokenType, isToken } from '../../models/dynamodb';
 
@@ -18,17 +18,37 @@ const get = async (userName: string, tokenType: TokenType): Promise<Token | unde
         tokenType,
     };
     log.debug({data: {key}, msg: 'get token'});
-    const response = await getItem(tableName, key, true);
 
-    if (!response.Item) {
+    const response = await queryItems({
+        TableName: tableName,
+        KeyConditionExpression: "#userHandle = :userHandle AND #tokenType = :tokenType",
+        ExpressionAttributeNames: {
+            "#userHandle": "userHandle",
+            "#tokenType": "tokenType",
+            "#expireAt": "expireAt",
+        },
+        ExpressionAttributeValues: {
+            ":userHandle": userName,
+            ":tokenType": tokenType,
+            ":currentTime": Math.floor(new Date().getTime() / 1000),
+        },
+        FilterExpression: "#expireAt > :currentTime",
+    });
+
+    if (!response.Items || response.Items.length === 0) {
         return undefined;
     }
 
-    if (!isToken(response.Item)) {
-        throw new RepositoryError(`Invalid token for user name ${userName} and token type ${tokenType}`, response.Item);
+    if (response.Items.length > 1) {
+        throw new RepositoryError(`Multiple tokens for user name ${userName} and token type ${tokenType}`);
     }
 
-    return response.Item;
+    const token = response.Items[0];
+    if (!isToken(token)) {
+        throw new RepositoryError(`Invalid token for user name ${userName} and token type ${tokenType}`);
+    }
+
+    return token;
 };
 
 const put = (token: Token): Promise<PutCommandOutput> => {
@@ -37,7 +57,10 @@ const put = (token: Token): Promise<PutCommandOutput> => {
     }
 
     log.debug({data: {token}, msg: 'put token'});
-    return putItem(tableName, token);
+    return putItem({
+        TableName: tableName,
+        Item: token,
+    });
 };
 
 export const tokenRepository = {

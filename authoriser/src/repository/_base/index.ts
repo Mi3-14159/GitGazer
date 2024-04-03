@@ -9,8 +9,11 @@ import {
     BatchWriteCommand,
     BatchWriteCommandOutput,
     UpdateCommandOutput,
+    QueryCommandInput,
+    UpdateCommandInput,
+    GetCommandInput,
+    PutCommandInput,
 } from '@aws-sdk/lib-dynamodb';
-import {ReturnValue} from '@aws-sdk/client-dynamodb/dist-types/models/models_0';
 
 import {getLogger} from '../../logger';
 import {getClient} from '../../dynamodb';
@@ -18,12 +21,8 @@ import {getClient} from '../../dynamodb';
 const client = getClient();
 const log = getLogger();
 
-export const putItem = (tableName: string, item: unknown, returnValue?: ReturnValue): Promise<PutCommandOutput> => {
-    const command = new PutCommand({
-        TableName: tableName,
-        Item: item,
-        ReturnValues: returnValue || 'NONE',
-    });
+export const putItem = (putCommandInput: PutCommandInput): Promise<PutCommandOutput> => {
+    const command = new PutCommand(putCommandInput);
 
     log.trace({data: {command}, msg: 'putItem'});
     return client.send(command);
@@ -46,55 +45,22 @@ export const batchPutItem = (tableName: string, items: unknown[]): Promise<Batch
     return client.send(command);
 };
 
-export const getItem = (tableName: string, key: Record<string, unknown>, consistentRead?: boolean): Promise<GetCommandOutput> => {
-    const command = new GetCommand({
-        TableName: tableName,
-        Key: key,
-        ConsistentRead: consistentRead || false,
-    });
+export const getItem = (getCommandInput: GetCommandInput): Promise<GetCommandOutput> => {
+    const command = new GetCommand(getCommandInput);
 
     log.trace({data: {command}, msg: 'getItem'});
     return client.send(command);
 };
 
-export const updateItem = (
-    tableName: string, key: Record<string, unknown>,
-    updateExpression: string,
-    expressionAttributeValues: Record<string, unknown>,
-    conditionExpression?:string,
-    returnValues?: ReturnValue,
-): Promise<UpdateCommandOutput> => {
-    const command = new UpdateCommand({
-        TableName: tableName,
-        Key: key,
-        UpdateExpression: updateExpression,
-        ExpressionAttributeValues: expressionAttributeValues,
-        ConditionExpression: conditionExpression,
-        ReturnValues: returnValues,
-    });
+export const updateItem = (updateCommandInput: UpdateCommandInput): Promise<UpdateCommandOutput> => {
+    const command = new UpdateCommand(updateCommandInput);
 
     log.trace({data: {command}, msg: 'updateItem'});
     return client.send(command);
 };
 
-export const queryItems = (
-    tableName: string,
-    expressionAttributeNames?: Record<string, string>,
-    expressionAttributeValues?: Record<string, unknown>,
-    keyConditionExpression?: string,
-    indexName?: string,
-    filterExpression?: string,
-    exclusiveStartKey?: Record<string, unknown>,
-): Promise<QueryCommandOutput> => {
-    const command = new QueryCommand({
-        TableName: tableName,
-        IndexName: indexName,
-        KeyConditionExpression: keyConditionExpression,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        FilterExpression: filterExpression,
-        ExclusiveStartKey: exclusiveStartKey,
-    });
+export const queryItems = (queryCommandInput: QueryCommandInput): Promise<QueryCommandOutput> => {
+    const command = new QueryCommand(queryCommandInput);
 
     log.trace({data: {command}, msg: 'query'});
     return client.send(command);

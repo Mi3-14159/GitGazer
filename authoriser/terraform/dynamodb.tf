@@ -6,7 +6,7 @@ resource "aws_dynamodb_table" "tokens" {
 
   attribute {
     name = "userId"
-    type = "S"
+    type = "N"
   }
 
   attribute {
@@ -15,7 +15,7 @@ resource "aws_dynamodb_table" "tokens" {
   }
 
   ttl {
-    attribute_name = "expiry"
+    attribute_name = "expireAt"
     enabled        = true
   }
 
