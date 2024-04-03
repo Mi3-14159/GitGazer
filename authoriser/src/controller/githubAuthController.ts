@@ -96,6 +96,79 @@ export class GithubAuthController {
             };
         }
 
-        throw new Error(`Authorized, but unable to exchange code ${code} for token.`);
+        throw new Error(`Authorized, but unable to exchange code for token.`);
+    }
+
+    async refreshToken(userId: number): Promise<any> {
+        log.info('refresh github token');
+
+        const refreshToken = await tokenRepository.get(userId, TokenType.REFRESH);
+        if (!refreshToken) {
+            throw new Error(`No refresh token found for user ${userId}.`);
+        }
+        
+        const valueString = await getParameter(process.env.GH_CLIENT_CONFIG_NAME);
+        const ghClientConfig = JSON.parse(valueString);
+
+        const params = new URLSearchParams({
+          client_id: ghClientConfig.id,
+          client_secret: ghClientConfig.secret,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken.token,
+        });
+      
+        const response = await fetch('https://github.com/login/oauth/access_token', {
+          method: 'POST',
+          body: params,
+          headers: { Accept: 'application/json' },
+        });
+      
+        if (response.ok) {
+          return await response.json();
+        }
+    }
+
+    async handleRefresh(userId: number): Promise<unknown> {
+        log.info('handle github refresh');
+
+        const tokenData = await this.refreshToken(userId);
+        const {
+            access_token,
+            expires_in,
+            refresh_token,
+            refresh_token_expires_in,
+        } = tokenData;
+
+        if (access_token) {
+            const userInfoData = await this.userInfo(access_token);
+            const {id, name, login} = userInfoData;
+
+            const accessToken: Token = {
+                userId: id,
+                userHandle: login,
+                type: TokenType.ACCESS,
+                token: access_token,
+                createdAt: Math.floor(new Date().getTime() / 1000),
+                expireAt: Math.floor(new Date().getTime() / 1000) + expires_in,
+            };
+
+            const refreshToken: Token = {
+                userId: id,
+                userHandle: login,
+                type: TokenType.REFRESH,
+                token: refresh_token,
+                createdAt: Math.floor(new Date().getTime() / 1000),
+                expireAt: Math.floor(new Date().getTime() / 1000) + refresh_token_expires_in,
+            };
+
+            await tokenRepository.put(accessToken);
+            await tokenRepository.put(refreshToken);
+
+            return {
+                body: `Successfully refreshed! Welcome, ${name} (${login}).`,
+            };
+        }
+
+        throw new Error(`Refreshed, but unable to exchange code for token for user ${userId}.`);
     }
 }

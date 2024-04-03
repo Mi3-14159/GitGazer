@@ -12,24 +12,24 @@ if (!tableName) {
 
 const log = getLogger();
 
-const get = async (userName: string, tokenType: TokenType): Promise<Token | undefined> => {
+const get = async (userId: number, type: TokenType): Promise<Token | undefined> => {
     const key: Record<string, unknown> = {
-        userName,
-        tokenType,
+        userId,
+        type,
     };
     log.debug({data: {key}, msg: 'get token'});
 
     const response = await queryItems({
         TableName: tableName,
-        KeyConditionExpression: "#userHandle = :userHandle AND #tokenType = :tokenType",
+        KeyConditionExpression: "#userId = :userId AND #type = :type",
         ExpressionAttributeNames: {
-            "#userHandle": "userHandle",
-            "#tokenType": "tokenType",
+            "#userId": "userId",
+            "#type": "type",
             "#expireAt": "expireAt",
         },
         ExpressionAttributeValues: {
-            ":userHandle": userName,
-            ":tokenType": tokenType,
+            ":userId": userId,
+            ":type": type,
             ":currentTime": Math.floor(new Date().getTime() / 1000),
         },
         FilterExpression: "#expireAt > :currentTime",
@@ -40,12 +40,12 @@ const get = async (userName: string, tokenType: TokenType): Promise<Token | unde
     }
 
     if (response.Items.length > 1) {
-        throw new RepositoryError(`Multiple tokens for user name ${userName} and token type ${tokenType}`);
+        throw new RepositoryError(`Multiple tokens for ${userId} and token type ${type}`);
     }
 
     const token = response.Items[0];
     if (!isToken(token)) {
-        throw new RepositoryError(`Invalid token for user name ${userName} and token type ${tokenType}`);
+        throw new RepositoryError(`Invalid token for ${userId} and token type ${type}`);
     }
 
     return token;
