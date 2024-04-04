@@ -17,7 +17,7 @@ module "this" {
       TOKENS_TABLE_NAME     = aws_dynamodb_table.tokens.name
     }
   }
-  kms_key_arn                       = aws_kms_key.tokens.arn
+  kms_key_arn                       = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
   cloudwatch_logs_retention_in_days = 90
 }
 
@@ -58,7 +58,7 @@ data "aws_iam_policy_document" "this" {
       "kms:ReEncrypt*",
     ]
     resources = [
-      aws_kms_key.tokens.arn,
+      data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn,
     ]
   }
 

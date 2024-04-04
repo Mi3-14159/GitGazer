@@ -40,4 +40,3 @@ variable "gh_client_secret" {
     error_message = "Either plain or encrypted client secret must be provided"
   }
 }
-

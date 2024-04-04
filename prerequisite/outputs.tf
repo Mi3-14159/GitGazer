@@ -10,6 +10,9 @@ output "name_prefix" {
   value = local.name_prefix
 }
 
-output "aws_kms_key_id" {
-  value = aws_kms_key.this.id
+output "aws_kms_key" {
+  value = {
+    id  = aws_kms_key.this.id
+    arn = aws_kms_key.this.arn
+  }
 }

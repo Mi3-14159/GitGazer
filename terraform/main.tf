@@ -31,5 +31,5 @@ locals {
 }
 
 data "aws_apigatewayv2_api" "authorizer" {
-  api_id = coalesce(var.api_gateway_id, data.terraform_remote_state.authorizer.outputs.api_gateway_id)
+  api_id = coalesce(var.api_gateway_id, data.terraform_remote_state.rest-api.outputs.api_gateway_id)
 }

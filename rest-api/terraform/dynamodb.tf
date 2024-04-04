@@ -21,7 +21,7 @@ resource "aws_dynamodb_table" "tokens" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = aws_kms_key.tokens.arn
+    kms_key_arn = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
   }
 
   point_in_time_recovery {

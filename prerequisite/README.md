@@ -10,7 +10,7 @@
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 5.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.43.0 |
 
 ## Modules
 
@@ -35,7 +35,7 @@ No modules.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_aws_kms_key_id"></a> [aws\_kms\_key\_id](#output\_aws\_kms\_key\_id) | n/a |
+| <a name="output_aws_kms_key"></a> [aws\_kms\_key](#output\_aws\_kms\_key) | n/a |
 | <a name="output_aws_region"></a> [aws\_region](#output\_aws\_region) | n/a |
 | <a name="output_github_organization"></a> [github\_organization](#output\_github\_organization) | n/a |
 | <a name="output_name_prefix"></a> [name\_prefix](#output\_name\_prefix) | n/a |
