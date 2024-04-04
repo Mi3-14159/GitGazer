@@ -26,7 +26,7 @@
   ],
   "license": "ISC",
   "main": "index.js",
-  "name": "authoriser",
+  "name": "rest-api",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
