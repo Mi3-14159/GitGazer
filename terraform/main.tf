@@ -13,11 +13,11 @@ terraform {
 }
 
 provider "github" {
-  owner = var.github_organization
+  owner = data.terraform_remote_state.prerequisite.outputs.github_organization
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = data.terraform_remote_state.prerequisite.outputs.aws_region
   default_tags {
     tags = {
       env       = terraform.workspace
@@ -27,7 +27,7 @@ provider "aws" {
 }
 
 locals {
-  name_prefix = "${terraform.workspace}-${var.name_prefix}"
+  gh_webhook_secret = coalesce(var.gh_webhook_secret.plain, data.aws_kms_secrets.this.plaintext["gh_webhook_secret"])
 }
 
 data "aws_apigatewayv2_api" "authorizer" {

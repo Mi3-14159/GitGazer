@@ -30,6 +30,7 @@ No modules.
 | [aws_cloudfront_cache_policy.caching_disabled](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/cloudfront_cache_policy) | data source |
 | [aws_cloudfront_cache_policy.caching_optimized](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/cloudfront_cache_policy) | data source |
 | [aws_kms_secrets.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/kms_secrets) | data source |
+| [terraform_remote_state.prerequisite](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 | [terraform_remote_state.rest-api](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 
 ## Inputs
@@ -37,10 +38,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_api_gateway_id"></a> [api\_gateway\_id](#input\_api\_gateway\_id) | Optional API Gateway ID, if not provided it will be retrieved from the remote state data.terraform\_remote\_state.rest-api.outputs.api\_gateway\_id which you need to specify. | `string` | `null` | no |
-| <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
 | <a name="input_gh_webhook_secret"></a> [gh\_webhook\_secret](#input\_gh\_webhook\_secret) | GitHub webhook secret | <pre>object({<br>    plain     = optional(string)<br>    encrypted = optional(string)<br>  })</pre> | n/a | yes |
-| <a name="input_github_organization"></a> [github\_organization](#input\_github\_organization) | GitHub organization to manage the repositories | `string` | n/a | yes |
-| <a name="input_name_prefix"></a> [name\_prefix](#input\_name\_prefix) | Prefix to add to the name of the resources | `string` | `"gitgazer"` | no |
 
 ## Outputs
 

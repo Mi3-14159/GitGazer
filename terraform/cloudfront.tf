@@ -7,7 +7,7 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 }
 
 resource "aws_cloudfront_distribution" "this" {
-  comment             = "CDN for ${local.name_prefix}"
+  comment             = "CDN for ${data.terraform_remote_state.prerequisite.outputs.name_prefix}"
   enabled             = true
   is_ipv6_enabled     = true
   price_class         = "PriceClass_100"

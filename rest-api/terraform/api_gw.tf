@@ -82,8 +82,8 @@ resource "aws_apigatewayv2_integration" "jobs_sqs" {
   integration_subtype = "SQS-SendMessage"
 
   request_parameters = {
-    "QueueUrl"    = "$request.header.queueUrl"
-    "MessageBody" = "$request.body.message"
+    "QueueUrl"    = module.jobs.queue_url
+    "MessageBody" = "$request.body"
   }
 }
 
@@ -108,7 +108,7 @@ data "aws_iam_policy_document" "api_gw_sqs_integration_assume_role_policy" {
 
     principals {
       type        = "Service"
-      identifiers = ["sqs.amazonaws.com"]
+      identifiers = ["apigateway.amazonaws.com"]
     }
   }
 }
@@ -117,5 +117,15 @@ data "aws_iam_policy_document" "api_gw_sqs_integration_role_policy" {
   statement {
     actions   = ["sqs:SendMessage"]
     resources = [module.jobs.queue_arn]
+  }
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+    ]
+    resources = [
+      data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn,
+    ]
   }
 }
