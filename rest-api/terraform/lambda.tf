@@ -2,7 +2,7 @@ module "this" {
   source  = "moritzzimmer/lambda/aws"
   version = "~> 7.5"
 
-  description      = "authoriser"
+  description      = "GitGazer rest api"
   filename         = local.artifact
   function_name    = local.name_prefix
   handler          = "index.handler"

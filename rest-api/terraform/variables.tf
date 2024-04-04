@@ -6,7 +6,7 @@ variable "aws_region" {
 variable "name_prefix" {
   type        = string
   description = "Prefix to add to the name of the resources"
-  default     = "gitgazer-authorizer"
+  default     = "gitgazer-api"
 }
 
 variable "enabled_pitr" {

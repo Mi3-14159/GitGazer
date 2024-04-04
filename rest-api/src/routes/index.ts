@@ -1,7 +1,7 @@
 import {APIGatewayProxyResultV2, APIGatewayProxyEventV2} from 'aws-lambda';
 import { response } from './utils.js';
-import {GetAuthGithub} from './getAuthGithub';
-import { GetAuthGithubCallback } from './getAuthGithubCallback';
+import {GetAuthGithub} from './getAuthGithub.js';
+import { GetAuthGithubCallback } from './getAuthGithubCallback.js';
 
 export interface RoutableParameters {
     event: APIGatewayProxyEventV2

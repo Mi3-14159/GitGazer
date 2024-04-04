@@ -1,6 +1,6 @@
 import {APIGatewayProxyResultV2} from 'aws-lambda';
 
-import {Routable, RoutableParameters} from './';
+import {Routable, RoutableParameters} from '.';
 import {response} from './utils';
 import {loggable} from '../logger';
 import { GithubAuthController } from '../controller';
