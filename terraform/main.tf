@@ -27,9 +27,10 @@ provider "aws" {
 }
 
 locals {
+  public_api_routes = [
+    "GET /auth/github",
+    "GET /auth/github/callback",
+  ]
   gh_webhook_secret = coalesce(var.gh_webhook_secret.plain, data.aws_kms_secrets.this.plaintext["gh_webhook_secret"])
 }
 
-data "aws_apigatewayv2_api" "rest-api" {
-  api_id = coalesce(var.api_gateway_id, data.terraform_remote_state.rest-api.outputs.api_gateway_id)
-}

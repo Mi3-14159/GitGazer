@@ -49,4 +49,6 @@ You can pass the github client id and client secret as plaintext or the resultin
 | Name | Description |
 |------|-------------|
 | <a name="output_lambda_invoke_arn"></a> [lambda\_invoke\_arn](#output\_lambda\_invoke\_arn) | n/a |
+| <a name="output_lambda_invoke_name"></a> [lambda\_invoke\_name](#output\_lambda\_invoke\_name) | n/a |
+| <a name="output_lambda_name"></a> [lambda\_name](#output\_lambda\_name) | n/a |
 <!-- END_TF_DOCS -->

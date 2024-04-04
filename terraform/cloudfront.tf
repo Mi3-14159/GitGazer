@@ -28,8 +28,8 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   origin {
-    domain_name = replace(data.aws_apigatewayv2_api.rest-api.api_endpoint, "https://", "")
-    origin_id   = data.aws_apigatewayv2_api.rest-api.id
+    domain_name = replace(aws_apigatewayv2_api.this.api_endpoint, "https://", "")
+    origin_id   = aws_apigatewayv2_api.this.id
     custom_origin_config {
       http_port              = 80
       https_port             = 443
@@ -41,7 +41,7 @@ resource "aws_cloudfront_distribution" "this" {
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id       = data.aws_apigatewayv2_api.rest-api.id
+    target_origin_id       = aws_apigatewayv2_api.this.id
     viewer_protocol_policy = "https-only"
     cache_policy_id        = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
   }
@@ -50,7 +50,7 @@ resource "aws_cloudfront_distribution" "this" {
     path_pattern             = "/auth/*"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id         = data.aws_apigatewayv2_api.rest-api.id
+    target_origin_id         = aws_apigatewayv2_api.this.id
     viewer_protocol_policy   = "https-only"
     cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
@@ -60,7 +60,7 @@ resource "aws_cloudfront_distribution" "this" {
     path_pattern             = "/api/*"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id         = data.aws_apigatewayv2_api.rest-api.id
+    target_origin_id         = aws_apigatewayv2_api.this.id
     viewer_protocol_policy   = "https-only"
     cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
