@@ -20,6 +20,7 @@ You can pass the github client id and client secret as plaintext or the resultin
 
 | Name | Source | Version |
 |------|--------|---------|
+| <a name="module_jobs"></a> [jobs](#module\_jobs) | terraform-aws-modules/sqs/aws | ~> 4.1 |
 | <a name="module_this"></a> [this](#module\_this) | moritzzimmer/lambda/aws | ~> 7.5 |
 
 ## Resources
