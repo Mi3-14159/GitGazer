@@ -1,10 +1,10 @@
 resource "aws_cloudwatch_log_group" "gw_access_logs" {
-  name              = "/aws/apigateway/${local.name_prefix}"
+  name              = "/aws/apigateway/${data.terraform_remote_state.prerequisite.outputs.name_prefix}"
   retention_in_days = 30
 }
 
 resource "aws_apigatewayv2_api" "this" {
-  name          = local.name_prefix
+  name          = data.terraform_remote_state.prerequisite.outputs.name_prefix
   description   = "GitGazer ${terraform.workspace} api"
   protocol_type = "HTTP"
   cors_configuration {
@@ -72,4 +72,50 @@ resource "aws_apigatewayv2_route" "public_api_routes" {
   api_id    = aws_apigatewayv2_api.this.id
   route_key = each.value
   target    = "integrations/${aws_apigatewayv2_integration.api_lambda_integration.id}"
+}
+
+resource "aws_apigatewayv2_integration" "jobs_sqs" {
+  api_id              = aws_apigatewayv2_api.this.id
+  credentials_arn     = aws_iam_role.api_gw_sqs_integration.arn
+  description         = "Jobs SQS integration"
+  integration_type    = "AWS_PROXY"
+  integration_subtype = "SQS-SendMessage"
+
+  request_parameters = {
+    "QueueUrl"    = "$request.header.queueUrl"
+    "MessageBody" = "$request.body.message"
+  }
+}
+
+resource "aws_apigatewayv2_route" "import" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "POST /import"
+  target    = "integrations/${aws_apigatewayv2_integration.jobs_sqs.id}"
+}
+
+resource "aws_iam_role" "api_gw_sqs_integration" {
+  name               = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-api-gw-sqs-integration"
+  assume_role_policy = data.aws_iam_policy_document.api_gw_sqs_integration_assume_role_policy.json
+  inline_policy {
+    name   = "api-gw-sqs-integration-role-policy"
+    policy = data.aws_iam_policy_document.api_gw_sqs_integration_role_policy.json
+  }
+}
+
+data "aws_iam_policy_document" "api_gw_sqs_integration_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["sqs.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "api_gw_sqs_integration_role_policy" {
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [module.jobs.queue_arn]
+  }
 }
