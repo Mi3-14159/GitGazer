@@ -1,5 +1,5 @@
 resource "aws_dynamodb_table" "tokens" {
-  name         = "${local.name_prefix}-tokens"
+  name         = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-tokens"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "userId"
   range_key    = "type"

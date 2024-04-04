@@ -4,7 +4,7 @@ module "this" {
 
   description      = "GitGazer rest api"
   filename         = local.artifact
-  function_name    = local.name_prefix
+  function_name    = data.terraform_remote_state.prerequisite.outputs.name_prefix
   handler          = "index.handler"
   runtime          = "nodejs20.x"
   source_code_hash = filebase64sha256(local.artifact)
@@ -74,7 +74,7 @@ data "aws_iam_policy_document" "this" {
 }
 
 resource "aws_iam_policy" "this" {
-  name   = "${local.name_prefix}-additional-policy"
+  name   = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-additional-policy"
   policy = data.aws_iam_policy_document.this.json
 }
 

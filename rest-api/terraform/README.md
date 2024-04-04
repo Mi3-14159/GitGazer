@@ -52,11 +52,9 @@ You can pass the github client id and client secret as plaintext or the resultin
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
 | <a name="input_enabled_pitr"></a> [enabled\_pitr](#input\_enabled\_pitr) | Enable point in time recovery for the DynamoDB table | `bool` | `false` | no |
 | <a name="input_gh_client_id"></a> [gh\_client\_id](#input\_gh\_client\_id) | GitHub OAuth client id | <pre>object({<br>    plain     = optional(string)<br>    encrypted = optional(string)<br>  })</pre> | n/a | yes |
 | <a name="input_gh_client_secret"></a> [gh\_client\_secret](#input\_gh\_client\_secret) | GitHub OAuth client secret | <pre>object({<br>    plain     = optional(string)<br>    encrypted = optional(string)<br>  })</pre> | n/a | yes |
-| <a name="input_name_prefix"></a> [name\_prefix](#input\_name\_prefix) | Prefix to add to the name of the resources | `string` | `"gitgazer-api"` | no |
 
 ## Outputs
 

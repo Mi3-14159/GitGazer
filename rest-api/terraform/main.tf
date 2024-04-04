@@ -9,18 +9,17 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = data.terraform_remote_state.prerequisite.outputs.aws_region
   default_tags {
     tags = {
       env       = terraform.workspace
       terraform = true
-      app       = local.name_prefix
+      app       = data.terraform_remote_state.prerequisite.outputs.name_prefix
     }
   }
 }
 
 locals {
-  name_prefix = "${terraform.workspace}-${var.name_prefix}"
   public_api_routes = [
     "GET /auth/github",
     "GET /auth/github/callback",
