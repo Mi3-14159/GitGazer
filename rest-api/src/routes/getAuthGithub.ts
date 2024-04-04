@@ -13,20 +13,8 @@ export class GetAuthGithub implements Routable {
         return 'GET /auth/github';
     }
 
-    async handleEvent(params: RoutableParameters): Promise<APIGatewayProxyResultV2> {
-        const {
-            event: {
-                requestContext: {
-                    domainName
-                },
-                headers: {
-                    'x-forwarded-proto': protocol
-                }
-            }
-        } = params;
-
-        const redirectUriBasePath = `${protocol}://${domainName}`;
-        const data = await this.githubAuthController.handleLoginPathCreation(redirectUriBasePath);
+    async handleEvent(): Promise<APIGatewayProxyResultV2> {
+        const data = await this.githubAuthController.handleLoginPathCreation();
         const contentType = 'text/html';
         return response(200, data, undefined, contentType);
     }

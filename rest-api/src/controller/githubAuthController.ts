@@ -6,13 +6,13 @@ import { Token, TokenType } from '../models/dynamodb';
 const log = getLogger();
 
 export class GithubAuthController {
-    async handleLoginPathCreation(redirectUriBasePath: string): Promise<string> {
-        log.debug({msg: 'handle login page creation', data: {redirectUriBasePath}});
+    async handleLoginPathCreation(): Promise<string> {
+        log.debug({msg: 'handle login page creation'});
 
         const valueString = await getParameter(process.env.GH_CLIENT_CONFIG_NAME);
         const ghClientConfig = JSON.parse(valueString);
 
-        return `<a href="https://github.com/login/oauth/authorize?client_id=${ghClientConfig.id}&redirect_uri=${redirectUriBasePath}/auth/github/callback">Login with GitHub</a>`;
+        return `<a href="https://github.com/login/oauth/authorize?client_id=${ghClientConfig.id}">Login with GitHub</a>`;
     }
       
     async exchangeCode(code: string): Promise<any> {

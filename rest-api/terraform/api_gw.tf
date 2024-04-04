@@ -89,7 +89,7 @@ resource "aws_apigatewayv2_integration" "jobs_sqs" {
 
 resource "aws_apigatewayv2_route" "import" {
   api_id    = aws_apigatewayv2_api.this.id
-  route_key = "POST /import"
+  route_key = "POST /api/import"
   target    = "integrations/${aws_apigatewayv2_integration.jobs_sqs.id}"
 }
 
