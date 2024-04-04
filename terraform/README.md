@@ -1,3 +1,11 @@
+# Setup
+
+Your token needs the `admin:org_hook` permission, add it to your token. It you are using the gh cli, you can add it by executing this:
+
+```sh
+gh auth refresh -h github.com -s admin:org_hook
+```
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
