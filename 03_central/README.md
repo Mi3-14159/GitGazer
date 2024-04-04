@@ -62,5 +62,7 @@ gh auth refresh -h github.com -s admin:org_hook
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| <a name="output_jobs_sqs_queue_arn"></a> [jobs\_sqs\_queue\_arn](#output\_jobs\_sqs\_queue\_arn) | n/a |
 <!-- END_TF_DOCS -->
