@@ -6,7 +6,7 @@ resource "aws_dynamodb_table" "jobs" {
 
   attribute {
     name = "workflowName"
-    type = "N"
+    type = "S"
   }
 
   attribute {
