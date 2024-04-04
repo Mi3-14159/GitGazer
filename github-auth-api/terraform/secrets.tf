@@ -12,7 +12,7 @@ data "aws_kms_secrets" "this" {
 }
 
 resource "aws_ssm_parameter" "gh_client_config" {
-  name   = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-gh-client-config"
+  name   = "${local.name_prefix}-client-config"
   type   = "SecureString"
   key_id = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
   value = jsonencode({

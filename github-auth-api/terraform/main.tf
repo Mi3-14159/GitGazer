@@ -14,15 +14,12 @@ provider "aws" {
     tags = {
       env       = terraform.workspace
       terraform = true
-      app       = data.terraform_remote_state.prerequisite.outputs.name_prefix
+      app       = local.name_prefix
     }
   }
 }
 
 locals {
-  public_api_routes = [
-    "GET /auth/github",
-    "GET /auth/github/callback",
-  ]
-  artifact = "${path.module}/../tmp/lambda.zip"
+  name_prefix = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-github-auth-api"
+  artifact    = "${path.module}/../tmp/lambda.zip"
 }
