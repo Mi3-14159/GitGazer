@@ -1,0 +1,159 @@
+﻿input CreateJobInput {
+  runId: String!
+  workflowName: String!
+  completedAt: AWSDateTime
+  conclusion: String
+  createdAt: AWSDateTime!
+  htmlUrl: AWSURL!
+  owner: String!
+  repositoryName: String!
+  runAttempt: String!
+  startedAt: String!
+  status: String!
+}
+
+type Job {
+  runId: String!
+  workflowName: String!
+  completedAt: AWSDateTime
+  conclusion: String
+  createdAt: AWSDateTime!
+  htmlUrl: AWSURL!
+  owner: String!
+  repositoryName: String!
+  runAttempt: String!
+  startedAt: String!
+  status: String!
+}
+
+type JobConnection {
+  items: [Job]
+  nextToken: String
+}
+
+input ModelSizeInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+}
+
+input TableBooleanFilterInput {
+  ne: Boolean
+  eq: Boolean
+  attributeExists: Boolean
+}
+
+input TableJobFilterInput {
+  runId: TableStringFilterInput
+  workflowName: TableStringFilterInput
+  completedAt: TableStringFilterInput
+  conclusion: TableStringFilterInput
+  createdAt: TableStringFilterInput
+  htmlUrl: TableStringFilterInput
+  owner: TableStringFilterInput
+  repositoryName: TableStringFilterInput
+  runAttempt: TableStringFilterInput
+  startedAt: TableStringFilterInput
+  status: TableStringFilterInput
+}
+
+input TableFloatFilterInput {
+  ne: Float
+  eq: Float
+  le: Float
+  lt: Float
+  ge: Float
+  gt: Float
+  between: [Float]
+  attributeExists: Boolean
+}
+
+input TableIDFilterInput {
+  ne: ID
+  eq: ID
+  le: ID
+  lt: ID
+  ge: ID
+  gt: ID
+  contains: ID
+  notContains: ID
+  between: [ID]
+  beginsWith: ID
+  attributeExists: Boolean
+  size: ModelSizeInput
+}
+
+input TableIntFilterInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+  attributeExists: Boolean
+}
+
+input TableStringFilterInput {
+  ne: String
+  eq: String
+  le: String
+  lt: String
+  ge: String
+  gt: String
+  contains: String
+  notContains: String
+  between: [String]
+  beginsWith: String
+  attributeExists: Boolean
+  size: ModelSizeInput
+}
+
+input UpdateJobInput {
+  runId: String!
+  workflowName: String!
+  completedAt: AWSDateTime
+  conclusion: String
+  createdAt: AWSDateTime
+  htmlUrl: AWSURL
+  owner: String
+  repositoryName: String
+  runAttempt: String
+  startedAt: String
+  status: String
+}
+
+type Mutation {
+  createJob(input: CreateJobInput!): Job
+  updateJob(input: UpdateJobInput!): Job
+}
+
+type Query {
+  getJob(runId: String!, workflowName: String!): Job
+  listJobs(
+    filter: TableJobFilterInput
+    limit: Int
+    nextToken: String
+  ): JobConnection
+}
+
+type Subscription {
+  onCreateJob(
+    runId: String
+    workflowName: String
+    completedAt: AWSDateTime
+    conclusion: String
+    createdAt: AWSDateTime
+  ): Job @aws_subscribe(mutations: ["createJob"])
+  onUpdateJob(
+    runId: String
+    workflowName: String
+    completedAt: AWSDateTime
+    conclusion: String
+    createdAt: AWSDateTime
+  ): Job @aws_subscribe(mutations: ["updateJob"])
+}

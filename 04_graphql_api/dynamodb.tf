@@ -1,16 +1,15 @@
 resource "aws_dynamodb_table" "jobs" {
   name         = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-jobs"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "workflowName"
-  range_key    = "repository"
-
+  hash_key     = "runId"
+  range_key    = "workflowName"
   attribute {
-    name = "workflowName"
+    name = "runId"
     type = "S"
   }
 
   attribute {
-    name = "repository"
+    name = "workflowName"
     type = "S"
   }
 
