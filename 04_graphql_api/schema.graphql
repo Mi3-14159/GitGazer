@@ -10,6 +10,7 @@
   runAttempt: String!
   startedAt: String
   status: String!
+  expireAt: AWSDateTime!
 }
 
 type Job {
@@ -24,6 +25,7 @@ type Job {
   runAttempt: String!
   startedAt: String!
   status: String!
+  expireAt: AWSDateTime!
 }
 
 type JobConnection {
@@ -59,6 +61,7 @@ input TableJobFilterInput {
   runAttempt: TableStringFilterInput
   startedAt: TableStringFilterInput
   status: TableStringFilterInput
+  expireAt: TableStringFilterInput
 }
 
 input TableFloatFilterInput {
@@ -127,11 +130,6 @@ type Query {
 }
 
 type Subscription {
-  onPutJob(
-    runId: String
-    workflowName: String
-    completedAt: AWSDateTime
-    conclusion: String
-    createdAt: AWSDateTime
-  ): Job @aws_subscribe(mutations: ["putJob"])
+  onPutJob(runId: String, workflowName: String, createdAt: AWSDateTime): Job
+    @aws_subscribe(mutations: ["putJob"])
 }

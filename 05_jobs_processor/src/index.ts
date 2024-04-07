@@ -50,6 +50,7 @@ const putJob = async (job: GithubWebhookEvent) => {
                         ${job.workflow_job.started_at ? "startedAt: \"" + job.workflow_job.started_at + "\"" : ''}
                         status: "${job.workflow_job.status}"
                         ${job.workflow_job.conclusion ? "conclusion: \"" + job.workflow_job.conclusion + "\"" : ''}
+                        expireAt: "${new Date().toISOString()}"
                     }
                 ) {
                     runId
