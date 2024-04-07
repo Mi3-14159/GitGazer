@@ -45,6 +45,7 @@ No modules.
 | Name | Description |
 |------|-------------|
 | <a name="output_aws_appsync_graphql_api_arn"></a> [aws\_appsync\_graphql\_api\_arn](#output\_aws\_appsync\_graphql\_api\_arn) | n/a |
+| <a name="output_aws_appsync_graphql_uris"></a> [aws\_appsync\_graphql\_uris](#output\_aws\_appsync\_graphql\_uris) | n/a |
 | <a name="output_jobs_danymodb_table_arn"></a> [jobs\_danymodb\_table\_arn](#output\_jobs\_danymodb\_table\_arn) | n/a |
 | <a name="output_jobs_danymodb_table_name"></a> [jobs\_danymodb\_table\_name](#output\_jobs\_danymodb\_table\_name) | n/a |
 <!-- END_TF_DOCS -->
