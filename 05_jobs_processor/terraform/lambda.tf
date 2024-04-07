@@ -12,12 +12,18 @@ module "this" {
   publish          = true
   environment = {
     variables = {
-      ENVIRONMENT       = terraform.workspace
-      TOKENS_TABLE_NAME = data.terraform_remote_state.graphql_api.outputs.jobs_danymodb_table_name
+      ENVIRONMENT = terraform.workspace
+      GRAPHQL_URI = data.terraform_remote_state.graphql_api.outputs.aws_appsync_graphql_uris["GRAPHQL"]
     }
   }
   kms_key_arn                       = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
   cloudwatch_logs_retention_in_days = 90
+  event_source_mappings = {
+    jobs_queue = {
+      event_source_arn        = data.terraform_remote_state.central.outputs.jobs_sqs_queue_arn
+      function_response_types = ["ReportBatchItemFailures"]
+    }
+  }
 }
 
 resource "aws_lambda_alias" "live" {
@@ -27,24 +33,24 @@ resource "aws_lambda_alias" "live" {
   function_version = module.this.version
 }
 
-#tfsec:ignore:aws-iam-no-policy-wildcards
 data "aws_iam_policy_document" "this" {
   statement {
     effect = "Allow"
     actions = [
-      "dynamodb:Get*",
-      "dynamodb:List*",
-      "dynamodb:Describe*",
-      "dynamodb:Batch*",
-      "dynamodb:Condition*",
-      "dynamodb:PartiQL*",
-      "dynamodb:Query",
-      "dynamodb:Scan",
-      "dynamodb:DeleteItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:PutItem",
+      "appsync:GraphQL",
     ]
-    resources = [data.terraform_remote_state.graphql_api.outputs.jobs_danymodb_table_arn]
+    resources = [data.terraform_remote_state.graphql_api.outputs.aws_appsync_graphql_api_arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+    ]
+    resources = [
+      data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn,
+    ]
   }
 }
 
