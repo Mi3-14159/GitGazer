@@ -4,7 +4,7 @@ resource "github_organization_webhook" "imports" {
     url          = "https://${aws_cloudfront_distribution.this.domain_name}/api/import"
     content_type = "json"
     insecure_ssl = false
-    secret       = local.gh_webhook_secret
+    secret       = data.aws_kms_secrets.this.plaintext["gh_webhook_secret"]
   }
   events = ["workflow_job"]
 }

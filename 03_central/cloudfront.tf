@@ -10,12 +10,19 @@ data "aws_cloudfront_origin_request_policy" "managed_all_viewer_except_host_head
   name = "Managed-AllViewerExceptHostHeader"
 }
 
+resource "aws_cloudfront_origin_access_control" "ui_bucket" {
+  name                              = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-ui-bucket"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 resource "aws_cloudfront_distribution" "this" {
   comment             = "CDN for ${data.terraform_remote_state.prerequisite.outputs.name_prefix}"
   enabled             = true
   is_ipv6_enabled     = true
   price_class         = "PriceClass_100"
-  default_root_object = "/"
+  default_root_object = "/index.html"
 
   restrictions {
     geo_restriction {
@@ -38,22 +45,19 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  origin {
+    domain_name              = module.ui_bucket.s3_bucket_bucket_regional_domain_name
+    origin_id                = module.ui_bucket.s3_bucket_id
+    origin_access_control_id = aws_cloudfront_origin_access_control.ui_bucket.id
+  }
+
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id       = aws_apigatewayv2_api.this.id
+    target_origin_id       = module.ui_bucket.s3_bucket_id
     viewer_protocol_policy = "https-only"
     cache_policy_id        = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
-  }
-
-  ordered_cache_behavior {
-    path_pattern             = "/auth/*"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods           = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id         = aws_apigatewayv2_api.this.id
-    viewer_protocol_policy   = "https-only"
-    cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+    compress               = true
   }
 
   ordered_cache_behavior {

@@ -5,7 +5,7 @@ resource "aws_cloudwatch_log_group" "gw_access_logs" {
 
 resource "aws_apigatewayv2_api" "this" {
   name          = data.terraform_remote_state.prerequisite.outputs.name_prefix
-  description   = "GitGazer ${terraform.workspace} api"
+  description   = "GitGazer(${terraform.workspace}) api"
   protocol_type = "HTTP"
   cors_configuration {
     allow_credentials = true
@@ -56,31 +56,6 @@ resource "aws_apigatewayv2_stage" "default" {
   lifecycle {
     ignore_changes = [deployment_id]
   }
-}
-
-resource "aws_apigatewayv2_integration" "api_lambda_integration" {
-  api_id           = aws_apigatewayv2_api.this.id
-  integration_type = "AWS_PROXY"
-
-  # Connecting to Lambda function
-  integration_uri        = data.terraform_remote_state.github-auth-api.outputs.lambda_invoke_arn
-  payload_format_version = "2.0"
-}
-
-resource "aws_apigatewayv2_route" "public_api_routes" {
-  for_each  = toset(local.public_api_routes)
-  api_id    = aws_apigatewayv2_api.this.id
-  route_key = each.value
-  target    = "integrations/${aws_apigatewayv2_integration.api_lambda_integration.id}"
-}
-
-resource "aws_lambda_permission" "authorizer_lambda_live_permission" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = data.terraform_remote_state.github-auth-api.outputs.lambda_name
-  qualifier     = data.terraform_remote_state.github-auth-api.outputs.lambda_invoke_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*"
 }
 
 resource "aws_apigatewayv2_integration" "jobs_sqs" {
