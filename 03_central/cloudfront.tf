@@ -22,7 +22,7 @@ resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true
   price_class         = "PriceClass_100"
-  default_root_object = "/index.html"
+  default_root_object = "index.html"
 
   restrictions {
     geo_restriction {
