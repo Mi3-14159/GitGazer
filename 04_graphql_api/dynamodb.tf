@@ -21,4 +21,9 @@ resource "aws_dynamodb_table" "jobs" {
   point_in_time_recovery {
     enabled = var.enabled_pitr
   }
+
+  ttl {
+    attribute_name = "expireAt"
+    enabled        = true
+  }
 }
