@@ -38,8 +38,8 @@ resource "aws_cognito_user_pool_domain" "this" {
 resource "aws_cognito_user_pool_client" "this" {
   name                                 = "client"
   user_pool_id                         = aws_cognito_user_pool.this.id
-  callback_urls                        = ["http://localhost:5173", "https://d3gb42ukfowr07.cloudfront.net"] # TODO: this is just for now to test
-  logout_urls                          = ["http://localhost:5173", "https://d3gb42ukfowr07.cloudfront.net"]
+  callback_urls                        = ["http://localhost:5173", "https://${data.terraform_remote_state.central.outputs.cdn_domain_name}"]
+  logout_urls                          = ["http://localhost:5173", "https://${data.terraform_remote_state.central.outputs.cdn_domain_name}"]
   supported_identity_providers         = ["Github"]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]

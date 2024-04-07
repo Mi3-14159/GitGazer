@@ -65,5 +65,6 @@ gh auth refresh -h github.com -s admin:org_hook
 
 | Name | Description |
 |------|-------------|
+| <a name="output_cdn_domain_name"></a> [cdn\_domain\_name](#output\_cdn\_domain\_name) | n/a |
 | <a name="output_jobs_sqs_queue_arn"></a> [jobs\_sqs\_queue\_arn](#output\_jobs\_sqs\_queue\_arn) | n/a |
 <!-- END_TF_DOCS -->
