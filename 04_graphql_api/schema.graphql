@@ -1,4 +1,4 @@
-﻿input CreateJobInput {
+﻿input PutJobInput {
   runId: String!
   workflowName: String!
   completedAt: AWSDateTime
@@ -128,7 +128,7 @@ input UpdateJobInput {
 }
 
 type Mutation {
-  createJob(input: CreateJobInput!): Job
+  putJob(input: PutJobInput!): Job
   updateJob(input: UpdateJobInput!): Job
 }
 
@@ -142,13 +142,13 @@ type Query {
 }
 
 type Subscription {
-  onCreateJob(
+  onPutJob(
     runId: String
     workflowName: String
     completedAt: AWSDateTime
     conclusion: String
     createdAt: AWSDateTime
-  ): Job @aws_subscribe(mutations: ["createJob"])
+  ): Job @aws_subscribe(mutations: ["putJob"])
   onUpdateJob(
     runId: String
     workflowName: String

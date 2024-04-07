@@ -34,8 +34,8 @@ locals {
     },
     {
       type : "Mutation",
-      field : "createJob",
-      code_file_path : "${path.module}/resolvers/createJob.js",
+      field : "putJob",
+      code_file_path : "${path.module}/resolvers/putJob.js",
     },
     {
       type : "Mutation",
