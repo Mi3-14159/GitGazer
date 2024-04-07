@@ -1,4 +1,4 @@
-import { SQSHandler, SQSEvent, SQSRecord } from "aws-lambda";
+import { SQSHandler, SQSEvent, SQSRecord, SQSBatchResponse, SQSBatchItemFailure } from "aws-lambda";
 import {getLogger} from './logger';
 import { GithubWebhookEvent } from "./types";
 
@@ -6,9 +6,23 @@ const log = getLogger();
 
 export const handler: SQSHandler = async (event: SQSEvent) => {
     log.info({msg: 'handle event', data: event});
+    const batchItemFailures: SQSBatchItemFailure[] = [];
+
     for (const record of event.Records) {
-        await processRecord(record);
+        try {
+            await processRecord(record);
+        } catch (error) {
+            log.error({msg: `error processing record: ${record.messageId}`, err: error, record});
+            batchItemFailures.push({ itemIdentifier: record.messageId });
+        }
     }
+
+    const response: SQSBatchResponse = {
+        batchItemFailures
+    };
+
+    log.info({msg: 'report batch item failures', data: response});
+    return response;
 }
 
 const processRecord = async (record: SQSRecord) => {
