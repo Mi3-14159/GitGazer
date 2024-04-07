@@ -37,10 +37,5 @@ locals {
       field : "putJob",
       code_file_path : "${path.module}/resolvers/putJob.js",
     },
-    {
-      type : "Mutation",
-      field : "updateJob",
-      code_file_path : "${path.module}/resolvers/updateJob.js",
-    },
   ]
 }
