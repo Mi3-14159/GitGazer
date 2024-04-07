@@ -1,9 +1,9 @@
 resource "aws_appsync_graphql_api" "this" {
   name                = data.terraform_remote_state.prerequisite.outputs.name_prefix
-  authentication_type = "API_KEY"
+  authentication_type = "AWS_IAM"
 
   additional_authentication_provider {
-    authentication_type = "AWS_IAM"
+    authentication_type = "API_KEY"
   }
 
   schema = file("${path.module}/schema.graphql")

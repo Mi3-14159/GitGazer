@@ -39,7 +39,7 @@ data "aws_iam_policy_document" "this" {
     actions = [
       "appsync:GraphQL",
     ]
-    resources = [data.terraform_remote_state.graphql_api.outputs.aws_appsync_graphql_api_arn]
+    resources = ["${data.terraform_remote_state.graphql_api.outputs.aws_appsync_graphql_api_arn}/types/Mutation/fields/putJob"]
   }
 
   statement {

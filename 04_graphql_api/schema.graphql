@@ -8,7 +8,7 @@
   owner: String!
   repositoryName: String!
   runAttempt: String!
-  startedAt: String!
+  startedAt: String
   status: String!
 }
 
@@ -113,23 +113,8 @@ input TableStringFilterInput {
   size: ModelSizeInput
 }
 
-input UpdateJobInput {
-  runId: String!
-  workflowName: String!
-  completedAt: AWSDateTime
-  conclusion: String
-  createdAt: AWSDateTime
-  htmlUrl: AWSURL
-  owner: String
-  repositoryName: String
-  runAttempt: String
-  startedAt: String
-  status: String
-}
-
 type Mutation {
   putJob(input: PutJobInput!): Job
-  updateJob(input: UpdateJobInput!): Job
 }
 
 type Query {
@@ -149,11 +134,4 @@ type Subscription {
     conclusion: String
     createdAt: AWSDateTime
   ): Job @aws_subscribe(mutations: ["putJob"])
-  onUpdateJob(
-    runId: String
-    workflowName: String
-    completedAt: AWSDateTime
-    conclusion: String
-    createdAt: AWSDateTime
-  ): Job @aws_subscribe(mutations: ["updateJob"])
 }
