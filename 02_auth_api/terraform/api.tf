@@ -1,5 +1,5 @@
 resource "aws_api_gateway_rest_api" "this" {
-  name = data.terraform_remote_state.prerequisite.outputs.name_prefix
+  name = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-github-auth-proxy"
   endpoint_configuration {
     types = ["REGIONAL"]
   }
@@ -21,7 +21,7 @@ locals {
       path_part     = "token"
       method        = "POST"
       authorization = "NONE"
-      #authorization = "COGNITO_USER_POOLS"
+      #authorization = "COGNITO_USER_POOLS" # TODO: enabled this after testing
       #authorizer_id = aws_api_gateway_authorizer.user_pool.id
     },
     {
