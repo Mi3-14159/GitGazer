@@ -22,8 +22,9 @@ locals {
       path_part     = "token"
       method        = "POST"
       authorization = "NONE"
-      #authorization = "COGNITO_USER_POOLS" # TODO: enabled this after testing
-      #authorizer_id = aws_api_gateway_authorizer.user_pool.id
+      # TODO: enabled this after testing
+      # authorization = "COGNITO_USER_POOLS"
+      # authorizer_id = aws_api_gateway_authorizer.user_pool.id
     },
     {
       path_part     = "private"
