@@ -1,5 +1,3 @@
-import parser from "lambda-multipart-parser";
-
 import {APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult} from "aws-lambda";
 
 export const handler: APIGatewayProxyHandler = async (event) => {
@@ -28,7 +26,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 };
 
 const handleTokenRoute = async (event: APIGatewayProxyEvent) => {
-    const result = await parser.parse(event);
+    const {body} = event;
+    const result = parseBody(body);
     const token = await (
         await fetch(
             `https://github.com/login/oauth/access_token?client_id=${result.client_id}&client_secret=${result.client_secret}&code=${result.code}`,
@@ -77,4 +76,29 @@ const handleUserRoute = async (event: APIGatewayProxyEvent) => {
         }),
     };
     return response;
+};
+
+interface Body {
+    client_id: string;
+    client_secret: string;
+    code: string;
+    grant_type: string;
+    redirect_uri: string;
+}
+
+const parseBody = (body: string): Body => {
+    const result: Body = {
+        client_id: "",
+        client_secret: "",
+        code: "",
+        grant_type: "",
+        redirect_uri: "",
+    };
+
+    body.split("&").forEach((param) => {
+        const [key, value] = param.split("=");
+        result[key] = decodeURIComponent(value);
+    });
+
+    return result;
 };

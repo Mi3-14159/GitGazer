@@ -3,9 +3,6 @@
   "bugs": {
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
-  "dependencies": {
-    "lambda-multipart-parser": "^1.0.1"
-  },
   "description": "will handle the auth flow",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
