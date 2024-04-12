@@ -14,7 +14,7 @@ module "this" {
     variables = {
       ENVIRONMENT   = terraform.workspace
       GRAPHQL_URI   = data.terraform_remote_state.central.outputs.aws_appsync_graphql_uris["GRAPHQL"]
-      EXPIRE_IN_SEC = 60 * 60 * 24 * 7 # 7 days
+      EXPIRE_IN_SEC = var.expire_in_sec
     }
   }
   kms_key_arn                       = data.aws_kms_key.this.arn
