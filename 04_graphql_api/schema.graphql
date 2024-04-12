@@ -13,7 +13,7 @@
   expireAt: AWSDateTime!
 }
 
-type Job {
+type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
   runId: String!
   workflowName: String!
   completedAt: AWSDateTime
@@ -28,7 +28,7 @@ type Job {
   expireAt: AWSDateTime!
 }
 
-type JobConnection {
+type JobConnection @aws_api_key @aws_iam @aws_cognito_user_pools {
   items: [Job]
   nextToken: String
 }
@@ -116,11 +116,11 @@ input TableStringFilterInput {
   size: ModelSizeInput
 }
 
-type Mutation {
+type Mutation @aws_api_key @aws_iam @aws_cognito_user_pools {
   putJob(input: PutJobInput!): Job
 }
 
-type Query {
+type Query @aws_api_key @aws_iam @aws_cognito_user_pools {
   getJob(runId: String!, workflowName: String!): Job
   listJobs(
     filter: TableJobFilterInput
@@ -129,7 +129,7 @@ type Query {
   ): JobConnection
 }
 
-type Subscription {
+type Subscription @aws_api_key @aws_iam @aws_cognito_user_pools {
   onPutJob(runId: String, workflowName: String, createdAt: AWSDateTime): Job
     @aws_subscribe(mutations: ["putJob"])
 }
