@@ -13,10 +13,10 @@ module "this" {
   environment = {
     variables = {
       ENVIRONMENT = terraform.workspace
-      GRAPHQL_URI = data.terraform_remote_state.graphql_api.outputs.aws_appsync_graphql_uris["GRAPHQL"]
+      GRAPHQL_URI = data.terraform_remote_state.central.outputs.aws_appsync_graphql_uris["GRAPHQL"]
     }
   }
-  kms_key_arn                       = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
+  kms_key_arn                       = data.aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 90
   event_source_mappings = {
     jobs_queue = {
@@ -39,7 +39,7 @@ data "aws_iam_policy_document" "this" {
     actions = [
       "appsync:GraphQL",
     ]
-    resources = ["${data.terraform_remote_state.graphql_api.outputs.aws_appsync_graphql_api_arn}/types/Mutation/fields/putJob"]
+    resources = ["${data.terraform_remote_state.central.outputs.aws_appsync_graphql_api_arn}/types/Mutation/fields/putJob"]
   }
 
   statement {
@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "this" {
       "kms:GenerateDataKey",
     ]
     resources = [
-      data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn,
+      data.aws_kms_key.this.arn,
     ]
   }
 }

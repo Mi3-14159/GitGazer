@@ -6,8 +6,8 @@ data "aws_kms_secrets" "this" {
 }
 
 resource "aws_ssm_parameter" "gh_webhook_secret" {
-  name   = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-gh-webhook-secret"
+  name   = "${var.name_prefix}-gh-webhook-secret-${terraform.workspace}"
   type   = "SecureString"
-  key_id = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
+  key_id = aws_kms_key.this.arn
   value  = data.aws_kms_secrets.this.plaintext["gh_webhook_secret"]
 }

@@ -16,7 +16,7 @@ module "this" {
       ROUTE_PREFIX = local.api_gateway_stage_name
     }
   }
-  kms_key_arn                       = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
+  kms_key_arn                       = data.aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 90
 }
 

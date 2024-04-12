@@ -1,11 +1,11 @@
 resource "aws_cloudwatch_log_group" "gw_access_logs" {
-  name              = "/aws/apigateway/${data.terraform_remote_state.prerequisite.outputs.name_prefix}"
+  name              = "/aws/apigateway/${var.name_prefix}-rest-api-${terraform.workspace}"
   retention_in_days = 30
 }
 
 resource "aws_apigatewayv2_api" "this" {
-  name          = data.terraform_remote_state.prerequisite.outputs.name_prefix
-  description   = "GitGazer(${terraform.workspace}) api"
+  name          = "${var.name_prefix}-rest-api-${terraform.workspace}"
+  description   = "GitGazer rest api"
   protocol_type = "HTTP"
   cors_configuration {
     allow_credentials = true
@@ -78,7 +78,7 @@ resource "aws_apigatewayv2_route" "import" {
 }
 
 resource "aws_iam_role" "api_gw_sqs_integration" {
-  name               = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-api-gw-sqs-integration"
+  name               = "${var.name_prefix}-api-gw-sqs-integration-${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.api_gw_sqs_integration_assume_role_policy.json
   inline_policy {
     name   = "api-gw-sqs-integration-role-policy"
@@ -109,7 +109,7 @@ data "aws_iam_policy_document" "api_gw_sqs_integration_role_policy" {
       "kms:GenerateDataKey",
     ]
     resources = [
-      data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn,
+      aws_kms_key.this.arn,
     ]
   }
 }

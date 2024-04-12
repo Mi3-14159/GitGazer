@@ -1,7 +1,19 @@
 output "jobs_sqs_queue_arn" {
-  value = module.jobs.queue_arn
+  description = "The ARN of the SQS queue that jobs are sent to."
+  value       = module.jobs.queue_arn
 }
 
 output "cdn_domain_name" {
-  value = aws_cloudfront_distribution.this.domain_name
+  description = "The domain name of the CloudFront distribution."
+  value       = aws_cloudfront_distribution.this.domain_name
+}
+
+output "aws_appsync_graphql_uris" {
+  description = "The URIs of the AppSync GraphQL API."
+  value       = aws_appsync_graphql_api.this.uris
+}
+
+output "aws_appsync_graphql_api_arn" {
+  description = "The ARN of the AppSync GraphQL API."
+  value       = aws_appsync_graphql_api.this.arn
 }

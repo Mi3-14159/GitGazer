@@ -1,5 +1,6 @@
 resource "aws_api_gateway_rest_api" "this" {
-  name = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-github-auth-proxy"
+  name        = "${var.name_prefix}-github-auth-proxy-${terraform.workspace}"
+  description = "GitGazer GitHub Auth Proxy API"
   endpoint_configuration {
     types = ["REGIONAL"]
   }
@@ -81,7 +82,7 @@ resource "aws_api_gateway_stage" "v1" {
 }
 
 resource "aws_api_gateway_authorizer" "user_pool" {
-  name          = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-authorizer"
+  name          = "${var.name_prefix}-authorizer-${terraform.workspace}"
   type          = "COGNITO_USER_POOLS"
   rest_api_id   = aws_api_gateway_rest_api.this.id
   provider_arns = [aws_cognito_user_pool.this.arn]

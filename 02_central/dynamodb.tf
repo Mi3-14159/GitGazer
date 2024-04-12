@@ -1,5 +1,5 @@
 resource "aws_dynamodb_table" "jobs" {
-  name         = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-jobs"
+  name         = "${var.name_prefix}-jobs-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "runId"
   range_key    = "workflowName"
@@ -15,7 +15,7 @@ resource "aws_dynamodb_table" "jobs" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn
+    kms_key_arn = aws_kms_key.this.arn
   }
 
   point_in_time_recovery {

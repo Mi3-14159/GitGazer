@@ -11,14 +11,14 @@ data "aws_cloudfront_origin_request_policy" "managed_all_viewer_except_host_head
 }
 
 resource "aws_cloudfront_origin_access_control" "ui_bucket" {
-  name                              = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-ui-bucket"
+  name                              = "${var.name_prefix}-ui-bucket-${terraform.workspace}"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
 
 resource "aws_cloudfront_distribution" "this" {
-  comment             = "CDN for ${data.terraform_remote_state.prerequisite.outputs.name_prefix}"
+  comment             = "CDN for ${var.name_prefix}-${terraform.workspace}"
   enabled             = true
   is_ipv6_enabled     = true
   price_class         = "PriceClass_100"

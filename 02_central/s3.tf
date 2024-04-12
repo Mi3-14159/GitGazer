@@ -2,7 +2,7 @@ module "ui_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "~> 4.1"
 
-  bucket        = "${data.aws_caller_identity.current.account_id}-${data.terraform_remote_state.prerequisite.outputs.name_prefix}-ui"
+  bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-ui-${terraform.workspace}"
   acl           = "private"
   attach_policy = false
 

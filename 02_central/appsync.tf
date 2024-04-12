@@ -1,5 +1,5 @@
 resource "aws_appsync_graphql_api" "this" {
-  name                = data.terraform_remote_state.prerequisite.outputs.name_prefix
+  name                = "${var.name_prefix}-${terraform.workspace}"
   authentication_type = "AWS_IAM"
 
   additional_authentication_provider {
@@ -28,7 +28,7 @@ data "aws_iam_policy_document" "logging_assume_role" {
 }
 
 resource "aws_iam_role" "logging" {
-  name               = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-appsync-logs"
+  name               = "${var.name_prefix}-appsync-logs-${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.logging_assume_role.json
 }
 
@@ -50,7 +50,7 @@ data "aws_iam_policy_document" "service_assume_role" {
   }
 }
 resource "aws_iam_role" "service" {
-  name               = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-appsync-service"
+  name               = "${var.name_prefix}-appsync-service-${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.service_assume_role.json
 }
 
@@ -76,13 +76,13 @@ data "aws_iam_policy_document" "service" {
       "kms:Decrypt",
       "kms:Encrypt",
     ]
-    resources = [data.terraform_remote_state.prerequisite.outputs.aws_kms_key.arn]
+    resources = [aws_kms_key.this.arn]
 
   }
 }
 
 resource "aws_iam_role_policy" "service" {
-  name   = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-appsync-service-policy"
+  name   = "${var.name_prefix}-appsync-service-policy-${terraform.workspace}"
   role   = aws_iam_role.service.id
   policy = data.aws_iam_policy_document.service.json
 }

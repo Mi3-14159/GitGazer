@@ -1,9 +1,5 @@
 terraform {
   required_providers {
-    github = {
-      source  = "integrations/github"
-      version = "~> 6.0"
-    }
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
@@ -13,9 +9,10 @@ terraform {
 }
 
 provider "aws" {
-  region = data.terraform_remote_state.prerequisite.outputs.aws_region
+  region = var.aws_region
   default_tags {
     tags = {
+      gitgazer  = true
       env       = terraform.workspace
       terraform = true
     }
@@ -23,7 +20,11 @@ provider "aws" {
 }
 
 locals {
-  name_prefix            = "${data.terraform_remote_state.prerequisite.outputs.name_prefix}-auth-proxy"
+  name_prefix            = "${var.name_prefix}-auth-proxy-${terraform.workspace}"
   artifact               = "${path.module}/../tmp/lambda.zip"
   api_gateway_stage_name = "v1"
+}
+
+data "aws_kms_key" "this" {
+  key_id = "alias/${var.name_prefix}-${terraform.workspace}"
 }

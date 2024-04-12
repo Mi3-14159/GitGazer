@@ -1,5 +1,5 @@
 resource "aws_cognito_user_pool" "this" {
-  name = data.terraform_remote_state.prerequisite.outputs.name_prefix
+  name = "${var.name_prefix}-${terraform.workspace}"
 }
 
 resource "aws_cognito_identity_provider" "github" {
@@ -26,21 +26,19 @@ resource "aws_cognito_identity_provider" "github" {
     username = "sub"
     picture  = "avatar_url"
   }
-
-  # idp_identifiers = ["Mi3s-orga"]
 }
 
 resource "aws_cognito_user_pool_domain" "this" {
-  domain       = data.terraform_remote_state.prerequisite.outputs.name_prefix
+  domain       = "${var.name_prefix}-${terraform.workspace}"
   user_pool_id = aws_cognito_user_pool.this.id
 }
 
 resource "aws_cognito_user_pool_client" "this" {
   name                                 = "client"
   user_pool_id                         = aws_cognito_user_pool.this.id
-  callback_urls                        = ["http://localhost:5173", "https://${data.terraform_remote_state.central.outputs.cdn_domain_name}"]
-  logout_urls                          = ["http://localhost:5173", "https://${data.terraform_remote_state.central.outputs.cdn_domain_name}"]
-  supported_identity_providers         = ["Github"]
+  callback_urls                        = concat(["http://localhost:5173"], var.callback_uls)
+  logout_urls                          = concat(["http://localhost:5173"], var.callback_uls)
+  supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
