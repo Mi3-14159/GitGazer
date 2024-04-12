@@ -7,8 +7,8 @@ import { put } from '@aws-appsync/utils/dynamodb';
  * @returns {import('@aws-appsync/utils').DynamoDBPutItemRequest} the request
  */
 export function request(ctx) {
-    const { runId, workflowName } = ctx.args.input;
-    const key = { runId, workflowName };
+    const { run_id, workflow_name } = ctx.args.input;
+    const key = { run_id, workflow_name };
     const condition = { and: [] };
     for (const k in key) {
         condition.and.push({ [k]: { attributeExists: false } });

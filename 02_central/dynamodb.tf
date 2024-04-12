@@ -1,15 +1,15 @@
 resource "aws_dynamodb_table" "jobs" {
   name         = "${var.name_prefix}-jobs-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "runId"
-  range_key    = "workflowName"
+  hash_key     = "run_id"
+  range_key    = "workflow_name"
   attribute {
-    name = "runId"
-    type = "S"
+    name = "run_id"
+    type = "N"
   }
 
   attribute {
-    name = "workflowName"
+    name = "workflow_name"
     type = "S"
   }
 
@@ -23,7 +23,7 @@ resource "aws_dynamodb_table" "jobs" {
   }
 
   ttl {
-    attribute_name = "expireAt"
+    attribute_name = "expire_at"
     enabled        = true
   }
 }
