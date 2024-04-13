@@ -7,16 +7,6 @@ resource "aws_apigatewayv2_api" "this" {
   name          = "${var.name_prefix}-rest-api-${terraform.workspace}"
   description   = "GitGazer rest api"
   protocol_type = "HTTP"
-  cors_configuration {
-    allow_credentials = true
-    allow_headers     = ["Content-Type"]
-    allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "OPTIONS"]
-    allow_origins = [
-      "http://localhost:3000",
-    ]
-    expose_headers = []
-    max_age        = 604800 # 7 days
-  }
 }
 
 resource "aws_apigatewayv2_stage" "default" {
