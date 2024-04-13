@@ -21,8 +21,8 @@ Amplify.configure({
             ],
             /*redirectSignIn: 'http://localhost:5173',
             redirectSignOut: 'http://localhost:5173',*/
-            redirectSignIn: 'https://d3gb42ukfowr07.cloudfront.net',
-            redirectSignOut: 'https://d3gb42ukfowr07.cloudfront.net',
+            redirectSignIn: 'https://gitgazer.mmunsch.services',
+            redirectSignOut: 'https://gitgazer.mmunsch.services',
             responseType: 'code',
         },
     },
