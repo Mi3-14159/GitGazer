@@ -9,7 +9,7 @@
   },
   "description": "handles sqs events and sends them to graphql api",
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.549.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.554.0",
     "@aws-sdk/credential-provider-node": "^3.549.0",
     "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.374.0",
