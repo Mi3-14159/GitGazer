@@ -4,7 +4,7 @@ module "this" {
 
   description      = "GitGazers jobs processor"
   filename         = local.artifact
-  function_name    = local.name_prefix
+  function_name    = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
   handler          = "index.handler"
   runtime          = "nodejs20.x"
   source_code_hash = filebase64sha256(local.artifact)
@@ -13,15 +13,15 @@ module "this" {
   environment = {
     variables = {
       ENVIRONMENT   = terraform.workspace
-      GRAPHQL_URI   = data.terraform_remote_state.central.outputs.aws_appsync_graphql_uris["GRAPHQL"]
+      GRAPHQL_URI   = aws_appsync_graphql_api.this.uris["GRAPHQL"]
       EXPIRE_IN_SEC = var.expire_in_sec
     }
   }
-  kms_key_arn                       = data.aws_kms_key.this.arn
+  kms_key_arn                       = aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 90
   event_source_mappings = {
     jobs_queue = {
-      event_source_arn        = data.terraform_remote_state.central.outputs.jobs_sqs_queue_arn
+      event_source_arn        = module.jobs.queue_arn
       function_response_types = ["ReportBatchItemFailures"]
     }
   }
@@ -40,7 +40,7 @@ data "aws_iam_policy_document" "this" {
     actions = [
       "appsync:GraphQL",
     ]
-    resources = ["${data.terraform_remote_state.central.outputs.aws_appsync_graphql_api_arn}/types/Mutation/fields/putJob"]
+    resources = ["${aws_appsync_graphql_api.this.arn}/types/Mutation/fields/putJob"]
   }
 
   statement {
@@ -50,13 +50,13 @@ data "aws_iam_policy_document" "this" {
       "kms:GenerateDataKey",
     ]
     resources = [
-      data.aws_kms_key.this.arn,
+      aws_kms_key.this.arn,
     ]
   }
 }
 
 resource "aws_iam_policy" "this" {
-  name   = "${local.name_prefix}-additional-policy"
+  name   = "${var.name_prefix}-jobs-processor-additional-policy${terraform.workspace}"
   policy = data.aws_iam_policy_document.this.json
 }
 

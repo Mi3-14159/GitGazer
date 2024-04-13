@@ -3,16 +3,23 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "10:00"
+      interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
 
   - package-ecosystem: "terraform"
+    directory: "/02_central/terraform"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "npm"
     directory: "/02_central"
     schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "10:00"
+      interval: "daily"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -20,9 +27,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/03_auth_api"
     schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "10:00"
+      interval: "daily"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -30,9 +35,7 @@ updates:
   - package-ecosystem: "terraform"
     directory: "/03_auth_api/terraform"
     schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "10:00"
+      interval: "daily"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -40,19 +43,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/04_frontend"
     schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "10:00"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-
-  - package-ecosystem: "terraform"
-    directory: "/05_jobs_processor/terraform"
-    schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "10:00"
+      interval: "daily"
     commit-message:
       prefix: "chore"
       include: "scope"

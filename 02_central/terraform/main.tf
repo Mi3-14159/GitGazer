@@ -23,6 +23,7 @@ provider "aws" {
       gitgazer  = true
       env       = terraform.workspace
       terraform = true
+      app       = var.name_prefix
     }
   }
 }
@@ -47,4 +48,5 @@ locals {
       code_file_path : "${path.module}/resolvers/putJob.js",
     },
   ]
+  artifact = "${path.module}/../tmp/lambda.zip"
 }

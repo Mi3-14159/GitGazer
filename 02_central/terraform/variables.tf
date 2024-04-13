@@ -25,3 +25,9 @@ variable "enabled_pitr" {
   description = "Enable point in time recovery for the DynamoDB table"
   default     = false
 }
+
+variable "expire_in_sec" {
+  type        = number
+  description = "Time in seconds for the jobs to expire"
+  default     = 60 * 60 * 24 * 7 # 7 days
+}
