@@ -37,3 +37,9 @@ variable "with_frontend_stack" {
   description = "Deploy the frontend stack"
   default     = true
 }
+
+variable "api_aws_apigatewayv2_api_logging_enabled" {
+  type        = bool
+  description = "Enable logging of the HTTP API Gateway"
+  default     = true
+}

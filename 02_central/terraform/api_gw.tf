@@ -1,4 +1,5 @@
 resource "aws_cloudwatch_log_group" "gw_access_logs" {
+  count             = var.api_aws_apigatewayv2_api_logging_enabled ? 1 : 0
   name              = "/aws/apigateway/${var.name_prefix}-rest-api-${terraform.workspace}"
   retention_in_days = 30
 }
@@ -14,25 +15,28 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
-  access_log_settings {
-    destination_arn = aws_cloudwatch_log_group.gw_access_logs.arn
-    format = jsonencode(
-      {
-        requestId : "$context.requestId",
-        ip : "$context.identity.sourceIp",
-        requestTime : "$context.requestTime",
-        httpMethod : "$context.httpMethod",
-        routeKey : "$context.routeKey",
-        status : "$context.status",
-        protocol : "$context.protocol",
-        path : "$context.path",
-        responseLength : "$context.responseLength"
-        authError : "$context.authorizer.error",
-        errorMessage : "$context.error.message",
-        integrationErrorMessage : "$context.integrationErrorMessage",
-        responseLatency : "$context.responseLatency",
-      }
-    )
+  dynamic "access_log_settings" {
+    for_each = var.api_aws_apigatewayv2_api_logging_enabled ? [1] : []
+    content {
+      destination_arn = aws_cloudwatch_log_group.gw_access_logs[0].arn
+      format = jsonencode(
+        {
+          requestId : "$context.requestId",
+          ip : "$context.identity.sourceIp",
+          requestTime : "$context.requestTime",
+          httpMethod : "$context.httpMethod",
+          routeKey : "$context.routeKey",
+          status : "$context.status",
+          protocol : "$context.protocol",
+          path : "$context.path",
+          responseLength : "$context.responseLength"
+          authError : "$context.authorizer.error",
+          errorMessage : "$context.error.message",
+          integrationErrorMessage : "$context.integrationErrorMessage",
+          responseLatency : "$context.responseLatency",
+        }
+      )
+    }
   }
 
   default_route_settings {
