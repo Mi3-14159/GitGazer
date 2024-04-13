@@ -31,3 +31,9 @@ variable "expire_in_sec" {
   description = "Time in seconds for the jobs to expire"
   default     = 60 * 60 * 24 * 7 # 7 days
 }
+
+variable "with_frontend_stack" {
+  type        = bool
+  description = "Deploy the frontend stack"
+  default     = true
+}

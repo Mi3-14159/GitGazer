@@ -11,6 +11,7 @@ data "aws_cloudfront_origin_request_policy" "managed_all_viewer_except_host_head
 }
 
 resource "aws_cloudfront_origin_access_control" "ui_bucket" {
+  count                             = var.with_frontend_stack ? 1 : 0
   name                              = "${var.name_prefix}-ui-bucket-${terraform.workspace}"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -45,28 +46,49 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  origin {
-    domain_name              = module.ui_bucket.s3_bucket_bucket_regional_domain_name
-    origin_id                = module.ui_bucket.s3_bucket_id
-    origin_access_control_id = aws_cloudfront_origin_access_control.ui_bucket.id
+  dynamic "origin" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
+      domain_name              = module.ui_bucket.s3_bucket_bucket_regional_domain_name
+      origin_id                = module.ui_bucket.s3_bucket_id
+      origin_access_control_id = aws_cloudfront_origin_access_control.ui_bucket[0].id
+    }
   }
 
-  default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id       = module.ui_bucket.s3_bucket_id
-    viewer_protocol_policy = "https-only"
-    cache_policy_id        = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
-    compress               = true
+  dynamic "default_cache_behavior" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id       = module.ui_bucket.s3_bucket_id
+      viewer_protocol_policy = "https-only"
+      cache_policy_id        = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
+      compress               = true
+    }
   }
 
-  ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods           = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id         = aws_apigatewayv2_api.this.id
-    viewer_protocol_policy   = "https-only"
-    cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+  dynamic "default_cache_behavior" {
+    for_each = var.with_frontend_stack ? [] : [1]
+    content {
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id         = aws_apigatewayv2_api.this.id
+      viewer_protocol_policy   = "https-only"
+      cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+    }
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
+      path_pattern             = "/api/*"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id         = aws_apigatewayv2_api.this.id
+      viewer_protocol_policy   = "https-only"
+      cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+    }
   }
 }
