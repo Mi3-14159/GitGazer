@@ -76,6 +76,7 @@ gh auth refresh -h github.com -s admin:org_hook
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_api_aws_apigatewayv2_api_logging_enabled"></a> [api\_aws\_apigatewayv2\_api\_logging\_enabled](#input\_api\_aws\_apigatewayv2\_api\_logging\_enabled) | Enable logging of the HTTP API Gateway | `bool` | `true` | no |
+| <a name="input_aws_appsync_graphql_api_additional_authentication_providers"></a> [aws\_appsync\_graphql\_api\_additional\_authentication\_providers](#input\_aws\_appsync\_graphql\_api\_additional\_authentication\_providers) | Additional authentication providers for the AppSync GraphQL API | <pre>list(object({<br>    authentication_type = string<br>    user_pool_config = optional(object({<br>      user_pool_id        = string<br>      app_id_client_regex = optional(string)<br>      aws_region          = optional(string)<br>    }))<br>  }))</pre> | `[]` | no |
 | <a name="input_aws_appsync_graphql_api_logging_enabled"></a> [aws\_appsync\_graphql\_api\_logging\_enabled](#input\_aws\_appsync\_graphql\_api\_logging\_enabled) | Enable logging of the AppSync GraphQL API | `bool` | `true` | no |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
 | <a name="input_enabled_pitr"></a> [enabled\_pitr](#input\_enabled\_pitr) | Enable point in time recovery for the DynamoDB table | `bool` | `false` | no |
