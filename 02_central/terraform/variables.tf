@@ -43,3 +43,9 @@ variable "api_aws_apigatewayv2_api_logging_enabled" {
   description = "Enable logging of the HTTP API Gateway"
   default     = true
 }
+
+variable "aws_appsync_graphql_api_logging_enabled" {
+  type        = bool
+  description = "Enable logging of the AppSync GraphQL API"
+  default     = true
+}

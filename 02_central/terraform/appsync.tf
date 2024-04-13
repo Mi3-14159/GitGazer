@@ -8,13 +8,18 @@ resource "aws_appsync_graphql_api" "this" {
 
   schema = file("${path.module}/schema.graphql")
 
-  log_config {
-    cloudwatch_logs_role_arn = aws_iam_role.logging.arn
-    field_log_level          = "ALL"
+  dynamic "log_config" {
+    for_each = var.aws_appsync_graphql_api_logging_enabled ? [1] : []
+    content {
+      cloudwatch_logs_role_arn = aws_iam_role.logging[0].arn
+      field_log_level          = "ALL"
+    }
+
   }
 }
 
 data "aws_iam_policy_document" "logging_assume_role" {
+  count = var.aws_appsync_graphql_api_logging_enabled ? 1 : 0
   statement {
     effect = "Allow"
 
@@ -28,13 +33,15 @@ data "aws_iam_policy_document" "logging_assume_role" {
 }
 
 resource "aws_iam_role" "logging" {
+  count              = var.aws_appsync_graphql_api_logging_enabled ? 1 : 0
   name               = "${var.name_prefix}-appsync-logs-${terraform.workspace}"
-  assume_role_policy = data.aws_iam_policy_document.logging_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.logging_assume_role[0].json
 }
 
 resource "aws_iam_role_policy_attachment" "logging" {
+  count      = var.aws_appsync_graphql_api_logging_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs"
-  role       = aws_iam_role.logging.name
+  role       = aws_iam_role.logging[0].name
 }
 
 data "aws_iam_policy_document" "service_assume_role" {
