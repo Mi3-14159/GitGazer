@@ -82,13 +82,13 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   ordered_cache_behavior {
-    path_pattern           = "/graphql/*"
+    path_pattern           = "/graphql"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD", "OPTIONS"]
     target_origin_id       = aws_appsync_graphql_api.this.id
     viewer_protocol_policy = "https-only"
     forwarded_values {
-      query_string = true
+      query_string = false
       headers      = ["Authorization"]
       cookies {
         forward = "none"

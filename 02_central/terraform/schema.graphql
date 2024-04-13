@@ -11,7 +11,7 @@
   gists_url: String!
   starred_url: String!
   subscriptions_url: String!
-  organizations_url: String!
+  organizations_url: String
   repos_url: String!
   events_url: String!
   received_events_url: String!
@@ -32,7 +32,7 @@ input SenderInput {
   gists_url: String!
   starred_url: String!
   subscriptions_url: String!
-  organizations_url: String!
+  organizations_url: String
   repos_url: String!
   events_url: String!
   received_events_url: String!
@@ -83,7 +83,7 @@ type Owner @aws_api_key @aws_iam @aws_cognito_user_pools {
   gists_url: String!
   starred_url: String!
   subscriptions_url: String!
-  organizations_url: String!
+  organizations_url: String
   repos_url: String!
   events_url: String!
   received_events_url: String!
@@ -104,7 +104,7 @@ input OwnerInput {
   gists_url: String!
   starred_url: String!
   subscriptions_url: String!
-  organizations_url: String!
+  organizations_url: String
   repos_url: String!
   events_url: String!
   received_events_url: String!
@@ -352,7 +352,7 @@ type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
   expire_at: AWSDateTime!
   action: String!
   sender: Sender!
-  organization: Organization!
+  organization: Organization
   repository: Repository!
   workflow_job: WorkflowJob!
 }
@@ -363,7 +363,7 @@ input PutJobInput {
   expire_at: AWSDateTime!
   action: String!
   sender: SenderInput!
-  organization: OrganizationInput!
+  organization: OrganizationInput
   repository: RepositoryInput!
   workflow_job: WorkflowJobInput!
 }
