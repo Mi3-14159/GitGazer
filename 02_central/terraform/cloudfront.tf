@@ -70,32 +70,6 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  origin {
-    domain_name = local.appsync_domain_name
-    origin_id   = aws_appsync_graphql_api.this.id
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
-  }
-
-  ordered_cache_behavior {
-    path_pattern           = "/graphql"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id       = aws_appsync_graphql_api.this.id
-    viewer_protocol_policy = "https-only"
-    forwarded_values {
-      query_string = false
-      headers      = ["Authorization"]
-      cookies {
-        forward = "none"
-      }
-    }
-  }
-
   dynamic "ordered_cache_behavior" {
     for_each = var.with_frontend_stack ? [1] : []
     content {

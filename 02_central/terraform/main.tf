@@ -51,6 +51,8 @@ locals {
   ]
   appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
   appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
-  appsync_ui_as_array                                                  = split("/", aws_appsync_graphql_api.this.uris["GRAPHQL"])
-  appsync_domain_name                                                  = element(local.appsync_ui_as_array, length(local.appsync_ui_as_array) - 2)
+  aws_appsync_graphql_uris = {
+    GRAPHQL  = try(format("https://%s/graphql", aws_appsync_domain_name.this.domain_name), aws_appsync_graphql_api.this.uris["GRAPHQL"])
+    REALTIME = try(format("wss://%s/graphql/realtime", aws_appsync_domain_name.this.domain_name), aws_appsync_graphql_api.this.uris["REALTIME"])
+  }
 }

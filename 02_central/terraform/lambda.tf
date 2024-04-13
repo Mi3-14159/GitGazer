@@ -13,7 +13,7 @@ module "this" {
   environment = {
     variables = {
       ENVIRONMENT   = terraform.workspace
-      GRAPHQL_URI   = aws_appsync_graphql_api.this.uris["GRAPHQL"]
+      GRAPHQL_URI   = local.aws_appsync_graphql_uris["GRAPHQL"]
       EXPIRE_IN_SEC = var.expire_in_sec
     }
   }

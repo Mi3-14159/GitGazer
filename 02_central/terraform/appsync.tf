@@ -137,3 +137,13 @@ resource "aws_appsync_resolver" "units" {
     runtime_version = "1.0.0"
   }
 }
+
+resource "aws_appsync_domain_name" "this" {
+  domain_name     = "api.${var.custom_domain_config.domain_name}"
+  certificate_arn = var.custom_domain_config.certificate_arn
+}
+
+resource "aws_appsync_domain_name_api_association" "this" {
+  api_id      = aws_appsync_graphql_api.this.id
+  domain_name = aws_appsync_domain_name.this.domain_name
+}

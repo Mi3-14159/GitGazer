@@ -1,4 +1,4 @@
-resource "aws_route53_record" "a" {
+resource "aws_route53_record" "cf_a" {
   count   = var.custom_domain_config != null ? 1 : 0
   zone_id = var.custom_domain_config.hosted_zone_id
   name    = var.custom_domain_config.domain_name
@@ -10,7 +10,7 @@ resource "aws_route53_record" "a" {
   }
 }
 
-resource "aws_route53_record" "aaaa" {
+resource "aws_route53_record" "cf_aaaa" {
   count   = var.custom_domain_config != null ? 1 : 0
   zone_id = var.custom_domain_config.hosted_zone_id
   name    = var.custom_domain_config.domain_name
@@ -18,6 +18,30 @@ resource "aws_route53_record" "aaaa" {
   alias {
     name                   = aws_cloudfront_distribution.this.domain_name
     zone_id                = aws_cloudfront_distribution.this.hosted_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "appsync_a" {
+  count   = var.custom_domain_config != null ? 1 : 0
+  zone_id = var.custom_domain_config.hosted_zone_id
+  name    = aws_appsync_domain_name.this.domain_name
+  type    = "A"
+  alias {
+    name                   = aws_appsync_domain_name.this.appsync_domain_name
+    zone_id                = aws_appsync_domain_name.this.hosted_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "appsync_aaaa" {
+  count   = var.custom_domain_config != null ? 1 : 0
+  zone_id = var.custom_domain_config.hosted_zone_id
+  name    = aws_appsync_domain_name.this.domain_name
+  type    = "AAAA"
+  alias {
+    name                   = aws_appsync_domain_name.this.appsync_domain_name
+    zone_id                = aws_appsync_domain_name.this.hosted_zone_id
     evaluate_target_health = true
   }
 }
