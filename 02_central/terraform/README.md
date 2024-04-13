@@ -55,6 +55,8 @@ gh auth refresh -h github.com -s admin:org_hook
 | [aws_kms_alias.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_alias) | resource |
 | [aws_kms_key.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
 | [aws_lambda_alias.live](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_alias) | resource |
+| [aws_route53_record.a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
+| [aws_route53_record.aaaa](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_s3_bucket_policy.ui_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
 | [aws_ssm_parameter.gh_webhook_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
 | [github_organization_webhook.imports](https://registry.terraform.io/providers/integrations/github/latest/docs/resources/organization_webhook) | resource |
@@ -79,6 +81,7 @@ gh auth refresh -h github.com -s admin:org_hook
 | <a name="input_aws_appsync_graphql_api_additional_authentication_providers"></a> [aws\_appsync\_graphql\_api\_additional\_authentication\_providers](#input\_aws\_appsync\_graphql\_api\_additional\_authentication\_providers) | Additional authentication providers for the AppSync GraphQL API | <pre>list(object({<br>    authentication_type = string<br>    user_pool_config = optional(object({<br>      user_pool_id        = string<br>      app_id_client_regex = optional(string)<br>      aws_region          = optional(string)<br>    }))<br>  }))</pre> | `[]` | no |
 | <a name="input_aws_appsync_graphql_api_logging_enabled"></a> [aws\_appsync\_graphql\_api\_logging\_enabled](#input\_aws\_appsync\_graphql\_api\_logging\_enabled) | Enable logging of the AppSync GraphQL API | `bool` | `true` | no |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
+| <a name="input_custom_domain_config"></a> [custom\_domain\_config](#input\_custom\_domain\_config) | Configuration for the custom domain | <pre>object({<br>    hosted_zone_id  = string<br>    domain_name     = string<br>    certificate_arn = string<br>  })</pre> | `null` | no |
 | <a name="input_enabled_pitr"></a> [enabled\_pitr](#input\_enabled\_pitr) | Enable point in time recovery for the DynamoDB table | `bool` | `false` | no |
 | <a name="input_expire_in_sec"></a> [expire\_in\_sec](#input\_expire\_in\_sec) | Time in seconds for the jobs to expire | `number` | `604800` | no |
 | <a name="input_gh_webhook_secret_encrypted"></a> [gh\_webhook\_secret\_encrypted](#input\_gh\_webhook\_secret\_encrypted) | GitHub webhook secret, encrypted with KMS | `string` | n/a | yes |

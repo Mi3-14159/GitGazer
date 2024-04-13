@@ -1,8 +1,3 @@
-locals {
-  additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
-  additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
-}
-
 resource "aws_appsync_graphql_api" "this" {
   name   = "${var.name_prefix}-${terraform.workspace}"
   schema = file("${path.module}/schema.graphql")
@@ -10,14 +5,14 @@ resource "aws_appsync_graphql_api" "this" {
   authentication_type = "AWS_IAM"
 
   dynamic "additional_authentication_provider" {
-    for_each = local.additional_authentication_provider_api_key
+    for_each = local.appsync_additional_authentication_provider_api_key
     content {
       authentication_type = additional_authentication_provider.value.authentication_type
     }
   }
 
   dynamic "additional_authentication_provider" {
-    for_each = local.additional_authentication_provider_amazon_cognito_user_pools
+    for_each = local.appsync_additional_authentication_provider_amazon_cognito_user_pools
     content {
       authentication_type = additional_authentication_provider.value.authentication_type
       user_pool_config {

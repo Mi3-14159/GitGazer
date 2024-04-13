@@ -31,6 +31,7 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
+  artifact = "${path.module}/../tmp/lambda.zip"
   appsync_unit_resolvers = [
     {
       type : "Query",
@@ -48,5 +49,8 @@ locals {
       code_file_path : "${path.module}/resolvers/putJob.js",
     },
   ]
-  artifact = "${path.module}/../tmp/lambda.zip"
+  appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
+  appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
+  appsync_ui_as_array                                                  = split("/", aws_appsync_graphql_api.this.uris["GRAPHQL"])
+  appsync_domain_name                                                  = element(local.appsync_ui_as_array, length(local.appsync_ui_as_array) - 2)
 }

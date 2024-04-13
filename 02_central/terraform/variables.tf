@@ -66,3 +66,13 @@ variable "aws_appsync_graphql_api_additional_authentication_providers" {
     error_message = "In this implementation only API_KEY and AMAZON_COGNITO_USER_POOLS are allowed as additional authentication providers. If you need more, please open an issue on the GitHub repository."
   }
 }
+
+variable "custom_domain_config" {
+  type = object({
+    hosted_zone_id  = string
+    domain_name     = string
+    certificate_arn = string
+  })
+  description = "Configuration for the custom domain"
+  default     = null
+}

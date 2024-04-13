@@ -5,7 +5,7 @@ output "jobs_sqs_queue_arn" {
 
 output "cdn_domain_name" {
   description = "The domain name of the CloudFront distribution."
-  value       = aws_cloudfront_distribution.this.domain_name
+  value       = try(var.custom_domain_config.domain_name, aws_cloudfront_distribution.this.domain_name)
 }
 
 output "aws_appsync_graphql_uris" {

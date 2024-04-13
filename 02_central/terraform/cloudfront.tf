@@ -24,6 +24,8 @@ resource "aws_cloudfront_distribution" "this" {
   is_ipv6_enabled     = true
   price_class         = "PriceClass_100"
   default_root_object = "index.html"
+  http_version        = "http2and3"
+  aliases             = var.custom_domain_config != null ? [var.custom_domain_config.domain_name] : []
 
   restrictions {
     geo_restriction {
@@ -31,8 +33,21 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  viewer_certificate {
-    cloudfront_default_certificate = true
+  dynamic "viewer_certificate" {
+    for_each = var.custom_domain_config != null ? [1] : []
+    content {
+      acm_certificate_arn      = var.custom_domain_config.certificate_arn
+      ssl_support_method       = "sni-only"
+      minimum_protocol_version = "TLSv1.2_2021"
+    }
+
+  }
+
+  dynamic "viewer_certificate" {
+    for_each = var.custom_domain_config == null ? [1] : []
+    content {
+      cloudfront_default_certificate = true
+    }
   }
 
   origin {
@@ -55,6 +70,45 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  origin {
+    domain_name = local.appsync_domain_name
+    origin_id   = aws_appsync_graphql_api.this.id
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/graphql/*"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id       = aws_appsync_graphql_api.this.id
+    viewer_protocol_policy = "https-only"
+    forwarded_values {
+      query_string = true
+      headers      = ["Authorization"]
+      cookies {
+        forward = "none"
+      }
+    }
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
+      path_pattern             = "/api/*"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id         = aws_apigatewayv2_api.this.id
+      viewer_protocol_policy   = "https-only"
+      cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+    }
+  }
+
   dynamic "default_cache_behavior" {
     for_each = var.with_frontend_stack ? [1] : []
     content {
@@ -70,19 +124,6 @@ resource "aws_cloudfront_distribution" "this" {
   dynamic "default_cache_behavior" {
     for_each = var.with_frontend_stack ? [] : [1]
     content {
-      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-      cached_methods           = ["GET", "HEAD", "OPTIONS"]
-      target_origin_id         = aws_apigatewayv2_api.this.id
-      viewer_protocol_policy   = "https-only"
-      cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
-    }
-  }
-
-  dynamic "ordered_cache_behavior" {
-    for_each = var.with_frontend_stack ? [1] : []
-    content {
-      path_pattern             = "/api/*"
       allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
       cached_methods           = ["GET", "HEAD", "OPTIONS"]
       target_origin_id         = aws_apigatewayv2_api.this.id
