@@ -1,0 +1,20 @@
+name: Generate testdata
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron:  '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: step one
+      run: echo "foobar"
+
+    - name: step two
+      run: echo "barfoo"
