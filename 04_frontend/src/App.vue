@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Amplify } from 'aws-amplify'
+import { generateClient } from 'aws-amplify/api'
+
 import { Hub } from 'aws-amplify/utils'
 import {
     signInWithRedirect,
@@ -9,30 +10,9 @@ import {
     type AuthUser,
 } from 'aws-amplify/auth'
 
-Amplify.configure({
-    Auth: {
-        Cognito: {
-            userPoolId: 'eu-central-1_kgbFsqjOi',
-            userPoolClientId: '1asi0t7vvdk8sochfdpunnon7b',
-            signUpVerificationMethod: 'code',
-            loginWith: {
-                oauth: {
-                    domain: `gitgazer-default.auth.eu-central-1.amazoncognito.com`,
-                    scopes: [
-                        'email',
-                        'profile',
-                        'openid',
-                        'aws.cognito.signin.user.admin',
-                    ],
-                    redirectSignIn: [import.meta.env.VITE_HOST_URL],
-                    redirectSignOut: [import.meta.env.VITE_HOST_URL],
-                    responseType: 'code',
-                },
-            },
-        },
-    },
-})
+import * as queries from './queries'
 
+const client = generateClient()
 const user = ref<AuthUser>()
 
 const getUser = async () => {
@@ -46,6 +26,19 @@ const getUser = async () => {
 }
 
 getUser()
+
+const handleListJobs = async () => {
+    try {
+        const jobs = await client.graphql({
+            query: queries.listJobs,
+        })
+        console.log(jobs)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+handleListJobs()
 </script>
 
 <template>
