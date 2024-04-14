@@ -17,7 +17,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "aws-amplify": "^5.3.18",
+    "aws-amplify": "^6.0.28",
     "pinia": "^2.1.7",
     "vue": "^3.4.21"
   },
