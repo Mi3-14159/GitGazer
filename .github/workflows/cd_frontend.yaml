@@ -14,14 +14,18 @@ jobs:
     defaults:
       run:
         working-directory: ./04_frontend
+    concurrency:
+      group: ${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: 04_frontend/package.json
+          node-version-file: ./04_frontend/package.json
           cache: "npm"
+          cache-dependency-path: ./04_frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
