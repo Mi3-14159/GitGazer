@@ -7,10 +7,11 @@ interface User {
     name: string;
     email: string;
     picture: string;
+    nickname: string;
   };
 }
 
-const user = ref<User>({ attributes: { name: "", email: "", picture: "" } });
+const user = ref<User>({ attributes: { name: "", email: "", picture: "", nickname: "" } });
 const loading = ref(true);
 
 const getUser = async () => {
@@ -58,7 +59,7 @@ getUser();
   <div v-else className="container">
     <h2>SST + Cognito + GitHub OAuth + React</h2>
       <div v-if="user.attributes.name" className="profile">
-        <p>Welcome {{user.attributes.name}}!</p>
+        <p>Welcome {{user.attributes.name}} aka {{ user.attributes.nickname }} !</p>
         <p>{{user.attributes.email}}</p>
         <button :onClick="handleSignOut">logout</button>
       </div>

@@ -12,7 +12,7 @@ resource "aws_cognito_identity_provider" "github" {
     client_secret                 = data.aws_kms_secrets.this.plaintext["gh_oauth_app_client_secret"]
     attributes_request_method     = "GET"
     oidc_issuer                   = "https://github.com"
-    authorize_scopes              = "openid user"
+    authorize_scopes              = "openid read:user"
     authorize_url                 = "https://github.com/login/oauth/authorize"
     token_url                     = "${aws_api_gateway_stage.v1.invoke_url}/token"
     attributes_url                = "${aws_api_gateway_stage.v1.invoke_url}/user"
@@ -25,6 +25,7 @@ resource "aws_cognito_identity_provider" "github" {
     name     = "name"
     username = "sub"
     picture  = "avatar_url"
+    nickname = "login"
   }
 }
 
