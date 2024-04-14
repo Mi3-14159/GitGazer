@@ -18,6 +18,7 @@ module "this" {
   }
   kms_key_arn                       = data.aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 90
+  cloudwatch_logs_kms_key_id        = data.aws_kms_key.this.arn
 }
 
 resource "aws_lambda_alias" "live" {

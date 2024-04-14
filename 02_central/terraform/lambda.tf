@@ -18,6 +18,7 @@ module "this" {
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn
+  cloudwatch_logs_kms_key_id        = aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 90
   event_source_mappings = {
     jobs_queue = {
