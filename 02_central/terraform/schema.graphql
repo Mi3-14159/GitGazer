@@ -456,7 +456,7 @@ input TableStringFilterInput {
   size: ModelSizeInput
 }
 
-type Mutation @aws_api_key @aws_iam @aws_cognito_user_pools {
+type Mutation @aws_api_key @aws_iam {
   putJob(input: PutJobInput!): Job
 }
 
