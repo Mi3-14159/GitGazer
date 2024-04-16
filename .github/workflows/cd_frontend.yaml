@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_HOST_URL: https://gitgazer.mmunsch.services
+          VITE_HOST_URL: https://app.gitgazer.com
 
       - name: Deploy
         run: |

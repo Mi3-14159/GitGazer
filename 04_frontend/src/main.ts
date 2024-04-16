@@ -29,7 +29,7 @@ Amplify.configure({
     },
     API: {
         GraphQL: {
-            endpoint: 'https://api.gitgazer.mmunsch.services/graphql',
+            endpoint: 'https://api.app.gitgazer.com/graphql',
             region: 'eu-central-1',
             defaultAuthMode: 'userPool',
         },
