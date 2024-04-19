@@ -1,4 +1,4 @@
-name: Generate testdata
+name: Generate failing testdata
 
 on:
   push:
