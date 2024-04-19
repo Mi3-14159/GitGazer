@@ -1,12 +1,6 @@
 name: Generate failing testdata
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  schedule:
-    - cron:  '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
