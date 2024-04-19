@@ -65,6 +65,15 @@ resource "aws_pipes_pipe" "alerting" {
       maximum_record_age_in_seconds = -1
       maximum_retry_attempts        = -1
     }
+    filter_criteria {
+      filter {
+        pattern = jsonencode({
+          "dynamodb.NewImage.workflow_job.M.conclusion.S" : [{
+            "equals-ignore-case" : "failure"
+          }]
+        })
+      }
+    }
   }
   target_parameters {
     step_function_state_machine_parameters {
