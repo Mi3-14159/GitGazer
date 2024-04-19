@@ -88,3 +88,9 @@ variable "create_github_repository_webhooks_repositories" {
   description = "Create webhooks in the GitHub repositories. Can only be used if the var.github_owner is a user."
   default     = []
 }
+
+variable "create_gitgazer_alerting" {
+  type        = bool
+  description = "Create alerting for the GitGater resources"
+  default     = true
+}

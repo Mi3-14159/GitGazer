@@ -1,8 +1,10 @@
 resource "aws_dynamodb_table" "jobs" {
-  name         = "${var.name_prefix}-jobs-${terraform.workspace}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "run_id"
-  range_key    = "workflow_name"
+  name             = "${var.name_prefix}-jobs-${terraform.workspace}"
+  billing_mode     = "PAY_PER_REQUEST"
+  hash_key         = "run_id"
+  range_key        = "workflow_name"
+  stream_enabled   = var.create_gitgazer_alerting
+  stream_view_type = "NEW_IMAGE"
   attribute {
     name = "run_id"
     type = "N"

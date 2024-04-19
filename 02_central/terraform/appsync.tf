@@ -29,7 +29,6 @@ resource "aws_appsync_graphql_api" "this" {
       cloudwatch_logs_role_arn = aws_iam_role.logging[0].arn
       field_log_level          = "ALL"
     }
-
   }
 }
 

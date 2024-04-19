@@ -389,7 +389,7 @@ input TableBooleanFilterInput {
   attributeExists: Boolean
 }
 
-input TableJobFilterInput {
+input JobFilterInput {
   runId: TableStringFilterInput
   workflowName: TableStringFilterInput
   completedAt: TableStringFilterInput
@@ -462,11 +462,7 @@ type Mutation @aws_api_key @aws_iam {
 
 type Query @aws_api_key @aws_iam @aws_cognito_user_pools {
   getJob(run_id: Float!, workflow_name: String!): Job
-  listJobs(
-    filter: TableJobFilterInput
-    limit: Int
-    nextToken: String
-  ): JobConnection
+  listJobs(filter: JobFilterInput, limit: Int, nextToken: String): JobConnection
 }
 
 type Subscription @aws_api_key @aws_iam @aws_cognito_user_pools {

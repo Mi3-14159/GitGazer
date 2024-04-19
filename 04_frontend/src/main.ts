@@ -8,12 +8,12 @@ import App from './App.vue'
 Amplify.configure({
     Auth: {
         Cognito: {
-            userPoolId: 'eu-central-1_kgbFsqjOi',
-            userPoolClientId: '1asi0t7vvdk8sochfdpunnon7b',
+            userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
+            userPoolClientId: import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID,
             signUpVerificationMethod: 'code',
             loginWith: {
                 oauth: {
-                    domain: `gitgazer-default.auth.eu-central-1.amazoncognito.com`,
+                    domain: import.meta.env.VITE_COGNITO_DOMAIN,
                     scopes: [
                         'email',
                         'profile',
@@ -29,8 +29,8 @@ Amplify.configure({
     },
     API: {
         GraphQL: {
-            endpoint: 'https://api.app.gitgazer.com/graphql',
-            region: 'eu-central-1',
+            endpoint: import.meta.env.VITE_GRAPHQL_ENDPOINT,
+            region: import.meta.env.VITE_GRAPHQL_REGION,
             defaultAuthMode: 'userPool',
         },
     },
