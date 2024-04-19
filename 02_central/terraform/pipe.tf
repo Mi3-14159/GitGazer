@@ -40,8 +40,15 @@ data "aws_iam_policy_document" "alerting_policy" {
   statement {
     actions = [
       "states:StartExecution",
+      "states:StartSyncExecution",
     ]
     resources = [module.alerting_stepfunction.state_machine_arn]
+  }
+  statement {
+    actions = [
+      "kms:Decrypt",
+    ]
+    resources = [aws_kms_key.this.arn]
   }
 }
 
@@ -53,8 +60,15 @@ resource "aws_pipes_pipe" "alerting" {
   target   = module.alerting_stepfunction.state_machine_arn
   source_parameters {
     dynamodb_stream_parameters {
-      batch_size        = 1
-      starting_position = "LATEST"
+      batch_size                    = 1
+      starting_position             = "LATEST"
+      maximum_record_age_in_seconds = -1
+      maximum_retry_attempts        = -1
+    }
+  }
+  target_parameters {
+    step_function_state_machine_parameters {
+      invocation_type = "FIRE_AND_FORGET"
     }
   }
 }
