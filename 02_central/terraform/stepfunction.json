@@ -1,16 +1,68 @@
 {
-  "Comment": "A Hello World example of the Amazon States Language using Pass states",
-  "StartAt": "Hello",
+  "Comment": "The GitGazer notifications state machine",
+  "StartAt": "Get notification rule",
   "States": {
-    "Hello": {
-      "Next": "World",
-      "Result": "Hello",
-      "Type": "Pass"
-    },
-    "World": {
+    "Call third-party API": {
       "End": true,
-      "Result": "World",
-      "Type": "Pass"
+      "Parameters": {
+        "ApiEndpoint.$": "$.Item.http.M.url.S",
+        "Authentication": {
+          "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
+        },
+        "Method.$": "$.Item.http.M.method.S",
+        "RequestBody.$": "$.Item.http.M.body.S"
+      },
+      "Resource": "arn:aws:states:::http:invoke",
+      "Retry": [
+        {
+          "BackoffRate": 2,
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 1,
+          "JitterStrategy": "FULL",
+          "MaxAttempts": 3
+        }
+      ],
+      "Type": "Task"
+    },
+    "Choose notification type": {
+      "Choices": [
+        {
+          "Next": "No notification rule",
+          "Not": {
+            "IsPresent": true,
+            "Variable": "$.Item"
+          }
+        },
+        {
+          "Comment": "http request",
+          "IsPresent": true,
+          "Next": "Call third-party API",
+          "Variable": "$.Item.http"
+        }
+      ],
+      "Default": "Not yet implemented",
+      "Type": "Choice"
+    },
+    "Get notification rule": {
+      "InputPath": "$[0]",
+      "Next": "Choose notification type",
+      "Parameters": {
+        "Key": {
+          "workflow_name": {
+            "S.$": "$.dynamodb.Keys.workflow_name.S"
+          }
+        },
+        "TableName": "${notification_rules_table_name}"
+      },
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Type": "Task"
+    },
+    "No notification rule": {
+      "Type": "Succeed"
+    },
+    "Not yet implemented": {
+      "Comment": "Sink for not yet implemented notification methods",
+      "Type": "Succeed"
     }
   }
 }

@@ -29,3 +29,23 @@ resource "aws_dynamodb_table" "jobs" {
     enabled        = true
   }
 }
+
+resource "aws_dynamodb_table" "notification_rules" {
+  count        = var.create_gitgazer_alerting ? 1 : 0
+  name         = "${var.name_prefix}-notification-rules-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "workflow_name"
+  attribute {
+    name = "workflow_name"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.this.arn
+  }
+
+  point_in_time_recovery {
+    enabled = var.enabled_pitr
+  }
+}

@@ -42,7 +42,7 @@ data "aws_iam_policy_document" "alerting_policy" {
       "states:StartExecution",
       "states:StartSyncExecution",
     ]
-    resources = [module.alerting_stepfunction.state_machine_arn]
+    resources = [module.alerting_stepfunction[0].state_machine_arn]
   }
   statement {
     actions = [
@@ -57,7 +57,7 @@ resource "aws_pipes_pipe" "alerting" {
   name     = "${var.name_prefix}-alerting-pipe-${terraform.workspace}"
   role_arn = aws_iam_role.alerting[0].arn
   source   = aws_dynamodb_table.jobs.stream_arn
-  target   = module.alerting_stepfunction.state_machine_arn
+  target   = module.alerting_stepfunction[0].state_machine_arn
   source_parameters {
     dynamodb_stream_parameters {
       batch_size                    = 1
