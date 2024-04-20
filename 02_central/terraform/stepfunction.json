@@ -10,7 +10,9 @@
           "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
         },
         "Method.$": "$.Item.http.M.method.S",
-        "RequestBody.$": "$.Item.http.M.body.S"
+        "RequestBody": {
+          "text.$": "States.Format($.Item.http.M.body.S, $.Item.workflow_name.S)"
+        }
       },
       "Resource": "arn:aws:states:::http:invoke",
       "Retry": [
