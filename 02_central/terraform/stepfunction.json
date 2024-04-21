@@ -1,70 +1,90 @@
 {
   "Comment": "The GitGazer notifications state machine",
-  "StartAt": "Get notification rule",
+  "StartAt": "Create IDs list",
   "States": {
-    "Call third-party API": {
-      "End": true,
-      "Parameters": {
-        "ApiEndpoint.$": "$.Item.http.M.url.S",
-        "Authentication": {
-          "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
-        },
-        "Method.$": "$.Item.http.M.method.S",
-        "RequestBody": {
-          "text.$": "States.Format($.Item.http.M.body.S, $.Item.workflow_name.S)"
-        }
-      },
-      "Resource": "arn:aws:states:::http:invoke",
-      "Retry": [
-        {
-          "BackoffRate": 2,
-          "ErrorEquals": ["States.ALL"],
-          "IntervalSeconds": 1,
-          "JitterStrategy": "FULL",
-          "MaxAttempts": 3
-        }
-      ],
-      "Type": "Task"
-    },
-    "Choose notification type": {
-      "Choices": [
-        {
-          "Next": "No notification rule",
-          "Not": {
-            "IsPresent": true,
-            "Variable": "$.Item"
-          }
-        },
-        {
-          "Comment": "http request",
-          "IsPresent": true,
-          "Next": "Call third-party API",
-          "Variable": "$.Item.http"
-        }
-      ],
-      "Default": "Not yet implemented",
-      "Type": "Choice"
-    },
-    "Get notification rule": {
+    "Create IDs list": {
       "InputPath": "$[0]",
-      "Next": "Choose notification type",
+      "Next": "Map",
       "Parameters": {
-        "Key": {
-          "workflow_name": {
-            "S.$": "$.dynamodb.Keys.workflow_name.S"
-          }
-        },
-        "TableName": "${notification_rules_table_name}"
+        "ids.$": "States.Array(States.Format('{}', $.dynamodb.NewImage.repository.M.owner.M.login.S), States.Format('{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S), States.Format('{}/{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S, $.dynamodb.Keys.workflow_name.S))",
+        "workflow_name.$": "$.dynamodb.Keys.workflow_name.S"
       },
-      "Resource": "arn:aws:states:::dynamodb:getItem",
-      "Type": "Task"
+      "Type": "Pass"
     },
-    "No notification rule": {
-      "Type": "Succeed"
-    },
-    "Not yet implemented": {
-      "Comment": "Sink for not yet implemented notification methods",
-      "Type": "Succeed"
+    "Map": {
+      "End": true,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Get notification rule",
+        "States": {
+          "Call third-party API": {
+            "End": true,
+            "Parameters": {
+              "ApiEndpoint.$": "$.Item.http.M.url.S",
+              "Authentication": {
+                "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
+              },
+              "Method.$": "$.Item.http.M.method.S",
+              "RequestBody": {
+                "text.$": "States.Format($.Item.http.M.body.S, $$.Execution.Input[0].dynamodb.Keys.workflow_name.S)"
+              }
+            },
+            "Resource": "arn:aws:states:::http:invoke",
+            "Retry": [
+              {
+                "BackoffRate": 2,
+                "ErrorEquals": ["States.ALL"],
+                "IntervalSeconds": 1,
+                "JitterStrategy": "FULL",
+                "MaxAttempts": 3
+              }
+            ],
+            "Type": "Task"
+          },
+          "Choose notification type": {
+            "Choices": [
+              {
+                "Next": "No notification rule",
+                "Not": {
+                  "IsPresent": true,
+                  "Variable": "$.Item"
+                }
+              },
+              {
+                "IsPresent": true,
+                "Next": "Call third-party API",
+                "Variable": "$.Item.http"
+              }
+            ],
+            "Default": "Not yet implemented",
+            "Type": "Choice"
+          },
+          "Get notification rule": {
+            "Next": "Choose notification type",
+            "Parameters": {
+              "Key": {
+                "id": {
+                  "S.$": "$"
+                }
+              },
+              "TableName": "${notification_rules_table_name}"
+            },
+            "Resource": "arn:aws:states:::dynamodb:getItem",
+            "Type": "Task"
+          },
+          "No notification rule": {
+            "Type": "Succeed"
+          },
+          "Not yet implemented": {
+            "Comment": "Sink for not yet implemented notification methods",
+            "Type": "Succeed"
+          }
+        }
+      },
+      "ItemsPath": "$.ids",
+      "Type": "Map"
     }
   }
 }
