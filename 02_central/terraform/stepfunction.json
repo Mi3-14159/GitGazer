@@ -4,14 +4,14 @@
   "States": {
     "Create IDs list": {
       "InputPath": "$[0]",
-      "Next": "Map",
+      "Next": "Process IDs list",
       "Parameters": {
         "ids.$": "States.Array(States.Format('{}', $.dynamodb.NewImage.repository.M.owner.M.login.S), States.Format('{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S), States.Format('{}/{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S, $.dynamodb.Keys.workflow_name.S))",
         "workflow_name.$": "$.dynamodb.Keys.workflow_name.S"
       },
       "Type": "Pass"
     },
-    "Map": {
+    "Process IDs list": {
       "End": true,
       "ItemProcessor": {
         "ProcessorConfig": {
