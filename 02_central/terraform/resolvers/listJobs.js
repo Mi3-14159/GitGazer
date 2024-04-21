@@ -7,10 +7,10 @@ import { scan } from "@aws-appsync/utils/dynamodb";
  * @returns {import('@aws-appsync/utils').DynamoDBScanRequest} the request
  */
 export function request(ctx) {
-  const { filter, limit, nextToken } = ctx.args;
+  const { filter, limit = 10, nextToken } = ctx.args;
 
   return scan({
-    limit: Math.min(limit ?? 10, 10),
+    limit: Math.min(limit, 10),
     nextToken,
     filter,
   });

@@ -456,8 +456,46 @@ input TableStringFilterInput {
   size: ModelSizeInput
 }
 
+type Http @aws_api_key @aws_iam @aws_cognito_user_pools {
+  body: String!
+  headers: String
+  method: String!
+  query_parameters: String
+  url: String!
+}
+
+input HttpInput {
+  body: String!
+  headers: String
+  method: String!
+  query_parameters: String
+  url: String!
+}
+
+type NotificationRule @aws_api_key @aws_iam @aws_cognito_user_pools {
+  owner: String!
+  repository_name: String
+  workflow_name: String
+  enabled: Boolean!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  version: Int!
+  http: Http
+}
+
+input NotificationRuleInput {
+  owner: String!
+  repository_name: String
+  workflow_name: String
+  enabled: Boolean!
+  http: HttpInput
+}
+
 type Mutation @aws_api_key @aws_iam {
   putJob(input: PutJobInput!): Job
+  putNotificationRule(input: NotificationRuleInput!): NotificationRule
+    @aws_api_key
+    @aws_cognito_user_pools
 }
 
 type Query @aws_api_key @aws_iam @aws_cognito_user_pools {

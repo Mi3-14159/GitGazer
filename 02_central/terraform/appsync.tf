@@ -88,7 +88,7 @@ data "aws_iam_policy_document" "service" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem"
     ]
-    resources = [aws_dynamodb_table.jobs.arn]
+    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null)])
   }
 
   statement {
@@ -108,9 +108,21 @@ resource "aws_iam_role_policy" "service" {
   policy = data.aws_iam_policy_document.service.json
 }
 
-resource "aws_appsync_datasource" "dynamodb" {
+resource "aws_appsync_datasource" "notification_rules" {
+  count            = var.create_gitgazer_alerting ? 1 : 0
   api_id           = aws_appsync_graphql_api.this.id
-  name             = replace(aws_dynamodb_table.jobs.name, "-", "")
+  name             = replace(aws_dynamodb_table.notification_rules[0].name, "-", "_")
+  service_role_arn = aws_iam_role.service.arn
+  type             = "AMAZON_DYNAMODB"
+
+  dynamodb_config {
+    table_name = aws_dynamodb_table.notification_rules[0].name
+  }
+}
+
+resource "aws_appsync_datasource" "jobs" {
+  api_id           = aws_appsync_graphql_api.this.id
+  name             = replace(aws_dynamodb_table.jobs.name, "-", "_")
   service_role_arn = aws_iam_role.service.arn
   type             = "AMAZON_DYNAMODB"
 
@@ -129,7 +141,7 @@ resource "aws_appsync_resolver" "units" {
   field          = each.value.field
   kind           = "UNIT"
   code           = file(each.value.code_file_path)
-  data_source    = aws_appsync_datasource.dynamodb.name
+  data_source    = each.value.data_source
   max_batch_size = 0
   runtime {
     name            = "APPSYNC_JS"

@@ -34,9 +34,20 @@ resource "aws_dynamodb_table" "notification_rules" {
   count        = var.create_gitgazer_alerting ? 1 : 0
   name         = "${var.name_prefix}-notification-rules-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "workflow_name"
+  hash_key     = "id"
+
   attribute {
-    name = "workflow_name"
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "owner"
+    type = "S"
+  }
+
+  attribute {
+    name = "repository_name"
     type = "S"
   }
 
@@ -47,5 +58,12 @@ resource "aws_dynamodb_table" "notification_rules" {
 
   point_in_time_recovery {
     enabled = var.enabled_pitr
+  }
+
+  global_secondary_index {
+    name            = "OwnerRespositoryIndex"
+    hash_key        = "owner"
+    range_key       = "repository_name"
+    projection_type = "ALL"
   }
 }

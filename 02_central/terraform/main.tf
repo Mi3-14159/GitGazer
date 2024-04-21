@@ -32,23 +32,34 @@ data "aws_caller_identity" "current" {}
 
 locals {
   artifact = "${path.module}/../tmp/lambda.zip"
-  appsync_unit_resolvers = [
+  appsync_unit_resolvers = flatten([
     {
       type : "Query",
       field : "listJobs",
       code_file_path : "${path.module}/resolvers/listJobs.js",
+      data_source : aws_appsync_datasource.jobs.name,
     },
     {
       type : "Query",
       field : "getJob",
       code_file_path : "${path.module}/resolvers/getJob.js",
+      data_source : aws_appsync_datasource.jobs.name,
     },
     {
       type : "Mutation",
       field : "putJob",
       code_file_path : "${path.module}/resolvers/putJob.js",
+      data_source : aws_appsync_datasource.jobs.name,
     },
-  ]
+    var.create_gitgazer_alerting ? [
+      {
+        type : "Mutation",
+        field : "putNotificationRule",
+        code_file_path : "${path.module}/resolvers/putNotificationRule.js",
+        data_source : aws_appsync_datasource.notification_rules[0].name,
+      },
+    ] : [],
+  ])
   appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
   appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
   aws_appsync_graphql_uris = {
