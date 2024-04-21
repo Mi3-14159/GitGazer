@@ -1,13 +1,12 @@
 import { util } from "@aws-appsync/utils";
-import { put } from "@aws-appsync/utils/dynamodb";
 
 /**
  * Puts an item into the DynamoDB table.
  * @param {import('@aws-appsync/utils').Context<{input: any}>} ctx the context
- * @returns {import('@aws-appsync/utils').DynamoDBPutItemRequest} the request
+ * @returns {import('@aws-appsync/utils').DynamoDBUpdateItemRequest} the request
  */
 export function request(ctx) {
-  const { owner, repository_name, workflow_name } = ctx.args.input;
+  const { owner, repository_name, workflow_name, enabled } = ctx.args.input;
   const idParts = [
     owner,
     ...(repository_name != null ? [repository_name] : []),
@@ -15,24 +14,34 @@ export function request(ctx) {
   ];
 
   const key = { id: idParts.join("/") };
+  const now = util.time.nowISO8601();
 
-  const condition = { and: [] };
-  for (const k in key) {
-    condition.and.push({ [k]: { attributeExists: false } });
-  }
-
-  const item = {
-    ...ctx.args.input,
-    createdAt: util.time.nowISO8601(),
-    updatedAt: util.time.nowISO8601(),
-    version: 2,
+  return {
+    operation: "UpdateItem",
+    key: {
+      id: util.dynamodb.toDynamoDB(key.id),
+    },
+    update: {
+      expression:
+        "SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #owner = :owner, #repository_name = :repository_name, #workflow_name = :workflow_name, #enabled = :enabled",
+      expressionNames: {
+        "#created_at": "created_at",
+        "#updated_at": "updated_at",
+        "#owner": "owner",
+        "#repository_name": "repository_name",
+        "#workflow_name": "workflow_name",
+        "#enabled": "enabled",
+      },
+      expressionValues: {
+        ":created_at": util.dynamodb.toDynamoDB(now),
+        ":updated_at": util.dynamodb.toDynamoDB(now),
+        ":owner": util.dynamodb.toDynamoDB(owner),
+        ":repository_name": util.dynamodb.toDynamoDB(repository_name),
+        ":workflow_name": util.dynamodb.toDynamoDB(workflow_name),
+        ":enabled": util.dynamodb.toDynamoDB(enabled),
+      },
+    },
   };
-
-  return put({
-    key,
-    item,
-    //condition, // TODO: https://github.com/users/Mi3-14159/projects/1/views/1?pane=issue&itemId=58937221
-  });
 }
 
 /**
