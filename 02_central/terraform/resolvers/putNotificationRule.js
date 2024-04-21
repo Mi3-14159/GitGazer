@@ -6,7 +6,8 @@ import { util } from "@aws-appsync/utils";
  * @returns {import('@aws-appsync/utils').DynamoDBUpdateItemRequest} the request
  */
 export function request(ctx) {
-  const { owner, repository_name, workflow_name, enabled } = ctx.args.input;
+  const { owner, repository_name, workflow_name, enabled, http } =
+    ctx.args.input;
   const idParts = [
     owner,
     ...(repository_name != null ? [repository_name] : []),
@@ -23,22 +24,18 @@ export function request(ctx) {
     },
     update: {
       expression:
-        "SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #owner = :owner, #repository_name = :repository_name, #workflow_name = :workflow_name, #enabled = :enabled",
+        "SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #enabled = :enabled, #http = :http",
       expressionNames: {
         "#created_at": "created_at",
         "#updated_at": "updated_at",
-        "#owner": "owner",
-        "#repository_name": "repository_name",
-        "#workflow_name": "workflow_name",
         "#enabled": "enabled",
+        "#http": "http",
       },
       expressionValues: {
         ":created_at": util.dynamodb.toDynamoDB(now),
         ":updated_at": util.dynamodb.toDynamoDB(now),
-        ":owner": util.dynamodb.toDynamoDB(owner),
-        ":repository_name": util.dynamodb.toDynamoDB(repository_name),
-        ":workflow_name": util.dynamodb.toDynamoDB(workflow_name),
         ":enabled": util.dynamodb.toDynamoDB(enabled),
+        ":http": util.dynamodb.toDynamoDB(http),
       },
     },
   };
@@ -54,5 +51,13 @@ export function response(ctx) {
   if (error) {
     return util.appendError(error.message, error.type, result);
   }
-  return result;
+
+  const { id } = result;
+  const [owner, repository_name, workflow_name] = id.split("/");
+  return {
+    ...result,
+    owner,
+    repository_name: repository_name || null,
+    workflow_name: workflow_name || null,
+  };
 }

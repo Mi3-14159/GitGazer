@@ -41,16 +41,6 @@ resource "aws_dynamodb_table" "notification_rules" {
     type = "S"
   }
 
-  attribute {
-    name = "owner"
-    type = "S"
-  }
-
-  attribute {
-    name = "repository_name"
-    type = "S"
-  }
-
   server_side_encryption {
     enabled     = true
     kms_key_arn = aws_kms_key.this.arn
@@ -58,12 +48,5 @@ resource "aws_dynamodb_table" "notification_rules" {
 
   point_in_time_recovery {
     enabled = var.enabled_pitr
-  }
-
-  global_secondary_index {
-    name            = "OwnerRespositoryIndex"
-    hash_key        = "owner"
-    range_key       = "repository_name"
-    projection_type = "ALL"
   }
 }
