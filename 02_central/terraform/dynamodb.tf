@@ -50,13 +50,13 @@ resource "aws_dynamodb_table" "notification_rules" {
     enabled = var.enabled_pitr
   }
 }
-resource "aws_dynamodb_table" "user_repositories" {
-  name         = "${var.name_prefix}-user-repositories-${terraform.workspace}"
+resource "aws_dynamodb_table" "users" {
+  name         = "${var.name_prefix}-users-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "sub"
+  hash_key     = "userId"
 
   attribute {
-    name = "sub"
+    name = "userId"
     type = "S"
   }
 

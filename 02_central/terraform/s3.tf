@@ -2,6 +2,7 @@ module "ui_bucket" {
   source        = "terraform-aws-modules/s3-bucket/aws"
   version       = "~> 4.1"
   create_bucket = var.with_frontend_stack
+  force_destroy = "true"
 
   bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-ui-${terraform.workspace}"
   acl           = "private"

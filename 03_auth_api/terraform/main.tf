@@ -23,8 +23,13 @@ locals {
   name_prefix            = "${var.name_prefix}-auth-proxy-${terraform.workspace}"
   artifact               = "${path.module}/../tmp/lambda.zip"
   api_gateway_stage_name = "v1"
+  github_oauth_scopes    = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
 }
 
 data "aws_kms_key" "this" {
   key_id = "alias/${var.name_prefix}-${terraform.workspace}"
+}
+
+data "aws_dynamodb_table" "users" {
+  name = var.aws_dynamodb_table_users_name
 }

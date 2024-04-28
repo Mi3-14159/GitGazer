@@ -17,3 +17,7 @@ output "aws_appsync_graphql_api_arn" {
   description = "The ARN of the AppSync GraphQL API."
   value       = aws_appsync_graphql_api.this.arn
 }
+
+output "aws_dynamodb_table_users_name" {
+  value = aws_dynamodb_table.users.name
+}

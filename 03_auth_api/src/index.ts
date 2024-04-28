@@ -1,4 +1,8 @@
 import {APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult} from "aws-lambda";
+import { getClient } from "./dynamodb";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+
+const ddb = getClient();
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     console.info(`handle event`, {event});
@@ -62,6 +66,19 @@ const handleUserRoute = async (event: APIGatewayProxyEvent) => {
             },
         })
     ).json();
+
+    const repositories = await getAllUserRepositories(event.headers["Authorization"]);
+
+    await ddb.send(new PutCommand({
+        TableName: process.env.DYNAMODB_TABLE_USERS_NAME,
+        Item: {
+            userId: `${user.id}`,
+            repositories,
+        },
+    }));
+
+    console.debug('user', JSON.stringify(user));
+    console.debug('repositories', JSON.stringify(repositories));
     
     const response: APIGatewayProxyResult = {
         isBase64Encoded: false,
@@ -102,3 +119,36 @@ const parseBody = (body: string): Body => {
 
     return result;
 };
+
+const getAllUserRepositories = async (authorization: string) => {
+    const per_page = 100;
+    let allRepos = [];
+    let page = 1;
+
+    while (true) {
+        console.info(`Fetching user repositories page: ${page}`);
+        const repos: any = await (
+            await fetch(`https://api.github.com/user/repos?per_page=${per_page}&page=${page}&type=all`, {
+                method: "GET",
+                headers: {
+                    authorization: authorization,
+                    accept: "application/json",
+                },
+            })
+        ).json();
+
+        if (repos.length === 0) {
+            break;
+        }
+
+        const repoNames = repos.map(repo => repo.full_name);
+        allRepos.push(...repoNames);
+
+        if (repos.length < per_page) {
+            break;
+        
+        }
+        page++;
+    }
+    return new Set(allRepos);
+}

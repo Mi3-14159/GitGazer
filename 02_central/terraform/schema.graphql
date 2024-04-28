@@ -497,12 +497,12 @@ type Mutation @aws_api_key @aws_iam {
     @aws_cognito_user_pools
 }
 
-type Query @aws_api_key @aws_iam @aws_cognito_user_pools {
+type Query @aws_api_key @aws_cognito_user_pools {
   getJob(run_id: Float!, workflow_name: String!): Job
   listJobs(filter: JobFilterInput, limit: Int, nextToken: String): JobConnection
 }
 
-type Subscription @aws_api_key @aws_iam @aws_cognito_user_pools {
+type Subscription @aws_api_key @aws_cognito_user_pools {
   onPutJob(run_id: Float, workflow_name: String, createdAt: AWSDateTime): Job
     @aws_subscribe(mutations: ["putJob"])
 }

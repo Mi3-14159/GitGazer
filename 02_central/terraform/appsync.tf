@@ -32,6 +32,13 @@ resource "aws_appsync_graphql_api" "this" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "appsync" {
+  count             = var.aws_appsync_graphql_api_logging_enabled ? 1 : 0
+  name              = "/aws/appsync/apis/${aws_appsync_graphql_api.this.id}"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.this.arn
+}
+
 data "aws_iam_policy_document" "logging_assume_role" {
   count = var.aws_appsync_graphql_api_logging_enabled ? 1 : 0
   statement {
@@ -88,7 +95,7 @@ data "aws_iam_policy_document" "service" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem"
     ]
-    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null)])
+    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null), aws_dynamodb_table.users.arn])
   }
 
   statement {
@@ -131,22 +138,40 @@ resource "aws_appsync_datasource" "jobs" {
   }
 }
 
+resource "aws_appsync_datasource" "users" {
+  api_id           = aws_appsync_graphql_api.this.id
+  name             = replace(aws_dynamodb_table.users.name, "-", "_")
+  service_role_arn = aws_iam_role.service.arn
+  type             = "AMAZON_DYNAMODB"
+
+  dynamodb_config {
+    table_name = aws_dynamodb_table.users.name
+  }
+}
+
 resource "aws_appsync_resolver" "units" {
   for_each = {
     for index, resolver in local.appsync_unit_resolvers :
-    resolver.field => resolver
+    "${resolver.type}_${resolver.field}" => resolver
   }
   type           = each.value.type
   api_id         = aws_appsync_graphql_api.this.id
   field          = each.value.field
-  kind           = "UNIT"
-  code           = file(each.value.code_file_path)
-  data_source    = each.value.data_source
+  kind           = each.value.kind
+  code           = try(file(each.value.code_file_path), null)
+  data_source    = try(each.value.data_source, null)
   max_batch_size = 0
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
+  dynamic "pipeline_config" {
+    for_each = try(each.value.pipeline_config, null) != null ? [1] : []
+    content {
+      functions = each.value.pipeline_config.functions
+    }
+  }
+  depends_on = [aws_appsync_function.this]
 }
 
 resource "aws_appsync_domain_name" "this" {
@@ -157,4 +182,19 @@ resource "aws_appsync_domain_name" "this" {
 resource "aws_appsync_domain_name_api_association" "this" {
   api_id      = aws_appsync_graphql_api.this.id
   domain_name = aws_appsync_domain_name.this.domain_name
+}
+
+resource "aws_appsync_function" "this" {
+  for_each = {
+    for index, function in local.appsync_functions :
+    function.name => function
+  }
+  api_id      = aws_appsync_graphql_api.this.id
+  data_source = each.value.data_source
+  name        = each.value.name
+  code        = file(each.value.code_file_path)
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
 }

@@ -26,3 +26,14 @@ variable "callback_uls" {
   description = "List of callback URLs for the Cognito User Pool Client"
   default     = []
 }
+
+variable "github_oauth_scopes" {
+  type        = list(string)
+  description = "List of additional GitHub OAuth scopes to request"
+  default     = ["repo"]
+}
+
+variable "aws_dynamodb_table_users_name" {
+  type        = string
+  description = "Name of the DynamoDB table to store users"
+}
