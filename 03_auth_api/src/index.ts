@@ -106,38 +106,3 @@ const parseBody = (body: string): Body => {
 
   return result;
 };
-
-const getAllUserRepositories = async (authorization: string) => {
-  const per_page = 100;
-  let allRepos = [];
-  let page = 1;
-
-  while (true) {
-    console.info(`Fetching user repositories page: ${page}`);
-    const repos: any = await (
-      await fetch(
-        `https://api.github.com/user/repos?per_page=${per_page}&page=${page}&type=all`,
-        {
-          method: "GET",
-          headers: {
-            authorization: authorization,
-            accept: "application/json",
-          },
-        }
-      )
-    ).json();
-
-    if (repos.length === 0) {
-      break;
-    }
-
-    const repoNames = repos.map((repo) => repo.full_name);
-    allRepos.push(...repoNames);
-
-    if (repos.length < per_page) {
-      break;
-    }
-    page++;
-  }
-  return new Set(allRepos);
-};
