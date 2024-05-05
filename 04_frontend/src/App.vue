@@ -38,6 +38,11 @@ const handleListJobs = async () => {
     }
 }
 
+const createSub = client.graphql({ query: queries.onPutJob }).subscribe({
+    next: ({ data }) => console.log(new Date().toISOString(), data),
+    error: (error) => console.warn(new Date().toISOString(), error),
+})
+
 handleListJobs()
 </script>
 

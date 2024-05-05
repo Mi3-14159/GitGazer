@@ -8,5 +8,12 @@ export const listJobs = `query ListJobs {
             action
         }
     }
-}
-`
+}`
+
+export const onPutJob = `subscription MySubscription {
+    onPutJob {
+        action
+        run_id
+        workflow_name
+    }
+}`
