@@ -55,13 +55,13 @@ locals {
       data_source : aws_appsync_datasource.jobs.name,
       kind : "UNIT",
     },
-    /*{
+    {
       type : "Subscription",
       field : "onPutJob",
       code_file_path : "${path.module}/resolvers/onPutJob.js",
-      data_source : aws_appsync_datasource.users.name,
+      data_source : aws_appsync_datasource.none.name,
       kind : "UNIT",
-    },*/
+    },
     var.create_gitgazer_alerting ? [{
       type : "Mutation",
       field : "putNotificationRule",
@@ -76,4 +76,6 @@ locals {
     GRAPHQL  = try(format("https://%s/graphql", aws_appsync_domain_name.this.domain_name), aws_appsync_graphql_api.this.uris["GRAPHQL"])
     REALTIME = try(format("wss://%s/graphql/realtime", aws_appsync_domain_name.this.domain_name), aws_appsync_graphql_api.this.uris["REALTIME"])
   }
+  api_gateway_stage_name                      = "v1"
+  ssm_parameter_gh_webhook_secret_name_prefix = "/${var.name_prefix}-${terraform.workspace}/gh-webhook-secret/"
 }

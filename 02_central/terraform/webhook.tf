@@ -2,7 +2,7 @@ resource "github_organization_webhook" "imports" {
   count  = var.create_github_organization_webhook ? 1 : 0
   active = true
   configuration {
-    url          = "https://${try(var.custom_domain_config.domain_name, aws_cloudfront_distribution.this.domain_name)}/api/import"
+    url          = "https://${try(var.custom_domain_config.domain_name, aws_cloudfront_distribution.this.domain_name)}/v1/api/import/default"
     content_type = "json"
     insecure_ssl = false
     secret       = data.aws_kms_secrets.this.plaintext["gh_webhook_secret"]
@@ -15,7 +15,7 @@ resource "github_repository_webhook" "imports" {
   active     = true
   repository = each.key
   configuration {
-    url          = "https://${try(var.custom_domain_config.domain_name, aws_cloudfront_distribution.this.domain_name)}/api/import"
+    url          = "https://${try(var.custom_domain_config.domain_name, aws_cloudfront_distribution.this.domain_name)}/v1/api/import/default"
     content_type = "json"
     insecure_ssl = false
     secret       = data.aws_kms_secrets.this.plaintext["gh_webhook_secret"]

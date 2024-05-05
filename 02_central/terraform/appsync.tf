@@ -95,7 +95,7 @@ data "aws_iam_policy_document" "service" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem"
     ]
-    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null), aws_dynamodb_table.users.arn])
+    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null)])
   }
 
   statement {
@@ -138,15 +138,10 @@ resource "aws_appsync_datasource" "jobs" {
   }
 }
 
-resource "aws_appsync_datasource" "users" {
-  api_id           = aws_appsync_graphql_api.this.id
-  name             = replace(aws_dynamodb_table.users.name, "-", "_")
-  service_role_arn = aws_iam_role.service.arn
-  type             = "AMAZON_DYNAMODB"
-
-  dynamodb_config {
-    table_name = aws_dynamodb_table.users.name
-  }
+resource "aws_appsync_datasource" "none" {
+  api_id = aws_appsync_graphql_api.this.id
+  name   = "none"
+  type   = "NONE"
 }
 
 resource "aws_appsync_resolver" "units" {

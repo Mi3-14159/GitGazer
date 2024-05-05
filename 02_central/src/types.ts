@@ -2,6 +2,7 @@ export interface GQLInput extends GithubWebhookEvent {
   run_id: number;
   workflow_name: string;
   expire_at: string;
+  integrationId: string;
 }
 
 export interface GithubWebhookEvent {

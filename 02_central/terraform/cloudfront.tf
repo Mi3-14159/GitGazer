@@ -51,8 +51,8 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   origin {
-    domain_name = replace(aws_apigatewayv2_api.this.api_endpoint, "https://", "")
-    origin_id   = aws_apigatewayv2_api.this.id
+    domain_name = "${aws_api_gateway_rest_api.this.id}.execute-api.${var.aws_region}.amazonaws.com"
+    origin_id   = aws_api_gateway_rest_api.this.id
     custom_origin_config {
       http_port              = 80
       https_port             = 443
@@ -73,10 +73,10 @@ resource "aws_cloudfront_distribution" "this" {
   dynamic "ordered_cache_behavior" {
     for_each = var.with_frontend_stack ? [1] : []
     content {
-      path_pattern             = "/api/*"
+      path_pattern             = "/${local.api_gateway_stage_name}/api/*"
       allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
       cached_methods           = ["GET", "HEAD", "OPTIONS"]
-      target_origin_id         = aws_apigatewayv2_api.this.id
+      target_origin_id         = aws_api_gateway_rest_api.this.id
       viewer_protocol_policy   = "https-only"
       cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
       origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id

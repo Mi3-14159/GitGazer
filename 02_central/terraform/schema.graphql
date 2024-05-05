@@ -351,6 +351,7 @@ type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
   workflow_name: String!
   expire_at: AWSDateTime!
   action: String!
+  integrationId: String!
   sender: Sender!
   organization: Organization
   repository: Repository!
@@ -362,6 +363,7 @@ input PutJobInput {
   workflow_name: String!
   expire_at: AWSDateTime!
   action: String!
+  integrationId: String!
   sender: SenderInput!
   organization: OrganizationInput
   repository: RepositoryInput!

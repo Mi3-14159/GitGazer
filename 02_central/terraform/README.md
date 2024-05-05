@@ -6,6 +6,9 @@ Your token needs the `admin:org_hook` permission, add it to your token. It you a
 gh auth refresh -h github.com -s admin:org_hook
 ```
 
+If you want to enabled API Gateway logging, you will need to setup the global account Cloudwatch Logs role ARN.
+Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/main/settings?api=unselected&region=<AWS_REGION>](https://eu-central-1.console.aws.amazon.com/apigateway/main/settings?api=unselected&region=<AWS_REGION>)
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
@@ -28,7 +31,6 @@ gh auth refresh -h github.com -s admin:org_hook
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_alerting_stepfunction"></a> [alerting\_stepfunction](#module\_alerting\_stepfunction) | terraform-aws-modules/step-functions/aws | ~> 4.2 |
-| <a name="module_jobs"></a> [jobs](#module\_jobs) | terraform-aws-modules/sqs/aws | ~> 4.1 |
 | <a name="module_this"></a> [this](#module\_this) | moritzzimmer/lambda/aws | ~> 7.5 |
 | <a name="module_ui_bucket"></a> [ui\_bucket](#module\_ui\_bucket) | terraform-aws-modules/s3-bucket/aws | ~> 4.1 |
 
@@ -36,13 +38,18 @@ gh auth refresh -h github.com -s admin:org_hook
 
 | Name | Type |
 |------|------|
-| [aws_apigatewayv2_api.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_api) | resource |
-| [aws_apigatewayv2_integration.jobs_sqs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_integration) | resource |
-| [aws_apigatewayv2_route.import](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
-| [aws_apigatewayv2_stage.default](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_stage) | resource |
+| [aws_api_gateway_deployment.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_deployment) | resource |
+| [aws_api_gateway_integration.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_integration) | resource |
+| [aws_api_gateway_method.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_method) | resource |
+| [aws_api_gateway_method_settings.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_method_settings) | resource |
+| [aws_api_gateway_resource.api_root](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_resource) | resource |
+| [aws_api_gateway_resource.import](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_resource) | resource |
+| [aws_api_gateway_resource.intergration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_resource) | resource |
+| [aws_api_gateway_rest_api.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_rest_api) | resource |
+| [aws_api_gateway_stage.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_stage) | resource |
 | [aws_appsync_datasource.jobs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_datasource) | resource |
+| [aws_appsync_datasource.none](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_datasource) | resource |
 | [aws_appsync_datasource.notification_rules](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_datasource) | resource |
-| [aws_appsync_datasource.users](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_datasource) | resource |
 | [aws_appsync_domain_name.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_domain_name) | resource |
 | [aws_appsync_domain_name_api_association.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_domain_name_api_association) | resource |
 | [aws_appsync_function.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appsync_function) | resource |
@@ -55,10 +62,9 @@ gh auth refresh -h github.com -s admin:org_hook
 | [aws_cloudwatch_log_group.gw_access_logs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
 | [aws_dynamodb_table.jobs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_dynamodb_table.notification_rules](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
-| [aws_dynamodb_table.users](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_iam_policy.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_iam_role.alerting](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
-| [aws_iam_role.api_gw_sqs_integration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role.invocation_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.logging](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.service](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.service](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
@@ -68,6 +74,7 @@ gh auth refresh -h github.com -s admin:org_hook
 | [aws_kms_key.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
 | [aws_kms_key_policy.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key_policy) | resource |
 | [aws_lambda_alias.live](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_alias) | resource |
+| [aws_lambda_permission.apigw](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_pipes_pipe.alerting](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/pipes_pipe) | resource |
 | [aws_route53_record.appsync_a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.appsync_aaaa](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
@@ -83,9 +90,9 @@ gh auth refresh -h github.com -s admin:org_hook
 | [aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/cloudfront_origin_request_policy) | data source |
 | [aws_iam_policy_document.alerting_assume_role_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.alerting_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
-| [aws_iam_policy_document.api_gw_sqs_integration_assume_role_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
-| [aws_iam_policy_document.api_gw_sqs_integration_role_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.aws_kms_key_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.invocation_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.invocation_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.logging_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.s3_policy_cf_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.service](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -98,7 +105,7 @@ gh auth refresh -h github.com -s admin:org_hook
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_api_aws_apigatewayv2_api_logging_enabled"></a> [api\_aws\_apigatewayv2\_api\_logging\_enabled](#input\_api\_aws\_apigatewayv2\_api\_logging\_enabled) | Enable logging of the HTTP API Gateway | `bool` | `true` | no |
+| <a name="input_apigateway_logging_enabled"></a> [apigateway\_logging\_enabled](#input\_apigateway\_logging\_enabled) | Enable logging of the HTTP API Gateway | `bool` | `true` | no |
 | <a name="input_aws_appsync_graphql_api_additional_authentication_providers"></a> [aws\_appsync\_graphql\_api\_additional\_authentication\_providers](#input\_aws\_appsync\_graphql\_api\_additional\_authentication\_providers) | Additional authentication providers for the AppSync GraphQL API | <pre>list(object({<br>    authentication_type = string<br>    user_pool_config = optional(object({<br>      user_pool_id        = string<br>      app_id_client_regex = optional(string)<br>      aws_region          = optional(string)<br>    }))<br>  }))</pre> | `[]` | no |
 | <a name="input_aws_appsync_graphql_api_logging_enabled"></a> [aws\_appsync\_graphql\_api\_logging\_enabled](#input\_aws\_appsync\_graphql\_api\_logging\_enabled) | Enable logging of the AppSync GraphQL API | `bool` | `true` | no |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
@@ -119,7 +126,5 @@ gh auth refresh -h github.com -s admin:org_hook
 |------|-------------|
 | <a name="output_aws_appsync_graphql_api_arn"></a> [aws\_appsync\_graphql\_api\_arn](#output\_aws\_appsync\_graphql\_api\_arn) | The ARN of the AppSync GraphQL API. |
 | <a name="output_aws_appsync_graphql_uris"></a> [aws\_appsync\_graphql\_uris](#output\_aws\_appsync\_graphql\_uris) | The URIs of the AppSync GraphQL API. |
-| <a name="output_aws_dynamodb_table_users_name"></a> [aws\_dynamodb\_table\_users\_name](#output\_aws\_dynamodb\_table\_users\_name) | n/a |
 | <a name="output_cdn_domain_name"></a> [cdn\_domain\_name](#output\_cdn\_domain\_name) | The domain name of the CloudFront distribution. |
-| <a name="output_jobs_sqs_queue_arn"></a> [jobs\_sqs\_queue\_arn](#output\_jobs\_sqs\_queue\_arn) | The ARN of the SQS queue that jobs are sent to. |
 <!-- END_TF_DOCS -->

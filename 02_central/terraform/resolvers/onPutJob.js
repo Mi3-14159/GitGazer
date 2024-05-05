@@ -1,61 +1,45 @@
-import { query } from "@aws-appsync/utils/dynamodb";
+import { util, extensions } from "@aws-appsync/utils";
 
+/**
+ * Sends an empty payload as the subscription is established
+ * @param {*} ctx the context
+ * @returns {import('@aws-appsync/utils').NONERequest} the request
+ */
 export function request(ctx) {
-  // Update with custom logic or select a code sample.
-  console.log("asd: test: request:", JSON.stringify({ ctx }));
-  const username = ctx.identity?.["username"];
-  if (!username) {
-    return runtime.earlyReturn(null);
-  }
-
-  const usernameParts = username.split("_");
-  return query({
-    query: {
-      userId: { eq: usernameParts[1] },
-    },
-    /*filter: {
-      repositories: { contains: "Mi3-14159/GitGazer" },
-    },*/
-  });
+  return { payload: {} };
 }
 
 /**
- * Returns the resolver result
+ * Creates an enhanced subscription
  * @param {import('@aws-appsync/utils').Context} ctx the context
  * @returns {*} the result
  */
 export function response(ctx) {
-  console.log("asd: test: response:", JSON.stringify(ctx));
-  const { error, result } = ctx;
-  if (error) {
-    return util.error(ctx.error.message, ctx.error.type);
+  const userGroups = ctx.identity["groups"];
+  const userGroupsChunks = [];
+  const chunkSize = 5;
+
+  let chunk = [];
+  let i = 0;
+  for (const group of userGroups) {
+    if (i % chunkSize === 0 && i > 0) {
+      userGroupsChunks.push({ integrationId: { in: chunk } });
+      chunk = [];
+    }
+    chunk.push(group);
+    i = i + 1;
   }
 
-  if (!result || !result.items || result.items.length === 0) {
-    //return util.unauthorized();
-    console.log("asd: test: response: not result:", JSON.stringify(ctx));
-    /*const first = {};
-  if (ctx.args.workflow_name) {
-    first["workflow_name"] = { eq: ctx.args.workflow_name };
-  }*/
-
-    console.log("asd: test: response: userpool:", JSON.stringify(result));
-    //first['repository.full_name'] = { in : result.repositories }
-
-    const filter = {
-      or: [
-        {
-          run_id: { le: 0 },
-        },
-      ],
-    };
-
-    console.log("subscription filter:", JSON.stringify(filter));
-    extensions.setSubscriptionFilter(
-      util.transform.toSubscriptionFilter(filter)
-    );
+  if (chunk.length > 0) {
+    userGroupsChunks.push({ integrationId: { in: chunk } });
   }
 
-  // important: return null in the response
+  const filter = util.transform.toSubscriptionFilter({
+    or: userGroupsChunks,
+  });
+
+  if (userGroups.indexOf("admin") === -1) {
+    extensions.setSubscriptionFilter(filter);
+  }
   return null;
 }
