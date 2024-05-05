@@ -12,9 +12,8 @@ module "this" {
   publish          = true
   environment = {
     variables = {
-      ENVIRONMENT               = terraform.workspace
-      ROUTE_PREFIX              = local.api_gateway_stage_name
-      DYNAMODB_TABLE_USERS_NAME = data.aws_dynamodb_table.users.name
+      ENVIRONMENT  = terraform.workspace
+      ROUTE_PREFIX = local.api_gateway_stage_name
     }
   }
   kms_key_arn                       = data.aws_kms_key.this.arn
@@ -36,28 +35,4 @@ resource "aws_lambda_permission" "apigw" {
   principal     = "apigateway.amazonaws.com"
   qualifier     = aws_lambda_alias.live.name
   source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*"
-}
-
-data "aws_iam_policy_document" "this" {
-  statement {
-    effect    = "Allow"
-    actions   = ["dynamodb:PutItem"]
-    resources = [data.aws_dynamodb_table.users.arn]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["kms:Decrypt"]
-    resources = [data.aws_kms_key.this.arn]
-  }
-}
-
-resource "aws_iam_policy" "this" {
-  name   = "${var.name_prefix}-auth-proxy-additional-${terraform.workspace}"
-  policy = data.aws_iam_policy_document.this.json
-}
-
-resource "aws_iam_role_policy_attachment" "this" {
-  role       = module.this.role_name
-  policy_arn = aws_iam_policy.this.arn
 }

@@ -29,7 +29,3 @@ locals {
 data "aws_kms_key" "this" {
   key_id = "alias/${var.name_prefix}-${terraform.workspace}"
 }
-
-data "aws_dynamodb_table" "users" {
-  name = var.aws_dynamodb_table_users_name
-}
