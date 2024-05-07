@@ -4,6 +4,8 @@ import { getCurrentUser, type AuthUser } from 'aws-amplify/auth'
 import Login from './components/Login.vue'
 import AppContent from './components/AppContent.vue'
 
+document.title = 'GitGazer'
+
 const user = ref<AuthUser>()
 
 const getUser = async () => {
