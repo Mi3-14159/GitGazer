@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import type { Job } from '@/types'
 
 const props = defineProps<{
-    action: string
-    run_id: number
-    workflow_name: string
+    job: Job
 }>()
 </script>
 
 <template>
     <div class="github-workflow-job">
-        <h1>{{ props.workflow_name }}</h1>
-        <p><strong>Action:</strong> {{ props.action }}</p>
-        <p><strong>Run ID:</strong> {{ props.run_id }}</p>
+        <h1>{{ props.job.workflow_name }}</h1>
+        <p><strong>Action:</strong> {{ props.job.action }}</p>
+        <p><strong>Run ID:</strong> {{ props.job.run_id }}</p>
     </div>
 </template>
 
