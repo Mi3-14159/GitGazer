@@ -22,6 +22,7 @@ module "this" {
   cloudwatch_logs_kms_key_id        = aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 30
   layers                            = ["arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11"]
+  tracing_config_mode               = "Active"
 }
 
 resource "aws_lambda_alias" "live" {

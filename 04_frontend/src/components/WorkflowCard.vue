@@ -7,7 +7,10 @@ const props = defineProps<{
 </script>
 
 <template>
-  <v-sheet class="pa-2 ma-2" :class="job.workflow_job.conclusion ?? job.action">
+  <v-sheet
+    class="pa-2 ma-2 rounded-lg"
+    :class="job.workflow_job.conclusion ?? job.action"
+  >
     <h3>
       {{ props.job.repository.full_name }} - {{ props.job.workflow_name }}
     </h3>
