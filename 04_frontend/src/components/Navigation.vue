@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { signOut } from 'aws-amplify/auth';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const props = defineProps<{
   username: string;
@@ -32,13 +35,31 @@ const rail = ref(true);
 
     <v-divider></v-divider>
 
-    <v-list density="compact" nav>
-      <v-list-item
-        prepend-icon="mdi-logout"
-        title="Logout"
-        value="logout"
-        :onclick="signOut"
-      ></v-list-item>
-    </v-list>
+    <nav>
+      <v-list density="compact" nav>
+        <v-list-item
+          prepend-icon="mdi-view-dashboard"
+          title="Dashboard"
+          value="dashboard"
+          @click="router.push('/dashboard')"
+        ></v-list-item>
+      </v-list>
+      <v-list density="compact" nav>
+        <v-list-item
+          prepend-icon="mdi-bell-ring"
+          title="Alerting"
+          value="alerting"
+          @click="router.push('/alerting')"
+        ></v-list-item>
+      </v-list>
+      <v-list density="compact" nav>
+        <v-list-item
+          prepend-icon="mdi-logout"
+          title="Logout"
+          value="logout"
+          :onclick="signOut"
+        ></v-list-item>
+      </v-list>
+    </nav>
   </v-navigation-drawer>
 </template>
