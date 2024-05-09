@@ -61,7 +61,7 @@ data "aws_iam_policy_document" "this" {
 }
 
 resource "aws_iam_policy" "this" {
-  name   = "${var.name_prefix}-jobs-processor-additional-policy${terraform.workspace}"
+  name   = "${var.name_prefix}-jobs-processor-additional-policy-${terraform.workspace}"
   policy = data.aws_iam_policy_document.this.json
 }
 
