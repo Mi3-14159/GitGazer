@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { getCurrentUser, type AuthUser } from "aws-amplify/auth";
-import Login from "./components/Login.vue";
-import Navigation from "./components/Navigation.vue";
-import AppContent from "./components/AppContent.vue";
+import { ref } from 'vue';
+import { getCurrentUser, type AuthUser } from 'aws-amplify/auth';
+import Login from './components/Login.vue';
+import Navigation from './components/Navigation.vue';
+import AppContent from './components/AppContent.vue';
 
-document.title = "GitGazer";
+document.title = 'GitGazer';
 
 const user = ref<AuthUser>();
 
@@ -14,7 +14,7 @@ const getUser = async () => {
     const currentUser = await getCurrentUser();
     user.value = currentUser;
   } catch (error) {
-    console.info("Not signed in:", error);
+    console.info('Not signed in:', error);
   }
 };
 

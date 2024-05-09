@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { signOut } from "aws-amplify/auth";
-import { ref } from "vue";
+import { signOut } from 'aws-amplify/auth';
+import { ref } from 'vue';
 
 const props = defineProps<{
   username: string;

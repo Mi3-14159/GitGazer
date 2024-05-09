@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { signInWithRedirect } from "aws-amplify/auth";
+import { signInWithRedirect } from 'aws-amplify/auth';
 </script>
 
 <template>

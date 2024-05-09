@@ -12,6 +12,7 @@
     "@vitejs/plugin-vue": "^5.0.4",
     "eslint": "^9.2.0",
     "eslint-plugin-vue": "^9.26.0",
+    "prettier": "^3.2.5",
     "sass": "^1.71.1",
     "typescript": "^5.4.2",
     "unplugin-fonts": "^1.1.1",
@@ -28,6 +29,7 @@
   "scripts": {
     "build": "vue-tsc --noEmit && vite build",
     "dev": "vite",
+    "pretty": "prettier --write .",
     "preview": "vite preview"
   },
   "version": "0.0.0"

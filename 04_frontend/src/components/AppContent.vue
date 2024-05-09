@@ -3,15 +3,15 @@ import type {
   Job,
   listJobsResponse,
   onPutJobSubscriptionResponse,
-} from "../types";
+} from '../types';
 import {
   generateClient,
   type GraphQLQuery,
   type GraphQLSubscription,
-} from "aws-amplify/api";
-import * as queries from "../queries";
-import { reactive } from "vue";
-import WorkflowCard from "./WorkflowCard.vue";
+} from 'aws-amplify/api';
+import * as queries from '../queries';
+import { reactive } from 'vue';
+import WorkflowCard from './WorkflowCard.vue';
 
 const client = generateClient();
 const jobs = reactive(new Map());
