@@ -22,7 +22,7 @@ const props = defineProps<{
   background-color: #f0ad4e;
 }
 
-.running {
+.in_progress {
   background-color: #5bc0de;
 }
 
