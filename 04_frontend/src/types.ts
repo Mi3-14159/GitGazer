@@ -5,6 +5,10 @@ export interface Job {
   repository: {
     full_name: string;
   };
+  workflow_job: {
+    created_at: string;
+    conclusion: string;
+  };
 }
 
 export interface listJobsResponse {

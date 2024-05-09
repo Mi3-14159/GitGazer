@@ -5,6 +5,10 @@ const jobsProperties = `{
   repository {
       full_name
   }
+  workflow_job {
+    created_at
+    conclusion
+  }
 }`;
 
 export const listJobs = `query ListJobs {
