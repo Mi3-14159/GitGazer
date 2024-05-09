@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { getCurrentUser, type AuthUser } from 'aws-amplify/auth'
-import Login from './components/Login.vue'
-import AppContent from './components/AppContent.vue'
+import { ref } from "vue";
+import { getCurrentUser, type AuthUser } from "aws-amplify/auth";
+import Login from "./components/Login.vue";
+import Navigation from "./components/Navigation.vue";
+import AppContent from "./components/AppContent.vue";
 
-document.title = 'GitGazer'
+document.title = "GitGazer";
 
-const user = ref<AuthUser>()
+const user = ref<AuthUser>();
 
 const getUser = async () => {
-    try {
-        const currentUser = await getCurrentUser()
-        user.value = currentUser
-    } catch (error) {
-        console.info('Not signed in:', error)
-    }
-}
+  try {
+    const currentUser = await getCurrentUser();
+    user.value = currentUser;
+  } catch (error) {
+    console.info("Not signed in:", error);
+  }
+};
 
-getUser()
+getUser();
 </script>
 
 <template>
-    <Suspense>
-        <div className="app">
-            <AppContent v-if="user" />
-            <Login v-else />
-        </div>
-    </Suspense>
+  <v-app id="gitgazer" v-if="user">
+    <Navigation :username="user.username" />
+    <AppContent />
+  </v-app>
+  <v-app id="gitgazer-login" v-else>
+    <Login />
+  </v-app>
 </template>
-
-<style scoped></style>

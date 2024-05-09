@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { signInWithRedirect } from 'aws-amplify/auth'
+import { signInWithRedirect } from "aws-amplify/auth";
 </script>
 
 <template>
-    <h2 className="header">Cognito + GitHub OAuth</h2>
-    <div className="login_container">
-        <button
-            :onClick="
-                () => signInWithRedirect({ provider: { custom: 'Github' } })
-            "
-        >
-            Login with Github
-        </button>
-    </div>
+  <v-container class="d-flex justify-center">GitGazer</v-container>
+  <v-divider></v-divider>
+  <v-container class="d-flex justify-center">
+    <v-btn
+      :onClick="() => signInWithRedirect({ provider: { custom: 'Github' } })"
+      >Login with Github
+    </v-btn>
+  </v-container>
 </template>
-
-<style scoped>
-.header {
-    text-align: center;
-    margin-bottom: 100px;
-}
-
-.login_container {
-    text-align: center;
-}
-</style>

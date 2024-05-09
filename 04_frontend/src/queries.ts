@@ -1,19 +1,19 @@
+const jobsProperties = `{
+  run_id
+  workflow_name
+  action
+  repository {
+      full_name
+  }
+}`;
+
 export const listJobs = `query ListJobs {
     listJobs {
         nextToken
-        items {
-            run_id
-            workflow_name
-            expire_at
-            action
-        }
+        items ${jobsProperties}
     }
-}`
+}`;
 
 export const onPutJob = `subscription MySubscription {
-    onPutJob {
-        action
-        run_id
-        workflow_name
-    }
-}`
+    onPutJob ${jobsProperties}
+}`;
