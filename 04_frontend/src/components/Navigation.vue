@@ -47,9 +47,17 @@ const rail = ref(true);
       <v-list density="compact" nav>
         <v-list-item
           prepend-icon="mdi-bell-ring"
-          title="Alerting"
-          value="alerting"
-          @click="router.push('/alerting')"
+          title="Notifications"
+          value="notifications"
+          @click="router.push('/notifications')"
+        ></v-list-item>
+      </v-list>
+      <v-list density="compact" nav>
+        <v-list-item
+          prepend-icon="mdi-account-cog"
+          title="Integrations"
+          value="integrations"
+          @click="router.push('/integrations')"
         ></v-list-item>
       </v-list>
       <v-list density="compact" nav>

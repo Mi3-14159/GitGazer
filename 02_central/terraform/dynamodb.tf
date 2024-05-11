@@ -35,10 +35,22 @@ resource "aws_dynamodb_table" "notification_rules" {
   name         = "${var.name_prefix}-notification-rules-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
+  range_key    = "integrationId"
 
   attribute {
     name = "id"
     type = "S"
+  }
+
+  attribute {
+    name = "integrationId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    hash_key        = "integrationId"
+    name            = "integrationId-index"
+    projection_type = "ALL"
   }
 
   server_side_encryption {

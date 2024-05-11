@@ -3,7 +3,8 @@ import { ref } from 'vue';
 import { getCurrentUser, type AuthUser } from 'aws-amplify/auth';
 import { useRouter } from 'vue-router';
 import Navigation from '../components/Navigation.vue';
-import AppContent from '../components/AppContent.vue';
+import WorkflowOverview from '../components/WorkflowOverview.vue';
+import NotificationsOveview from '../components/NotificationsOveview.vue';
 
 const router = useRouter();
 
@@ -22,6 +23,9 @@ getUser();
 <template>
   <v-app id="gitgazer">
     <Navigation :username="user?.username ?? ''" />
-    <AppContent v-if="router.currentRoute.value.name === 'dashboard'" />
+    <WorkflowOverview v-if="router.currentRoute.value.name === 'dashboard'" />
+    <NotificationsOveview
+      v-else-if="router.currentRoute.value.name === 'notifications'"
+    />
   </v-app>
 </template>

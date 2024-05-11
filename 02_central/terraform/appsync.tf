@@ -95,7 +95,12 @@ data "aws_iam_policy_document" "service" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem"
     ]
-    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null)])
+    resources = compact([
+      aws_dynamodb_table.jobs.arn,
+      "${aws_dynamodb_table.jobs.arn}/*", # indeces
+      try(aws_dynamodb_table.notification_rules[0].arn, null),
+      try("${aws_dynamodb_table.notification_rules[0].arn}/*", null) # indeces
+    ])
   }
 
   statement {

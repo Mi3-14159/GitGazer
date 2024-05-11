@@ -11,8 +11,13 @@ const router = createRouter({
       component: Default,
     },
     {
-      path: '/alerting',
-      name: 'alerting',
+      path: '/notifications',
+      name: 'notifications',
+      component: Default,
+    },
+    {
+      path: '/integrations',
+      name: 'integrations',
       component: Default,
     },
     {

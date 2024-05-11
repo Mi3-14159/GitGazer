@@ -41,6 +41,14 @@ locals {
       data_source : aws_appsync_datasource.jobs.name,
       kind : "UNIT",
     },
+    var.create_gitgazer_alerting ? [
+      {
+        type : "Query",
+        field : "listNotificationRules",
+        code_file_path : "${path.module}/resolvers/listNotificationRules.js",
+        data_source : aws_appsync_datasource.notification_rules[0].name,
+        kind : "UNIT",
+    }] : [],
     {
       type : "Query",
       field : "getJob",
