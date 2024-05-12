@@ -12,8 +12,9 @@ export function request(ctx) {
 
     const expressionValues = { ":placeholder": { S: "placeholder" } };
     const keys = [];
-    for (const group of groups) {
-      const key = `:${group}`;
+    for (const i in groups) {
+      const group = groups[i];
+      const key = `:kv${i}`;
       expressionValues[key] = { S: group };
       keys.push(key);
     }
