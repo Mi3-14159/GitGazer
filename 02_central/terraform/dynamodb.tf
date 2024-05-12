@@ -15,6 +15,11 @@ resource "aws_dynamodb_table" "jobs" {
     type = "S"
   }
 
+  attribute {
+    name = "integrationId"
+    type = "S"
+  }
+
   server_side_encryption {
     enabled     = true
     kms_key_arn = aws_kms_key.this.arn
@@ -27,6 +32,13 @@ resource "aws_dynamodb_table" "jobs" {
   ttl {
     attribute_name = "expire_at"
     enabled        = true
+  }
+
+  global_secondary_index {
+    name            = "integrationId-index"
+    hash_key        = "integrationId"
+    range_key       = "run_id"
+    projection_type = "ALL"
   }
 }
 
