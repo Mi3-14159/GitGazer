@@ -31,9 +31,15 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  artifact          = "${path.module}/../tmp/lambda.zip"
-  appsync_functions = []
-  appsync_unit_resolvers = flatten([
+  artifact = "${path.module}/../tmp/lambda.zip"
+  appsync_functions = flatten([
+    var.create_gitgazer_alerting ? [{
+      name : "getSsmSecrets",
+      code_file_path : "${path.module}/functions/getSsmSecrets.js",
+      data_source : aws_appsync_datasource.ssm[0].name,
+    }] : [],
+  ])
+  appsync_resolvers = flatten([
     {
       type : "Query",
       field : "listJobs",
@@ -41,14 +47,6 @@ locals {
       data_source : aws_appsync_datasource.jobs.name,
       kind : "UNIT",
     },
-    var.create_gitgazer_alerting ? [
-      {
-        type : "Query",
-        field : "listNotificationRules",
-        code_file_path : "${path.module}/resolvers/listNotificationRules.js",
-        data_source : aws_appsync_datasource.notification_rules[0].name,
-        kind : "UNIT",
-    }] : [],
     {
       type : "Query",
       field : "getJob",
@@ -76,7 +74,23 @@ locals {
       code_file_path : "${path.module}/resolvers/putNotificationRule.js",
       data_source : aws_appsync_datasource.notification_rules[0].name,
       kind : "UNIT",
-    }] : [],
+      }, {
+      type : "Query",
+      field : "listNotificationRules",
+      code_file_path : "${path.module}/resolvers/listNotificationRules.js",
+      data_source : aws_appsync_datasource.notification_rules[0].name,
+      kind : "UNIT",
+      }, {
+      type : "Query",
+      field : "listIntegrations",
+      code_file_path : "${path.module}/resolvers/listIntegrations.js",
+      kind : "PIPELINE",
+      pipeline_config : {
+        functions : [
+          aws_appsync_function.this["getSsmSecrets"].function_id,
+        ],
+      }
+    }] : [null, null, null],
   ])
   appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
   appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]

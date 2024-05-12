@@ -110,7 +110,18 @@ data "aws_iam_policy_document" "service" {
       "kms:Encrypt",
     ]
     resources = [aws_kms_key.this.arn]
+  }
 
+  dynamic "statement" {
+    for_each = var.create_gitgazer_alerting ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+      ]
+      resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_gh_webhook_secret_name_prefix}*"]
+    }
   }
 }
 
@@ -149,9 +160,28 @@ resource "aws_appsync_datasource" "none" {
   type   = "NONE"
 }
 
-resource "aws_appsync_resolver" "units" {
+
+resource "aws_appsync_datasource" "ssm" {
+  count            = var.create_gitgazer_alerting ? 1 : 0
+  api_id           = aws_appsync_graphql_api.this.id
+  name             = "ssm"
+  type             = "HTTP"
+  service_role_arn = aws_iam_role.service.arn
+  http_config {
+    endpoint = "https://ssm.${var.aws_region}.amazonaws.com/"
+    authorization_config {
+      authorization_type = "AWS_IAM"
+      aws_iam_config {
+        signing_region       = var.aws_region
+        signing_service_name = "ssm"
+      }
+    }
+  }
+}
+
+resource "aws_appsync_resolver" "this" {
   for_each = {
-    for index, resolver in local.appsync_unit_resolvers :
+    for index, resolver in local.appsync_resolvers :
     "${resolver.type}_${resolver.field}" => resolver
   }
   type           = each.value.type

@@ -498,6 +498,12 @@ type NotificationRuleConnection @aws_api_key @aws_iam @aws_cognito_user_pools {
   nextToken: String
 }
 
+type Integration @aws_api_key @aws_iam @aws_cognito_user_pools {
+  id: String!
+  secret: String!
+  users: [String]!
+}
+
 type Mutation @aws_api_key @aws_iam {
   putJob(input: PutJobInput!): Job
   putNotificationRule(input: NotificationRuleInput!): NotificationRule
@@ -508,10 +514,8 @@ type Mutation @aws_api_key @aws_iam {
 type Query @aws_api_key @aws_cognito_user_pools {
   getJob(run_id: Float!, workflow_name: String!): Job
   listJobs(filter: JobFilterInput, limit: Int, nextToken: String): JobConnection
-  listNotificationRules(
-    limit: Int
-    nextToken: String
-  ): NotificationRuleConnection
+  listNotificationRules(nextToken: String): NotificationRuleConnection
+  listIntegrations: [Integration]!
 }
 
 type Subscription @aws_api_key @aws_cognito_user_pools {
