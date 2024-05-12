@@ -6,7 +6,8 @@ import { runtime, util } from "@aws-appsync/utils";
  * @returns {*} the return value sent to the first AppSync function
  */
 export function request(ctx) {
-  if (!ctx.stash.parameter.username) {
+  console.log("addUserToGroup_request:", { ctx });
+  if (!ctx.identity?.["username"]) {
     const { id, secret } = ctx.stash.parameter;
     const users = [];
     runtime.earlyReturn({ id, secret, users });
@@ -21,7 +22,7 @@ export function request(ctx) {
     body: {
       GroupName: ctx.stash.parameter.integrationId,
       UserPoolId: "${user_pool_id}",
-      Username: ctx.stash.parameter.username,
+      Username: ctx.identity["username"],
     },
   });
 }
@@ -37,7 +38,6 @@ export function response(ctx) {
     return util.error(ctx.error.message, ctx.error.type);
   }
 
-  const body = JSON.parse(ctx.result.body);
   if (ctx.result.statusCode == 200) {
     const { id, secret } = ctx.stash.parameter;
     const users = [];

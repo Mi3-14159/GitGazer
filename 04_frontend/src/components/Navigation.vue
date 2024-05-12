@@ -43,24 +43,18 @@ const rail = ref(true);
           value="dashboard"
           @click="router.push('/dashboard')"
         ></v-list-item>
-      </v-list>
-      <v-list density="compact" nav>
         <v-list-item
           prepend-icon="mdi-bell-ring"
           title="Notifications"
           value="notifications"
           @click="router.push('/notifications')"
         ></v-list-item>
-      </v-list>
-      <v-list density="compact" nav>
         <v-list-item
           prepend-icon="mdi-account-cog"
           title="Integrations"
           value="integrations"
           @click="router.push('/integrations')"
         ></v-list-item>
-      </v-list>
-      <v-list density="compact" nav>
         <v-list-item
           prepend-icon="mdi-logout"
           title="Logout"

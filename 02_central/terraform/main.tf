@@ -35,24 +35,26 @@ locals {
   appsync_functions = flatten([
     var.create_gitgazer_alerting ? [{
       name : "getSsmSecrets",
-      code_file_path : "${path.module}/functions/getSsmSecrets.js",
+      code : templatefile("${path.module}/functions/getSsmSecrets.tftpl", {
+        ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
+      }),
       data_source : aws_appsync_datasource.ssm[0].name,
       }, {
       name : "putSsmSecret",
-      code : templatefile("${path.module}/functions/putSsmSecret.js", {
+      code : templatefile("${path.module}/functions/putSsmSecret.tftpl", {
         ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
         kms_key_id                = aws_kms_key.this.id
       }),
       data_source : aws_appsync_datasource.ssm[0].name,
       }, {
       name : "createCognitoGroup",
-      code : templatefile("${path.module}/functions/createCognitoGroup.js", {
+      code : templatefile("${path.module}/functions/createCognitoGroup.tftpl", {
         user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
       }),
       data_source : aws_appsync_datasource.cognito[0].name,
       }, {
       name : "addUserToGroup",
-      code : templatefile("${path.module}/functions/addUserToGroup.js", {
+      code : templatefile("${path.module}/functions/addUserToGroup.tftpl", {
         user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
       }),
       data_source : aws_appsync_datasource.cognito[0].name,

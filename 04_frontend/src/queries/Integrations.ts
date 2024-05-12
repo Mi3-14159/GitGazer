@@ -12,6 +12,18 @@ export const listIntegrations = `query ListIntegrations {
   }
 }`;
 
+export const putIntegration = `mutation PutIntegration {
+  putIntegration(input: {}) {
+      id
+      secret
+      users
+  }
+}`;
+
 export interface ListIntegrationsResponse {
   listIntegrations: Integration[];
+}
+
+export interface PutIntegrationsResponse {
+  putIntegration: Integration;
 }

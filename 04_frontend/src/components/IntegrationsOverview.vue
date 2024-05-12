@@ -4,6 +4,8 @@ import {
   listIntegrations,
   ListIntegrationsResponse,
   Integration,
+  putIntegration,
+  PutIntegrationsResponse,
 } from '../queries/index';
 import { reactive } from 'vue';
 import IntegrationCard from './IntegrationCard.vue';
@@ -26,6 +28,23 @@ const handleListIntegrations = async () => {
   }
 };
 
+const handlePutIntegration = async () => {
+  try {
+    const response = await client.graphql<
+      GraphQLQuery<PutIntegrationsResponse>
+    >({
+      query: putIntegration,
+    });
+
+    integrations.set(
+      response.data.putIntegration.id,
+      response.data.putIntegration,
+    );
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 handleListIntegrations();
 </script>
 
@@ -39,6 +58,12 @@ handleListIntegrations();
     >
       <IntegrationCard :integration="integration" />
     </v-row>
+    <v-bottom-navigation :elevation="0">
+      <v-btn value="add" @click="handlePutIntegration">
+        <v-icon>mdi-plus</v-icon>
+        <span>Add</span>
+      </v-btn>
+    </v-bottom-navigation>
   </v-main>
 </template>
 
