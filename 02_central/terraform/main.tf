@@ -37,6 +37,25 @@ locals {
       name : "getSsmSecrets",
       code_file_path : "${path.module}/functions/getSsmSecrets.js",
       data_source : aws_appsync_datasource.ssm[0].name,
+      }, {
+      name : "putSsmSecret",
+      code : templatefile("${path.module}/functions/putSsmSecret.js", {
+        ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
+        kms_key_id                = aws_kms_key.this.id
+      }),
+      data_source : aws_appsync_datasource.ssm[0].name,
+      }, {
+      name : "createCognitoGroup",
+      code : templatefile("${path.module}/functions/createCognitoGroup.js", {
+        user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
+      }),
+      data_source : aws_appsync_datasource.cognito[0].name,
+      }, {
+      name : "addUserToGroup",
+      code : templatefile("${path.module}/functions/addUserToGroup.js", {
+        user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
+      }),
+      data_source : aws_appsync_datasource.cognito[0].name,
     }] : [],
   ])
   appsync_resolvers = flatten([
@@ -90,7 +109,19 @@ locals {
           aws_appsync_function.this["getSsmSecrets"].function_id,
         ],
       }
-    }] : [null, null, null],
+      }, {
+      type : "Mutation",
+      field : "putIntegration",
+      code_file_path : "${path.module}/resolvers/putIntegration.js",
+      kind : "PIPELINE",
+      pipeline_config : {
+        functions : [
+          aws_appsync_function.this["putSsmSecret"].function_id,
+          aws_appsync_function.this["createCognitoGroup"].function_id,
+          aws_appsync_function.this["addUserToGroup"].function_id,
+        ],
+      }
+    }] : [null, null, null, null],
   ])
   appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
   appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]

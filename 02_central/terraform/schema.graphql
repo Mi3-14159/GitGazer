@@ -504,9 +504,16 @@ type Integration @aws_api_key @aws_cognito_user_pools {
   users: [String]!
 }
 
+input IntegrationInput {
+  id: String
+  secret: String
+  users: [String]
+}
+
 type Mutation @aws_api_key @aws_cognito_user_pools {
   putJob(input: PutJobInput!): Job @aws_api_key @aws_iam
   putNotificationRule(input: NotificationRuleInput!): NotificationRule
+  putIntegration(input: IntegrationInput): Integration
 }
 
 type Query @aws_api_key @aws_cognito_user_pools {
