@@ -1,4 +1,4 @@
-import { util } from "@aws-appsync/utils";
+import { util, runtime } from "@aws-appsync/utils";
 import { scan } from "@aws-appsync/utils/dynamodb";
 
 /**
@@ -9,6 +9,10 @@ export function request(ctx) {
   const { nextToken } = ctx.args;
   if (util.authType() === "User Pool Authorization") {
     const groups = ctx.identity["groups"];
+
+    if (!groups || groups.length === 0) {
+      runtime.earlyReturn({ items: [] });
+    }
 
     const expressionValues = { ":placeholder": { S: "placeholder" } };
     const keys = [];

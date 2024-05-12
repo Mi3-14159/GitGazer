@@ -23,7 +23,6 @@ const handlePutNotificationRule = async (
     >({
       query: putNotificationRule(putNotificationRuleInput),
     });
-    console.log(response.data.putNotificationRule);
     notificationRules.set(``, response.data.putNotificationRule);
   } catch (error) {
     console.error(error);
@@ -37,8 +36,7 @@ const handleListNotificationRules = async () => {
     >({
       query: listNotificationRules,
     });
-    console.log(response.data.listNotificationRules.items);
-    response.data.listNotificationRules.items.forEach(
+    response.data.listNotificationRules.items?.forEach(
       (notificationRule: NotificationRule) => {
         notificationRules.set(
           `${notificationRule.integrationId}-${notificationRule.owner}/${notificationRule.repository_name}/${notificationRule.workflow_name}`,
