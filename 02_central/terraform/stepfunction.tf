@@ -1,6 +1,6 @@
 data "template_file" "alerting_stepfunction" {
   count    = var.create_gitgazer_alerting ? 1 : 0
-  template = file("${path.module}/stepfunction.json")
+  template = file("${path.module}/stepfunction_alerting.json")
   vars = {
     aws_cloudwatch_event_connection_generic_arn = aws_cloudwatch_event_connection.generic[0].arn
     notification_rules_table_name               = aws_dynamodb_table.notification_rules[0].name

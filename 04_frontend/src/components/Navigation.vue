@@ -6,7 +6,8 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const props = defineProps<{
-  username: string;
+  username?: string;
+  pictureUrl?: string;
 }>();
 
 const drawer = ref(true);
@@ -20,10 +21,7 @@ const rail = ref(true);
     permanent
     @click="rail = false"
   >
-    <v-list-item
-      prepend-avatar="https://randomuser.me/api/portraits/men/85.jpg"
-      :title="props.username"
-    >
+    <v-list-item :prepend-avatar="pictureUrl" :title="props.username">
       <template v-slot:append>
         <v-btn
           icon="mdi-chevron-left"

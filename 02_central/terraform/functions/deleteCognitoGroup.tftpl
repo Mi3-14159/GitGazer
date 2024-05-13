@@ -1,4 +1,4 @@
-import { runtime, util } from "@aws-appsync/utils";
+import { util } from "@aws-appsync/utils";
 
 /**
  * Starts the resolver execution
@@ -6,22 +6,15 @@ import { runtime, util } from "@aws-appsync/utils";
  * @returns {*} the return value sent to the first AppSync function
  */
 export function request(ctx) {
-  if (!ctx.identity?.["username"]) {
-    const { id, secret } = ctx.stash.parameter;
-    const users = [];
-    runtime.earlyReturn({ id, secret, users });
-  }
-
   return fetch("/", {
     method: "POST",
     headers: {
       "content-type": "application/x-amz-json-1.1",
-      "x-amz-target": "AWSCognitoIdentityProviderService.AdminAddUserToGroup",
+      "x-amz-target": "AWSCognitoIdentityProviderService.DeleteGroup",
     },
     body: {
-      GroupName: ctx.stash.parameter.integrationId,
+      GroupName: ctx.stash.integrationId,
       UserPoolId: "${user_pool_id}",
-      Username: ctx.identity["username"],
     },
   });
 }
@@ -36,10 +29,12 @@ export function response(ctx) {
     return util.error(ctx.error.message, ctx.error.type);
   }
 
-  if (ctx.result.statusCode == 200) {
-    const { integrationId, secret } = ctx.stash.parameter;
-    const users = [];
-    return { id: integrationId, secret, users };
+  const body = JSON.parse(ctx.result.body);
+  if (
+    ctx.result.statusCode == 200 ||
+    body.__type == "ResourceNotFoundException"
+  ) {
+    return true;
   } else {
     return util.appendError(ctx.result.body, "ctx.result.statusCode");
   }

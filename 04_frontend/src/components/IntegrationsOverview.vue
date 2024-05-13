@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { generateClient, type GraphQLQuery } from 'aws-amplify/api';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import {
   listIntegrations,
   ListIntegrationsResponse,
   Integration,
   putIntegration,
   PutIntegrationsResponse,
+  DeleteIntegrationResponse,
+  deleteIntegration,
 } from '../queries/index';
 import { reactive } from 'vue';
 import IntegrationCard from './IntegrationCard.vue';
@@ -28,6 +31,8 @@ const handleListIntegrations = async () => {
   }
 };
 
+handleListIntegrations();
+
 const handlePutIntegration = async () => {
   try {
     const response = await client.graphql<
@@ -40,12 +45,30 @@ const handlePutIntegration = async () => {
       response.data.putIntegration.id,
       response.data.putIntegration,
     );
+    await fetchAuthSession({ forceRefresh: true });
   } catch (error) {
     console.error(error);
   }
 };
 
-handleListIntegrations();
+const handleDeleteIntegration = async (id: string) => {
+  try {
+    const response = await client.graphql<
+      GraphQLQuery<DeleteIntegrationResponse>
+    >({
+      query: deleteIntegration(id),
+    });
+
+    if (response.data.deleteIntegration) {
+      integrations.delete(id);
+      await fetchAuthSession({ forceRefresh: true });
+    } else {
+      console.error('Integration could not be deleted');
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
 </script>
 
 <template>
@@ -56,7 +79,10 @@ handleListIntegrations();
       :key="key"
       no-gutters
     >
-      <IntegrationCard :integration="integration" />
+      <IntegrationCard
+        :integration="integration"
+        :onDelete="handleDeleteIntegration"
+      />
     </v-row>
     <v-bottom-navigation :elevation="0">
       <v-btn value="add" @click="handlePutIntegration">

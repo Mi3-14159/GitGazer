@@ -53,11 +53,23 @@ locals {
       }),
       data_source : aws_appsync_datasource.cognito[0].name,
       }, {
+      name : "deleteCognitoGroup",
+      code : templatefile("${path.module}/functions/deleteCognitoGroup.tftpl", {
+        user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
+      }),
+      data_source : aws_appsync_datasource.cognito[0].name,
+      }, {
       name : "addUserToGroup",
       code : templatefile("${path.module}/functions/addUserToGroup.tftpl", {
         user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
       }),
       data_source : aws_appsync_datasource.cognito[0].name,
+      }, {
+      name : "deleteSsmParameter",
+      code : templatefile("${path.module}/functions/deleteSsmParameter.tftpl", {
+        ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
+      }),
+      data_source : aws_appsync_datasource.ssm[0].name,
     }] : [],
   ])
   appsync_resolvers = flatten([
@@ -123,7 +135,18 @@ locals {
           aws_appsync_function.this["addUserToGroup"].function_id,
         ],
       }
-    }] : [null, null, null, null],
+      }, {
+      type : "Mutation",
+      field : "deleteIntegration",
+      code_file_path : "${path.module}/resolvers/deleteIntegration.js",
+      kind : "PIPELINE",
+      pipeline_config : {
+        functions : [
+          aws_appsync_function.this["deleteSsmParameter"].function_id,
+          aws_appsync_function.this["deleteCognitoGroup"].function_id,
+        ],
+      }
+    }] : [null, null, null, null, null],
   ])
   appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
   appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]

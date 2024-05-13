@@ -392,6 +392,7 @@ input TableBooleanFilterInput {
 }
 
 input JobFilterInput {
+  integrationId: String!
   runId: TableStringFilterInput
   workflowName: TableStringFilterInput
   completedAt: TableStringFilterInput
@@ -514,11 +515,16 @@ type Mutation @aws_api_key @aws_cognito_user_pools {
   putJob(input: PutJobInput!): Job @aws_api_key @aws_iam
   putNotificationRule(input: NotificationRuleInput!): NotificationRule
   putIntegration(input: IntegrationInput): Integration
+  deleteIntegration(id: String!): Boolean
 }
 
 type Query @aws_api_key @aws_cognito_user_pools {
   getJob(run_id: Float!, workflow_name: String!): Job
-  listJobs(filter: JobFilterInput, limit: Int, nextToken: String): JobConnection
+  listJobs(
+    filter: JobFilterInput!
+    limit: Int
+    nextToken: String
+  ): JobConnection
   listNotificationRules(nextToken: String): NotificationRuleConnection
   listIntegrations: [Integration]!
 }

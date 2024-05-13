@@ -27,3 +27,13 @@ export interface ListIntegrationsResponse {
 export interface PutIntegrationsResponse {
   putIntegration: Integration;
 }
+
+export const deleteIntegration = (
+  id: string,
+): string => `mutation DeleteIntegration {
+  deleteIntegration(id: "${id}")
+}`;
+
+export interface DeleteIntegrationResponse {
+  deleteIntegration: boolean;
+}
