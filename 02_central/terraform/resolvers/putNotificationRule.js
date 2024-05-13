@@ -6,8 +6,21 @@ import { util } from "@aws-appsync/utils";
  * @returns {import('@aws-appsync/utils').DynamoDBUpdateItemRequest} the request
  */
 export function request(ctx) {
-  const { owner, repository_name, workflow_name, enabled, http } =
-    ctx.args.input;
+  const {
+    integrationId,
+    owner,
+    repository_name,
+    workflow_name,
+    enabled,
+    http,
+  } = ctx.args.input;
+
+  if (util.authType() === "User Pool Authorization") {
+    if (!ctx.identity["groups"].includes(integrationId)) {
+      util.unauthorized();
+    }
+  }
+
   const idParts = [
     owner,
     ...(repository_name != null ? [repository_name] : []),
@@ -21,6 +34,7 @@ export function request(ctx) {
     operation: "UpdateItem",
     key: {
       id: util.dynamodb.toDynamoDB(key.id),
+      integrationId: util.dynamodb.toDynamoDB(integrationId),
     },
     update: {
       expression:

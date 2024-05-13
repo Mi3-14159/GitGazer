@@ -1,9 +1,10 @@
 export interface PutNotificationRuleInput {
+  integrationId: string;
   enabled: boolean;
   owner: string;
   repository_name?: string;
   workflow_name?: string;
-  http: {
+  http?: {
     body: string;
     method: string;
     url: string;
@@ -11,7 +12,6 @@ export interface PutNotificationRuleInput {
 }
 
 export interface NotificationRule extends PutNotificationRuleInput {
-  integrationId: string;
   created_at: string;
   updated_at: string;
 }
@@ -26,17 +26,23 @@ export const putNotificationRule = (
   return `mutation PutNotificationRule {
   putNotificationRule(
       input: {
+          integrationId: "${putNotificationRuleInput.integrationId}"
           owner: "${putNotificationRuleInput.owner}"
           enabled: ${putNotificationRuleInput.enabled}
-          http: {
+          ${
+            putNotificationRuleInput.http
+              ? `http: {
               body: "${putNotificationRuleInput.http.body}"
               method: "${putNotificationRuleInput.http.method}"
               url: "${putNotificationRuleInput.http.url}"
+          }`
+              : ''
           }
-          repository_name: ${putNotificationRuleInput.repository_name ?? null}
-          workflow_name: ${putNotificationRuleInput.workflow_name ?? null}
+          ${putNotificationRuleInput.repository_name ? `repository_name: "${putNotificationRuleInput.repository_name}"` : ''}
+          ${putNotificationRuleInput.workflow_name ? `workflow_name: "${putNotificationRuleInput.workflow_name}"` : ''}
       }
   ) {
+      integrationId
       workflow_name
       owner
       enabled
