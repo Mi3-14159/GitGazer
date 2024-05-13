@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Job } from '../types';
+import type { Job } from '../queries';
 
 const props = defineProps<{
   job: Job;

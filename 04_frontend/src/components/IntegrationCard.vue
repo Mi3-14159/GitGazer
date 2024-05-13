@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Integration } from '../queries/index';
+import type { Integration } from '../queries';
 
 const props = defineProps<{
   integration: Integration;

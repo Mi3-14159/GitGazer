@@ -9,7 +9,7 @@ import {
   PutIntegrationsResponse,
   DeleteIntegrationResponse,
   deleteIntegration,
-} from '../queries/index';
+} from '../queries';
 import { reactive } from 'vue';
 import IntegrationCard from './IntegrationCard.vue';
 

@@ -7,7 +7,7 @@ import {
   NotificationRule,
   ListNotificationRulesResponse,
   listNotificationRules,
-} from '../queries/index';
+} from '../queries';
 import { reactive, ref } from 'vue';
 import NotificationCard from './NotificationCard.vue';
 import NotificationDetailsCard from './NotificationDetailsCard.vue';

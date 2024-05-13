@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { NotificationRule } from '../queries/index';
+import type { NotificationRule } from '../queries';
 
 const props = defineProps<{
   notificationRule?: NotificationRule;
