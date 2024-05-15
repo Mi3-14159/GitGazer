@@ -7,9 +7,6 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    AlertingOveview: typeof import('./src/components/AlertingOveview.vue')['default']
-    AppContent: typeof import('./src/components/AppContent.vue')['default']
-    copy: typeof import('./src/components/NotificationCard copy.vue')['default']
     IntegrationCard: typeof import('./src/components/IntegrationCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']
     Navigation: typeof import('./src/components/Navigation.vue')['default']

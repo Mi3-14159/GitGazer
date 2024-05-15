@@ -13,10 +13,22 @@ const integrationUrl = `${import.meta.env.VITE_IMPORT_URL_BASE}${props.integrati
   <v-card class="ma-2 rounded-lg">
     <v-card-title>{{ props.integration.id }}</v-card-title>
     <v-card-text
-      >Secret: {{ props.integration.secret }}<br />
-      Users: {{ props.integration.users.join(', ') }}<br />
-      Webhook payload URL:
-      <a :href="integrationUrl" target="_blank">{{ integrationUrl }}</a>
+      ><v-row no-gutters
+        ><v-col cols="3">Webhook payload URL:</v-col
+        ><v-col>
+          <a :href="integrationUrl" target="_blank">{{
+            integrationUrl
+          }}</a></v-col
+        ></v-row
+      >
+      <v-row no-gutters
+        ><v-col cols="3">Secret:</v-col
+        ><v-col>{{ props.integration.secret }}</v-col></v-row
+      >
+      <v-row no-gutters
+        ><v-col cols="3">Users:</v-col
+        ><v-col>{{ props.integration.users.join(', ') }}</v-col></v-row
+      >
     </v-card-text>
     <v-card-actions>
       <v-spacer></v-spacer>
