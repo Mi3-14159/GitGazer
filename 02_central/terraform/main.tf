@@ -156,4 +156,5 @@ locals {
   }
   api_gateway_stage_name                      = "v1"
   ssm_parameter_gh_webhook_secret_name_prefix = "/${var.name_prefix}-${terraform.workspace}/gh-webhook-secret/"
+  frontend_failover_sub_path                  = "fe-failover"
 }
