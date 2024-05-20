@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { generateClient, type GraphQLQuery } from 'aws-amplify/api';
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { AuthUser, fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import {
   listIntegrations,
   ListIntegrationsResponse,
@@ -10,11 +10,19 @@ import {
   DeleteIntegrationResponse,
   deleteIntegration,
 } from '../queries';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import IntegrationCard from './IntegrationCard.vue';
 
 const client = generateClient();
 const integrations = reactive(new Map());
+const user = ref<AuthUser>();
+
+const getUser = async () => {
+  const currentUser = await getCurrentUser();
+  user.value = currentUser;
+};
+
+getUser();
 
 const handleListIntegrations = async () => {
   try {
@@ -81,6 +89,7 @@ const handleDeleteIntegration = async (id: string) => {
     >
       <IntegrationCard
         :integration="integration"
+        :currentUserSub="user?.userId || ''"
         :onDelete="handleDeleteIntegration"
       />
     </v-row>

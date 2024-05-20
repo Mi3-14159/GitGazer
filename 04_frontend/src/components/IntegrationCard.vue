@@ -3,10 +3,14 @@ import type { Integration } from '../queries';
 
 const props = defineProps<{
   integration: Integration;
+  currentUserSub: string;
   onDelete: (id: string) => void;
 }>();
 
 const integrationUrl = `${import.meta.env.VITE_IMPORT_URL_BASE}${props.integration.id}`;
+
+const ownerAnnotation =
+  props.integration.owner === props.currentUserSub ? ' (you)' : '(not you)';
 </script>
 
 <template>
@@ -27,10 +31,12 @@ const integrationUrl = `${import.meta.env.VITE_IMPORT_URL_BASE}${props.integrati
       >
       <v-row no-gutters
         ><v-col cols="3">Owner:</v-col
-        ><v-col>{{ props.integration.owner }}</v-col></v-row
+        ><v-col
+          >{{ props.integration.owner }} {{ ownerAnnotation }}</v-col
+        ></v-row
       >
       <v-row no-gutters
-        ><v-col cols="3">Users:</v-col
+        ><v-col cols="3">(TODO) Users:</v-col
         ><v-col>{{ props.integration.users.join(', ') }}</v-col></v-row
       >
     </v-card-text>
