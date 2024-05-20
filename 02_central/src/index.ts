@@ -10,7 +10,7 @@ import {
 } from "aws-lambda";
 import * as crypto from "crypto";
 import { getLogger } from "./logger";
-import { GQLInput, GithubWebhookEvent } from "./types";
+import { GQLInput, GithubWebhookEvent, IntegrationSecret } from "./types";
 import { captureFetchGlobal } from "aws-xray-sdk-fetch";
 captureFetchGlobal();
 
@@ -27,11 +27,12 @@ export const handler: APIGatewayProxyHandler = async (
   };
 
   const integrationId = event.path.replace("/api/import/", "");
-  const githubSecret = await loadParameter(integrationId);
-  if (!githubSecret) {
+  const integrationSecret = await loadParameter(integrationId);
+  const { secret } = integrationSecret;
+  if (!secret) {
     return {
       statusCode: 400,
-      body: "Bad request: integration id not found.",
+      body: "Bad request: integration not found.",
     };
   }
 
@@ -45,7 +46,7 @@ export const handler: APIGatewayProxyHandler = async (
     };
   }
 
-  const isValid = validateSignature(payload, githubSecret, signature);
+  const isValid = validateSignature(payload, secret, signature);
 
   if (!isValid) {
     result.statusCode = 401;
@@ -171,7 +172,9 @@ const getAllKeysStructuredFormatted = (input: GQLInput) => {
   return extractKeys(input); // Start the recursion with the initial object
 };
 
-const loadParameter = async (intergrationId: string): Promise<string> => {
+const loadParameter = async (
+  intergrationId: string
+): Promise<IntegrationSecret> => {
   const parameterName = `${process.env.SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX}${intergrationId}`;
   const url = `http://localhost:2773/systemsmanager/parameters/get?name=${encodeURIComponent(
     parameterName
@@ -192,5 +195,5 @@ const loadParameter = async (intergrationId: string): Promise<string> => {
 
   const { Parameter } = await response.json();
   const { Value } = Parameter;
-  return Value;
+  return JSON.parse(Value);
 };

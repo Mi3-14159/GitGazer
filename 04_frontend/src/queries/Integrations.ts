@@ -1,6 +1,7 @@
 export interface Integration {
   id: string;
   secret: string;
+  owner: string;
   users: string[];
 }
 
@@ -8,6 +9,7 @@ export const listIntegrations = `query ListIntegrations {
   listIntegrations {
       id
       secret
+      owner
       users
   }
 }`;

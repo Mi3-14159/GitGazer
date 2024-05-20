@@ -189,3 +189,8 @@ export interface Sender {
   type: string;
   site_admin: boolean;
 }
+
+export interface IntegrationSecret {
+  secret: string;
+  owner: string;
+}

@@ -10,13 +10,19 @@ import {
   generateClient,
   type GraphQLQuery,
   type GraphQLSubscription,
+  CONNECTION_STATE_CHANGE,
+  ConnectionState,
 } from 'aws-amplify/api';
+import { Hub } from 'aws-amplify/utils';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { onMounted, onUnmounted, reactive } from 'vue';
 import WorkflowCard from './WorkflowCard.vue';
 
 const client = generateClient();
 const jobs = reactive(new Map());
+
+let subscription;
+let priorConnectionState: ConnectionState;
 
 const handleListJobs = async () => {
   const session = await fetchAuthSession();
@@ -36,8 +42,6 @@ const handleListJobs = async () => {
 
 handleListJobs();
 
-let subscription;
-
 onMounted(() => {
   subscription = client
     .graphql<GraphQLSubscription<onPutJobSubscriptionResponse>>({
@@ -49,6 +53,19 @@ onMounted(() => {
       },
       error: (error: any) => console.warn(new Date().toISOString(), error),
     });
+});
+
+Hub.listen('API', (data: any) => {
+  const { payload } = data;
+  if (payload.event === CONNECTION_STATE_CHANGE) {
+    if (
+      priorConnectionState === ConnectionState.Connecting &&
+      payload.data.connectionState === ConnectionState.Connected
+    ) {
+      handleListJobs();
+    }
+    priorConnectionState = payload.data.connectionState;
+  }
 });
 
 onUnmounted(() => {
