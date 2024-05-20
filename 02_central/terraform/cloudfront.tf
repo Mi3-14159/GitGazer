@@ -86,7 +86,7 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   origin_group {
-    origin_id = "frontent-with-failover"
+    origin_id = "frontend-with-failover"
 
     failover_criteria {
       status_codes = [403]
@@ -118,8 +118,8 @@ resource "aws_cloudfront_distribution" "this" {
     content {
       allowed_methods        = ["GET", "HEAD", "OPTIONS"]
       cached_methods         = ["GET", "HEAD", "OPTIONS"]
-      target_origin_id       = "frontent-with-failover"
-      viewer_protocol_policy = "https-only"
+      target_origin_id       = "frontend-with-failover"
+      viewer_protocol_policy = "redirect-to-https"
       cache_policy_id        = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
       compress               = true
     }
