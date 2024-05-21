@@ -349,7 +349,7 @@ input WorkflowJobInput {
 type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
   run_id: Float!
   workflow_name: String!
-  expire_at: AWSDateTime!
+  expire_at: AWSTimestamp!
   action: String!
   integrationId: String!
   sender: Sender!
@@ -361,7 +361,7 @@ type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
 input PutJobInput {
   run_id: Float!
   workflow_name: String!
-  expire_at: AWSDateTime!
+  expire_at: AWSTimestamp!
   action: String!
   integrationId: String!
   sender: SenderInput!

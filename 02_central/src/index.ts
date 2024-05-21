@@ -137,11 +137,9 @@ const getInput = (
     ...event,
     run_id: event.workflow_job.run_id,
     workflow_name: event.workflow_job.workflow_name,
-    expire_at: new Date(
-      Math.floor(
-        new Date().getTime() + parseInt(process.env.EXPIRE_IN_SEC) * 1000
-      )
-    ).toISOString(),
+    expire_at: Math.floor(
+      new Date().getTime() + parseInt(process.env.EXPIRE_IN_SEC)
+    ),
     integrationId,
   };
 
