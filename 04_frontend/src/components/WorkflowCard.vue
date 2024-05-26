@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Job } from '../types';
+import type { Job } from '../queries';
 
 const props = defineProps<{
   job: Job;
@@ -7,14 +7,18 @@ const props = defineProps<{
 </script>
 
 <template>
-  <v-sheet class="pa-2 ma-2" :class="job.workflow_job.conclusion ?? job.action">
-    <h3>
-      {{ props.job.repository.full_name }} - {{ props.job.workflow_name }}
-    </h3>
-    <p><strong>Run ID:</strong> {{ props.job.run_id }}</p>
-    <p><strong>State:</strong> {{ props.job.action }}</p>
-    <p><strong>Conclusion</strong> {{ props.job.workflow_job.conclusion }}</p>
-  </v-sheet>
+  <v-card
+    class="ma-2 rounded-lg"
+    :class="job.workflow_job.conclusion ?? job.action"
+  >
+    <v-card-title>{{ props.job.workflow_name }} </v-card-title>
+    <v-card-subtitle>{{ props.job.repository.full_name }}</v-card-subtitle>
+    <v-card-text
+      >Run ID: {{ props.job.run_id }}<br />
+      State: {{ props.job.action }}<br />
+      Conclusion: {{ props.job.workflow_job.conclusion }}
+    </v-card-text>
+  </v-card>
 </template>
 
 <style scoped>

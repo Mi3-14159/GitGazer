@@ -7,9 +7,15 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    AppContent: typeof import('./src/components/AppContent.vue')['default']
-    Login: typeof import('./src/components/Login.vue')['default']
+    IntegrationCard: typeof import('./src/components/IntegrationCard.vue')['default']
+    IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']
     Navigation: typeof import('./src/components/Navigation.vue')['default']
+    NotificationCard: typeof import('./src/components/NotificationCard.vue')['default']
+    NotificationDetailsCard: typeof import('./src/components/NotificationDetailsCard.vue')['default']
+    NotificationsOveview: typeof import('./src/components/NotificationsOveview.vue')['default']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
     WorkflowCard: typeof import('./src/components/WorkflowCard.vue')['default']
+    WorkflowOverview: typeof import('./src/components/WorkflowOverview.vue')['default']
   }
 }

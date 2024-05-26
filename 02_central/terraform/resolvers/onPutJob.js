@@ -16,6 +16,10 @@ export function request(ctx) {
  */
 export function response(ctx) {
   const userGroups = ctx.identity["groups"];
+  if (!userGroups || userGroups.length === 0) {
+    util.unauthorized();
+  }
+
   const userGroupsChunks = [];
   const chunkSize = 5;
 

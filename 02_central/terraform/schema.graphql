@@ -349,7 +349,7 @@ input WorkflowJobInput {
 type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
   run_id: Float!
   workflow_name: String!
-  expire_at: AWSDateTime!
+  expire_at: AWSTimestamp!
   action: String!
   integrationId: String!
   sender: Sender!
@@ -361,7 +361,7 @@ type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
 input PutJobInput {
   run_id: Float!
   workflow_name: String!
-  expire_at: AWSDateTime!
+  expire_at: AWSTimestamp!
   action: String!
   integrationId: String!
   sender: SenderInput!
@@ -370,7 +370,7 @@ input PutJobInput {
   workflow_job: WorkflowJobInput!
 }
 
-type JobConnection @aws_api_key @aws_iam @aws_cognito_user_pools {
+type JobConnection @aws_api_key @aws_cognito_user_pools {
   items: [Job]
   nextToken: String
 }
@@ -392,6 +392,7 @@ input TableBooleanFilterInput {
 }
 
 input JobFilterInput {
+  integrationId: String!
   runId: TableStringFilterInput
   workflowName: TableStringFilterInput
   completedAt: TableStringFilterInput
@@ -458,7 +459,7 @@ input TableStringFilterInput {
   size: ModelSizeInput
 }
 
-type Http @aws_api_key @aws_iam @aws_cognito_user_pools {
+type Http @aws_api_key @aws_cognito_user_pools {
   body: String!
   headers: String
   method: String!
@@ -474,7 +475,8 @@ input HttpInput {
   url: String!
 }
 
-type NotificationRule @aws_api_key @aws_iam @aws_cognito_user_pools {
+type NotificationRule @aws_api_key @aws_cognito_user_pools {
+  integrationId: String!
   owner: String!
   repository_name: String
   workflow_name: String
@@ -485,6 +487,7 @@ type NotificationRule @aws_api_key @aws_iam @aws_cognito_user_pools {
 }
 
 input NotificationRuleInput {
+  integrationId: String!
   owner: String!
   repository_name: String
   workflow_name: String
@@ -492,16 +495,40 @@ input NotificationRuleInput {
   http: HttpInput
 }
 
-type Mutation @aws_api_key @aws_iam {
-  putJob(input: PutJobInput!): Job
+type NotificationRuleConnection @aws_api_key @aws_cognito_user_pools {
+  items: [NotificationRule]!
+  nextToken: String
+}
+
+type Integration @aws_api_key @aws_cognito_user_pools {
+  id: String!
+  secret: String!
+  owner: String!
+  users: [String]!
+}
+
+input IntegrationInput {
+  id: String
+  secret: String
+  users: [String]
+}
+
+type Mutation @aws_api_key @aws_cognito_user_pools {
+  putJob(input: PutJobInput!): Job @aws_api_key @aws_iam
   putNotificationRule(input: NotificationRuleInput!): NotificationRule
-    @aws_api_key
-    @aws_cognito_user_pools
+  putIntegration(input: IntegrationInput): Integration
+  deleteIntegration(id: String!): Boolean
 }
 
 type Query @aws_api_key @aws_cognito_user_pools {
   getJob(run_id: Float!, workflow_name: String!): Job
-  listJobs(filter: JobFilterInput, limit: Int, nextToken: String): JobConnection
+  listJobs(
+    filter: JobFilterInput!
+    limit: Int
+    nextToken: String
+  ): JobConnection
+  listNotificationRules(nextToken: String): NotificationRuleConnection
+  listIntegrations: [Integration]!
 }
 
 type Subscription @aws_api_key @aws_cognito_user_pools {

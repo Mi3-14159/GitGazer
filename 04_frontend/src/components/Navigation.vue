@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { signOut } from 'aws-amplify/auth';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const props = defineProps<{
-  username: string;
+  username?: string;
+  pictureUrl?: string;
 }>();
 
 const drawer = ref(true);
@@ -17,10 +21,7 @@ const rail = ref(true);
     permanent
     @click="rail = false"
   >
-    <v-list-item
-      prepend-avatar="https://randomuser.me/api/portraits/men/85.jpg"
-      :title="props.username"
-    >
+    <v-list-item :prepend-avatar="pictureUrl" :title="props.username">
       <template v-slot:append>
         <v-btn
           icon="mdi-chevron-left"
@@ -32,13 +33,33 @@ const rail = ref(true);
 
     <v-divider></v-divider>
 
-    <v-list density="compact" nav>
-      <v-list-item
-        prepend-icon="mdi-logout"
-        title="Logout"
-        value="logout"
-        :onclick="signOut"
-      ></v-list-item>
-    </v-list>
+    <nav>
+      <v-list density="compact" nav>
+        <v-list-item
+          prepend-icon="mdi-view-dashboard"
+          title="Dashboard"
+          value="dashboard"
+          @click="router.push('/dashboard')"
+        ></v-list-item>
+        <v-list-item
+          prepend-icon="mdi-bell-ring"
+          title="Notifications"
+          value="notifications"
+          @click="router.push('/notifications')"
+        ></v-list-item>
+        <v-list-item
+          prepend-icon="mdi-account-cog"
+          title="Integrations"
+          value="integrations"
+          @click="router.push('/integrations')"
+        ></v-list-item>
+        <v-list-item
+          prepend-icon="mdi-logout"
+          title="Logout"
+          value="logout"
+          :onclick="signOut"
+        ></v-list-item>
+      </v-list>
+    </nav>
   </v-navigation-drawer>
 </template>

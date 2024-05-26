@@ -1,5 +1,18 @@
 <script setup lang="ts">
 import { signInWithRedirect } from 'aws-amplify/auth';
+import { getCurrentUser } from 'aws-amplify/auth';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const getUser = async () => {
+  try {
+    await getCurrentUser();
+    router.push('/dashboard');
+  } catch (error) {}
+};
+
+getUser();
 </script>
 
 <template>

@@ -17,6 +17,9 @@ jobs:
     concurrency:
       group: 04_frontend-${{ github.ref }}
       cancel-in-progress: false
+    environment:
+      name: app.gitgazer.com
+      url: https://app.gitgazer.com/
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,8 +42,10 @@ jobs:
           VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
           VITE_GRAPHQL_ENDPOINT: ${{ vars.VITE_GRAPHQL_ENDPOINT }}
           VITE_GRAPHQL_REGION: ${{ vars.VITE_GRAPHQL_REGION }}
+          VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
 
       - name: Deploy
+        if: ${{ github.actor != 'dependabot[bot]' }}
         run: |
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --exclude "*.html"
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"

@@ -95,7 +95,12 @@ data "aws_iam_policy_document" "service" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem"
     ]
-    resources = compact([aws_dynamodb_table.jobs.arn, try(aws_dynamodb_table.notification_rules[0].arn, null)])
+    resources = compact([
+      aws_dynamodb_table.jobs.arn,
+      "${aws_dynamodb_table.jobs.arn}/*", # indeces
+      try(aws_dynamodb_table.notification_rules[0].arn, null),
+      try("${aws_dynamodb_table.notification_rules[0].arn}/*", null) # indeces
+    ])
   }
 
   statement {
@@ -105,7 +110,36 @@ data "aws_iam_policy_document" "service" {
       "kms:Encrypt",
     ]
     resources = [aws_kms_key.this.arn]
+  }
 
+  dynamic "statement" {
+    for_each = var.create_gitgazer_alerting ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:PutParameter",
+        "ssm:DeleteParameter",
+      ]
+      resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_gh_webhook_secret_name_prefix}*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.create_gitgazer_alerting ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "cognito-idp:CreateGroup",
+        "cognito-idp:DeleteGroup",
+        "cognito-idp:UpdateGroup",
+        "cognito-idp:AddUserToGroup",
+        "cognito-idp:RemoveUserFromGroup",
+        "cognito-idp:AdminAddUserToGroup",
+      ]
+      resources = [for each in var.aws_appsync_graphql_api_additional_authentication_providers : "arn:aws:cognito-idp:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/${each.user_pool_config.user_pool_id}" if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
+    }
   }
 }
 
@@ -144,9 +178,46 @@ resource "aws_appsync_datasource" "none" {
   type   = "NONE"
 }
 
-resource "aws_appsync_resolver" "units" {
+
+resource "aws_appsync_datasource" "ssm" {
+  count            = var.create_gitgazer_alerting ? 1 : 0
+  api_id           = aws_appsync_graphql_api.this.id
+  name             = "ssm"
+  type             = "HTTP"
+  service_role_arn = aws_iam_role.service.arn
+  http_config {
+    endpoint = "https://ssm.${var.aws_region}.amazonaws.com/"
+    authorization_config {
+      authorization_type = "AWS_IAM"
+      aws_iam_config {
+        signing_region       = var.aws_region
+        signing_service_name = "ssm"
+      }
+    }
+  }
+}
+
+resource "aws_appsync_datasource" "cognito" {
+  count            = var.create_gitgazer_alerting ? 1 : 0
+  api_id           = aws_appsync_graphql_api.this.id
+  name             = "cognito_idp"
+  type             = "HTTP"
+  service_role_arn = aws_iam_role.service.arn
+  http_config {
+    endpoint = "https://cognito-idp.${var.aws_region}.amazonaws.com/"
+    authorization_config {
+      authorization_type = "AWS_IAM"
+      aws_iam_config {
+        signing_region       = var.aws_region
+        signing_service_name = "cognito-idp"
+      }
+    }
+  }
+}
+
+resource "aws_appsync_resolver" "this" {
   for_each = {
-    for index, resolver in local.appsync_unit_resolvers :
+    for index, resolver in local.appsync_resolvers :
     "${resolver.type}_${resolver.field}" => resolver
   }
   type           = each.value.type
@@ -187,7 +258,7 @@ resource "aws_appsync_function" "this" {
   api_id      = aws_appsync_graphql_api.this.id
   data_source = each.value.data_source
   name        = each.value.name
-  code        = file(each.value.code_file_path)
+  code        = try(each.value.code, file(each.value.code_file_path))
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"

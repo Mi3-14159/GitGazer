@@ -64,9 +64,39 @@ resource "aws_cloudfront_distribution" "this" {
   dynamic "origin" {
     for_each = var.with_frontend_stack ? [1] : []
     content {
+      domain_name = "${aws_api_gateway_rest_api.this.id}.execute-api.${var.aws_region}.amazonaws.com"
+      origin_id   = "${aws_api_gateway_rest_api.this.id}-frontend"
+      origin_path = "/${local.api_gateway_stage_name}/${local.frontend_failover_sub_path}"
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  dynamic "origin" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
       domain_name              = module.ui_bucket.s3_bucket_bucket_regional_domain_name
       origin_id                = module.ui_bucket.s3_bucket_id
       origin_access_control_id = aws_cloudfront_origin_access_control.ui_bucket[0].id
+    }
+  }
+
+  origin_group {
+    origin_id = "frontend-with-failover"
+
+    failover_criteria {
+      status_codes = [403]
+    }
+
+    dynamic "member" {
+      for_each = var.with_frontend_stack ? [module.ui_bucket.s3_bucket_id, "${aws_api_gateway_rest_api.this.id}-frontend"] : []
+      content {
+        origin_id = member.value
+      }
     }
   }
 
@@ -88,8 +118,8 @@ resource "aws_cloudfront_distribution" "this" {
     content {
       allowed_methods        = ["GET", "HEAD", "OPTIONS"]
       cached_methods         = ["GET", "HEAD", "OPTIONS"]
-      target_origin_id       = module.ui_bucket.s3_bucket_id
-      viewer_protocol_policy = "https-only"
+      target_origin_id       = "frontend-with-failover"
+      viewer_protocol_policy = "redirect-to-https"
       cache_policy_id        = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
       compress               = true
     }
