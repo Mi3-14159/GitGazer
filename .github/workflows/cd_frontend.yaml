@@ -17,6 +17,9 @@ jobs:
     concurrency:
       group: 04_frontend-${{ github.ref }}
       cancel-in-progress: false
+    environment:
+      name: app.gitgazer.com
+      url: https://app.gitgazer.com/
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
