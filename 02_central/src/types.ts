@@ -8,9 +8,77 @@ export interface GQLInput extends GithubWebhookEvent {
 export interface GithubWebhookEvent {
   action: string;
   workflow_job: WorkflowJob;
+  deployment?: Deployment;
   repository: Repository;
-  organization: Organization;
+  organization?: Organization;
   sender: Sender;
+}
+
+export interface Deployment {
+  url: string;
+  id: number;
+  node_id: string;
+  task: string;
+  original_environment: string;
+  environment: string;
+  description: null;
+  created_at: Date;
+  updated_at: Date;
+  statuses_url: string;
+  repository_url: string;
+  creator: Sender;
+  sha: string;
+  ref: string;
+  payload: Payload;
+  transient_environment: boolean;
+  production_environment: boolean;
+  performed_via_github_app: PerformedViaGithubApp;
+}
+
+export interface Payload {}
+
+export interface PerformedViaGithubApp {
+  id: number;
+  slug: string;
+  node_id: string;
+  owner: Sender;
+  name: string;
+  description: string;
+  external_url: string;
+  html_url: string;
+  created_at: Date;
+  updated_at: Date;
+  permissions: Permissions;
+  events: string[];
+}
+
+export interface Permissions {
+  actions: string;
+  administration: string;
+  attestations: string;
+  checks: string;
+  contents: string;
+  deployments: string;
+  discussions: string;
+  issues: string;
+  merge_queues: string;
+  metadata: string;
+  packages: string;
+  pages: string;
+  pull_requests: string;
+  repository_hooks: string;
+  repository_projects: string;
+  security_events: string;
+  statuses: string;
+  vulnerability_alerts: string;
+}
+
+export interface License {
+  key: string;
+  name: string;
+  spdx_id: string;
+  url: string;
+  node_id: string;
 }
 
 export interface WorkflowJob {
@@ -44,8 +112,8 @@ export interface Step {
   status: string;
   conclusion: string;
   number: number;
-  started_at: string;
-  completed_at: string;
+  started_at: Date;
+  completed_at: Date;
 }
 
 export interface Repository {
@@ -56,7 +124,7 @@ export interface Repository {
   private: boolean;
   owner: Owner;
   html_url: string;
-  description: any;
+  description: string;
   fork: boolean;
   url: string;
   forks_url: string;
@@ -95,18 +163,18 @@ export interface Repository {
   labels_url: string;
   releases_url: string;
   deployments_url: string;
-  created_at: string;
-  updated_at: string;
-  pushed_at: string;
+  created_at: Date;
+  updated_at: Date;
+  pushed_at: Date;
   git_url: string;
   ssh_url: string;
   clone_url: string;
   svn_url: string;
-  homepage: any;
+  homepage: string;
   size: number;
   stargazers_count: number;
   watchers_count: number;
-  language: any;
+  language: string;
   has_issues: boolean;
   has_projects: boolean;
   has_downloads: boolean;
@@ -118,11 +186,11 @@ export interface Repository {
   archived: boolean;
   disabled: boolean;
   open_issues_count: number;
-  license: any;
+  license: License;
   allow_forking: boolean;
   is_template: boolean;
   web_commit_signoff_required: boolean;
-  topics: any[]; // don't know how to prevent this from being in the object
+  topics: string[];
   visibility: string;
   forks: number;
   open_issues: number;

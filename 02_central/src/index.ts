@@ -137,9 +137,9 @@ const getInput = (
     ...event,
     run_id: event.workflow_job.run_id,
     workflow_name: event.workflow_job.workflow_name,
-    expire_at: Math.floor(
-      new Date().getTime() + parseInt(process.env.EXPIRE_IN_SEC)
-    ),
+    expire_at:
+      Math.floor(new Date().getTime() / 1000) +
+      parseInt(process.env.EXPIRE_IN_SEC),
     integrationId,
   };
 
@@ -147,6 +147,8 @@ const getInput = (
   delete input.workflow_job.labels;
   delete input.repository.topics;
   delete input.repository.custom_properties;
+  delete input.repository.license;
+  delete input.deployment;
 
   return input;
 };
