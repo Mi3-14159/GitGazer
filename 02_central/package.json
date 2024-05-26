@@ -28,7 +28,6 @@
   },
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
-  "license": "ISC",
   "main": "index.js",
   "name": "jobs-processor",
   "repository": {
