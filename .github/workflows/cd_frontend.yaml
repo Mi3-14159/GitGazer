@@ -6,6 +6,10 @@ on:
     paths:
       - "04_frontend/**"
       - ".github/workflows/cd_frontend.yaml"
+  pull_request:
+    paths:
+      - "04_frontend/**"
+      - ".github/workflows/cd_frontend.yaml"
   workflow_dispatch:
 
 jobs:
