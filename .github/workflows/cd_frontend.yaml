@@ -45,6 +45,7 @@ jobs:
           VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
 
       - name: Deploy
+        if: ${{ github.actor != 'dependabot[bot]' }}
         run: |
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --exclude "*.html"
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"
