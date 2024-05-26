@@ -1,5 +1,11 @@
 # GitGazer
 
+GitGazer aims to be a moitoring tool for the github workflows. It provides a workflows overview and a notification system.
+
+A demo is available at https://app.gitgazer.com/
+
+After login you will need to create an [integraton](https://app.gitgazer.com/integrations) and setup a webhook in github. Afterwards you will recieve github workflow status updates and view those on the [dashboard](https://app.gitgazer.com/dashboard). You can also create a [notification](https://app.gitgazer.com/notifications) rule to get notified in case of a failing workflow. Detailed instructions are down below beginning with bullet point `5.`
+
 ## Development
 
 Recommended use of [asdf](https://asdf-vm.com/) to manage your runtime versions.
