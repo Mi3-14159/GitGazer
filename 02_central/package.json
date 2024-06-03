@@ -15,7 +15,7 @@
     "@aws-appsync/eslint-plugin": "^1.6.0",
     "@aws-appsync/utils": "^1.7.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.549.0",
-    "@aws-sdk/credential-provider-node": "^3.549.0",
+    "@aws-sdk/credential-provider-node": "^3.588.0",
     "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.374.0",
     "@types/aws-lambda": "^8.10.137",
