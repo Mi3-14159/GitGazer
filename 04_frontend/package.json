@@ -3,7 +3,7 @@
     "@mdi/font": "^7.4.47",
     "aws-amplify": "^6.3.6",
     "roboto-fontface": "*",
-    "vue": "^3.4.27",
+    "vue": "^3.4.28",
     "vue-router": "^4.3.3",
     "vuetify": "^3.6.9"
   },
