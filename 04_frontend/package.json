@@ -4,7 +4,7 @@
     "aws-amplify": "^6.3.7",
     "roboto-fontface": "*",
     "vue": "^3.4.29",
-    "vue-router": "^4.3.3",
+    "vue-router": "^4.4.0",
     "vuetify": "^3.6.10"
   },
   "devDependencies": {
