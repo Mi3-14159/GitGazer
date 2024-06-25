@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@mdi/font": "^7.4.47",
-    "aws-amplify": "^6.3.7",
+    "aws-amplify": "^6.3.8",
     "roboto-fontface": "*",
     "vue": "^3.4.30",
     "vue-router": "^4.4.0",
