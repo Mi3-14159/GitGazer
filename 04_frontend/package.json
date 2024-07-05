@@ -20,7 +20,7 @@
     "unplugin-vue-components": "^0.27.2",
     "vite": "^5.3.3",
     "vite-plugin-vuetify": "^2.0.3",
-    "vue-tsc": "^2.0.24"
+    "vue-tsc": "^2.0.26"
   },
   "engineStrict": true,
   "engines": {
