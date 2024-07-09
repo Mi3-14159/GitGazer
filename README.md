@@ -1,6 +1,6 @@
 # GitGazer
 
-GitGazer aims to be a moitoring tool for the github workflows. It provides a workflows overview and a notification system.
+GitGazer aims to be a monitoring tool for the github workflows. It provides a workflows overview and a notification system.
 
 A demo is available at <https://app.gitgazer.com/>
 
