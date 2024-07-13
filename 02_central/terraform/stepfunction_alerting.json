@@ -6,9 +6,9 @@
       "InputPath": "$[0]",
       "Next": "Process IDs list",
       "Parameters": {
-        "ids.$": "States.Array(States.Format('{}', $.dynamodb.NewImage.repository.M.owner.M.login.S), States.Format('{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S), States.Format('{}/{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S, $.dynamodb.Keys.workflow_name.S))",
+        "ids.$": "States.Array(States.Format('{}', $.dynamodb.NewImage.repository.M.owner.M.login.S), States.Format('{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S), States.Format('{}/{}/{}', $.dynamodb.NewImage.repository.M.owner.M.login.S, $.dynamodb.NewImage.repository.M.name.S, $.dynamodb.NewImage.workflow_name.S))",
         "integrationId.$": "$.dynamodb.NewImage.integrationId.S",
-        "workflow_name.$": "$.dynamodb.Keys.workflow_name.S"
+        "workflow_name.$": "$.dynamodb.NewImage.workflow_name.S"
       },
       "Type": "Pass"
     },
@@ -29,7 +29,7 @@
               },
               "Method.$": "$.Item.http.M.method.S",
               "RequestBody": {
-                "text.$": "States.Format($.Item.http.M.body.S, $$.Execution.Input[0].dynamodb.Keys.workflow_name.S)"
+                "text.$": "States.Format($.Item.http.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_name.S)"
               }
             },
             "Resource": "arn:aws:states:::http:invoke",

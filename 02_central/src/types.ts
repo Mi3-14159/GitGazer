@@ -1,8 +1,11 @@
 export interface GQLInput extends GithubWebhookEvent {
   run_id: number;
+  job_id: number;
   workflow_name: string;
+  job_name: string;
   expire_at: number;
   integrationId: string;
+  created_at: Date;
 }
 
 export interface GithubWebhookEvent {
@@ -94,9 +97,9 @@ export interface WorkflowJob {
   html_url: string;
   status: string;
   conclusion?: string;
-  created_at: string;
-  started_at?: string;
-  completed_at?: string;
+  created_at: Date;
+  started_at?: Date;
+  completed_at?: Date;
   name: string;
   steps: Step[]; // don't know how to prevent this from being in the object
   check_run_url: string;

@@ -35,7 +35,7 @@ const handleListJobs = async () => {
       query: listJobs(group),
     });
     response.data.listJobs.items.forEach((job: Job) => {
-      jobs.set(job.workflow_name, job);
+      jobs.set(job.job_id, job);
     });
   });
 };
@@ -49,7 +49,7 @@ onMounted(() => {
     })
     .subscribe({
       next: ({ data }) => {
-        jobs.set(data.onPutJob.workflow_name, data.onPutJob);
+        jobs.set(data.onPutJob.job_id, data.onPutJob);
       },
       error: (error: any) => console.warn(new Date().toISOString(), error),
     });

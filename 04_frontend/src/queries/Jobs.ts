@@ -1,7 +1,9 @@
 export interface Job {
   run_id: number;
+  job_id: number;
   action: string;
   workflow_name: string;
+  job_name: string;
   repository: {
     full_name: string;
   };
@@ -13,7 +15,9 @@ export interface Job {
 
 const jobsProperties = `{
   run_id
+  job_id
   workflow_name
+  job_name
   action
   repository {
       full_name

@@ -348,10 +348,13 @@ input WorkflowJobInput {
 
 type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
   run_id: Float!
+  job_id: Float!
   workflow_name: String!
+  job_name: String!
   expire_at: AWSTimestamp!
   action: String!
   integrationId: String!
+  created_at: AWSDateTime!
   sender: Sender!
   organization: Organization
   repository: Repository!
@@ -360,10 +363,13 @@ type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
 
 input PutJobInput {
   run_id: Float!
+  job_id: Float!
   workflow_name: String!
+  job_name: String!
   expire_at: AWSTimestamp!
   action: String!
   integrationId: String!
+  created_at: AWSDateTime!
   sender: SenderInput!
   organization: OrganizationInput
   repository: RepositoryInput!

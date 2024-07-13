@@ -11,10 +11,13 @@ const props = defineProps<{
     class="ma-2 rounded-lg"
     :class="job.workflow_job.conclusion ?? job.action"
   >
-    <v-card-title>{{ props.job.workflow_name }} </v-card-title>
+    <v-card-title
+      >{{ props.job.workflow_name }} > {{ props.job.job_name }}
+    </v-card-title>
     <v-card-subtitle>{{ props.job.repository.full_name }}</v-card-subtitle>
     <v-card-text
       >Run ID: {{ props.job.run_id }}<br />
+      Job ID: {{ props.job.job_id }}<br />
       State: {{ props.job.action }}<br />
       Conclusion: {{ props.job.workflow_job.conclusion }}
     </v-card-text>

@@ -7,17 +7,18 @@ import { query } from "@aws-appsync/utils/dynamodb";
  * @returns {import('@aws-appsync/utils').DynamoDBQueryRequest} the request
  */
 export function request(ctx) {
-  const { filter, limit = 3, nextToken } = ctx.args;
+  const { filter, limit = 30, nextToken } = ctx.args;
   const { integrationId, ...rest } = filter;
 
   return query({
-    index: "integrationId-index",
+    index: "newest_integration_index",
     query: {
       integrationId: { eq: integrationId },
     },
     limit: Math.min(limit, 10),
     nextToken,
     filter: Object.keys(rest).length > 0 ? rest : null,
+    scanIndexForward: true,
   });
 }
 

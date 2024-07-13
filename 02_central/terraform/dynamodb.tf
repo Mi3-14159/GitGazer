@@ -1,22 +1,21 @@
 resource "aws_dynamodb_table" "jobs" {
   name             = "${var.name_prefix}-jobs-${terraform.workspace}"
   billing_mode     = "PAY_PER_REQUEST"
-  hash_key         = "run_id"
-  range_key        = "workflow_name"
+  hash_key         = "job_id"
   stream_enabled   = var.create_gitgazer_alerting
   stream_view_type = "NEW_IMAGE"
   attribute {
-    name = "run_id"
+    name = "job_id"
     type = "N"
   }
 
   attribute {
-    name = "workflow_name"
+    name = "integrationId"
     type = "S"
   }
 
   attribute {
-    name = "integrationId"
+    name = "created_at"
     type = "S"
   }
 
@@ -37,7 +36,14 @@ resource "aws_dynamodb_table" "jobs" {
   global_secondary_index {
     name            = "integrationId-index"
     hash_key        = "integrationId"
-    range_key       = "run_id"
+    range_key       = "job_id"
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name            = "newest_integration_index"
+    hash_key        = "integrationId"
+    range_key       = "created_at"
     projection_type = "ALL"
   }
 }

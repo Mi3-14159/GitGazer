@@ -136,11 +136,14 @@ const getInput = (
   const input: GQLInput = {
     ...event,
     run_id: event.workflow_job.run_id,
+    job_id: event.workflow_job.id,
     workflow_name: event.workflow_job.workflow_name,
+    job_name: event.workflow_job.name,
     expire_at:
       Math.floor(new Date().getTime() / 1000) +
       parseInt(process.env.EXPIRE_IN_SEC),
     integrationId,
+    created_at: event.workflow_job.created_at,
   };
 
   delete input.workflow_job.steps;
