@@ -11,8 +11,6 @@ import {
 import * as crypto from "crypto";
 import { getLogger } from "./logger";
 import { GQLInput, GithubWebhookEvent, IntegrationSecret } from "./types";
-import { captureFetchGlobal } from "aws-xray-sdk-fetch";
-captureFetchGlobal();
 
 const log = getLogger();
 
