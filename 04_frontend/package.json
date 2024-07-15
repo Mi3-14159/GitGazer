@@ -8,7 +8,7 @@
     "vuetify": "^3.6.12"
   },
   "devDependencies": {
-    "@babel/types": "^7.24.8",
+    "@babel/types": "^7.24.9",
     "@types/node": "^20.14.10",
     "@vitejs/plugin-vue": "^5.0.5",
     "eslint": "^9.7.0",
