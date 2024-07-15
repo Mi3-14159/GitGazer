@@ -5,9 +5,6 @@
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
-    "aws-xray-sdk": "^3.9.0",
-    "aws-xray-sdk-core": "^3.6.0",
-    "aws-xray-sdk-fetch": "^3.9.0",
     "node-fetch": "^3.3.2"
   },
   "description": "handles sqs events and sends them to graphql api",
