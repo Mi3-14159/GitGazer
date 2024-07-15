@@ -1,9 +1,10 @@
-export interface Integration {
+export type Integration = {
   id: string;
   secret: string;
   owner: string;
   users: string[];
-}
+  label: string;
+};
 
 export const listIntegrations = `query ListIntegrations {
   listIntegrations {
@@ -11,24 +12,27 @@ export const listIntegrations = `query ListIntegrations {
       secret
       owner
       users
+      label
   }
 }`;
 
-export const putIntegration = `mutation PutIntegration {
-  putIntegration(input: {}) {
+export const putIntegration = (label: string) => `mutation PutIntegration {
+  putIntegration(input: {label: "${label}"}) {
       id
       secret
+      owner
       users
+      label
   }
 }`;
 
-export interface ListIntegrationsResponse {
+export type ListIntegrationsResponse = {
   listIntegrations: Integration[];
-}
+};
 
-export interface PutIntegrationsResponse {
+export type PutIntegrationsResponse = {
   putIntegration: Integration;
-}
+};
 
 export const deleteIntegration = (
   id: string,
@@ -36,6 +40,6 @@ export const deleteIntegration = (
   deleteIntegration(id: "${id}")
 }`;
 
-export interface DeleteIntegrationResponse {
+export type DeleteIntegrationResponse = {
   deleteIntegration: boolean;
-}
+};

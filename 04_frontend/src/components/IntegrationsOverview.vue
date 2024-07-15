@@ -12,10 +12,12 @@ import {
 } from '../queries';
 import { reactive, ref } from 'vue';
 import IntegrationCard from './IntegrationCard.vue';
+import IntegrationDetailsCard from './IntegrationDetailsCard.vue';
 
 const client = generateClient();
 const integrations = reactive(new Map());
 const user = ref<AuthUser>();
+const dialog = ref(false);
 
 const getUser = async () => {
   const currentUser = await getCurrentUser();
@@ -41,12 +43,12 @@ const handleListIntegrations = async () => {
 
 handleListIntegrations();
 
-const handlePutIntegration = async () => {
+const handlePutIntegration = async (integration: Integration) => {
   try {
     const response = await client.graphql<
       GraphQLQuery<PutIntegrationsResponse>
     >({
-      query: putIntegration,
+      query: putIntegration(integration.label),
     });
 
     integrations.set(
@@ -77,6 +79,11 @@ const handleDeleteIntegration = async (id: string) => {
     console.error(error);
   }
 };
+
+const onSave = async (integration: Integration) => {
+  await handlePutIntegration(integration);
+  dialog.value = false;
+};
 </script>
 
 <template>
@@ -94,10 +101,20 @@ const handleDeleteIntegration = async (id: string) => {
       />
     </v-row>
     <v-bottom-navigation :elevation="0">
-      <v-btn value="add" @click="handlePutIntegration">
-        <v-icon>mdi-plus</v-icon>
-        <span>Add</span>
-      </v-btn>
+      <v-dialog v-model="dialog" max-width="600">
+        <template v-slot:activator="{ props: activatorProps }">
+          <v-btn
+            prepend-icon="mdi-plus"
+            text="Add"
+            v-bind="activatorProps"
+          ></v-btn>
+        </template>
+        <IntegrationDetailsCard
+          v-if="dialog"
+          :onClose="() => (dialog = false)"
+          :onSave="onSave"
+        />
+      </v-dialog>
     </v-bottom-navigation>
   </v-main>
 </template>

@@ -15,7 +15,7 @@ const ownerAnnotation =
 
 <template>
   <v-card class="ma-2 rounded-lg">
-    <v-card-title>{{ props.integration.id }}</v-card-title>
+    <v-card-title>{{ props.integration.label }}</v-card-title>
     <v-card-text
       ><v-row no-gutters
         ><v-col cols="3">Webhook payload URL:</v-col

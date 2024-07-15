@@ -508,6 +508,7 @@ type NotificationRuleConnection @aws_api_key @aws_cognito_user_pools {
 
 type Integration @aws_api_key @aws_cognito_user_pools {
   id: String!
+  label: String!
   secret: String!
   owner: String!
   users: [String]!
@@ -516,6 +517,7 @@ type Integration @aws_api_key @aws_cognito_user_pools {
 input IntegrationInput {
   id: String
   secret: String
+  label: String!
   users: [String]
 }
 

@@ -39,7 +39,7 @@ export function response(ctx) {
   if (ctx.result.statusCode == 200) {
     const { integrationId, secret } = ctx.stash.parameter;
     const users = [];
-    return { id: integrationId, secret, users };
+    return { id: integrationId, ...secret, users };
   } else {
     return util.appendError(ctx.result.body, "ctx.result.statusCode");
   }
