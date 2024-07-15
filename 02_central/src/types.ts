@@ -1,4 +1,4 @@
-export interface GQLInput extends GithubWebhookEvent {
+export type GQLInput = {
   run_id: number;
   job_id: number;
   workflow_name: string;
@@ -6,18 +6,27 @@ export interface GQLInput extends GithubWebhookEvent {
   expire_at: number;
   integrationId: string;
   created_at: Date;
-}
+} & GithubWebhookEvent;
 
-export interface GithubWebhookEvent {
+export type GithubWebhookEvent = {
   action: string;
   workflow_job: WorkflowJob;
   deployment?: Deployment;
   repository: Repository;
   organization?: Organization;
   sender: Sender;
-}
+  workflow?: Workflow;
+};
 
-export interface Deployment {
+export type GithubWebhook_WorkflowRunsEvent = {
+  action: string;
+  workflow?: Workflow;
+  repository: Repository;
+  organization?: Organization;
+  sender: Sender;
+};
+
+export type Deployment = {
   url: string;
   id: number;
   node_id: string;
@@ -36,11 +45,11 @@ export interface Deployment {
   transient_environment: boolean;
   production_environment: boolean;
   performed_via_github_app: PerformedViaGithubApp;
-}
+};
 
-export interface Payload {}
+export type Payload = {};
 
-export interface PerformedViaGithubApp {
+export type PerformedViaGithubApp = {
   id: number;
   slug: string;
   node_id: string;
@@ -53,9 +62,9 @@ export interface PerformedViaGithubApp {
   updated_at: Date;
   permissions: Permissions;
   events: string[];
-}
+};
 
-export interface Permissions {
+export type Permissions = {
   actions: string;
   administration: string;
   attestations: string;
@@ -74,17 +83,17 @@ export interface Permissions {
   security_events: string;
   statuses: string;
   vulnerability_alerts: string;
-}
+};
 
-export interface License {
+export type License = {
   key: string;
   name: string;
   spdx_id: string;
   url: string;
   node_id: string;
-}
+};
 
-export interface WorkflowJob {
+export type WorkflowJob = {
   id: number;
   run_id: number;
   workflow_name: string;
@@ -108,18 +117,18 @@ export interface WorkflowJob {
   runner_name: string;
   runner_group_id: number;
   runner_group_name: string;
-}
+};
 
-export interface Step {
+export type Step = {
   name: string;
   status: string;
   conclusion: string;
   number: number;
   started_at: Date;
   completed_at: Date;
-}
+};
 
-export interface Repository {
+export type Repository = {
   id: number;
   node_id: string;
   name: string;
@@ -200,9 +209,9 @@ export interface Repository {
   watchers: number;
   default_branch: string;
   custom_properties: CustomProperties; // don't know how to prevent this from being in the object
-}
+};
 
-export interface Owner {
+export type Owner = {
   login: string;
   id: number;
   node_id: string;
@@ -221,11 +230,11 @@ export interface Owner {
   received_events_url: string;
   type: string;
   site_admin: boolean;
-}
+};
 
-export interface CustomProperties {}
+export type CustomProperties = {};
 
-export interface Organization {
+export type Organization = {
   login: string;
   id: number;
   node_id: string;
@@ -238,9 +247,9 @@ export interface Organization {
   public_members_url: string;
   avatar_url: string;
   description: any;
-}
+};
 
-export interface Sender {
+export type Sender = {
   login: string;
   id: number;
   node_id: string;
@@ -259,9 +268,22 @@ export interface Sender {
   received_events_url: string;
   type: string;
   site_admin: boolean;
-}
+};
 
-export interface IntegrationSecret {
+export type IntegrationSecret = {
   secret: string;
   owner: string;
-}
+};
+
+export type Workflow = {
+  id: number;
+  node_id: string;
+  name: string;
+  path: string;
+  state: string;
+  created_at: Date;
+  updated_at: Date;
+  url: string;
+  html_url: string;
+  badge_url: string;
+};
