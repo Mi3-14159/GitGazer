@@ -1,5 +1,5 @@
-import { util } from '@aws-appsync/utils';
-import { get } from '@aws-appsync/utils/dynamodb';
+import {util} from '@aws-appsync/utils';
+import {get} from '@aws-appsync/utils/dynamodb';
 
 /**
  * Sends a request to get an item with runId `ctx.args.runId` and workflowName `ctx.args.workflowName` from the DynamoDB table.
@@ -7,11 +7,11 @@ import { get } from '@aws-appsync/utils/dynamodb';
  * @returns {import('@aws-appsync/utils').DynamoDBGetItemRequest} the request
  */
 export function request(ctx) {
-    const { runId, workflowName } = ctx.args;
-    const key = { runId, workflowName };
+    const {runId, workflowName} = ctx.args;
+    const key = {runId, workflowName};
     return get({
         key,
-    })
+    });
 }
 
 /**
@@ -20,7 +20,7 @@ export function request(ctx) {
  * @returns {*} the DynamoDB item
  */
 export function response(ctx) {
-    const { error, result } = ctx;
+    const {error, result} = ctx;
     if (error) {
         return util.appendError(error.message, error.type, result);
     }
