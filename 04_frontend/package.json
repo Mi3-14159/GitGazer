@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@babel/types": "^7.25.2",
-    "@types/node": "^20.14.12",
+    "@types/node": "^22.3.0",
     "@vitejs/plugin-vue": "^5.1.2",
     "eslint": "^9.9.0",
     "eslint-plugin-vue": "^9.27.0",
