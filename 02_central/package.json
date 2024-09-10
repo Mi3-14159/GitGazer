@@ -10,7 +10,7 @@
   "description": "handles sqs events and sends them to graphql api",
   "devDependencies": {
     "@aws-appsync/eslint-plugin": "^1.6.0",
-    "@aws-appsync/utils": "^1.8.0",
+    "@aws-appsync/utils": "^1.9.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.614.0",
     "@aws-sdk/credential-provider-node": "^3.614.0",
     "@aws-sdk/protocol-http": "^3.374.0",
