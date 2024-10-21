@@ -14,7 +14,7 @@
     "eslint": "^9.12.0",
     "eslint-plugin-vue": "^9.29.1",
     "prettier": "^3.3.3",
-    "sass": "^1.80.2",
+    "sass": "^1.80.3",
     "typescript": "^5.6.3",
     "unplugin-fonts": "^1.1.1",
     "unplugin-vue-components": "^0.27.4",
