@@ -1,9 +1,9 @@
 export type Integration = {
-  id: string;
-  secret: string;
-  owner: string;
-  users: string[];
-  label: string;
+    id: string;
+    secret: string;
+    owner: string;
+    users: string[];
+    label: string;
 };
 
 export const listIntegrations = `query ListIntegrations {
@@ -27,19 +27,17 @@ export const putIntegration = (label: string) => `mutation PutIntegration {
 }`;
 
 export type ListIntegrationsResponse = {
-  listIntegrations: Integration[];
+    listIntegrations: Integration[];
 };
 
 export type PutIntegrationsResponse = {
-  putIntegration: Integration;
+    putIntegration: Integration;
 };
 
-export const deleteIntegration = (
-  id: string,
-): string => `mutation DeleteIntegration {
+export const deleteIntegration = (id: string): string => `mutation DeleteIntegration {
   deleteIntegration(id: "${id}")
 }`;
 
 export type DeleteIntegrationResponse = {
-  deleteIntegration: boolean;
+    deleteIntegration: boolean;
 };

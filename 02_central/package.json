@@ -40,7 +40,7 @@
     "clean": "rimraf ./dist ./tmp",
     "dev:node": "node --enable-source-maps --watch dist/index.js",
     "dev:tsc": "tsc --watch --preserveWatchOutput",
-    "pretty": "prettier --write .",
+    "pretty": "prettier --write src terraform/functions terraform/resolvers",
     "prezip": "mkdir -p tmp && cp -r dist/* tmp/ && cp package*.json tmp",
     "start": "node --env-file .env dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",

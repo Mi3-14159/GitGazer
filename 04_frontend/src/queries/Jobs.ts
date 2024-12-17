@@ -1,16 +1,16 @@
 export interface Job {
-  run_id: number;
-  job_id: number;
-  action: string;
-  workflow_name: string;
-  job_name: string;
-  repository: {
-    full_name: string;
-  };
-  workflow_job: {
-    created_at: string;
-    conclusion: string;
-  };
+    run_id: number;
+    job_id: number;
+    action: string;
+    workflow_name: string;
+    job_name: string;
+    repository: {
+        full_name: string;
+    };
+    workflow_job: {
+        created_at: string;
+        conclusion: string;
+    };
 }
 
 const jobsProperties = `{
@@ -40,11 +40,11 @@ export const onPutJob = `subscription MySubscription {
 }`;
 
 export interface listJobsResponse {
-  listJobs: {
-    items: Job[];
-  };
+    listJobs: {
+        items: Job[];
+    };
 }
 
 export interface onPutJobSubscriptionResponse {
-  onPutJob: Job;
+    onPutJob: Job;
 }
