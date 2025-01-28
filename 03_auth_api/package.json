@@ -8,7 +8,7 @@
     "@aws-sdk/client-dynamodb": "^3.614.0",
     "@aws-sdk/lib-dynamodb": "^3.614.0",
     "@types/aws-lambda": "^8.10.141",
-    "@types/node": "^20.14.10",
+    "@types/node": "^22.12.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.5.3"
   },
