@@ -9,22 +9,22 @@
   },
   "description": "handles sqs events and sends them to graphql api",
   "devDependencies": {
-    "@aws-appsync/eslint-plugin": "^1.6.0",
+    "@aws-appsync/eslint-plugin": "^2.0.1",
     "@aws-appsync/utils": "^1.12.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.614.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.758.0",
     "@aws-sdk/credential-provider-node": "^3.758.0",
     "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.374.0",
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.147",
-    "@types/node": "^20.14.10",
-    "eslint": "^8.57.0",
-    "prettier": "^3.3.3",
+    "@types/node": "^22.13.8",
+    "eslint": "^9.21.0",
+    "prettier": "^3.5.2",
     "rimraf": "^6.0.1",
-    "typescript": "^5.5.3"
+    "typescript": "^5.8.2"
   },
   "engines": {
-    "node": "^20"
+    "node": "^22"
   },
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
