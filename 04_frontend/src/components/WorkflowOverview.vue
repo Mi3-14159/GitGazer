@@ -1,13 +1,15 @@
 <script setup lang="ts">
-    import {Job, listJobsResponse, onPutJobSubscriptionResponse, listJobs, onPutJob} from '../queries';
-    import {generateClient, type GraphQLQuery, type GraphQLSubscription, CONNECTION_STATE_CHANGE, ConnectionState} from 'aws-amplify/api';
-    import {Hub} from 'aws-amplify/utils';
+    import {CONNECTION_STATE_CHANGE, ConnectionState, generateClient, type GraphQLQuery, type GraphQLSubscription} from 'aws-amplify/api';
     import {fetchAuthSession} from 'aws-amplify/auth';
-    import {onMounted, onUnmounted, reactive} from 'vue';
+    import {Hub} from 'aws-amplify/utils';
+    import {computed, onMounted, onUnmounted, reactive} from 'vue';
+    import {Job, listJobs, listJobsResponse, onPutJob, onPutJobSubscriptionResponse} from '../queries';
     import WorkflowCard from './WorkflowCard.vue';
 
     const client = generateClient();
     const jobs = reactive(new Map());
+
+    const reversedJobs = computed(() => Array.from(jobs.entries()).reverse());
 
     let subscription;
     let priorConnectionState: ConnectionState;
@@ -61,7 +63,7 @@
     <v-main>
         <v-row
             align="start"
-            v-for="[key, job] in jobs"
+            v-for="[key, job] in reversedJobs"
             :key="key"
             no-gutters
         >
