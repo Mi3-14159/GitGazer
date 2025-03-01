@@ -17,6 +17,7 @@
     received_events_url: String!
     type: String!
     site_admin: Boolean!
+    user_view_type: String
 }
 
 input SenderInput {
@@ -38,6 +39,7 @@ input SenderInput {
     received_events_url: String!
     type: String!
     site_admin: Boolean!
+    user_view_type: String
 }
 
 type Organization @aws_api_key @aws_iam @aws_cognito_user_pools {
@@ -89,6 +91,7 @@ type Owner @aws_api_key @aws_iam @aws_cognito_user_pools {
     received_events_url: String!
     type: String!
     site_admin: Boolean!
+    user_view_type: String
 }
 
 input OwnerInput {
@@ -110,6 +113,7 @@ input OwnerInput {
     received_events_url: String!
     type: String!
     site_admin: Boolean!
+    user_view_type: String
 }
 
 type Repository @aws_api_key @aws_iam @aws_cognito_user_pools {
@@ -192,6 +196,7 @@ type Repository @aws_api_key @aws_iam @aws_cognito_user_pools {
     default_branch: String!
     topics: [String]
     owner: Owner!
+    user_view_type: String
 }
 
 input RepositoryInput {
@@ -274,6 +279,7 @@ input RepositoryInput {
     default_branch: String!
     topics: [String]
     owner: OwnerInput!
+    user_view_type: String
 }
 
 type Steps @aws_api_key @aws_iam @aws_cognito_user_pools {

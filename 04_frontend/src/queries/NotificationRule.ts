@@ -1,42 +1,40 @@
 export interface PutNotificationRuleInput {
-  integrationId: string;
-  enabled: boolean;
-  owner: string;
-  repository_name?: string;
-  workflow_name?: string;
-  http?: {
-    body: string;
-    method: string;
-    url: string;
-  };
+    integrationId: string;
+    enabled: boolean;
+    owner: string;
+    repository_name?: string;
+    workflow_name?: string;
+    http?: {
+        body: string;
+        method: string;
+        url: string;
+    };
 }
 
 export interface NotificationRule extends PutNotificationRuleInput {
-  created_at: string;
-  updated_at: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface PutNotificationRuleResponse {
-  putNotificationRule: NotificationRule;
+    putNotificationRule: NotificationRule;
 }
 
-export const putNotificationRule = (
-  putNotificationRuleInput: PutNotificationRuleInput,
-): string => {
-  return `mutation PutNotificationRule {
+export const putNotificationRule = (putNotificationRuleInput: PutNotificationRuleInput): string => {
+    return `mutation PutNotificationRule {
   putNotificationRule(
       input: {
           integrationId: "${putNotificationRuleInput.integrationId}"
           owner: "${putNotificationRuleInput.owner}"
           enabled: ${putNotificationRuleInput.enabled}
           ${
-            putNotificationRuleInput.http
-              ? `http: {
+              putNotificationRuleInput.http
+                  ? `http: {
               body: "${putNotificationRuleInput.http.body}"
               method: "${putNotificationRuleInput.http.method}"
               url: "${putNotificationRuleInput.http.url}"
           }`
-              : ''
+                  : ''
           }
           ${putNotificationRuleInput.repository_name ? `repository_name: "${putNotificationRuleInput.repository_name}"` : ''}
           ${putNotificationRuleInput.workflow_name ? `workflow_name: "${putNotificationRuleInput.workflow_name}"` : ''}
@@ -74,7 +72,7 @@ export const listNotificationRules = `query ListNotificationRules {
 }`;
 
 export interface ListNotificationRulesResponse {
-  listNotificationRules: {
-    items: NotificationRule[];
-  };
+    listNotificationRules: {
+        items: NotificationRule[];
+    };
 }

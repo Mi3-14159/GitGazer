@@ -5,12 +5,14 @@
   },
   "description": "will handle the auth flow",
   "devDependencies": {
-    "@aws-sdk/client-dynamodb": "^3.614.0",
+    "@aws-sdk/client-dynamodb": "^3.758.0",
     "@aws-sdk/lib-dynamodb": "^3.614.0",
     "@types/aws-lambda": "^8.10.141",
     "@types/node": "^20.14.10",
+    "eslint": "^9.7.0",
+    "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
-    "typescript": "^5.5.3"
+    "typescript": "^5.7.3"
   },
   "engines": {
     "node": "^20"
@@ -29,6 +31,7 @@
     "clean": "rimraf ./dist ./tmp",
     "dev:node": "node --enable-source-maps --watch dist/index.js",
     "dev:tsc": "tsc --watch --preserveWatchOutput",
+    "pretty": "prettier --write src",
     "prezip": "mkdir -p tmp && cp -r dist/* tmp/ && cp package*.json tmp",
     "start": "node --env-file .env dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
