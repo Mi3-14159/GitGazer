@@ -1,4 +1,4 @@
-import { util } from "@aws-appsync/utils";
+import {util} from '@aws-appsync/utils';
 
 /**
  * Starts the resolver execution
@@ -6,17 +6,17 @@ import { util } from "@aws-appsync/utils";
  * @returns {*} the return value sent to the first AppSync function
  */
 export function request(ctx) {
-  return fetch("/", {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-amz-json-1.1",
-      "x-amz-target": "AWSCognitoIdentityProviderService.CreateGroup",
-    },
-    body: {
-      GroupName: ctx.stash.parameter.integrationId,
-      UserPoolId: "${user_pool_id}",
-    },
-  });
+    return fetch('/', {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/x-amz-json-1.1',
+            'x-amz-target': 'AWSCognitoIdentityProviderService.DeleteGroup',
+        },
+        body: {
+            GroupName: ctx.stash.integrationId,
+            UserPoolId: '${user_pool_id}',
+        },
+    });
 }
 
 /**
@@ -25,16 +25,16 @@ export function request(ctx) {
  * @returns {*} the return value of the last AppSync function response handler
  */
 export function response(ctx) {
-  if (ctx.error) {
-    return util.error(ctx.error.message, ctx.error.type);
-  }
+    if (ctx.error) {
+        return util.error(ctx.error.message, ctx.error.type);
+    }
 
-  const body = JSON.parse(ctx.result.body);
-  if (ctx.result.statusCode == 200 || body.__type === "GroupExistsException") {
-    return;
-  } else {
-    return util.appendError(ctx.result.body, "ctx.result.statusCode");
-  }
+    const body = JSON.parse(ctx.result.body);
+    if (ctx.result.statusCode == 200 || body.__type == 'ResourceNotFoundException') {
+        return true;
+    } else {
+        return util.appendError(ctx.result.body, 'ctx.result.statusCode');
+    }
 }
 
 /**
@@ -48,11 +48,11 @@ export function response(ctx) {
  * @returns {import('@aws-appsync/utils').HTTPRequest} the request
  */
 function fetch(resourcePath, options) {
-  const { method = "GET", headers, body: _body, query } = options;
-  const body = typeof _body === "object" ? JSON.stringify(_body) : _body;
-  return {
-    resourcePath,
-    method,
-    params: { headers, query, body },
-  };
+    const {method = 'GET', headers, body: _body, query} = options;
+    const body = typeof _body === 'object' ? JSON.stringify(_body) : _body;
+    return {
+        resourcePath,
+        method,
+        params: {headers, query, body},
+    };
 }

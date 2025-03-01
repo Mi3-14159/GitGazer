@@ -35,38 +35,38 @@ locals {
   appsync_functions = flatten([
     var.create_gitgazer_alerting ? [{
       name : "getSsmSecrets",
-      code : templatefile("${path.module}/functions/getSsmSecrets.tftpl", {
+      code : templatefile("${path.module}/functions/getSsmSecrets.js", {
         ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
       }),
       data_source : aws_appsync_datasource.ssm[0].name,
       }, {
       name : "putSsmSecret",
-      code : templatefile("${path.module}/functions/putSsmSecret.tftpl", {
+      code : templatefile("${path.module}/functions/putSsmSecret.js", {
         ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
         kms_key_id                = aws_kms_key.this.id
       }),
       data_source : aws_appsync_datasource.ssm[0].name,
       }, {
       name : "createCognitoGroup",
-      code : templatefile("${path.module}/functions/createCognitoGroup.tftpl", {
+      code : templatefile("${path.module}/functions/createCognitoGroup.js", {
         user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
       }),
       data_source : aws_appsync_datasource.cognito[0].name,
       }, {
       name : "deleteCognitoGroup",
-      code : templatefile("${path.module}/functions/deleteCognitoGroup.tftpl", {
+      code : templatefile("${path.module}/functions/deleteCognitoGroup.js", {
         user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
       }),
       data_source : aws_appsync_datasource.cognito[0].name,
       }, {
       name : "addUserToGroup",
-      code : templatefile("${path.module}/functions/addUserToGroup.tftpl", {
+      code : templatefile("${path.module}/functions/addUserToGroup.js", {
         user_pool_id = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
       }),
       data_source : aws_appsync_datasource.cognito[0].name,
       }, {
       name : "deleteSsmParameter",
-      code : templatefile("${path.module}/functions/deleteSsmParameter.tftpl", {
+      code : templatefile("${path.module}/functions/deleteSsmParameter.js", {
         ssm_parameter_name_prefix = local.ssm_parameter_gh_webhook_secret_name_prefix
       }),
       data_source : aws_appsync_datasource.ssm[0].name,
