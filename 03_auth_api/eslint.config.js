@@ -1,5 +1,3 @@
-import {ExplicitAuthFlowsType} from '@aws-sdk/client-cognito-identity-provider';
-
 export default [
     {
         rules: {
