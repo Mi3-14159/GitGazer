@@ -1,0 +1,33 @@
+name: CI auth lambda
+on:
+  pull_request:
+    paths:
+      - "03_auth_api/package.json"
+      - "03_auth_api/package-lock.json"
+      - ".github/workflows/ci_auth_lambda.yaml"
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./03_auth_api
+    concurrency:
+      group: 03_auth_api-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ./03_auth_api/package.json
+          cache: "npm"
+          cache-dependency-path: ./03_auth_api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
