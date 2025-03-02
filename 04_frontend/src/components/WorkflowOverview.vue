@@ -9,16 +9,31 @@
     const client = generateClient();
     const jobs = reactive(new Map());
 
-    const reversedJobs = computed(() => Array.from(jobs.entries()).reverse());
+    // Group jobs by workflow id (using run_id for this example)
+    const groupedJobs = computed(() => {
+        const groups = new Map<string, {repository_full_name: string; jobs: Job[]; workflow_name: string}>();
+
+        for (const job of jobs.values()) {
+            const key = job.run_id;
+            if (!groups.has(key)) groups.set(key, {repository_full_name: job.repository.full_name, jobs: [], workflow_name: job.workflow_name});
+            groups.get(key)?.jobs.push(job);
+        }
+
+        groups.forEach(({jobs}) => {
+            jobs.sort((a, b) => new Date(b.workflow_job.created_at).getTime() - new Date(a.workflow_job.created_at).getTime());
+        });
+
+        return Array.from(groups.entries())
+            .map(([workflowId, {repository_full_name, jobs, workflow_name}]) => ({workflowId, repository_full_name, jobs, workflow_name}))
+            .reverse();
+    });
 
     let subscription;
     let priorConnectionState: ConnectionState;
 
     const handleListJobs = async () => {
         const session = await fetchAuthSession();
-
         const groups: string[] = (session.tokens?.accessToken.payload['cognito:groups'] as string[]) ?? [];
-
         groups.forEach(async (group) => {
             const response = await client.graphql<GraphQLQuery<listJobsResponse>>({
                 query: listJobs(group),
@@ -61,14 +76,17 @@
 
 <template>
     <v-main>
-        <v-row
-            align="start"
-            v-for="[key, job] in reversedJobs"
-            :key="key"
-            no-gutters
+        <template
+            v-for="group in groupedJobs"
+            :key="group.workflowId"
         >
-            <WorkflowCard :job="job" />
-        </v-row>
+            <WorkflowCard
+                :repository_full_name="group.repository_full_name"
+                :workflowId="group.workflowId"
+                :jobs="group.jobs"
+                :workflow_name="group.workflow_name"
+            />
+        </template>
     </v-main>
 </template>
 

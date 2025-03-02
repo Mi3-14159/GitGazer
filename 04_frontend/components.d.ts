@@ -18,6 +18,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     WorkflowCard: typeof import('./src/components/WorkflowCard.vue')['default']
+    WorkflowCardDetails: typeof import('./src/components/WorkflowCardDetails.vue')['default']
     WorkflowOverview: typeof import('./src/components/WorkflowOverview.vue')['default']
   }
 }
