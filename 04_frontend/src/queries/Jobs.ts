@@ -9,6 +9,7 @@ export interface Job {
     };
     workflow_job: {
         created_at: string;
+        completed_at: string;
         conclusion: string;
     };
 }
@@ -24,6 +25,7 @@ const jobsProperties = `{
   }
   workflow_job {
     created_at
+    completed_at
     conclusion
   }
 }`;

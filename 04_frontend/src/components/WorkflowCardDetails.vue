@@ -23,12 +23,36 @@
             <v-card-title>Job Details</v-card-title>
             <v-card-text>
                 <v-row no-gutters>
+                    <v-col cols="4">Run ID:</v-col>
+                    <v-col>
+                        <a
+                            :href="`https://github.com/${props.job.repository.full_name}/actions/runs/${props.job.run_id}`"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            {{ props.job.run_id }}
+                        </a>
+                    </v-col>
+                </v-row>
+                <v-row no-gutters>
                     <v-col cols="4">Job ID:</v-col>
-                    <v-col>{{ props.job.job_id }}</v-col>
+                    <v-col>
+                        <a
+                            :href="`https://github.com/${props.job.repository.full_name}/actions/runs/${props.job.run_id}/job/${props.job.job_id}`"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            {{ props.job.job_id }}
+                        </a>
+                    </v-col>
                 </v-row>
                 <v-row no-gutters>
                     <v-col cols="4">Workflow:</v-col>
                     <v-col>{{ props.job.workflow_name }}</v-col>
+                </v-row>
+                <v-row no-gutters>
+                    <v-col cols="4">Job Name:</v-col>
+                    <v-col>{{ props.job.job_name }}</v-col>
                 </v-row>
                 <v-row no-gutters>
                     <v-col cols="4">Repository:</v-col>
@@ -44,13 +68,15 @@
                     </v-col>
                 </v-row>
                 <v-row no-gutters>
-                    <v-col cols="4">Run ID:</v-col>
-                    <v-col>{{ props.job.run_id }}</v-col>
-                </v-row>
-                <v-row no-gutters>
                     <v-col cols="4">Created at:</v-col>
                     <v-col>
                         {{ new Date(props.job.workflow_job.created_at).toLocaleString([], {dateStyle: 'long', timeStyle: 'short'}) }}
+                    </v-col>
+                </v-row>
+                <v-row no-gutters>
+                    <v-col cols="4">Completed at:</v-col>
+                    <v-col>
+                        {{ new Date(props.job.workflow_job.completed_at).toLocaleString([], {dateStyle: 'long', timeStyle: 'short'}) }}
                     </v-col>
                 </v-row>
                 <v-row no-gutters>
