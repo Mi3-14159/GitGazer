@@ -3,7 +3,7 @@
     import type {Job} from '../queries';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
     const props = defineProps<{
-        workflowId?: string;
+        workflowId?: number;
         repository_full_name?: string;
         jobs?: Job[];
         workflow_name?: string;

@@ -11,7 +11,7 @@
 
     // Group jobs by workflow id (using run_id for this example)
     const groupedJobs = computed(() => {
-        const groups = new Map<string, {repository_full_name: string; jobs: Job[]; workflow_name: string}>();
+        const groups = new Map<number, {repository_full_name: string; jobs: Job[]; workflow_name: string}>();
 
         for (const job of jobs.values()) {
             const key = job.run_id;
