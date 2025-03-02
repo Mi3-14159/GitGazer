@@ -17,6 +17,7 @@
     <v-card
         class="ma-2 rounded-lg"
         :class="job.workflow_job.conclusion ?? job.action"
+        style="min-width: 500px"
     >
         <v-card-title>{{ props.job.workflow_name }} > {{ props.job.job_name }} </v-card-title>
         <v-card-subtitle>{{ props.job.repository.full_name }}</v-card-subtitle>
