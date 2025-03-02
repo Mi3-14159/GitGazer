@@ -15,7 +15,7 @@ export function request(ctx) {
         query: {
             integrationId: {eq: integrationId},
         },
-        limit: Math.min(limit, 10),
+        limit: Math.min(limit, 100),
         nextToken,
         filter: Object.keys(rest).length > 0 ? rest : null,
         scanIndexForward: true,

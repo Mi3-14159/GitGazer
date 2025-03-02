@@ -6,7 +6,7 @@ module "this" {
   filename         = local.artifact
   function_name    = local.name_prefix
   handler          = "index.handler"
-  runtime          = "nodejs20.x"
+  runtime          = "nodejs22.x"
   source_code_hash = filebase64sha256(local.artifact)
   timeout          = 5
   publish          = true
