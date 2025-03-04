@@ -16,10 +16,7 @@
 <template>
     <!-- Group view: when group props (workflowId, repository_full_name, jobs) are provided -->
     <template v-if="workflowId && repository_full_name && jobs">
-        <v-card
-            class="ma-2 rounded-lg"
-            style="min-width: 500px"
-        >
+        <v-card class="ma-2 rounded-lg">
             <v-card-title class="headline">
                 <a
                     :href="`https://github.com/${repository_full_name}`"
