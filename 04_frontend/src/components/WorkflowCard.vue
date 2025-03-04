@@ -17,12 +17,11 @@
     <!-- Group view: when group props (workflowId, repository_full_name, jobs) are provided -->
     <template v-if="workflowId && repository_full_name && jobs">
         <v-card class="ma-2 rounded-lg">
-            <v-card-title class="headline">
+            <v-card-title>
                 <a
                     :href="`https://github.com/${repository_full_name}`"
                     target="_blank"
                     rel="noopener"
-                    style="color: inherit"
                 >
                     {{ repository_full_name }}
                 </a>
@@ -31,7 +30,6 @@
                     :href="`https://github.com/${repository_full_name}/actions/runs/${workflowId}`"
                     target="_blank"
                     rel="noopener"
-                    style="color: inherit"
                 >
                     {{ workflowId }}
                 </a>
@@ -86,5 +84,8 @@
     }
     .failure {
         background-color: #d9534f;
+    }
+    a {
+        color: inherit;
     }
 </style>
