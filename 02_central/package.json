@@ -17,7 +17,7 @@
     "@aws-sdk/signature-v4": "^3.374.0",
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.147",
-    "@types/node": "^22.13.9",
+    "@types/node": "^22.13.10",
     "eslint": "^9.21.0",
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
