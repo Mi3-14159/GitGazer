@@ -365,6 +365,7 @@ type Job @aws_api_key @aws_iam @aws_cognito_user_pools {
     organization: Organization
     repository: Repository!
     workflow_job: WorkflowJob!
+    enterprise: Enterprise
 }
 
 input PutJobInput {
@@ -380,6 +381,7 @@ input PutJobInput {
     organization: OrganizationInput
     repository: RepositoryInput!
     workflow_job: WorkflowJobInput!
+    enterprise: EnterpriseInput
 }
 
 type JobConnection @aws_api_key @aws_cognito_user_pools {
@@ -543,4 +545,30 @@ type Query @aws_api_key @aws_cognito_user_pools {
 
 type Subscription @aws_api_key @aws_cognito_user_pools {
     onPutJob(run_id: Float, workflow_name: String, createdAt: AWSDateTime): Job @aws_subscribe(mutations: ["putJob"])
+}
+
+type Enterprise @aws_api_key @aws_iam @aws_cognito_user_pools {
+    id: Float!
+    slug: String!
+    name: String!
+    node_id: String!
+    avatar_url: String!
+    description: String
+    website_url: String
+    html_url: String!
+    created_at: AWSDateTime!
+    updated_at: AWSDateTime!
+}
+
+input EnterpriseInput {
+    id: Float!
+    slug: String!
+    name: String!
+    node_id: String!
+    avatar_url: String!
+    description: String
+    website_url: String
+    html_url: String!
+    created_at: AWSDateTime!
+    updated_at: AWSDateTime!
 }
