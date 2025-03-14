@@ -1,14 +1,16 @@
-import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import {Repository, WorkflowJob, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
-export type GQLInput = {
-    run_id: number;
-    job_id: number;
-    workflow_name: string;
-    job_name: string;
-    expire_at: number;
+export type GitGazerWorkflowJobEventInput = {
     integrationId: string;
+    job_id: number;
     created_at: string;
-} & WorkflowJobEvent;
+    expire_at: number;
+    workflow_job_event: {
+        action: string;
+        repository: Partial<Repository>;
+        workflow_job: Partial<WorkflowJob>;
+    };
+};
 
 export type IntegrationSecret = {
     secret: string;

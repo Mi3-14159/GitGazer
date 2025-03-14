@@ -1,33 +1,50 @@
-export interface Job {
-    run_id: number;
+export type GitGazerWorkflowJobEvent = {
+    integrationId: string;
     job_id: number;
-    action: string;
-    workflow_name: string;
-    job_name: string;
-    repository: {
-        full_name: string;
+    created_at: string;
+    expire_at: number;
+    workflow_job_event: {
+        action: string;
+        workflow_job: {
+            id: number;
+            run_id: number;
+            run_url: string;
+            status: string;
+            conclusion: string;
+            name: string;
+            workflow_name: string;
+            run_attempt: number;
+            created_at: string;
+            started_at: string;
+            completed_at: string;
+        };
+        repository: {
+            full_name: string;
+            html_url: string;
+        };
     };
-    workflow_job: {
-        created_at: string;
-        completed_at: string;
-        conclusion: string;
-    };
-}
+};
 
 const jobsProperties = `{
-  run_id
-  job_id
-  workflow_name
-  job_name
-  action
-  repository {
-      full_name
-  }
-  workflow_job {
+    job_id
     created_at
-    completed_at
-    conclusion
-  }
+    workflow_job_event {
+        workflow_job {
+            run_id
+            run_url
+            status
+            name
+            workflow_name
+            created_at
+            started_at
+            completed_at
+            conclusion
+        }
+        repository {
+            full_name
+            html_url
+        }
+    }
 }`;
 
 export const listJobs = (integrationId: string): string => `query ListJobs {
@@ -43,10 +60,10 @@ export const onPutJob = `subscription MySubscription {
 
 export interface listJobsResponse {
     listJobs: {
-        items: Job[];
+        items: GitGazerWorkflowJobEvent[];
     };
 }
 
 export interface onPutJobSubscriptionResponse {
-    onPutJob: Job;
+    onPutJob: GitGazerWorkflowJobEvent;
 }

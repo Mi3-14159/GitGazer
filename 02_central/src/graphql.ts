@@ -4,7 +4,7 @@ import {HttpRequest} from '@aws-sdk/protocol-http';
 import {SignatureV4} from '@aws-sdk/signature-v4';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
 import {getLogger} from './logger';
-import {GQLInput} from './types';
+import {GitGazerWorkflowJobEventInput} from './types';
 
 const log = getLogger();
 
@@ -58,30 +58,39 @@ export const putJob = async (integrationId: string, job: WorkflowJobEvent) => {
     }
 };
 
-const getInput = (event: WorkflowJobEvent, integrationId: string): GQLInput => {
-    const input: GQLInput = {
-        ...event,
-        run_id: event.workflow_job.run_id,
-        job_id: event.workflow_job.id,
-        workflow_name: event.workflow_job.workflow_name,
-        job_name: event.workflow_job.name,
-        expire_at: Math.floor(new Date().getTime() / 1000) + parseInt(process.env.EXPIRE_IN_SEC),
+const getInput = (event: WorkflowJobEvent, integrationId: string): GitGazerWorkflowJobEventInput => {
+    const input: GitGazerWorkflowJobEventInput = {
         integrationId,
+        job_id: event.workflow_job.id,
         created_at: event.workflow_job.created_at,
+        expire_at: Math.floor(new Date().getTime() / 1000) + parseInt(process.env.EXPIRE_IN_SEC),
+        workflow_job_event: {
+            action: event.action,
+            workflow_job: {
+                id: event.workflow_job.id,
+                run_id: event.workflow_job.run_id,
+                run_url: event.workflow_job.run_url,
+                status: event.workflow_job.status,
+                conclusion: event.workflow_job.conclusion,
+                name: event.workflow_job.name,
+                workflow_name: event.workflow_job.workflow_name,
+                run_attempt: event.workflow_job.run_attempt,
+                created_at: event.workflow_job.created_at,
+                started_at: event.workflow_job.started_at,
+                completed_at: event.workflow_job.completed_at,
+            },
+            repository: {
+                full_name: event.repository.full_name,
+                html_url: event.repository.html_url,
+            },
+        },
     };
-
-    delete input.workflow_job.steps;
-    delete input.workflow_job.labels;
-    delete input.repository.topics;
-    delete input.repository.custom_properties;
-    delete input.repository.license;
-    delete input.deployment;
 
     return input;
 };
 
 // TODO: this breaks on all the edge cases -> needs refactoring
-const getAllKeysStructuredFormatted = (input: GQLInput) => {
+const getAllKeysStructuredFormatted = (input: GitGazerWorkflowJobEventInput) => {
     function extractKeys(item) {
         let currentKeys = [];
         for (let key in item) {

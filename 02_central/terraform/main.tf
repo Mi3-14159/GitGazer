@@ -81,13 +81,6 @@ locals {
       kind : "UNIT",
     },
     {
-      type : "Query",
-      field : "getJob",
-      code_file_path : "${path.module}/resolvers/getJob.js",
-      data_source : aws_appsync_datasource.jobs.name,
-      kind : "UNIT",
-    },
-    {
       type : "Mutation",
       field : "putJob",
       code_file_path : "${path.module}/resolvers/putJob.js",

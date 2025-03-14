@@ -1,21 +1,22 @@
 <script setup lang="ts">
     import {ref} from 'vue';
-    import type {Job} from '../queries';
+    import type {GitGazerWorkflowJobEvent} from '../queries';
+    import WorkflowCardDetails from './WorkflowCardDetails.vue';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
     const props = defineProps<{
-        workflowId?: number;
+        run_id: number;
         repository_full_name?: string;
-        jobs?: Job[];
+        jobs: GitGazerWorkflowJobEvent[];
         workflow_name?: string;
     }>();
 
     // For group view: selected job to view
-    const selectedJob = ref<Job | null>(null);
+    const selectedJob = ref<GitGazerWorkflowJobEvent | null>(null);
 </script>
 
 <template>
-    <!-- Group view: when group props (workflowId, repository_full_name, jobs) are provided -->
-    <template v-if="workflowId && repository_full_name && jobs">
+    <!-- Group view: when group props (run_id, repository_full_name, jobs) are provided -->
+    <template v-if="run_id && repository_full_name && jobs">
         <v-card class="ma-2 rounded-lg">
             <v-card-title class="card-title-wrap">
                 <a
@@ -28,12 +29,12 @@
                 </a>
                 > {{ workflow_name }} /
                 <a
-                    :href="`https://github.com/${repository_full_name}/actions/runs/${workflowId}`"
+                    :href="`https://github.com/${repository_full_name}/actions/runs/${run_id}`"
                     target="_blank"
                     rel="noopener"
                     class="breakable-link"
                 >
-                    {{ workflowId }}
+                    {{ run_id }}
                 </a>
             </v-card-title>
             <v-divider></v-divider>
@@ -46,15 +47,15 @@
                     <v-col
                         cols="auto"
                         v-for="job in jobs"
-                        :key="job.job_id"
+                        :key="job.workflow_job_event.workflow_job.id"
                     >
                         <!-- Display job name clickable to open details with a border and status-based bg color -->
                         <div
                             class="job-badge"
-                            :class="job.workflow_job.conclusion ?? job.action"
+                            :class="job.workflow_job_event.workflow_job.conclusion ?? job.workflow_job_event.workflow_job.status"
                             @click="selectedJob = job"
                         >
-                            {{ job.job_name }}
+                            {{ job.workflow_job_event.workflow_job.name }}
                         </div>
                     </v-col>
                 </v-row>
@@ -86,6 +87,9 @@
     }
     .failure {
         background-color: #d9534f;
+    }
+    .cancelled {
+        background-color: #413e3e;
     }
 
     a {

@@ -3,28 +3,37 @@
     import {fetchAuthSession} from 'aws-amplify/auth';
     import {Hub} from 'aws-amplify/utils';
     import {computed, onMounted, onUnmounted, reactive} from 'vue';
-    import {Job, listJobs, listJobsResponse, onPutJob, onPutJobSubscriptionResponse} from '../queries';
+    import {GitGazerWorkflowJobEvent, listJobs, listJobsResponse, onPutJob, onPutJobSubscriptionResponse} from '../queries';
     import WorkflowCard from './WorkflowCard.vue';
 
     const client = generateClient();
-    const jobs = reactive(new Map());
+    const jobs = reactive(new Map<number, GitGazerWorkflowJobEvent>());
 
     // Group jobs by workflow id (using run_id for this example)
     const groupedJobs = computed(() => {
-        const groups = new Map<number, {repository_full_name: string; jobs: Job[]; workflow_name: string}>();
+        const groups = new Map<number, {repository_full_name: string; jobs: GitGazerWorkflowJobEvent[]; workflow_name: string}>();
 
         for (const job of jobs.values()) {
-            const key = job.run_id;
-            if (!groups.has(key)) groups.set(key, {repository_full_name: job.repository.full_name, jobs: [], workflow_name: job.workflow_name});
+            const key = job.workflow_job_event.workflow_job.run_id;
+            if (!groups.has(key))
+                groups.set(key, {
+                    repository_full_name: job.workflow_job_event.repository.full_name,
+                    jobs: [],
+                    workflow_name: job.workflow_job_event.workflow_job.workflow_name,
+                });
             groups.get(key)?.jobs.push(job);
         }
 
         groups.forEach(({jobs}) => {
-            jobs.sort((a, b) => new Date(b.workflow_job.created_at).getTime() - new Date(a.workflow_job.created_at).getTime());
+            jobs.sort(
+                (a, b) =>
+                    new Date(b.workflow_job_event.workflow_job.created_at).getTime() -
+                    new Date(a.workflow_job_event.workflow_job.created_at).getTime(),
+            );
         });
 
         return Array.from(groups.entries())
-            .map(([workflowId, {repository_full_name, jobs, workflow_name}]) => ({workflowId, repository_full_name, jobs, workflow_name}))
+            .map(([run_id, {repository_full_name, jobs, workflow_name}]) => ({run_id, repository_full_name, jobs, workflow_name}))
             .reverse();
     });
 
@@ -38,7 +47,8 @@
             const response = await client.graphql<GraphQLQuery<listJobsResponse>>({
                 query: listJobs(group),
             });
-            response.data.listJobs.items.forEach((job: Job) => {
+
+            response?.data?.listJobs?.items?.forEach((job: GitGazerWorkflowJobEvent) => {
                 jobs.set(job.job_id, job);
             });
         });
@@ -78,13 +88,13 @@
     <v-main>
         <template
             v-for="group in groupedJobs"
-            :key="group.workflowId"
+            :key="group.run_id"
         >
             <WorkflowCard
+                :run_id="group.run_id"
                 :repository_full_name="group.repository_full_name"
-                :workflowId="group.workflowId"
-                :jobs="group.jobs"
                 :workflow_name="group.workflow_name"
+                :jobs="group.jobs"
             />
         </template>
     </v-main>
