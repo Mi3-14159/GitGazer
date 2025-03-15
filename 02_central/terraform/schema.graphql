@@ -3,7 +3,7 @@
     html_url: String!
 }
 
-input RepositoryInput @aws_api_key @aws_iam @aws_cognito_user_pools {
+input RepositoryInput {
     full_name: String!
     html_url: String!
 }
