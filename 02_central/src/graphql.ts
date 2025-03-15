@@ -3,7 +3,7 @@ import {defaultProvider} from '@aws-sdk/credential-provider-node';
 import {HttpRequest} from '@aws-sdk/protocol-http';
 import {SignatureV4} from '@aws-sdk/signature-v4';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
-import {GitGazerWorkflowJobEventInput} from './api';
+import {GitGazerWorkflowJobEventInput} from './graphql/api';
 import {putJob} from './graphql/mutations';
 import {getLogger} from './logger';
 
