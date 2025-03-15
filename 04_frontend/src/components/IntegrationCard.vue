@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type {Integration} from '../queries';
+    import {Integration} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         integration: Integration;

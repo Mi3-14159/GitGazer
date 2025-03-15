@@ -3,7 +3,9 @@
     import {fetchAuthSession} from 'aws-amplify/auth';
     import {Hub} from 'aws-amplify/utils';
     import {computed, onMounted, onUnmounted, reactive} from 'vue';
-    import {GitGazerWorkflowJobEvent, listJobs, listJobsResponse, onPutJob, onPutJobSubscriptionResponse} from '../queries';
+    import {GitGazerWorkflowJobEvent, ListJobsQueryVariables} from '../../../02_central/src/graphql/api';
+    import {listJobs} from '../../../02_central/src/graphql/queries';
+    import {onPutJob} from '../../../02_central/src/graphql/subscriptions';
     import WorkflowCard from './WorkflowCard.vue';
 
     const client = generateClient();
@@ -40,12 +42,20 @@
     let subscription;
     let priorConnectionState: ConnectionState;
 
+    type listJobsResponse = {
+        listJobs: {
+            items: GitGazerWorkflowJobEvent[];
+        };
+    };
+
     const handleListJobs = async () => {
         const session = await fetchAuthSession();
         const groups: string[] = (session.tokens?.accessToken.payload['cognito:groups'] as string[]) ?? [];
         groups.forEach(async (group) => {
+            const variables: ListJobsQueryVariables = {filter: {integrationId: group}};
             const response = await client.graphql<GraphQLQuery<listJobsResponse>>({
-                query: listJobs(group),
+                query: listJobs,
+                variables,
             });
 
             response?.data?.listJobs?.items?.forEach((job: GitGazerWorkflowJobEvent) => {
@@ -55,6 +65,10 @@
     };
 
     handleListJobs();
+
+    type onPutJobSubscriptionResponse = {
+        onPutJob: GitGazerWorkflowJobEvent;
+    };
 
     onMounted(() => {
         subscription = client

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type {NotificationRule} from '../queries';
+    import type {NotificationRule} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         notificationRule: NotificationRule;

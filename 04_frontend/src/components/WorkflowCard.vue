@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {ref} from 'vue';
-    import type {GitGazerWorkflowJobEvent} from '../queries';
+    import type {GitGazerWorkflowJobEvent} from '../../../02_central/src/graphql/api';
     import WorkflowCardDetails from './WorkflowCardDetails.vue';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
     const props = defineProps<{

@@ -1,16 +1,10 @@
 <script setup lang="ts">
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {AuthUser, fetchAuthSession, getCurrentUser} from 'aws-amplify/auth';
-    import {
-        listIntegrations,
-        ListIntegrationsResponse,
-        Integration,
-        putIntegration,
-        PutIntegrationsResponse,
-        DeleteIntegrationResponse,
-        deleteIntegration,
-    } from '../queries';
     import {reactive, ref} from 'vue';
+    import {DeleteIntegrationMutationVariables, Integration, PutIntegrationMutationVariables} from '../../../02_central/src/graphql/api';
+    import {deleteIntegration, putIntegration} from '../../../02_central/src/graphql/mutations';
+    import {listIntegrations} from '../../../02_central/src/graphql/queries';
     import IntegrationCard from './IntegrationCard.vue';
     import IntegrationDetailsCard from './IntegrationDetailsCard.vue';
 
@@ -25,6 +19,10 @@
     };
 
     getUser();
+
+    type ListIntegrationsResponse = {
+        listIntegrations: Integration[];
+    };
 
     const handleListIntegrations = async () => {
         try {
@@ -41,10 +39,16 @@
 
     handleListIntegrations();
 
+    type PutIntegrationsResponse = {
+        putIntegration: Integration;
+    };
+
     const handlePutIntegration = async (integration: Integration) => {
         try {
+            const variables: PutIntegrationMutationVariables = {input: {label: integration.label}};
             const response = await client.graphql<GraphQLQuery<PutIntegrationsResponse>>({
-                query: putIntegration(integration.label),
+                query: putIntegration,
+                variables,
             });
 
             integrations.set(response.data.putIntegration.id, response.data.putIntegration);
@@ -54,10 +58,16 @@
         }
     };
 
+    type DeleteIntegrationResponse = {
+        deleteIntegration: boolean;
+    };
+
     const handleDeleteIntegration = async (id: string) => {
         try {
+            const variables: DeleteIntegrationMutationVariables = {id};
             const response = await client.graphql<GraphQLQuery<DeleteIntegrationResponse>>({
-                query: deleteIntegration(id),
+                query: deleteIntegration,
+                variables,
             });
 
             if (response.data.deleteIntegration) {

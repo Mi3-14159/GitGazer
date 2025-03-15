@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {computed} from 'vue';
-    import type {GitGazerWorkflowJobEvent} from '../queries';
+    import type {GitGazerWorkflowJobEvent} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         job: GitGazerWorkflowJobEvent | null;
@@ -80,7 +80,7 @@
                 </v-row>
                 <v-row no-gutters>
                     <v-col cols="4">Completed at:</v-col>
-                    <v-col>
+                    <v-col v-if="props.job.workflow_job_event.workflow_job.completed_at">
                         {{
                             new Date(props.job.workflow_job_event.workflow_job.completed_at).toLocaleString([], {
                                 dateStyle: 'long',

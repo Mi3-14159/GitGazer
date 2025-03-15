@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {ref} from 'vue';
-    import type {NotificationRule} from '../queries';
+    import {NotificationRule} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         notificationRule?: NotificationRule;
@@ -11,6 +11,7 @@
 
     const notificationRule = ref<NotificationRule>(
         props.notificationRule ?? {
+            __typename: 'NotificationRule',
             owner: '',
             repository_name: '',
             workflow_name: '',
@@ -19,6 +20,7 @@
             created_at: '',
             updated_at: '',
             http: {
+                __typename: 'Http',
                 method: '',
                 url: '',
                 body: '',
@@ -80,40 +82,6 @@
                 </v-col>
 
                 <v-divider></v-divider>
-
-                <v-col
-                    cols="12"
-                    md="4"
-                    sm="6"
-                >
-                    <v-text-field
-                        label="Notifications URL*"
-                        v-model="notificationRule.http.url"
-                    ></v-text-field>
-                </v-col>
-
-                <v-col
-                    cols="12"
-                    md="4"
-                    sm="6"
-                >
-                    <v-text-field
-                        label="Message*"
-                        v-model="notificationRule.http.body"
-                    ></v-text-field>
-                </v-col>
-
-                <v-col
-                    cols="12"
-                    sm="6"
-                >
-                    <v-autocomplete
-                        :items="['POST', 'PUT', 'GET']"
-                        label="Method*"
-                        auto-select-first
-                        v-model="notificationRule.http.method"
-                    ></v-autocomplete>
-                </v-col>
 
                 <v-col
                     cols="12"

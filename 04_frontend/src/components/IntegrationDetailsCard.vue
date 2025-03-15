@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {ref} from 'vue';
-    import type {Integration} from '../queries';
+    import {Integration} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         integration?: Integration;
@@ -10,6 +10,7 @@
 
     const integration = ref<Integration>(
         props.integration ?? {
+            __typename: 'Integration',
             owner: '',
             id: '',
             label: '',

@@ -1,27 +1,28 @@
 <script setup lang="ts">
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
-    import {
-        putNotificationRule,
-        PutNotificationRuleInput,
-        PutNotificationRuleResponse,
-        NotificationRule,
-        ListNotificationRulesResponse,
-        listNotificationRules,
-    } from '../queries';
+    import {fetchAuthSession} from 'aws-amplify/auth';
     import {reactive, ref} from 'vue';
+    import type {NotificationRule, PutNotificationRuleMutationVariables} from '../../../02_central/src/graphql/api';
+    import {putNotificationRule} from '../../../02_central/src/graphql/mutations';
+    import {listNotificationRules} from '../../../02_central/src/graphql/queries';
     import NotificationCard from './NotificationCard.vue';
     import NotificationDetailsCard from './NotificationDetailsCard.vue';
-    import {fetchAuthSession} from 'aws-amplify/auth';
 
     const client = generateClient();
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const dialog = ref(false);
     const userGroups = ref<Array<string>>([]);
 
-    const handlePutNotificationRule = async (putNotificationRuleInput: PutNotificationRuleInput) => {
+    type PutNotificationRuleResponse = {
+        putNotificationRule: NotificationRule;
+    };
+
+    const handlePutNotificationRule = async (putNotificationRuleInput: NotificationRule) => {
         try {
+            const variables: PutNotificationRuleMutationVariables = {input: putNotificationRuleInput};
             const response = await client.graphql<GraphQLQuery<PutNotificationRuleResponse>>({
-                query: putNotificationRule(putNotificationRuleInput),
+                query: putNotificationRule,
+                variables,
             });
             notificationRules.set(
                 `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.owner}/${response.data.putNotificationRule.repository_name}/${response.data.putNotificationRule.workflow_name}`,
@@ -30,6 +31,12 @@
         } catch (error) {
             console.error(error);
         }
+    };
+
+    type ListNotificationRulesResponse = {
+        listNotificationRules: {
+            items: NotificationRule[];
+        };
     };
 
     const handleListNotificationRules = async () => {
