@@ -13,7 +13,7 @@ projects:
                 docsFilePath: src/graphql
                 frontend: javascript
                 framework: none
-                maxDepth: 2
+                maxDepth: 100
 extensions:
     amplify:
         version: 3

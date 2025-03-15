@@ -135,7 +135,7 @@ export type GitGazerWorkflowJobEventFilterInput = {
 
 export type GitGazerWorkflowJobEventConnection = {
   __typename: "GitGazerWorkflowJobEventConnection",
-  items?:  Array<GitGazerWorkflowJobEvent | null > | null,
+  items:  Array<GitGazerWorkflowJobEvent >,
   nextToken?: string | null,
 };
 
@@ -159,6 +159,25 @@ export type PutJobMutation = {
     workflow_job_event:  {
       __typename: "WorkflowJobEvent",
       action: string,
+      workflow_job:  {
+        __typename: "WorkflowJob",
+        id: number,
+        run_id: number,
+        workflow_name: string,
+        run_url: string,
+        run_attempt: number,
+        status: string,
+        conclusion?: string | null,
+        created_at: string,
+        started_at: string,
+        completed_at?: string | null,
+        name: string,
+      },
+      repository:  {
+        __typename: "Repository",
+        full_name: string,
+        html_url: string,
+      },
     },
   } | null,
 };
@@ -220,13 +239,36 @@ export type ListJobsQueryVariables = {
 export type ListJobsQuery = {
   listJobs?:  {
     __typename: "GitGazerWorkflowJobEventConnection",
-    items?:  Array< {
+    items:  Array< {
       __typename: "GitGazerWorkflowJobEvent",
       integrationId: string,
       job_id: number,
       created_at: string,
       expire_at: number,
-    } | null > | null,
+      workflow_job_event:  {
+        __typename: "WorkflowJobEvent",
+        action: string,
+        workflow_job:  {
+          __typename: "WorkflowJob",
+          id: number,
+          run_id: number,
+          workflow_name: string,
+          run_url: string,
+          run_attempt: number,
+          status: string,
+          conclusion?: string | null,
+          created_at: string,
+          started_at: string,
+          completed_at?: string | null,
+          name: string,
+        },
+        repository:  {
+          __typename: "Repository",
+          full_name: string,
+          html_url: string,
+        },
+      },
+    } >,
     nextToken?: string | null,
   } | null,
 };
@@ -247,6 +289,14 @@ export type ListNotificationRulesQuery = {
       enabled: boolean,
       created_at: string,
       updated_at: string,
+      http?:  {
+        __typename: "Http",
+        body: string,
+        headers?: string | null,
+        method: string,
+        query_parameters?: string | null,
+        url: string,
+      } | null,
     } | null >,
     nextToken?: string | null,
   } | null,
@@ -279,6 +329,25 @@ export type OnPutJobSubscription = {
     workflow_job_event:  {
       __typename: "WorkflowJobEvent",
       action: string,
+      workflow_job:  {
+        __typename: "WorkflowJob",
+        id: number,
+        run_id: number,
+        workflow_name: string,
+        run_url: string,
+        run_attempt: number,
+        status: string,
+        conclusion?: string | null,
+        created_at: string,
+        started_at: string,
+        completed_at?: string | null,
+        name: string,
+      },
+      repository:  {
+        __typename: "Repository",
+        full_name: string,
+        html_url: string,
+      },
     },
   } | null,
 };

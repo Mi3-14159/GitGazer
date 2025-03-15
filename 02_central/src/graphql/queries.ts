@@ -19,6 +19,29 @@ export const listJobs = /* GraphQL */ `query ListJobs(
       job_id
       created_at
       expire_at
+      workflow_job_event {
+        action
+        workflow_job {
+          id
+          run_id
+          workflow_name
+          run_url
+          run_attempt
+          status
+          conclusion
+          created_at
+          started_at
+          completed_at
+          name
+          __typename
+        }
+        repository {
+          full_name
+          html_url
+          __typename
+        }
+        __typename
+      }
       __typename
     }
     nextToken
@@ -36,6 +59,14 @@ export const listNotificationRules = /* GraphQL */ `query ListNotificationRules(
       enabled
       created_at
       updated_at
+      http {
+        body
+        headers
+        method
+        query_parameters
+        url
+        __typename
+      }
       __typename
     }
     nextToken

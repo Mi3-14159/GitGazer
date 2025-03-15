@@ -16,6 +16,25 @@ export const putJob = /* GraphQL */ `mutation PutJob($input: GitGazerWorkflowJob
     expire_at
     workflow_job_event {
       action
+      workflow_job {
+        id
+        run_id
+        workflow_name
+        run_url
+        run_attempt
+        status
+        conclusion
+        created_at
+        started_at
+        completed_at
+        name
+        __typename
+      }
+      repository {
+        full_name
+        html_url
+        __typename
+      }
       __typename
     }
     __typename

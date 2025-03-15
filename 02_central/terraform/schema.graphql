@@ -65,7 +65,7 @@ input GitGazerWorkflowJobEventInput {
 }
 
 type GitGazerWorkflowJobEventConnection @aws_api_key @aws_cognito_user_pools {
-    items: [GitGazerWorkflowJobEvent]
+    items: [GitGazerWorkflowJobEvent!]!
     nextToken: String
 }
 
