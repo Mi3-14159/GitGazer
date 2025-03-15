@@ -3,27 +3,21 @@ import {defaultProvider} from '@aws-sdk/credential-provider-node';
 import {HttpRequest} from '@aws-sdk/protocol-http';
 import {SignatureV4} from '@aws-sdk/signature-v4';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
+import {GitGazerWorkflowJobEventInput} from './api';
+import {putJob} from './graphql/mutations';
 import {getLogger} from './logger';
-import {GitGazerWorkflowJobEventInput} from './types';
 
 const log = getLogger();
 
-export const putJob = async (integrationId: string, job: WorkflowJobEvent) => {
-    log.info('put job', JSON.stringify(job));
+export const createWorkflowJob = async (integrationId: string, job: WorkflowJobEvent) => {
+    log.info('create workflow job', JSON.stringify(job));
+
     const input = getInput(job, integrationId);
-    const inputAsString = JSON.stringify(input).replace(/"([^"]+)":/g, '$1:');
-    const allKeys = getAllKeysStructuredFormatted(input);
     const body = JSON.stringify({
-        operationName: 'PutJob',
-        query: `
-            mutation PutJob {
-                putJob(
-                    input: ${inputAsString}
-                ) ${allKeys}
-            }
-        `,
-        variables: {},
+        query: putJob,
+        variables: {input: input},
     });
+
     log.debug('put job body', JSON.stringify(body));
 
     const uri = new URL(process.env.GRAPHQL_URI);
@@ -87,23 +81,4 @@ const getInput = (event: WorkflowJobEvent, integrationId: string): GitGazerWorkf
     };
 
     return input;
-};
-
-// TODO: this breaks on all the edge cases -> needs refactoring
-const getAllKeysStructuredFormatted = (input: GitGazerWorkflowJobEventInput) => {
-    function extractKeys(item) {
-        let currentKeys = [];
-        for (let key in item) {
-            currentKeys.push(key); // Push key into the current array
-            if (item[key] !== null && typeof item[key] === 'object') {
-                let nestedKeys = extractKeys(item[key]); // Recursive call for nested objects or arrays
-                if (nestedKeys.length > 0) {
-                    currentKeys.push(nestedKeys); // Include nested keys if not empty
-                }
-            }
-        }
-        return `{${currentKeys.join(',')}}`; // Format the current array as a string with curly braces
-    }
-
-    return extractKeys(input); // Start the recursion with the initial object
 };

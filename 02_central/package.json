@@ -9,6 +9,7 @@
   },
   "description": "handles sqs events and sends them to graphql api",
   "devDependencies": {
+    "@aws-amplify/cli": "^12.14.4",
     "@aws-appsync/eslint-plugin": "^2.0.1",
     "@aws-appsync/utils": "^1.12.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.760.0",
@@ -38,6 +39,7 @@
     "build": "tsc",
     "buildZip": "npm run clean && npm run build && npm run zip",
     "clean": "rimraf ./dist ./tmp",
+    "codegen": "amplify codegen --nodownload",
     "dev:node": "node --enable-source-maps --watch dist/index.js",
     "dev:tsc": "tsc --watch --preserveWatchOutput",
     "pretty": "prettier --write src terraform/functions terraform/resolvers",

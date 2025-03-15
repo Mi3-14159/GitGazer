@@ -1,7 +1,7 @@
 import {APIGatewayProxyEvent, APIGatewayProxyHandler} from 'aws-lambda';
-import {getLogger} from './logger';
 import {authorize} from './auth';
-import {putJob} from './graphql';
+import {createWorkflowJob} from './graphql';
+import {getLogger} from './logger';
 
 const log = getLogger();
 
@@ -16,7 +16,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     try {
         const githubEvent = JSON.parse(event.body);
         const integrationId = event.path.replace('/api/import/', '');
-        await putJob(integrationId, githubEvent);
+        await createWorkflowJob(integrationId, githubEvent);
     } catch (error) {
         log.error({
             err: error,
