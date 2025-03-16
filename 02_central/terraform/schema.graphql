@@ -1,4 +1,10 @@
-﻿type Repository @aws_api_key @aws_iam @aws_cognito_user_pools {
+﻿schema {
+    query: Query
+    mutation: Mutation
+    subscription: Subscription
+}
+
+type Repository @aws_api_key @aws_iam @aws_cognito_user_pools {
     full_name: String!
     html_url: String!
 }
