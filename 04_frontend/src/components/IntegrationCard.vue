@@ -53,6 +53,7 @@
                             density="compact"
                             @click="showSecret = !showSecret"
                             class="ml-2"
+                            :color="showSecret ? 'warning' : undefined"
                             :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
                         ></v-btn>
                     </div> </v-col
