@@ -1,6 +1,6 @@
 <script setup lang="ts">
+    import {Integration} from '@graphql/api';
     import {ref} from 'vue';
-    import {Integration} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         integration?: Integration;

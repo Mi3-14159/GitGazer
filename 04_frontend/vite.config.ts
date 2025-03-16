@@ -1,12 +1,12 @@
 // Plugins
-import Components from 'unplugin-vue-components/vite';
 import Vue from '@vitejs/plugin-vue';
-import Vuetify, {transformAssetUrls} from 'vite-plugin-vuetify';
 import ViteFonts from 'unplugin-fonts/vite';
+import Components from 'unplugin-vue-components/vite';
+import Vuetify, {transformAssetUrls} from 'vite-plugin-vuetify';
 
 // Utilities
+import {resolve} from 'path';
 import {defineConfig} from 'vite';
-import {fileURLToPath, URL} from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -31,7 +31,8 @@ export default defineConfig({
     define: {'process.env': {}},
     resolve: {
         alias: {
-            '@': fileURLToPath(new URL('./src', import.meta.url)),
+            '@components': resolve(__dirname, 'src/components'),
+            '@graphql': resolve(__dirname, '../02_central/src/graphql/'),
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
     },

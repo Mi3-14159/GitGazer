@@ -1,6 +1,6 @@
 <script setup lang="ts">
+    import type {GitGazerWorkflowJobEvent} from '@graphql/api';
     import {computed} from 'vue';
-    import type {GitGazerWorkflowJobEvent} from '../../../02_central/src/graphql/api';
 
     const props = defineProps<{
         job: GitGazerWorkflowJobEvent | null;

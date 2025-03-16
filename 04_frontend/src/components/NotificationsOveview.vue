@@ -1,12 +1,12 @@
 <script setup lang="ts">
+    import NotificationCard from '@components/NotificationCard.vue';
+    import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
+    import type {NotificationRule, PutNotificationRuleMutationVariables} from '@graphql/api';
+    import {putNotificationRule} from '@graphql/mutations';
+    import {listNotificationRules} from '@graphql/queries';
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {fetchAuthSession} from 'aws-amplify/auth';
     import {reactive, ref} from 'vue';
-    import type {NotificationRule, PutNotificationRuleMutationVariables} from '../../../02_central/src/graphql/api';
-    import {putNotificationRule} from '../../../02_central/src/graphql/mutations';
-    import {listNotificationRules} from '../../../02_central/src/graphql/queries';
-    import NotificationCard from './NotificationCard.vue';
-    import NotificationDetailsCard from './NotificationDetailsCard.vue';
 
     const client = generateClient();
     const notificationRules = reactive(new Map<string, NotificationRule>());

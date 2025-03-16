@@ -1,12 +1,13 @@
 <script setup lang="ts">
+    import WorkflowCard from '@components/WorkflowCard.vue';
+    import {GitGazerWorkflowJobEvent, ListJobsQueryVariables} from '@graphql/api';
+    import {listJobs} from '@graphql/queries';
+    import {onPutJob} from '@graphql/subscriptions';
     import {CONNECTION_STATE_CHANGE, ConnectionState, generateClient, type GraphQLQuery, type GraphQLSubscription} from 'aws-amplify/api';
     import {fetchAuthSession} from 'aws-amplify/auth';
     import {Hub} from 'aws-amplify/utils';
+    import {Subscription} from 'rxjs';
     import {computed, onMounted, onUnmounted, reactive} from 'vue';
-    import {GitGazerWorkflowJobEvent, ListJobsQueryVariables} from '../../../02_central/src/graphql/api';
-    import {listJobs} from '../../../02_central/src/graphql/queries';
-    import {onPutJob} from '../../../02_central/src/graphql/subscriptions';
-    import WorkflowCard from './WorkflowCard.vue';
 
     const client = generateClient();
     const jobs = reactive(new Map<number, GitGazerWorkflowJobEvent>());
@@ -39,7 +40,7 @@
             .reverse();
     });
 
-    let subscription;
+    let subscription: Subscription;
     let priorConnectionState: ConnectionState;
 
     type listJobsResponse = {

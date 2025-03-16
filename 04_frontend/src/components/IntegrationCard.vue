@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import {Integration} from '../../../02_central/src/graphql/api';
+    import {Integration} from '@graphql/api';
 
     const props = defineProps<{
         integration: Integration;
@@ -56,7 +56,10 @@
                             <v-btn
                                 text="Yes, delete"
                                 color="error"
-                                @click="onDelete(props.integration.id)"
+                                @click="
+                                    onDelete(props.integration.id);
+                                    isActive.value = false;
+                                "
                             ></v-btn>
                         </v-card-actions>
                     </v-card>

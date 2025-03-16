@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {ref} from 'vue';
-    import {NotificationRule} from '../../../02_central/src/graphql/api';
+    import {NotificationRule} from '@graphql/api';
 
     const props = defineProps<{
         notificationRule?: NotificationRule;

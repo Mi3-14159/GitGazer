@@ -1,12 +1,12 @@
 <script setup lang="ts">
+    import IntegrationCard from '@components/IntegrationCard.vue';
+    import IntegrationDetailsCard from '@components/IntegrationDetailsCard.vue';
+    import {DeleteIntegrationMutationVariables, Integration, PutIntegrationMutationVariables} from '@graphql/api';
+    import {deleteIntegration, putIntegration} from '@graphql/mutations';
+    import {listIntegrations} from '@graphql/queries';
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {AuthUser, fetchAuthSession, getCurrentUser} from 'aws-amplify/auth';
     import {reactive, ref} from 'vue';
-    import {DeleteIntegrationMutationVariables, Integration, PutIntegrationMutationVariables} from '../../../02_central/src/graphql/api';
-    import {deleteIntegration, putIntegration} from '../../../02_central/src/graphql/mutations';
-    import {listIntegrations} from '../../../02_central/src/graphql/queries';
-    import IntegrationCard from './IntegrationCard.vue';
-    import IntegrationDetailsCard from './IntegrationDetailsCard.vue';
 
     const client = generateClient();
     const integrations = reactive(new Map());

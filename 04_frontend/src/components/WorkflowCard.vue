@@ -1,7 +1,7 @@
 <script setup lang="ts">
+    import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
+    import type {GitGazerWorkflowJobEvent} from '@graphql/api';
     import {ref} from 'vue';
-    import type {GitGazerWorkflowJobEvent} from '../../../02_central/src/graphql/api';
-    import WorkflowCardDetails from './WorkflowCardDetails.vue';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
     const props = defineProps<{
         run_id: number;
@@ -16,25 +16,25 @@
 
 <template>
     <!-- Group view: when group props (run_id, repository_full_name, jobs) are provided -->
-    <template v-if="run_id && repository_full_name && jobs">
+    <template v-if="props.run_id && props.repository_full_name && props.jobs">
         <v-card class="ma-2 rounded-lg">
             <v-card-title class="card-title-wrap">
                 <a
-                    :href="`https://github.com/${repository_full_name}`"
+                    :href="`https://github.com/${props.repository_full_name}`"
                     target="_blank"
                     rel="noopener"
                     class="breakable-link"
                 >
-                    {{ repository_full_name }}
+                    {{ props.repository_full_name }}
                 </a>
-                > {{ workflow_name }} /
+                > {{ props.workflow_name }} /
                 <a
-                    :href="`https://github.com/${repository_full_name}/actions/runs/${run_id}`"
+                    :href="`https://github.com/${props.repository_full_name}/actions/runs/${props.run_id}`"
                     target="_blank"
                     rel="noopener"
                     class="breakable-link"
                 >
-                    {{ run_id }}
+                    {{ props.run_id }}
                 </a>
             </v-card-title>
             <v-divider></v-divider>
@@ -46,7 +46,7 @@
                 >
                     <v-col
                         cols="auto"
-                        v-for="job in jobs"
+                        v-for="job in props.jobs"
                         :key="job.workflow_job_event.workflow_job.id"
                     >
                         <!-- Display job name clickable to open details with a border and status-based bg color -->

@@ -7,10 +7,11 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["src/*"]
+      "@components/*": ["src/components/*"],
+      "@graphql/*": ["../02_central/src/graphql/*"]
     },
     "resolveJsonModule": true,
-    "types": ["vite/client", "vite-plugin-vue-layouts/client", "unplugin-vue-router/client"],
+    "types": ["vite/client", "node"],
     "allowJs": true,
     "strict": true,
     "strictNullChecks": true,
@@ -18,9 +19,11 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "composite": true
   },
-  "include": ["./src/typed-router.d.ts"],
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/typed-router.d.ts", "../02_central/src/graphql/**/*.ts"],
   "exclude": ["dist", "node_modules", "cypress"],
-  "references": [{"path": "./tsconfig.node.json"}]
+  "references": [{"path": "./tsconfig.node.json"}],
+  "extends": "../tsconfig.json"
 }
