@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import {Integration} from '@graphql/api';
+    import {ref} from 'vue';
 
     const props = defineProps<{
         integration: Integration;
@@ -8,8 +9,8 @@
     }>();
 
     const integrationUrl = `${import.meta.env.VITE_IMPORT_URL_BASE}${props.integration.id}`;
-
     const ownerAnnotation = props.integration.owner === props.currentUserSub ? ' (you)' : '(not you)';
+    const showSecret = ref(false);
 </script>
 
 <template>
@@ -27,8 +28,35 @@
                 ></v-row
             >
             <v-row no-gutters
-                ><v-col cols="3">Secret:</v-col><v-col>{{ props.integration.secret }}</v-col></v-row
-            >
+                ><v-col cols="3">Secret:</v-col>
+                <v-col>
+                    <div class="d-flex align-center">
+                        <div class="secret-container">
+                            <Transition
+                                name="fade"
+                                mode="out-in"
+                            >
+                                <span
+                                    v-if="showSecret"
+                                    key="visible"
+                                    >{{ props.integration.secret }}</span
+                                >
+                                <span
+                                    v-else
+                                    key="hidden"
+                                    >••••••••••••••••</span
+                                >
+                            </Transition>
+                        </div>
+                        <v-btn
+                            variant="text"
+                            density="compact"
+                            @click="showSecret = !showSecret"
+                            class="ml-2"
+                            :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
+                        ></v-btn>
+                    </div> </v-col
+            ></v-row>
             <v-row no-gutters
                 ><v-col cols="3">Owner:</v-col><v-col>{{ props.integration.owner }} {{ ownerAnnotation }}</v-col></v-row
             >
@@ -68,3 +96,20 @@
         </v-card-actions>
     </v-card>
 </template>
+
+<style scoped>
+    .secret-container {
+        min-width: 180px;
+        display: inline-block;
+    }
+
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity 0.3s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+        opacity: 0;
+    }
+</style>
