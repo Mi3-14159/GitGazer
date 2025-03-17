@@ -91,6 +91,9 @@
     .cancelled {
         background-color: #413e3e;
     }
+    .skipped {
+        background-color: grey;
+    }
 
     a {
         color: inherit;
