@@ -8,7 +8,7 @@
     "@aws-sdk/client-dynamodb": "^3.812.0",
     "@aws-sdk/lib-dynamodb": "^3.823.0",
     "@types/aws-lambda": "^8.10.149",
-    "@types/node": "^22.15.27",
+    "@types/node": "^22.15.29",
     "eslint": "^9.28.0",
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
