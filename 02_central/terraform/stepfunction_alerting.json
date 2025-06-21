@@ -6,6 +6,7 @@
       "InputPath": "$[0]",
       "Next": "Process IDs list",
       "Parameters": {
+        "conclusion.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S",
         "ids.$": "States.Array(States.Format('{}', $.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S), States.Format('{}/{}', $.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $.dynamodb.NewImage.workflow_job_event.M.repository.M.full_name.S), States.Format('{}/{}/{}', $.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $.dynamodb.NewImage.workflow_job_event.M.repository.M.full_name.S, $.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S))",
         "integrationId.$": "$.dynamodb.NewImage.integrationId.S",
         "workflow_name.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S"
