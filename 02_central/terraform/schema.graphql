@@ -7,11 +7,21 @@
 type Repository @aws_api_key @aws_iam @aws_cognito_user_pools {
     full_name: String!
     html_url: String!
+    owner: Owner!
+}
+
+type Owner @aws_api_key @aws_iam @aws_cognito_user_pools {
+    login: String!
 }
 
 input RepositoryInput {
     full_name: String!
     html_url: String!
+    owner: OwnerInput!
+}
+
+input OwnerInput {
+    login: String!
 }
 
 type WorkflowJob @aws_api_key @aws_iam @aws_cognito_user_pools {

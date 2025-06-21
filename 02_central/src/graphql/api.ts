@@ -33,6 +33,9 @@ export type WorkflowJobInput = {
 export type RepositoryInput = {
   full_name: string,
   html_url: string,
+  owner: {
+    login: string,
+  }
 };
 
 export type GitGazerWorkflowJobEvent = {

@@ -76,6 +76,9 @@ const getInput = (event: WorkflowJobEvent, integrationId: string): GitGazerWorkf
             repository: {
                 full_name: event.repository.full_name,
                 html_url: event.repository.html_url,
+                owner: {
+                    login: event.repository.owner.login,
+                },
             },
         },
     };
