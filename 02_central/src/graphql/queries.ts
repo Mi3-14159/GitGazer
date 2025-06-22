@@ -37,7 +37,12 @@ export const listJobs = /* GraphQL */ `query ListJobs(
         }
         repository {
           full_name
+          name
           html_url
+          owner {
+            login
+            __typename
+          }
           __typename
         }
         __typename

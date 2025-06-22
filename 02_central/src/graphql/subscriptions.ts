@@ -32,7 +32,12 @@ export const onPutJob = /* GraphQL */ `subscription OnPutJob {
       }
       repository {
         full_name
+        name
         html_url
+        owner {
+          login
+          __typename
+        }
         __typename
       }
       __typename

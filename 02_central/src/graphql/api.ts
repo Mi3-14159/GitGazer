@@ -32,10 +32,13 @@ export type WorkflowJobInput = {
 
 export type RepositoryInput = {
   full_name: string,
+  name: string,
   html_url: string,
-  owner: {
-    login: string,
-  }
+  owner: OwnerInput,
+};
+
+export type OwnerInput = {
+  login: string,
 };
 
 export type GitGazerWorkflowJobEvent = {
@@ -72,7 +75,14 @@ export type WorkflowJob = {
 export type Repository = {
   __typename: "Repository",
   full_name: string,
+  name: string,
   html_url: string,
+  owner: Owner,
+};
+
+export type Owner = {
+  __typename: "Owner",
+  login: string,
 };
 
 export type NotificationRuleInput = {
@@ -179,7 +189,12 @@ export type PutJobMutation = {
       repository:  {
         __typename: "Repository",
         full_name: string,
+        name: string,
         html_url: string,
+        owner:  {
+          __typename: "Owner",
+          login: string,
+        },
       },
     },
   } | null,
@@ -268,7 +283,12 @@ export type ListJobsQuery = {
         repository:  {
           __typename: "Repository",
           full_name: string,
+          name: string,
           html_url: string,
+          owner:  {
+            __typename: "Owner",
+            login: string,
+          },
         },
       },
     } >,
@@ -349,7 +369,12 @@ export type OnPutJobSubscription = {
       repository:  {
         __typename: "Repository",
         full_name: string,
+        name: string,
         html_url: string,
+        owner:  {
+          __typename: "Owner",
+          login: string,
+        },
       },
     },
   } | null,
