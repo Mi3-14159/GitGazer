@@ -1,6 +1,6 @@
 module "ui_bucket" {
   source        = "terraform-aws-modules/s3-bucket/aws"
-  version       = "~> 4.1"
+  version       = "~> 5.0"
   create_bucket = var.with_frontend_stack
   force_destroy = "true"
 
