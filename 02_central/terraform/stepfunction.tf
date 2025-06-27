@@ -1,7 +1,7 @@
 module "alerting_stepfunction" {
   count   = var.create_gitgazer_alerting ? 1 : 0
   source  = "terraform-aws-modules/step-functions/aws"
-  version = "~> 4.2"
+  version = "~> 5.0"
 
   name = "${var.name_prefix}-alerting-${terraform.workspace}"
   definition = templatefile("${path.module}/stepfunction_alerting.json", {
