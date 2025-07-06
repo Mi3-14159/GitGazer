@@ -1,32 +1,26 @@
 <script setup lang="ts">
+    import {NotificationChannelType, NotificationRuleInput} from '@graphql/api';
     import {ref} from 'vue';
-    import {NotificationRule} from '@graphql/api';
 
     const props = defineProps<{
-        notificationRule?: NotificationRule;
         integrations: string[];
         onClose: () => void;
-        onSave: (notificationRule: NotificationRule) => void;
+        onSave: (notificationRuleInput: NotificationRuleInput) => void;
     }>();
 
-    const notificationRule = ref<NotificationRule>(
-        props.notificationRule ?? {
-            __typename: 'NotificationRule',
-            owner: '',
-            repository_name: '',
-            workflow_name: '',
-            integrationId: '',
-            enabled: false,
-            created_at: '',
-            updated_at: '',
-            http: {
-                __typename: 'Http',
-                method: '',
-                url: '',
-                body: '',
+    const notificationRule = ref<NotificationRuleInput>({
+        owner: '',
+        repository_name: '',
+        workflow_name: '',
+        integrationId: '',
+        enabled: false,
+        channels: [
+            {
+                type: NotificationChannelType.SLACK,
+                webhook_url: '',
             },
-        },
-    );
+        ],
+    });
 </script>
 <template>
     <v-card
@@ -35,6 +29,18 @@
     >
         <v-card-text>
             <v-row dense>
+                <v-col
+                    sm="12
+                    "
+                >
+                    <v-autocomplete
+                        :items="integrations"
+                        label="Integrations*"
+                        auto-select-first
+                        v-model="notificationRule.integrationId"
+                    ></v-autocomplete>
+                </v-col>
+
                 <v-col
                     cols="12"
                     md="4"
@@ -69,16 +75,15 @@
                     ></v-text-field>
                 </v-col>
 
-                <v-col
-                    cols="12"
-                    sm="6"
-                >
-                    <v-autocomplete
-                        :items="integrations"
-                        label="Integrations*"
-                        auto-select-first
-                        v-model="notificationRule.integrationId"
-                    ></v-autocomplete>
+                <v-divider></v-divider>
+
+                <v-col sm="12">
+                    <v-text-field
+                        v-if="notificationRule.channels[0]?.type === NotificationChannelType.SLACK"
+                        label="Slack Webhook URL*"
+                        v-model="notificationRule.channels[0].webhook_url"
+                        required
+                    ></v-text-field>
                 </v-col>
 
                 <v-divider></v-divider>

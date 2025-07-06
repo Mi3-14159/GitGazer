@@ -64,12 +64,9 @@ export const listNotificationRules = /* GraphQL */ `query ListNotificationRules(
       enabled
       created_at
       updated_at
-      http {
-        body
-        headers
-        method
-        query_parameters
-        url
+      channels {
+        type
+        webhook_url
         __typename
       }
       __typename

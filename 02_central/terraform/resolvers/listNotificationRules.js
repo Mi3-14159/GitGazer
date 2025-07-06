@@ -1,4 +1,4 @@
-import {util, runtime} from '@aws-appsync/utils';
+import {runtime, util} from '@aws-appsync/utils';
 import {scan} from '@aws-appsync/utils/dynamodb';
 
 /**

@@ -21,50 +21,23 @@
         },
         "StartAt": "Get notification rule",
         "States": {
-          "Call third-party API": {
-            "End": true,
-            "Parameters": {
-              "ApiEndpoint.$": "$.Item.http.M.url.S",
-              "Authentication": {
-                "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
-              },
-              "Method.$": "$.Item.http.M.method.S",
-              "RequestBody": {
-                "text.$": "States.Format($.Item.http.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)"
-              }
-            },
-            "Resource": "arn:aws:states:::http:invoke",
-            "Retry": [
-              {
-                "BackoffRate": 2,
-                "ErrorEquals": ["States.ALL"],
-                "IntervalSeconds": 1,
-                "JitterStrategy": "FULL",
-                "MaxAttempts": 3
-              }
-            ],
-            "Type": "Task"
-          },
-          "Choose notification type": {
+          "Check if array of notification channels is present": {
             "Choices": [
               {
-                "Next": "No notification rule",
-                "Not": {
-                  "IsPresent": true,
-                  "Variable": "$.Item"
-                }
-              },
-              {
-                "IsPresent": true,
-                "Next": "Call third-party API",
-                "Variable": "$.Item.http"
+                "And": [
+                  {
+                    "IsPresent": true,
+                    "Variable": "$.Item.channels"
+                  }
+                ],
+                "Next": "Iterate notification channels"
               }
             ],
-            "Default": "Not yet implemented",
+            "Default": "No notification channels defined",
             "Type": "Choice"
           },
           "Get notification rule": {
-            "Next": "Choose notification type",
+            "Next": "Check if array of notification channels is present",
             "Parameters": {
               "Key": {
                 "id": {
@@ -79,11 +52,134 @@
             "Resource": "arn:aws:states:::dynamodb:getItem",
             "Type": "Task"
           },
-          "No notification rule": {
-            "Type": "Succeed"
+          "Iterate notification channels": {
+            "End": true,
+            "ItemProcessor": {
+              "ProcessorConfig": {
+                "Mode": "INLINE"
+              },
+              "StartAt": "Choice",
+              "States": {
+                "Call Slack": {
+                  "End": true,
+                  "Parameters": {
+                    "ApiEndpoint.$": "$.M.webhook_url.S",
+                    "InvocationConfig": {
+                      "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
+                    },
+                    "Method": "POST",
+                    "RequestBody": {
+                      "blocks": [
+                        {
+                          "fields": [
+                            {
+                              "text.$": "States.Format('*Organisation:* <http://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S)",
+                              "type": "mrkdwn"
+                            },
+                            {
+                              "text.$": "States.Format('*Repository:* <{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.full_name.S)",
+                              "type": "mrkdwn"
+                            },
+                            {
+                              "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)",
+                              "type": "mrkdwn"
+                            },
+                            {
+                              "text.$": "States.Format('*Conclusion:* <{}/actions/runs/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
+                              "type": "mrkdwn"
+                            }
+                          ],
+                          "type": "section"
+                        }
+                      ]
+                    }
+                  },
+                  "Resource": "arn:aws:states:::http:invoke",
+                  "Retry": [
+                    {
+                      "BackoffRate": 2,
+                      "ErrorEquals": ["States.ALL"],
+                      "IntervalSeconds": 1,
+                      "JitterStrategy": "FULL",
+                      "MaxAttempts": 3
+                    }
+                  ],
+                  "Type": "Task"
+                },
+                "Call third-party API": {
+                  "End": true,
+                  "Parameters": {
+                    "ApiEndpoint.$": "$.M.url.S",
+                    "Authentication": {
+                      "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
+                    },
+                    "Method.$": "$.M.method.S",
+                    "RequestBody": {
+                      "text.$": "States.Format($.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)"
+                    }
+                  },
+                  "Resource": "arn:aws:states:::http:invoke",
+                  "Retry": [
+                    {
+                      "BackoffRate": 2,
+                      "ErrorEquals": ["States.ALL"],
+                      "IntervalSeconds": 1,
+                      "JitterStrategy": "FULL",
+                      "MaxAttempts": 3
+                    }
+                  ],
+                  "Type": "Task"
+                },
+                "Choice": {
+                  "Choices": [
+                    {
+                      "And": [
+                        {
+                          "StringEquals": "HTTP",
+                          "Variable": "$.M.type.S"
+                        },
+                        {
+                          "IsPresent": true,
+                          "Variable": "$.M.body.S"
+                        },
+                        {
+                          "IsPresent": true,
+                          "Variable": "$.M.method.S"
+                        },
+                        {
+                          "IsPresent": true,
+                          "Variable": "$.M.url.S"
+                        }
+                      ],
+                      "Next": "Call third-party API"
+                    },
+                    {
+                      "And": [
+                        {
+                          "StringEquals": "SLACK",
+                          "Variable": "$.M.type.S"
+                        },
+                        {
+                          "IsPresent": true,
+                          "Variable": "$.M.webhook_url.S"
+                        }
+                      ],
+                      "Next": "Call Slack"
+                    }
+                  ],
+                  "Default": "Not yet implemented",
+                  "Type": "Choice"
+                },
+                "Not yet implemented": {
+                  "Comment": "Sink for not yet implemented notification methods",
+                  "Type": "Succeed"
+                }
+              }
+            },
+            "ItemsPath": "$.Item.channels.L",
+            "Type": "Map"
           },
-          "Not yet implemented": {
-            "Comment": "Sink for not yet implemented notification methods",
+          "No notification channels defined": {
             "Type": "Succeed"
           }
         }

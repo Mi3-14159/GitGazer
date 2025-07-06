@@ -91,16 +91,24 @@ export type NotificationRuleInput = {
   repository_name?: string | null,
   workflow_name?: string | null,
   enabled: boolean,
-  http?: HttpInput | null,
+  channels: Array< NotificationChannelInput | null >,
 };
 
-export type HttpInput = {
-  body: string,
+export type NotificationChannelInput = {
+  type: NotificationChannelType,
+  body?: string | null,
   headers?: string | null,
-  method: string,
+  method?: string | null,
   query_parameters?: string | null,
-  url: string,
+  url?: string | null,
+  webhook_url?: string | null,
 };
+
+export enum NotificationChannelType {
+  HTTP = "HTTP",
+  SLACK = "SLACK",
+}
+
 
 export type NotificationRule = {
   __typename: "NotificationRule",
@@ -111,16 +119,13 @@ export type NotificationRule = {
   enabled: boolean,
   created_at: string,
   updated_at: string,
-  http?: Http | null,
+  channels:  Array<Slack | null >,
 };
 
-export type Http = {
-  __typename: "Http",
-  body: string,
-  headers?: string | null,
-  method: string,
-  query_parameters?: string | null,
-  url: string,
+export type Slack = {
+  __typename: "Slack",
+  type: NotificationChannelType,
+  webhook_url: string,
 };
 
 export type IntegrationInput = {
@@ -214,14 +219,11 @@ export type PutNotificationRuleMutation = {
     enabled: boolean,
     created_at: string,
     updated_at: string,
-    http?:  {
-      __typename: "Http",
-      body: string,
-      headers?: string | null,
-      method: string,
-      query_parameters?: string | null,
-      url: string,
-    } | null,
+    channels:  Array< {
+      __typename: "Slack",
+      type: NotificationChannelType,
+      webhook_url: string,
+    } | null >,
   } | null,
 };
 
@@ -312,14 +314,11 @@ export type ListNotificationRulesQuery = {
       enabled: boolean,
       created_at: string,
       updated_at: string,
-      http?:  {
-        __typename: "Http",
-        body: string,
-        headers?: string | null,
-        method: string,
-        query_parameters?: string | null,
-        url: string,
-      } | null,
+      channels:  Array< {
+        __typename: "Slack",
+        type: NotificationChannelType,
+        webhook_url: string,
+      } | null >,
     } | null >,
     nextToken?: string | null,
   } | null,

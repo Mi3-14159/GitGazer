@@ -66,16 +66,8 @@
 
     getUserGroups();
 
-    const onSave = async (notificationRule: NotificationRule) => {
-        debugger;
-        await handlePutNotificationRule({
-            enabled: notificationRule.enabled,
-            integrationId: notificationRule.integrationId,
-            owner: notificationRule.owner,
-            repository_name: notificationRule.repository_name,
-            workflow_name: notificationRule.workflow_name,
-            // TODO: add http config
-        });
+    const onSave = async (notificationRuleInput: NotificationRuleInput) => {
+        await handlePutNotificationRule(notificationRuleInput);
         dialog.value = false;
     };
 </script>

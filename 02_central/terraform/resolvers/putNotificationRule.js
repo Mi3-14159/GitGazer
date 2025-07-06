@@ -6,7 +6,7 @@ import {util} from '@aws-appsync/utils';
  * @returns {import('@aws-appsync/utils').DynamoDBUpdateItemRequest} the request
  */
 export function request(ctx) {
-    const {integrationId, owner, repository_name, workflow_name, enabled, http} = ctx.args.input;
+    const {integrationId, owner, repository_name, workflow_name, enabled, channels} = ctx.args.input;
 
     if (util.authType() === 'User Pool Authorization') {
         if (!ctx.identity['groups'].includes(integrationId)) {
@@ -14,7 +14,7 @@ export function request(ctx) {
         }
     }
 
-    const idParts = [owner, ...(repository_name != null ? [repository_name] : []), ...(workflow_name != null ? [workflow_name] : [])];
+    const idParts = [owner, ...(repository_name ? [repository_name] : []), ...(workflow_name ? [workflow_name] : [])];
 
     const key = {id: idParts.join('/')};
     const now = util.time.nowISO8601();
@@ -26,18 +26,19 @@ export function request(ctx) {
             integrationId: util.dynamodb.toDynamoDB(integrationId),
         },
         update: {
-            expression: 'SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #enabled = :enabled, #http = :http',
+            expression:
+                'SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #enabled = :enabled, #channels = :channels',
             expressionNames: {
                 '#created_at': 'created_at',
                 '#updated_at': 'updated_at',
                 '#enabled': 'enabled',
-                '#http': 'http',
+                '#channels': 'channels',
             },
             expressionValues: {
                 ':created_at': util.dynamodb.toDynamoDB(now),
                 ':updated_at': util.dynamodb.toDynamoDB(now),
                 ':enabled': util.dynamodb.toDynamoDB(enabled),
-                ':http': util.dynamodb.toDynamoDB(http),
+                ':channels': util.dynamodb.toDynamoDB(channels),
             },
         },
     };

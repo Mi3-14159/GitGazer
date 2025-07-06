@@ -94,7 +94,13 @@ input GitGazerWorkflowJobEventFilterInput {
     created_at: AWSDateTime
 }
 
+enum NotificationChannelType {
+    HTTP
+    SLACK
+}
+
 type Http @aws_api_key @aws_cognito_user_pools {
+    type: NotificationChannelType!
     body: String!
     headers: String
     method: String!
@@ -102,13 +108,12 @@ type Http @aws_api_key @aws_cognito_user_pools {
     url: String!
 }
 
-input HttpInput {
-    body: String!
-    headers: String
-    method: String!
-    query_parameters: String
-    url: String!
+type Slack @aws_api_key @aws_cognito_user_pools {
+    type: NotificationChannelType!
+    webhook_url: String!
 }
+
+union NotificationRuleChannel = Http | Slack
 
 type NotificationRule @aws_api_key @aws_cognito_user_pools {
     integrationId: String!
@@ -118,7 +123,20 @@ type NotificationRule @aws_api_key @aws_cognito_user_pools {
     enabled: Boolean!
     created_at: AWSDateTime!
     updated_at: AWSDateTime!
-    http: Http
+    channels: [Slack]!
+}
+
+input NotificationChannelInput {
+    # Common field to discriminate between types
+    type: NotificationChannelType!
+    # Http specific fields
+    body: String
+    headers: String
+    method: String
+    query_parameters: String
+    url: String
+    # Slack specific fields
+    webhook_url: String
 }
 
 input NotificationRuleInput {
@@ -127,7 +145,7 @@ input NotificationRuleInput {
     repository_name: String
     workflow_name: String
     enabled: Boolean!
-    http: HttpInput
+    channels: [NotificationChannelInput]!
 }
 
 type NotificationRuleConnection @aws_api_key @aws_cognito_user_pools {
