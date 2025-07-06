@@ -71,6 +71,14 @@
                     "RequestBody": {
                       "blocks": [
                         {
+                          "text": {
+                            "emoji": true,
+                            "text.$": "States.Format('{} - {}', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
+                            "type": "plain_text"
+                          },
+                          "type": "header"
+                        },
+                        {
                           "fields": [
                             {
                               "text.$": "States.Format('*Organisation:* <http://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S)",
