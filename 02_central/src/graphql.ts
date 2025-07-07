@@ -81,6 +81,11 @@ const getInput = (event: WorkflowJobEvent, integrationId: string): GitGazerWorkf
                     login: event.repository.owner.login,
                 },
             },
+            sender: {
+                login: event.sender.login,
+                type: event.sender.type,
+                id: event.sender.id,
+            },
         },
     };
 

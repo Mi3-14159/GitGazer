@@ -14,6 +14,7 @@ export type WorkflowJobEventInput = {
   action: string,
   workflow_job: WorkflowJobInput,
   repository: RepositoryInput,
+  sender: SenderInput,
 };
 
 export type WorkflowJobInput = {
@@ -41,6 +42,12 @@ export type OwnerInput = {
   login: string,
 };
 
+export type SenderInput = {
+  login: string,
+  type: string,
+  id: number,
+};
+
 export type GitGazerWorkflowJobEvent = {
   __typename: "GitGazerWorkflowJobEvent",
   integrationId: string,
@@ -55,6 +62,7 @@ export type WorkflowJobEvent = {
   action: string,
   workflow_job: WorkflowJob,
   repository: Repository,
+  sender: Sender,
 };
 
 export type WorkflowJob = {
@@ -83,6 +91,13 @@ export type Repository = {
 export type Owner = {
   __typename: "Owner",
   login: string,
+};
+
+export type Sender = {
+  __typename: "Sender",
+  login: string,
+  type: string,
+  id: number,
 };
 
 export type NotificationRuleInput = {
@@ -201,6 +216,12 @@ export type PutJobMutation = {
           login: string,
         },
       },
+      sender:  {
+        __typename: "Sender",
+        login: string,
+        type: string,
+        id: number,
+      },
     },
   } | null,
 };
@@ -292,6 +313,12 @@ export type ListJobsQuery = {
             login: string,
           },
         },
+        sender:  {
+          __typename: "Sender",
+          login: string,
+          type: string,
+          id: number,
+        },
       },
     } >,
     nextToken?: string | null,
@@ -374,6 +401,12 @@ export type OnPutJobSubscription = {
           __typename: "Owner",
           login: string,
         },
+      },
+      sender:  {
+        __typename: "Sender",
+        login: string,
+        type: string,
+        id: number,
       },
     },
   } | null,

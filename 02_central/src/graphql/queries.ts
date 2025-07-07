@@ -45,6 +45,12 @@ export const listJobs = /* GraphQL */ `query ListJobs(
           }
           __typename
         }
+        sender {
+          login
+          type
+          id
+          __typename
+        }
         __typename
       }
       __typename

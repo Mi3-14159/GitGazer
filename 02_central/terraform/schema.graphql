@@ -54,16 +54,30 @@ input WorkflowJobInput {
     completed_at: AWSDateTime
 }
 
+type Sender @aws_api_key @aws_iam @aws_cognito_user_pools {
+    login: String!
+    type: String!
+    id: Float!
+}
+
 type WorkflowJobEvent @aws_api_key @aws_iam @aws_cognito_user_pools {
     action: String!
     workflow_job: WorkflowJob!
     repository: Repository!
+    sender: Sender!
+}
+
+input SenderInput {
+    login: String!
+    type: String!
+    id: Float!
 }
 
 input WorkflowJobEventInput {
     action: String!
     workflow_job: WorkflowJobInput!
     repository: RepositoryInput!
+    sender: SenderInput!
 }
 
 type GitGazerWorkflowJobEvent @aws_api_key @aws_iam @aws_cognito_user_pools {

@@ -40,6 +40,12 @@ export const onPutJob = /* GraphQL */ `subscription OnPutJob {
         }
         __typename
       }
+      sender {
+        login
+        type
+        id
+        __typename
+      }
       __typename
     }
     __typename

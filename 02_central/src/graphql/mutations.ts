@@ -40,6 +40,12 @@ export const putJob = /* GraphQL */ `mutation PutJob($input: GitGazerWorkflowJob
         }
         __typename
       }
+      sender {
+        login
+        type
+        id
+        __typename
+      }
       __typename
     }
     __typename
