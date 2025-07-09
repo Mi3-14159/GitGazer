@@ -1,9 +1,9 @@
 <script setup lang="ts">
-    import {NotificationChannelType, NotificationRuleInput} from '@graphql/api';
+    import {Integration, NotificationChannelType, NotificationRuleInput} from '@graphql/api';
     import {ref} from 'vue';
 
     const props = defineProps<{
-        integrations: string[];
+        integrations: Integration[];
         onClose: () => void;
         onSave: (notificationRuleInput: NotificationRuleInput) => void;
     }>();
@@ -29,12 +29,11 @@
     >
         <v-card-text>
             <v-row dense>
-                <v-col
-                    sm="12
-                    "
-                >
+                <v-col sm="12">
                     <v-autocomplete
                         :items="integrations"
+                        item-title="label"
+                        item-value="id"
                         label="Integrations*"
                         auto-select-first
                         v-model="notificationRule.integrationId"
@@ -49,6 +48,7 @@
                     <v-text-field
                         label="Owner*"
                         v-model="notificationRule.owner"
+                        placeholder="* for everything"
                         required
                     ></v-text-field>
                 </v-col>
@@ -75,8 +75,6 @@
                     ></v-text-field>
                 </v-col>
 
-                <v-divider></v-divider>
-
                 <v-col sm="12">
                     <v-text-field
                         v-if="notificationRule.channels[0]?.type === NotificationChannelType.SLACK"
@@ -85,8 +83,6 @@
                         required
                     ></v-text-field>
                 </v-col>
-
-                <v-divider></v-divider>
 
                 <v-col
                     cols="12"

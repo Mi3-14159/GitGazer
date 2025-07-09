@@ -1,8 +1,9 @@
 <script setup lang="ts">
-    import type {NotificationRule} from '@graphql/api';
+    import type {Integration, NotificationRule} from '@graphql/api';
 
     const props = defineProps<{
         notificationRule: NotificationRule;
+        integrations: Integration[];
     }>();
 </script>
 
@@ -17,7 +18,7 @@
         </v-card-title>
         <v-card-text
             >Enabled: {{ props.notificationRule.enabled }}<br />
-            Integration: {{ props.notificationRule.integrationId }}<br />
+            Integration: {{ props.integrations.find((integration) => integration.id === props.notificationRule.integrationId)?.label }}<br />
             Created at: {{ props.notificationRule.created_at }}<br />
             Updated at: {{ props.notificationRule.updated_at }}
         </v-card-text>

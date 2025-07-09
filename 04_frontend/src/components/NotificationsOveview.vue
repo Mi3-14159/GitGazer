@@ -1,20 +1,23 @@
 <script setup lang="ts">
     import NotificationCard from '@components/NotificationCard.vue';
     import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
-    import type {NotificationRule, NotificationRuleInput, PutNotificationRuleMutationVariables} from '@graphql/api';
+    import type {Integration, NotificationRule, NotificationRuleInput, PutNotificationRuleMutationVariables} from '@graphql/api';
     import {putNotificationRule} from '@graphql/mutations';
-    import {listNotificationRules} from '@graphql/queries';
+    import {listIntegrations, listNotificationRules} from '@graphql/queries';
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
-    import {fetchAuthSession} from 'aws-amplify/auth';
     import {reactive, ref} from 'vue';
 
     const client = generateClient();
     const notificationRules = reactive(new Map<string, NotificationRule>());
+    const integrations = reactive(new Array());
     const dialog = ref(false);
-    const userGroups = ref<Array<string>>([]);
 
     type PutNotificationRuleResponse = {
         putNotificationRule: NotificationRule;
+    };
+
+    type ListIntegrationsResponse = {
+        listIntegrations: Integration[];
     };
 
     const handlePutNotificationRule = async (putNotificationRuleInput: NotificationRuleInput) => {
@@ -41,30 +44,37 @@
 
     const handleListNotificationRules = async () => {
         try {
-            const response = await client.graphql<GraphQLQuery<ListNotificationRulesResponse>>({
-                query: listNotificationRules,
-            });
-            response.data.listNotificationRules.items?.forEach((notificationRule: NotificationRule) => {
+            const [notificationRulesResponse, integrationsResponse] = await Promise.allSettled([
+                client.graphql<GraphQLQuery<ListNotificationRulesResponse>>({
+                    query: listNotificationRules,
+                }),
+                client.graphql<GraphQLQuery<ListIntegrationsResponse>>({
+                    query: listIntegrations,
+                }),
+            ]);
+
+            if (notificationRulesResponse.status !== 'fulfilled') {
+                throw new Error(notificationRulesResponse.reason);
+            }
+
+            if (integrationsResponse.status !== 'fulfilled') {
+                throw new Error(integrationsResponse.reason);
+            }
+
+            notificationRulesResponse.value.data.listNotificationRules.items?.forEach((notificationRule: NotificationRule) => {
                 notificationRules.set(
                     `${notificationRule.integrationId}-${notificationRule.owner}/${notificationRule.repository_name}/${notificationRule.workflow_name}`,
                     notificationRule,
                 );
             });
+
+            integrations.push(...integrationsResponse.value.data.listIntegrations);
         } catch (error) {
             console.error(error);
         }
     };
 
     handleListNotificationRules();
-
-    const getUserGroups = async () => {
-        const session = await fetchAuthSession();
-
-        const groups: string[] = (session.tokens?.accessToken.payload['cognito:groups'] as string[]) ?? [];
-        groups.forEach((group) => userGroups.value.push(group));
-    };
-
-    getUserGroups();
 
     const onSave = async (notificationRuleInput: NotificationRuleInput) => {
         await handlePutNotificationRule(notificationRuleInput);
@@ -80,7 +90,10 @@
             :key="key"
             no-gutters
         >
-            <NotificationCard :notificationRule="notificationRule" />
+            <NotificationCard
+                :notificationRule="notificationRule"
+                :integrations="integrations"
+            />
         </v-row>
         <v-bottom-navigation :elevation="0">
             <v-dialog
@@ -97,7 +110,7 @@
                 <NotificationDetailsCard
                     v-if="dialog"
                     :onClose="() => (dialog = false)"
-                    :integrations="userGroups"
+                    :integrations="integrations"
                     :onSave="onSave"
                 />
             </v-dialog>
