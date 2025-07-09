@@ -69,39 +69,44 @@
                     },
                     "Method": "POST",
                     "RequestBody": {
-                      "blocks": [
+                      "attachments": [
                         {
-                          "text": {
-                            "emoji": true,
-                            "text.$": "States.Format('{} - {}', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
-                            "type": "plain_text"
-                          },
-                          "type": "header"
-                        },
-                        {
-                          "fields": [
+                          "blocks": [
                             {
-                              "text.$": "States.Format('*Organisation:* <http://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S)",
-                              "type": "mrkdwn"
+                              "text": {
+                                "emoji": true,
+                                "text.$": "States.Format('{} - {}', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
+                                "type": "plain_text"
+                              },
+                              "type": "header"
                             },
                             {
-                              "text.$": "States.Format('*Repository:* <{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.name.S)",
-                              "type": "mrkdwn"
-                            },
-                            {
-                              "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)",
-                              "type": "mrkdwn"
-                            },
-                            {
-                              "text.$": "States.Format('*Conclusion:* <{}/actions/runs/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
-                              "type": "mrkdwn"
-                            },
-                            {
-                              "text.$": "States.Format('*Sender:* <https://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S)",
-                              "type": "mrkdwn"
+                              "fields": [
+                                {
+                                  "text.$": "States.Format('*Organisation:* <http://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S)",
+                                  "type": "mrkdwn"
+                                },
+                                {
+                                  "text.$": "States.Format('*Repository:* <{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.name.S)",
+                                  "type": "mrkdwn"
+                                },
+                                {
+                                  "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)",
+                                  "type": "mrkdwn"
+                                },
+                                {
+                                  "text.$": "States.Format('*Conclusion:* <{}/actions/runs/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
+                                  "type": "mrkdwn"
+                                },
+                                {
+                                  "text.$": "States.Format('*Sender:* <https://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S)",
+                                  "type": "mrkdwn"
+                                }
+                              ],
+                              "type": "section"
                             }
                           ],
-                          "type": "section"
+                          "color": "#e01e5a"
                         }
                       ]
                     }
