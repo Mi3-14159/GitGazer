@@ -1,6 +1,6 @@
 module "this" {
   source  = "moritzzimmer/lambda/aws"
-  version = "~> 7.5"
+  version = "~> 8.0"
 
   description      = "GitGazers jobs processor"
   filename         = local.artifact
