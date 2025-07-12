@@ -15,7 +15,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.0 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.3 |
 | <a name="requirement_github"></a> [github](#requirement\_github) | ~> 6.0 |
 
 ## Providers
