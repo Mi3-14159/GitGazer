@@ -19,15 +19,27 @@
         "ProcessorConfig": {
           "Mode": "INLINE"
         },
-        "StartAt": "Get notification rule",
+        "StartAt": "Query notification rule",
         "States": {
-          "Check if array of notification channels is present": {
+          "Check if array of notification channels is present and rule is enabled": {
             "Choices": [
               {
                 "And": [
                   {
                     "IsPresent": true,
-                    "Variable": "$.Item.channels"
+                    "Variable": "$.Items"
+                  },
+                  {
+                    "IsPresent": true,
+                    "Variable": "$.Items[0]"
+                  },
+                  {
+                    "IsPresent": true,
+                    "Variable": "$.Items[0].channels"
+                  },
+                  {
+                    "IsPresent": true,
+                    "Variable": "$.Items[0].enabled"
                   }
                 ],
                 "Next": "Iterate notification channels"
@@ -35,22 +47,6 @@
             ],
             "Default": "No notification channels defined",
             "Type": "Choice"
-          },
-          "Get notification rule": {
-            "Next": "Check if array of notification channels is present",
-            "Parameters": {
-              "Key": {
-                "id": {
-                  "S.$": "$.id"
-                },
-                "integrationId": {
-                  "S.$": "$.integrationId"
-                }
-              },
-              "TableName": "${notification_rules_table_name}"
-            },
-            "Resource": "arn:aws:states:::dynamodb:getItem",
-            "Type": "Task"
           },
           "Iterate notification channels": {
             "End": true,
@@ -193,11 +189,38 @@
                 }
               }
             },
-            "ItemsPath": "$.Item.channels.L",
+            "ItemsPath": "$.Items[0].channels.L",
             "Type": "Map"
           },
           "No notification channels defined": {
             "Type": "Succeed"
+          },
+          "Query notification rule": {
+            "Next": "Check if array of notification channels is present and rule is enabled",
+            "Parameters": {
+              "ExpressionAttributeNames": {
+                "#enabled": "enabled",
+                "#id": "id",
+                "#integrationId": "integrationId"
+              },
+              "ExpressionAttributeValues": {
+                ":enabled": {
+                  "Bool": true
+                },
+                ":id": {
+                  "S.$": "$.id"
+                },
+                ":integrationId": {
+                  "S.$": "$.integrationId"
+                }
+              },
+              "FilterExpression": "#enabled = :enabled",
+              "KeyConditionExpression": "#integrationId = :integrationId AND #id = :id",
+              "Select": "ALL_ATTRIBUTES",
+              "TableName": "${notification_rules_table_name}"
+            },
+            "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+            "Type": "Task"
           }
         }
       },

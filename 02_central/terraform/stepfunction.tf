@@ -46,5 +46,10 @@ module "alerting_stepfunction" {
       ],
       resources = [aws_cloudwatch_event_connection.generic[0].secret_arn]
     }
+    dynamodb = {
+      effect    = "Allow",
+      actions   = ["dynamodb:Query"],
+      resources = [aws_dynamodb_table.notification_rules[0].arn]
+    }
   }
 }
