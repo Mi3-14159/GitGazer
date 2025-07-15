@@ -16,19 +16,19 @@
 <template>
     <v-card class="ma-2 rounded-lg">
         <v-card-title>{{ props.integration.label }}</v-card-title>
-        <v-card-text
-            ><v-row no-gutters
-                ><v-col cols="3">Webhook payload URL:</v-col
-                ><v-col>
+        <v-card-text>
+            <v-row no-gutters>
+                <v-col cols="3">Webhook payload URL:</v-col>
+                <v-col>
                     <a
                         :href="integrationUrl"
                         target="_blank"
                         >{{ integrationUrl }}</a
-                    ></v-col
-                ></v-row
-            >
-            <v-row no-gutters
-                ><v-col cols="3">Secret:</v-col>
+                    >
+                </v-col>
+            </v-row>
+            <v-row no-gutters>
+                <v-col cols="3">Secret:</v-col>
                 <v-col>
                     <div class="d-flex align-center">
                         <div class="secret-container">
@@ -56,14 +56,17 @@
                             :color="showSecret ? 'warning' : undefined"
                             :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
                         ></v-btn>
-                    </div> </v-col
-            ></v-row>
-            <v-row no-gutters
-                ><v-col cols="3">Owner:</v-col><v-col>{{ props.integration.owner }} {{ ownerAnnotation }}</v-col></v-row
-            >
-            <v-row no-gutters
-                ><v-col cols="3">(TODO) Users:</v-col><v-col>{{ props.integration.users.join(', ') }}</v-col></v-row
-            >
+                    </div>
+                </v-col>
+            </v-row>
+            <v-row no-gutters>
+                <v-col cols="3">Owner:</v-col>
+                <v-col>{{ props.integration.owner }} {{ ownerAnnotation }}</v-col>
+            </v-row>
+            <v-row no-gutters>
+                <v-col cols="3">(TODO) Users:</v-col>
+                <v-col>{{ props.integration.users.join(', ') }}</v-col>
+            </v-row>
         </v-card-text>
         <v-card-actions>
             <v-spacer></v-spacer>
