@@ -2,10 +2,8 @@
     import {signOut} from 'aws-amplify/auth';
     import {ref} from 'vue';
     import {useRouter} from 'vue-router';
-    import {useDisplay} from 'vuetify';
 
     const router = useRouter();
-    const {mobile} = useDisplay();
 
     const props = defineProps<{
         username?: string;
@@ -14,9 +12,6 @@
 
     const drawer = ref(true);
     const rail = ref(true);
-
-    // Compute drawer width based on screen size
-    const drawerWidth = mobile.value ? 180 : 256;
 </script>
 
 <template>
@@ -25,11 +20,13 @@
         :rail="rail"
         permanent
         @click="rail = false"
-        :width="drawerWidth"
+        width="180"
     >
         <v-list-item
             :prepend-avatar="pictureUrl"
-            :title="props.username"
+            :title="rail ? undefined : props.username"
+            :density="rail ? 'default' : 'compact'"
+            :slim="rail"
         >
             <template v-slot:append>
                 <v-btn
