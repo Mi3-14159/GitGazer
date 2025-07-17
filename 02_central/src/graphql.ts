@@ -72,6 +72,7 @@ const getInput = (event: WorkflowJobEvent, integrationId: string): GitGazerWorkf
                 created_at: event.workflow_job.created_at,
                 started_at: event.workflow_job.started_at,
                 completed_at: event.workflow_job.completed_at,
+                head_branch: event.workflow_job.head_branch,
             },
             repository: {
                 full_name: event.repository.full_name,

@@ -38,6 +38,7 @@ type WorkflowJob @aws_api_key @aws_iam @aws_cognito_user_pools {
     started_at: AWSDateTime!
     completed_at: AWSDateTime
     name: String!
+    head_branch: String!
 }
 
 input WorkflowJobInput {
@@ -48,6 +49,7 @@ input WorkflowJobInput {
     conclusion: String
     name: String!
     workflow_name: String!
+    head_branch: String!
     run_attempt: Int!
     created_at: AWSDateTime!
     started_at: AWSDateTime!
@@ -130,10 +132,12 @@ type Slack @aws_api_key @aws_cognito_user_pools {
 union NotificationRuleChannel = Http | Slack
 
 type NotificationRule @aws_api_key @aws_cognito_user_pools {
+    id: String!
     integrationId: String!
     owner: String!
     repository_name: String
     workflow_name: String
+    head_branch: String
     enabled: Boolean!
     created_at: AWSDateTime!
     updated_at: AWSDateTime!
@@ -158,6 +162,7 @@ input NotificationRuleInput {
     owner: String!
     repository_name: String
     workflow_name: String
+    head_branch: String
     enabled: Boolean!
     channels: [NotificationChannelInput]!
 }
@@ -187,6 +192,7 @@ type Mutation @aws_api_key @aws_cognito_user_pools {
     putNotificationRule(input: NotificationRuleInput!): NotificationRule
     putIntegration(input: IntegrationInput): Integration
     deleteIntegration(id: String!): Boolean
+    deleteNotificationRule(integrationId: String!, id: String!): Boolean
 }
 
 type Query @aws_api_key @aws_cognito_user_pools {

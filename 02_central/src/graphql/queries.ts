@@ -33,6 +33,7 @@ export const listJobs = /* GraphQL */ `query ListJobs(
           started_at
           completed_at
           name
+          head_branch
           __typename
         }
         repository {
@@ -63,10 +64,12 @@ export const listJobs = /* GraphQL */ `query ListJobs(
 export const listNotificationRules = /* GraphQL */ `query ListNotificationRules($nextToken: String) {
   listNotificationRules(nextToken: $nextToken) {
     items {
+      id
       integrationId
       owner
       repository_name
       workflow_name
+      head_branch
       enabled
       created_at
       updated_at

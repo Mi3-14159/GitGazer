@@ -1,8 +1,14 @@
 <script setup lang="ts">
     import NotificationCard from '@components/NotificationCard.vue';
     import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
-    import type {Integration, NotificationRule, NotificationRuleInput, PutNotificationRuleMutationVariables} from '@graphql/api';
-    import {putNotificationRule} from '@graphql/mutations';
+    import type {
+        DeleteNotificationRuleMutationVariables,
+        Integration,
+        NotificationRule,
+        NotificationRuleInput,
+        PutNotificationRuleMutationVariables,
+    } from '@graphql/api';
+    import {deleteNotificationRule, putNotificationRule} from '@graphql/mutations';
     import {listIntegrations, listNotificationRules} from '@graphql/queries';
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {reactive, ref} from 'vue';
@@ -18,6 +24,10 @@
 
     type ListIntegrationsResponse = {
         listIntegrations: Integration[];
+    };
+
+    type DeleteNotificationRuleResponse = {
+        deleteNotificationRule: boolean;
     };
 
     const handlePutNotificationRule = async (putNotificationRuleInput: NotificationRuleInput) => {
@@ -80,6 +90,26 @@
         await handlePutNotificationRule(notificationRuleInput);
         dialog.value = false;
     };
+
+    const handleDeleteNotificationRule = async (integrationId: string, id: string) => {
+        try {
+            const variables: DeleteNotificationRuleMutationVariables = {integrationId, id};
+            await client.graphql<GraphQLQuery<DeleteNotificationRuleResponse>>({
+                query: deleteNotificationRule,
+                variables,
+            });
+        } catch (error) {
+            console.error(error);
+        }
+
+        const notificationRuleToDelete = Array.from(notificationRules.values()).find((rule) => rule.id === id);
+        if (notificationRuleToDelete) {
+            // Remove from the reactive map
+            notificationRules.delete(
+                `${notificationRuleToDelete.integrationId}-${notificationRuleToDelete.owner}/${notificationRuleToDelete.repository_name}/${notificationRuleToDelete.workflow_name}`,
+            );
+        }
+    };
 </script>
 
 <template>
@@ -93,6 +123,7 @@
             <NotificationCard
                 :notificationRule="notificationRule"
                 :integrations="integrations"
+                :onDelete="handleDeleteNotificationRule"
             />
         </v-row>
         <v-bottom-navigation :elevation="0">

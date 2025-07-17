@@ -28,6 +28,7 @@ export const onPutJob = /* GraphQL */ `subscription OnPutJob {
         started_at
         completed_at
         name
+        head_branch
         __typename
       }
       repository {

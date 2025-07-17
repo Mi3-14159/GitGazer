@@ -12,6 +12,7 @@
         owner: '',
         repository_name: '',
         workflow_name: '',
+        head_branch: '',
         integrationId: '',
         enabled: false,
         channels: [
@@ -72,6 +73,18 @@
                     <v-text-field
                         label="Workflow name"
                         v-model="notificationRule.workflow_name"
+                    ></v-text-field>
+                </v-col>
+
+                <v-col
+                    cols="12"
+                    md="4"
+                    sm="6"
+                >
+                    <v-text-field
+                        label="Head branch"
+                        v-model="notificationRule.head_branch"
+                        placeholder="e.g., main, master, feature/*"
                     ></v-text-field>
                 </v-col>
 

@@ -25,6 +25,7 @@ export type WorkflowJobInput = {
   conclusion?: string | null,
   name: string,
   workflow_name: string,
+  head_branch: string,
   run_attempt: number,
   created_at: string,
   started_at: string,
@@ -78,6 +79,7 @@ export type WorkflowJob = {
   started_at: string,
   completed_at?: string | null,
   name: string,
+  head_branch: string,
 };
 
 export type Repository = {
@@ -105,6 +107,7 @@ export type NotificationRuleInput = {
   owner: string,
   repository_name?: string | null,
   workflow_name?: string | null,
+  head_branch?: string | null,
   enabled: boolean,
   channels: Array< NotificationChannelInput | null >,
 };
@@ -127,10 +130,12 @@ export enum NotificationChannelType {
 
 export type NotificationRule = {
   __typename: "NotificationRule",
+  id: string,
   integrationId: string,
   owner: string,
   repository_name?: string | null,
   workflow_name?: string | null,
+  head_branch?: string | null,
   enabled: boolean,
   created_at: string,
   updated_at: string,
@@ -205,6 +210,7 @@ export type PutJobMutation = {
         started_at: string,
         completed_at?: string | null,
         name: string,
+        head_branch: string,
       },
       repository:  {
         __typename: "Repository",
@@ -233,10 +239,12 @@ export type PutNotificationRuleMutationVariables = {
 export type PutNotificationRuleMutation = {
   putNotificationRule?:  {
     __typename: "NotificationRule",
+    id: string,
     integrationId: string,
     owner: string,
     repository_name?: string | null,
     workflow_name?: string | null,
+    head_branch?: string | null,
     enabled: boolean,
     created_at: string,
     updated_at: string,
@@ -271,6 +279,15 @@ export type DeleteIntegrationMutation = {
   deleteIntegration?: boolean | null,
 };
 
+export type DeleteNotificationRuleMutationVariables = {
+  integrationId: string,
+  id: string,
+};
+
+export type DeleteNotificationRuleMutation = {
+  deleteNotificationRule?: boolean | null,
+};
+
 export type ListJobsQueryVariables = {
   filter: GitGazerWorkflowJobEventFilterInput,
   limit?: number | null,
@@ -302,6 +319,7 @@ export type ListJobsQuery = {
           started_at: string,
           completed_at?: string | null,
           name: string,
+          head_branch: string,
         },
         repository:  {
           __typename: "Repository",
@@ -334,10 +352,12 @@ export type ListNotificationRulesQuery = {
     __typename: "NotificationRuleConnection",
     items:  Array< {
       __typename: "NotificationRule",
+      id: string,
       integrationId: string,
       owner: string,
       repository_name?: string | null,
       workflow_name?: string | null,
+      head_branch?: string | null,
       enabled: boolean,
       created_at: string,
       updated_at: string,
@@ -391,6 +411,7 @@ export type OnPutJobSubscription = {
         started_at: string,
         completed_at?: string | null,
         name: string,
+        head_branch: string,
       },
       repository:  {
         __typename: "Repository",

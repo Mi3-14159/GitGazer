@@ -107,6 +107,12 @@ locals {
       data_source : aws_appsync_datasource.notification_rules[0].name,
       kind : "UNIT",
       }, {
+      type : "Mutation",
+      field : "deleteNotificationRule",
+      code_file_path : "${path.module}/resolvers/deleteNotificationRule.js",
+      data_source : aws_appsync_datasource.notification_rules[0].name,
+      kind : "UNIT",
+      }, {
       type : "Query",
       field : "listIntegrations",
       code_file_path : "${path.module}/resolvers/listIntegrations.js",
@@ -139,7 +145,7 @@ locals {
           aws_appsync_function.this["deleteCognitoGroup"].function_id,
         ],
       }
-    }] : [null, null, null, null, null],
+    }] : [null, null, null, null, null, null],
   ])
   appsync_additional_authentication_provider_api_key                   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "API_KEY"]
   appsync_additional_authentication_provider_amazon_cognito_user_pools = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]

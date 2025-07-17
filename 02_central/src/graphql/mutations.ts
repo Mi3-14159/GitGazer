@@ -28,6 +28,7 @@ export const putJob = /* GraphQL */ `mutation PutJob($input: GitGazerWorkflowJob
         started_at
         completed_at
         name
+        head_branch
         __typename
       }
       repository {
@@ -57,10 +58,12 @@ export const putJob = /* GraphQL */ `mutation PutJob($input: GitGazerWorkflowJob
 >;
 export const putNotificationRule = /* GraphQL */ `mutation PutNotificationRule($input: NotificationRuleInput!) {
   putNotificationRule(input: $input) {
+    id
     integrationId
     owner
     repository_name
     workflow_name
+    head_branch
     enabled
     created_at
     updated_at
@@ -96,4 +99,11 @@ export const deleteIntegration = /* GraphQL */ `mutation DeleteIntegration($id: 
 ` as GeneratedMutation<
   APITypes.DeleteIntegrationMutationVariables,
   APITypes.DeleteIntegrationMutation
+>;
+export const deleteNotificationRule = /* GraphQL */ `mutation DeleteNotificationRule($integrationId: String!, $id: String!) {
+  deleteNotificationRule(integrationId: $integrationId, id: $id)
+}
+` as GeneratedMutation<
+  APITypes.DeleteNotificationRuleMutationVariables,
+  APITypes.DeleteNotificationRuleMutation
 >;
