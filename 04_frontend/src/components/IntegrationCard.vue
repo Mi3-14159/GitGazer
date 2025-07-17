@@ -17,56 +17,58 @@
     <v-card class="ma-2 rounded-lg">
         <v-card-title>{{ props.integration.label }}</v-card-title>
         <v-card-text>
-            <v-row no-gutters>
-                <v-col cols="3">Webhook payload URL:</v-col>
-                <v-col>
-                    <a
-                        :href="integrationUrl"
-                        target="_blank"
-                        >{{ integrationUrl }}</a
-                    >
-                </v-col>
-            </v-row>
-            <v-row no-gutters>
-                <v-col cols="3">Secret:</v-col>
-                <v-col>
-                    <div class="d-flex align-center">
-                        <div class="secret-container">
-                            <Transition
-                                name="fade"
-                                mode="out-in"
-                            >
-                                <span
-                                    v-if="showSecret"
-                                    key="visible"
-                                    >{{ props.integration.secret }}</span
+            <tbody class="integration-table">
+                <tr>
+                    <td>Webhook payload URL:</td>
+                    <td>
+                        <a
+                            :href="integrationUrl"
+                            target="_blank"
+                            >{{ integrationUrl }}</a
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <td>Secret:</td>
+                    <td>
+                        <div class="d-flex align-center">
+                            <div class="secret-container">
+                                <Transition
+                                    name="fade"
+                                    mode="out-in"
                                 >
-                                <span
-                                    v-else
-                                    key="hidden"
-                                    >••••••••••••••••</span
-                                >
-                            </Transition>
+                                    <span
+                                        v-if="showSecret"
+                                        key="visible"
+                                        >{{ props.integration.secret }}</span
+                                    >
+                                    <span
+                                        v-else
+                                        key="hidden"
+                                        >••••••••••••••••</span
+                                    >
+                                </Transition>
+                            </div>
+                            <v-btn
+                                variant="text"
+                                density="compact"
+                                @click="showSecret = !showSecret"
+                                class="ml-2"
+                                :color="showSecret ? 'warning' : undefined"
+                                :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
+                            ></v-btn>
                         </div>
-                        <v-btn
-                            variant="text"
-                            density="compact"
-                            @click="showSecret = !showSecret"
-                            class="ml-2"
-                            :color="showSecret ? 'warning' : undefined"
-                            :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
-                        ></v-btn>
-                    </div>
-                </v-col>
-            </v-row>
-            <v-row no-gutters>
-                <v-col cols="3">Owner:</v-col>
-                <v-col>{{ props.integration.owner }} {{ ownerAnnotation }}</v-col>
-            </v-row>
-            <v-row no-gutters>
-                <v-col cols="3">(TODO) Users:</v-col>
-                <v-col>{{ props.integration.users.join(', ') }}</v-col>
-            </v-row>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Owner:</td>
+                    <td>{{ props.integration.owner }} {{ ownerAnnotation }}</td>
+                </tr>
+                <tr>
+                    <td>(TODO) Users:</td>
+                    <td>{{ props.integration.users.join(', ') }}</td>
+                </tr>
+            </tbody>
         </v-card-text>
         <v-card-actions>
             <v-spacer></v-spacer>
@@ -102,6 +104,21 @@
 </template>
 
 <style scoped>
+    .integration-table td {
+        padding: 2px 8px;
+        vertical-align: top;
+    }
+
+    .integration-table td:first-child {
+        font-weight: 500;
+        color: rgba(var(--v-theme-on-surface), 0.87);
+        width: 30%;
+    }
+
+    .integration-table td:last-child {
+        color: rgba(var(--v-theme-on-surface), 0.6);
+    }
+
     .secret-container {
         min-width: 180px;
         display: inline-block;
