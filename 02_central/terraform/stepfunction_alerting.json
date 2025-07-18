@@ -1,19 +1,8 @@
 {
   "Comment": "The GitGazer notifications state machine",
-  "StartAt": "Create IDs list",
+  "StartAt": "Iterate all events",
   "States": {
-    "Create IDs list": {
-      "InputPath": "$[0]",
-      "Next": "Process IDs list",
-      "Parameters": {
-        "conclusion.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S",
-        "ids.$": "States.Array('*', States.Format('{}', $.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S), States.Format('{}/{}', $.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $.dynamodb.NewImage.workflow_job_event.M.repository.M.name.S), States.Format('{}/{}/{}', $.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $.dynamodb.NewImage.workflow_job_event.M.repository.M.name.S, $.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S))",
-        "integrationId.$": "$.dynamodb.NewImage.integrationId.S",
-        "workflow_name.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S"
-      },
-      "Type": "Pass"
-    },
-    "Process IDs list": {
+    "Iterate all events": {
       "End": true,
       "ItemProcessor": {
         "ProcessorConfig": {
@@ -21,201 +10,218 @@
         },
         "StartAt": "Query notification rule",
         "States": {
-          "Check if array of notification channels is present and rule is enabled": {
-            "Choices": [
-              {
-                "And": [
-                  {
-                    "IsPresent": true,
-                    "Variable": "$.Items"
-                  },
-                  {
-                    "IsPresent": true,
-                    "Variable": "$.Items[0]"
-                  },
-                  {
-                    "IsPresent": true,
-                    "Variable": "$.Items[0].channels"
-                  },
-                  {
-                    "IsPresent": true,
-                    "Variable": "$.Items[0].enabled"
-                  }
-                ],
-                "Next": "Iterate notification channels"
-              }
-            ],
-            "Default": "No notification channels defined",
-            "Type": "Choice"
-          },
-          "Iterate notification channels": {
+          "Process notification rules": {
             "End": true,
             "ItemProcessor": {
               "ProcessorConfig": {
                 "Mode": "INLINE"
               },
-              "StartAt": "Choice",
+              "StartAt": "Check if array of notification channels is present and rule is enabled",
               "States": {
-                "Call Slack": {
-                  "End": true,
-                  "Parameters": {
-                    "ApiEndpoint.$": "$.M.webhook_url.S",
-                    "InvocationConfig": {
-                      "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
-                    },
-                    "Method": "POST",
-                    "RequestBody": {
-                      "attachments": [
-                        {
-                          "blocks": [
-                            {
-                              "text": {
-                                "emoji": true,
-                                "text.$": "States.Format('{} - {}', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
-                                "type": "plain_text"
-                              },
-                              "type": "header"
-                            },
-                            {
-                              "fields": [
-                                {
-                                  "text.$": "States.Format('*Organisation:* <http://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S)",
-                                  "type": "mrkdwn"
-                                },
-                                {
-                                  "text.$": "States.Format('*Repository:* <{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.name.S)",
-                                  "type": "mrkdwn"
-                                },
-                                {
-                                  "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)",
-                                  "type": "mrkdwn"
-                                },
-                                {
-                                  "text.$": "States.Format('*Conclusion:* <{}/actions/runs/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
-                                  "type": "mrkdwn"
-                                },
-                                {
-                                  "text.$": "States.Format('*Sender:* <https://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S)",
-                                  "type": "mrkdwn"
-                                }
-                              ],
-                              "type": "section"
-                            }
-                          ],
-                          "color": "#e01e5a"
-                        }
-                      ]
-                    }
-                  },
-                  "Resource": "arn:aws:states:::http:invoke",
-                  "Retry": [
-                    {
-                      "BackoffRate": 2,
-                      "ErrorEquals": ["States.ALL"],
-                      "IntervalSeconds": 1,
-                      "JitterStrategy": "FULL",
-                      "MaxAttempts": 3
-                    }
-                  ],
-                  "Type": "Task"
-                },
-                "Call third-party API": {
-                  "End": true,
-                  "Parameters": {
-                    "ApiEndpoint.$": "$.M.url.S",
-                    "Authentication": {
-                      "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
-                    },
-                    "Method.$": "$.M.method.S",
-                    "RequestBody": {
-                      "text.$": "States.Format($.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)"
-                    }
-                  },
-                  "Resource": "arn:aws:states:::http:invoke",
-                  "Retry": [
-                    {
-                      "BackoffRate": 2,
-                      "ErrorEquals": ["States.ALL"],
-                      "IntervalSeconds": 1,
-                      "JitterStrategy": "FULL",
-                      "MaxAttempts": 3
-                    }
-                  ],
-                  "Type": "Task"
-                },
-                "Choice": {
+                "Check if array of notification channels is present and rule is enabled": {
                   "Choices": [
                     {
-                      "And": [
-                        {
-                          "StringEquals": "HTTP",
-                          "Variable": "$.M.type.S"
-                        },
-                        {
-                          "IsPresent": true,
-                          "Variable": "$.M.body.S"
-                        },
-                        {
-                          "IsPresent": true,
-                          "Variable": "$.M.method.S"
-                        },
-                        {
-                          "IsPresent": true,
-                          "Variable": "$.M.url.S"
-                        }
-                      ],
-                      "Next": "Call third-party API"
-                    },
-                    {
-                      "And": [
-                        {
-                          "StringEquals": "SLACK",
-                          "Variable": "$.M.type.S"
-                        },
-                        {
-                          "IsPresent": true,
-                          "Variable": "$.M.webhook_url.S"
-                        }
-                      ],
-                      "Next": "Call Slack"
+                      "IsPresent": true,
+                      "Next": "Iterate notification channels",
+                      "Variable": "$.channels"
                     }
                   ],
-                  "Default": "Not yet implemented",
+                  "Default": "No notification channels defined",
                   "Type": "Choice"
                 },
-                "Not yet implemented": {
-                  "Comment": "Sink for not yet implemented notification methods",
+                "Iterate notification channels": {
+                  "End": true,
+                  "ItemProcessor": {
+                    "ProcessorConfig": {
+                      "Mode": "INLINE"
+                    },
+                    "StartAt": "Choice",
+                    "States": {
+                      "Call Slack": {
+                        "End": true,
+                        "Parameters": {
+                          "ApiEndpoint.$": "$.M.webhook_url.S",
+                          "InvocationConfig": {
+                            "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
+                          },
+                          "Method": "POST",
+                          "RequestBody": {
+                            "attachments": [
+                              {
+                                "blocks": [
+                                  {
+                                    "text": {
+                                      "emoji": true,
+                                      "text.$": "States.Format('{} - {}', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
+                                      "type": "plain_text"
+                                    },
+                                    "type": "header"
+                                  },
+                                  {
+                                    "fields": [
+                                      {
+                                        "text.$": "States.Format('*Organisation:* <http://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S)",
+                                        "type": "mrkdwn"
+                                      },
+                                      {
+                                        "text.$": "States.Format('*Repository:* <{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.name.S)",
+                                        "type": "mrkdwn"
+                                      },
+                                      {
+                                        "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)",
+                                        "type": "mrkdwn"
+                                      },
+                                      {
+                                        "text.$": "States.Format('*Conclusion:* <{}/actions/runs/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.conclusion.S)",
+                                        "type": "mrkdwn"
+                                      },
+                                      {
+                                        "text.$": "States.Format('*Sender:* <https://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.sender.M.login.S)",
+                                        "type": "mrkdwn"
+                                      }
+                                    ],
+                                    "type": "section"
+                                  }
+                                ],
+                                "color": "#e01e5a"
+                              }
+                            ]
+                          }
+                        },
+                        "Resource": "arn:aws:states:::http:invoke",
+                        "Retry": [
+                          {
+                            "BackoffRate": 2,
+                            "ErrorEquals": ["States.ALL"],
+                            "IntervalSeconds": 1,
+                            "JitterStrategy": "FULL",
+                            "MaxAttempts": 3
+                          }
+                        ],
+                        "Type": "Task"
+                      },
+                      "Call third-party API": {
+                        "End": true,
+                        "Parameters": {
+                          "ApiEndpoint.$": "$.M.url.S",
+                          "Authentication": {
+                            "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
+                          },
+                          "Method.$": "$.M.method.S",
+                          "RequestBody": {
+                            "text.$": "States.Format($.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)"
+                          }
+                        },
+                        "Resource": "arn:aws:states:::http:invoke",
+                        "Retry": [
+                          {
+                            "BackoffRate": 2,
+                            "ErrorEquals": ["States.ALL"],
+                            "IntervalSeconds": 1,
+                            "JitterStrategy": "FULL",
+                            "MaxAttempts": 3
+                          }
+                        ],
+                        "Type": "Task"
+                      },
+                      "Choice": {
+                        "Choices": [
+                          {
+                            "And": [
+                              {
+                                "StringEquals": "HTTP",
+                                "Variable": "$.M.type.S"
+                              },
+                              {
+                                "IsPresent": true,
+                                "Variable": "$.M.body.S"
+                              },
+                              {
+                                "IsPresent": true,
+                                "Variable": "$.M.method.S"
+                              },
+                              {
+                                "IsPresent": true,
+                                "Variable": "$.M.url.S"
+                              }
+                            ],
+                            "Next": "Call third-party API"
+                          },
+                          {
+                            "And": [
+                              {
+                                "StringEquals": "SLACK",
+                                "Variable": "$.M.type.S"
+                              },
+                              {
+                                "IsPresent": true,
+                                "Variable": "$.M.webhook_url.S"
+                              }
+                            ],
+                            "Next": "Call Slack"
+                          }
+                        ],
+                        "Default": "Not yet implemented",
+                        "Type": "Choice"
+                      },
+                      "Not yet implemented": {
+                        "Comment": "Sink for not yet implemented notification methods",
+                        "Type": "Succeed"
+                      }
+                    }
+                  },
+                  "ItemsPath": "$.channels.L",
+                  "Type": "Map"
+                },
+                "No notification channels defined": {
                   "Type": "Succeed"
                 }
               }
             },
-            "ItemsPath": "$.Items[0].channels.L",
+            "ItemsPath": "$.Items",
             "Type": "Map"
           },
-          "No notification channels defined": {
-            "Type": "Succeed"
-          },
           "Query notification rule": {
-            "Next": "Check if array of notification channels is present and rule is enabled",
+            "Next": "Process notification rules",
             "Parameters": {
               "ExpressionAttributeNames": {
+                "#BR": "head_branch",
+                "#O": "owner",
+                "#R": "rule",
+                "#REPO": "repository_name",
+                "#WF": "workflow_name",
                 "#enabled": "enabled",
-                "#id": "id",
                 "#integrationId": "integrationId"
               },
               "ExpressionAttributeValues": {
+                ":br": {
+                  "S.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.head_branch.S"
+                },
+                ":empty": {
+                  "S": ""
+                },
                 ":enabled": {
                   "Bool": true
                 },
-                ":id": {
-                  "S.$": "$.id"
-                },
                 ":integrationId": {
-                  "S.$": "$.integrationId"
+                  "S.$": "$.dynamodb.NewImage.integrationId.S"
+                },
+                ":owner": {
+                  "S.$": "$.dynamodb.NewImage.workflow_job_event.M.repository.M.owner.M.login.S"
+                },
+                ":repo": {
+                  "S.$": "$.dynamodb.NewImage.workflow_job_event.M.repository.M.name.S"
+                },
+                ":star": {
+                  "S": "*"
+                },
+                ":wf": {
+                  "S.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S"
                 }
               },
-              "FilterExpression": "#enabled = :enabled",
-              "KeyConditionExpression": "#integrationId = :integrationId AND #id = :id",
+              "FilterExpression": "#enabled = :enabled AND (#R.#O = :owner OR #R.#O = :star OR #R.#O = :empty) AND (#R.#REPO = :repo OR #R.#REPO = :star OR #R.#REPO = :empty) AND (#R.#WF = :wf OR #R.#WF = :star OR #R.#WF = :empty) AND (#R.#BR = :br OR #R.#BR = :star OR #R.#BR = :empty)",
+              "IndexName": "${notification_rules_table_index_name}",
+              "KeyConditionExpression": "#integrationId = :integrationId",
               "Select": "ALL_ATTRIBUTES",
               "TableName": "${notification_rules_table_name}"
             },
@@ -224,11 +230,6 @@
           }
         }
       },
-      "ItemSelector": {
-        "id.$": "$$.Map.Item.Value",
-        "integrationId.$": "$.integrationId"
-      },
-      "ItemsPath": "$.ids",
       "Type": "Map"
     }
   }

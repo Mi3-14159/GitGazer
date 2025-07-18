@@ -58,6 +58,12 @@ resource "aws_pipes_pipe" "alerting" {
   role_arn = aws_iam_role.alerting[0].arn
   source   = aws_dynamodb_table.jobs.stream_arn
   target   = module.alerting_stepfunction[0].state_machine_arn
+
+  log_configuration {
+    level                  = "OFF"
+    include_execution_data = []
+  }
+
   source_parameters {
     dynamodb_stream_parameters {
       batch_size                    = 1

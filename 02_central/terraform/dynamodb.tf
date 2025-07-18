@@ -1,3 +1,7 @@
+locals {
+  notification_rules_table_index_name = "integrationId-index"
+}
+
 resource "aws_dynamodb_table" "jobs" {
   name             = "${var.name_prefix}-jobs-${terraform.workspace}"
   billing_mode     = "PAY_PER_REQUEST"
@@ -67,7 +71,7 @@ resource "aws_dynamodb_table" "notification_rules" {
 
   global_secondary_index {
     hash_key        = "integrationId"
-    name            = "integrationId-index"
+    name            = local.notification_rules_table_index_name
     projection_type = "ALL"
   }
 

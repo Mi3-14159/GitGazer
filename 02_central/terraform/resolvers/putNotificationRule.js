@@ -14,13 +14,7 @@ export function request(ctx) {
         }
     }
 
-    const idParts = [
-        owner,
-        ...(repository_name ? [repository_name] : []),
-        ...(workflow_name ? [workflow_name] : []),
-        ...(head_branch ? [head_branch] : []),
-    ];
-
+    const idParts = [owner, repository_name, workflow_name, head_branch];
     const key = {id: idParts.join('/')};
     const now = util.time.nowISO8601();
 
@@ -31,19 +25,20 @@ export function request(ctx) {
             integrationId: util.dynamodb.toDynamoDB(integrationId),
         },
         update: {
-            expression:
-                'SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #enabled = :enabled, #channels = :channels',
+            expression: 'SET #created_at = :created_at, #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule',
             expressionNames: {
                 '#created_at': 'created_at',
                 '#updated_at': 'updated_at',
                 '#enabled': 'enabled',
                 '#channels': 'channels',
+                '#rule': 'rule',
             },
             expressionValues: {
                 ':created_at': util.dynamodb.toDynamoDB(now),
                 ':updated_at': util.dynamodb.toDynamoDB(now),
                 ':enabled': util.dynamodb.toDynamoDB(enabled),
                 ':channels': util.dynamodb.toDynamoDB(channels),
+                ':rule': util.dynamodb.toDynamoDB({owner, repository_name, workflow_name, head_branch}),
             },
         },
     };

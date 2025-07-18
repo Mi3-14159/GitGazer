@@ -53,10 +53,10 @@ export function response(ctx) {
     }
     const {items = []} = result;
     for (const item of items) {
-        const [owner, repository_name, workflow_name] = item.id.split('/');
-        item.owner = owner;
-        item.repository_name = repository_name;
-        item.workflow_name = workflow_name;
+        item.owner = item.rule.owner;
+        item.repository_name = item.rule.repository_name;
+        item.workflow_name = item.rule.workflow_name;
+        item.head_branch = item.rule.head_branch;
     }
     return {items};
 }

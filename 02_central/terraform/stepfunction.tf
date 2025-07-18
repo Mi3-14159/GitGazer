@@ -7,6 +7,7 @@ module "alerting_stepfunction" {
   definition = templatefile("${path.module}/stepfunction_alerting.json", {
     aws_cloudwatch_event_connection_generic_arn = aws_cloudwatch_event_connection.generic[0].arn
     notification_rules_table_name               = aws_dynamodb_table.notification_rules[0].name
+    notification_rules_table_index_name         = local.notification_rules_table_index_name
   })
   type                                   = "STANDARD"
   cloudwatch_log_group_kms_key_id        = aws_kms_key.this.arn
@@ -47,9 +48,12 @@ module "alerting_stepfunction" {
       resources = [aws_cloudwatch_event_connection.generic[0].secret_arn]
     }
     dynamodb = {
-      effect    = "Allow",
-      actions   = ["dynamodb:Query"],
-      resources = [aws_dynamodb_table.notification_rules[0].arn]
+      effect  = "Allow",
+      actions = ["dynamodb:Query"],
+      resources = [
+        aws_dynamodb_table.notification_rules[0].arn,
+        "${aws_dynamodb_table.notification_rules[0].arn}/index/*"
+      ]
     }
   }
 }
