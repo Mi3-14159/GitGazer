@@ -8,6 +8,8 @@
         onSave: (integration: Integration) => void;
     }>();
 
+    const form = ref<any>(null);
+
     const integration = ref<Integration>(
         props.integration ?? {
             __typename: 'Integration',
@@ -18,28 +20,38 @@
             users: [],
         },
     );
+
+    const handleSave = async () => {
+        const {valid} = await form.value.validate();
+        if (valid) {
+            props.onSave(integration.value);
+        }
+    };
 </script>
 <template>
     <v-card
-        prepend-icon="mdi-bell"
-        title="Notification rule"
+        prepend-icon="mdi-account-cog"
+        title="Integration"
     >
-        <v-card-text>
-            <v-row dense>
-                <v-col
-                    cols="12"
-                    md="12"
-                    sm="6"
-                >
-                    <v-text-field
-                        label="Label*"
-                        v-model="integration.label"
-                        required
-                    ></v-text-field>
-                </v-col>
-            </v-row>
-            <small class="text-caption text-medium-emphasis">*indicates required field</small>
-        </v-card-text>
+        <v-form ref="form">
+            <v-card-text>
+                <v-row dense>
+                    <v-col
+                        cols="12"
+                        md="12"
+                        sm="6"
+                    >
+                        <v-text-field
+                            label="Label *"
+                            v-model="integration.label"
+                            :rules="[(v) => !!v || 'Label is required']"
+                            required
+                        ></v-text-field>
+                    </v-col>
+                </v-row>
+                <small class="text-caption text-medium-emphasis">*indicates required field</small>
+            </v-card-text>
+        </v-form>
         <v-divider></v-divider>
         <v-card-actions>
             <v-spacer></v-spacer>
@@ -52,7 +64,7 @@
                 color="primary"
                 text="Save"
                 variant="tonal"
-                @click="props.onSave(integration)"
+                @click="handleSave"
             ></v-btn>
         </v-card-actions>
     </v-card>
