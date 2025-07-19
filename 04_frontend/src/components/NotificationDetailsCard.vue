@@ -38,6 +38,7 @@
                         label="Integrations*"
                         auto-select-first
                         v-model="notificationRule.integrationId"
+                        :required="true"
                     ></v-autocomplete>
                 </v-col>
 
@@ -47,10 +48,8 @@
                     sm="6"
                 >
                     <v-text-field
-                        label="Owner*"
+                        label="Owner"
                         v-model="notificationRule.owner"
-                        placeholder="* for everything"
-                        required
                     ></v-text-field>
                 </v-col>
 
@@ -93,7 +92,7 @@
                         v-if="notificationRule.channels[0]?.type === NotificationChannelType.SLACK"
                         label="Slack Webhook URL*"
                         v-model="notificationRule.channels[0].webhook_url"
-                        required
+                        :required="true"
                     ></v-text-field>
                 </v-col>
 
