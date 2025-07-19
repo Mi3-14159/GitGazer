@@ -18,7 +18,7 @@
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const integrations = reactive(new Array());
     const dialog = ref(false);
-    const { smAndDown } = useDisplay();
+    const {smAndDown} = useDisplay();
 
     type PutNotificationRuleResponse = {
         putNotificationRule: NotificationRule;
@@ -130,14 +130,14 @@
     };
 
     const headers = [
-        { title: 'Integration', key: 'integration', sortable: true },
-        { title: 'Owner', key: 'owner', sortable: true },
-        { title: 'Repository', key: 'repository', sortable: true },
-        { title: 'Workflow', key: 'workflow', sortable: true },
-        { title: 'Branch', key: 'branch', sortable: true },
-        { title: 'Enabled', key: 'enabled', sortable: true },
-        { title: 'Channels', key: 'channels', sortable: false },
-        { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const }
+        {title: 'Integration', key: 'integration', sortable: true},
+        {title: 'Owner', key: 'owner', sortable: true},
+        {title: 'Repository', key: 'repository', sortable: true},
+        {title: 'Workflow', key: 'workflow', sortable: true},
+        {title: 'Branch', key: 'branch', sortable: true},
+        {title: 'Enabled', key: 'enabled', sortable: true},
+        {title: 'Channels', key: 'channels', sortable: false},
+        {title: 'Actions', key: 'actions', sortable: false, align: 'end' as const},
     ];
 
     const notificationRulesArray = computed(() => {
@@ -179,27 +179,27 @@
                 item-value="id"
                 class="elevation-1"
             >
-                <template v-slot:item.integration="{ item }">
+                <template v-slot:item.integration="{item}">
                     <span class="font-weight-medium">{{ getIntegrationLabel(item.integrationId) }}</span>
                 </template>
 
-                <template v-slot:item.owner="{ item }">
+                <template v-slot:item.owner="{item}">
                     {{ parseOptional(item.owner) }}
                 </template>
 
-                <template v-slot:item.repository="{ item }">
+                <template v-slot:item.repository="{item}">
                     {{ parseOptional(item.repository_name) }}
                 </template>
 
-                <template v-slot:item.workflow="{ item }">
+                <template v-slot:item.workflow="{item}">
                     {{ parseOptional(item.workflow_name) }}
                 </template>
 
-                <template v-slot:item.branch="{ item }">
+                <template v-slot:item.branch="{item}">
                     {{ parseOptional(item.head_branch) }}
                 </template>
 
-                <template v-slot:item.enabled="{ item }">
+                <template v-slot:item.enabled="{item}">
                     <v-chip
                         :color="item.enabled ? 'green' : 'red'"
                         size="small"
@@ -209,11 +209,9 @@
                     </v-chip>
                 </template>
 
-                <template v-slot:item.channels="{ item }">
-                    {{ item.channels.length }} channel(s)
-                </template>
+                <template v-slot:item.channels="{item}"> {{ item.channels.length }} channel(s) </template>
 
-                <template v-slot:item.actions="{ item }">
+                <template v-slot:item.actions="{item}">
                     <v-dialog max-width="500">
                         <template v-slot:activator="{props: activatorProps}">
                             <v-btn
@@ -229,7 +227,8 @@
                             <v-card>
                                 <v-card-title>Delete Notification Rule</v-card-title>
                                 <v-card-text>
-                                    Do you really want to delete this notification rule? This is irreversible and will stop notifications for this rule!
+                                    Do you really want to delete this notification rule? This is irreversible and will stop notifications for this
+                                    rule!
                                 </v-card-text>
                                 <v-card-actions>
                                     <v-spacer></v-spacer>
