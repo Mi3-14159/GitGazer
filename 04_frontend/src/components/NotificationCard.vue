@@ -27,33 +27,93 @@
 <template>
     <v-card
         class="ma-2 rounded-lg"
-        style="min-width: 300px"
+        style="width: 100%"
     >
+        <v-card-title>{{ getIntegrationLabel(props.notificationRule.integrationId) }}</v-card-title>
         <v-card-text>
-            <tbody class="notification-table">
-                <tr>
-                    <td>Integration:</td>
-                    <td>{{ getIntegrationLabel(props.notificationRule.integrationId) }}</td>
-                </tr>
-                <tr>
-                    <td>Owner:</td>
-                    <td>{{ parseOptional(props.notificationRule.owner) }}</td>
-                </tr>
-                <tr>
-                    <td>Repository:</td>
-                    <td>{{ parseOptional(props.notificationRule.repository_name) }}</td>
-                </tr>
-                <tr>
-                    <td>Workflow:</td>
-                    <td>{{ parseOptional(props.notificationRule.workflow_name) }}</td>
-                </tr>
-                <tr>
-                    <td>Branch:</td>
-                    <td>{{ parseOptional(props.notificationRule.head_branch) }}</td>
-                </tr>
-                <tr>
-                    <td>Enabled:</td>
-                    <td>
+            <v-container class="pa-0">
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Owner:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ parseOptional(props.notificationRule.owner) }}
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Repository:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ parseOptional(props.notificationRule.repository_name) }}
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Workflow:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ parseOptional(props.notificationRule.workflow_name) }}
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Branch:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ parseOptional(props.notificationRule.head_branch) }}
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Enabled:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
                         <v-chip
                             :color="props.notificationRule.enabled ? 'green' : 'red'"
                             size="small"
@@ -61,17 +121,40 @@
                         >
                             {{ props.notificationRule.enabled ? 'Yes' : 'No' }}
                         </v-chip>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Channels:</td>
-                    <td>{{ props.notificationRule.channels.length }} channel(s)</td>
-                </tr>
-                <tr>
-                    <td>Created:</td>
-                    <td>{{ new Date(props.notificationRule.created_at).toLocaleString() }}</td>
-                </tr>
-            </tbody>
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Channels:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ props.notificationRule.channels.length }} channel(s)
+                    </v-col>
+                </v-row>
+                <v-row no-gutters>
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Created:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ new Date(props.notificationRule.created_at).toLocaleString() }}
+                    </v-col>
+                </v-row>
+            </v-container>
         </v-card-text>
         <v-card-actions>
             <v-spacer></v-spacer>
@@ -86,10 +169,16 @@
 
                 <template v-slot:default="{isActive}">
                     <v-card>
+                        <v-card-title>Delete Notification Rule</v-card-title>
                         <v-card-text>
                             Do you really want to delete this notification rule? This is irreversible and will stop notifications for this rule!
                         </v-card-text>
                         <v-card-actions>
+                            <v-spacer></v-spacer>
+                            <v-btn
+                                text="Cancel"
+                                @click="isActive.value = false"
+                            ></v-btn>
                             <v-btn
                                 text="Yes, delete"
                                 color="error"
@@ -107,18 +196,16 @@
 </template>
 
 <style scoped>
-    .notification-table td {
+    .field-label {
+        font-weight: 500;
+        color: rgba(var(--v-theme-on-surface), 0.87);
         padding: 2px 8px;
         vertical-align: top;
     }
 
-    .notification-table td:first-child {
-        font-weight: 500;
-        color: rgba(var(--v-theme-on-surface), 0.87);
-        width: 30%;
-    }
-
-    .notification-table td:last-child {
+    .field-value {
         color: rgba(var(--v-theme-on-surface), 0.6);
+        padding: 2px 8px;
+        vertical-align: top;
     }
 </style>
