@@ -9,28 +9,53 @@
     }>();
 
     const integrationUrl = `${import.meta.env.VITE_IMPORT_URL_BASE}${props.integration.id}`;
-    const ownerAnnotation = props.integration.owner === props.currentUserSub ? ' (you)' : '(not you)';
+    const ownerAnnotation = props.integration.owner === props.currentUserSub ? 'you' : 'not you';
     const showSecret = ref(false);
 </script>
 
 <template>
-    <v-card class="ma-2 rounded-lg">
+    <v-card
+        class="ma-2 rounded-lg"
+        style="width: 100%"
+    >
         <v-card-title>{{ props.integration.label }}</v-card-title>
         <v-card-text>
-            <tbody class="integration-table">
-                <tr>
-                    <td>Webhook payload URL:</td>
-                    <td>
+            <v-container class="pa-0">
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Webhook payload URL:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
                         <a
                             :href="integrationUrl"
                             target="_blank"
                             >{{ integrationUrl }}</a
                         >
-                    </td>
-                </tr>
-                <tr>
-                    <td>Secret:</td>
-                    <td>
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Secret:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
                         <div class="d-flex align-center">
                             <div class="secret-container">
                                 <Transition
@@ -58,17 +83,26 @@
                                 :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
                             ></v-btn>
                         </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Owner:</td>
-                    <td>{{ props.integration.owner }} {{ ownerAnnotation }}</td>
-                </tr>
-                <tr>
-                    <td>(TODO) Users:</td>
-                    <td>{{ props.integration.users.join(', ') }}</td>
-                </tr>
-            </tbody>
+                    </v-col>
+                </v-row>
+                <v-row
+                    no-gutters
+                    class="mb-2"
+                >
+                    <v-col
+                        cols="4"
+                        class="field-label"
+                    >
+                        Owner:
+                    </v-col>
+                    <v-col
+                        cols="8"
+                        class="field-value"
+                    >
+                        {{ ownerAnnotation }}
+                    </v-col>
+                </v-row>
+            </v-container>
         </v-card-text>
         <v-card-actions>
             <v-spacer></v-spacer>
@@ -104,24 +138,27 @@
 </template>
 
 <style scoped>
-    .integration-table td {
+    .field-label {
+        font-weight: 500;
+        color: rgba(var(--v-theme-on-surface), 0.87);
         padding: 2px 8px;
         vertical-align: top;
     }
 
-    .integration-table td:first-child {
-        font-weight: 500;
-        color: rgba(var(--v-theme-on-surface), 0.87);
-        width: 30%;
-    }
-
-    .integration-table td:last-child {
+    .field-value {
         color: rgba(var(--v-theme-on-surface), 0.6);
+        padding: 2px 8px;
+        vertical-align: top;
     }
 
     .secret-container {
-        min-width: 180px;
+        min-width: 290px;
+        max-width: 290px;
+        width: 290px;
         display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .fade-enter-active,
