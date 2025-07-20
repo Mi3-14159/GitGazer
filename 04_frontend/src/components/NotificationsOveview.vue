@@ -104,9 +104,7 @@
         const notificationRuleToDelete = Array.from(notificationRules.values()).find((rule) => rule.id === id);
         if (notificationRuleToDelete) {
             // Remove from the reactive map
-            notificationRules.delete(
-                `${notificationRuleToDelete.integrationId}-${notificationRuleToDelete.owner}/${notificationRuleToDelete.repository_name}/${notificationRuleToDelete.workflow_name}`,
-            );
+            notificationRules.delete(`${notificationRuleToDelete.integrationId}-${notificationRuleToDelete.id}`);
         }
     };
 
