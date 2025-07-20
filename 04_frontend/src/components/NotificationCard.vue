@@ -12,7 +12,8 @@
             case null:
             case undefined:
             case '*':
-                return 'All';
+            case '':
+                return 'any';
             default:
                 return value;
         }

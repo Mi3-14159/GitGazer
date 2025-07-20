@@ -74,10 +74,7 @@
             }
 
             notificationRulesResponse.value.data.listNotificationRules.items?.forEach((notificationRule: NotificationRule) => {
-                notificationRules.set(
-                    `${notificationRule.integrationId}-${notificationRule.owner}/${notificationRule.repository_name}/${notificationRule.workflow_name}`,
-                    notificationRule,
-                );
+                notificationRules.set(`${notificationRule.integrationId}-${notificationRule.id}`, notificationRule);
             });
 
             integrations.push(...integrationsResponse.value.data.listIntegrations);
@@ -118,7 +115,8 @@
             case null:
             case undefined:
             case '*':
-                return 'All';
+            case '':
+                return 'any';
             default:
                 return value;
         }
