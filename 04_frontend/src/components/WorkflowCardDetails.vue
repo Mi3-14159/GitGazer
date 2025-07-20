@@ -15,96 +15,187 @@
             if (!val) emit('update:job', null);
         },
     });
+
+    // Helper functions
+    const getJobStatus = (job: GitGazerWorkflowJobEvent) => {
+        return job.workflow_job_event.workflow_job.conclusion || job.workflow_job_event.workflow_job.status || 'In Progress';
+    };
+
+    const getJobStatusColor = (job: GitGazerWorkflowJobEvent) => {
+        const status = getJobStatus(job).toLowerCase();
+        switch (status) {
+            case 'success':
+                return 'success';
+            case 'failure':
+            case 'failed':
+                return 'error';
+            case 'cancelled':
+                return 'warning';
+            case 'in progress':
+            case 'in_progress':
+            case 'queued':
+                return 'info';
+            default:
+                return 'default';
+        }
+    };
+
+    const formatJobTime = (job: GitGazerWorkflowJobEvent) => {
+        const date = new Date(job.workflow_job_event.workflow_job.created_at);
+        return date.toLocaleString();
+    };
+
+    const getGitHubWebUrl = (job: GitGazerWorkflowJobEvent) => {
+        const repoFullName = job.workflow_job_event.repository.full_name;
+        const runId = job.workflow_job_event.workflow_job.run_id;
+        return `https://github.com/${repoFullName}/actions/runs/${runId}`;
+    };
+
+    const openUrl = (url: string) => {
+        window.open(url, '_blank');
+    };
 </script>
 
 <template>
     <v-dialog
         v-model="dialog"
-        max-width="600"
+        max-width="800"
     >
-        <v-card v-if="props.job">
-            <v-card-title>Job Details</v-card-title>
+        <v-card
+            v-if="props.job"
+            prepend-icon="mdi-cog"
+            title="Job Details"
+        >
             <v-card-text>
-                <v-row no-gutters>
-                    <v-col cols="4">Run ID:</v-col>
-                    <v-col>
-                        <a
-                            :href="`${props.job.workflow_job_event.repository.html_url}/actions/runs/${props.job.workflow_job_event.workflow_job.run_id}`"
-                            target="_blank"
-                            rel="noopener"
+                <v-row dense>
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Repository"
+                            :model-value="props.job.workflow_job_event.repository.full_name"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
+                    </v-col>
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Workflow"
+                            :model-value="props.job.workflow_job_event.workflow_job.workflow_name"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
+                    </v-col>
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Job Name"
+                            :model-value="props.job.workflow_job_event.workflow_job.name"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
+                    </v-col>
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Status"
+                            :model-value="getJobStatus(props.job)"
+                            readonly
+                            variant="outlined"
+                            density="compact"
                         >
-                            {{ props.job.workflow_job_event.workflow_job.run_id }}
-                        </a>
+                        </v-text-field>
                     </v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Job ID:</v-col>
-                    <v-col>
-                        <a
-                            :href="`${props.job.workflow_job_event.repository.html_url}/actions/runs/${props.job.workflow_job_event.workflow_job.run_id}/job/${props.job.job_id}`"
-                            target="_blank"
-                            rel="noopener"
-                        >
-                            {{ props.job.job_id }}
-                        </a>
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Created At"
+                            :model-value="formatJobTime(props.job)"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
                     </v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Workflow:</v-col>
-                    <v-col>{{ props.job.workflow_job_event.workflow_job.workflow_name }}</v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Job Name:</v-col>
-                    <v-col>{{ props.job.workflow_job_event.workflow_job.name }}</v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Repository:</v-col>
-                    <v-col>
-                        <a
-                            :href="`https://github.com/${props.job.workflow_job_event.repository.full_name}`"
-                            target="_blank"
-                            rel="noopener"
-                            style="color: inherit"
-                        >
-                            {{ props.job.workflow_job_event.repository.full_name }}
-                        </a>
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Run ID"
+                            :model-value="props.job.workflow_job_event.workflow_job.run_id"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
                     </v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Created at:</v-col>
-                    <v-col>
-                        {{
-                            new Date(props.job.workflow_job_event.workflow_job.created_at).toLocaleString([], {dateStyle: 'long', timeStyle: 'short'})
-                        }}
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Job ID"
+                            :model-value="props.job.job_id"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
                     </v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Completed at:</v-col>
-                    <v-col v-if="props.job.workflow_job_event.workflow_job.completed_at">
-                        {{
-                            new Date(props.job.workflow_job_event.workflow_job.completed_at).toLocaleString([], {
-                                dateStyle: 'long',
-                                timeStyle: 'short',
-                            })
-                        }}
+
+                    <v-col
+                        cols="12"
+                        md="6"
+                    >
+                        <v-text-field
+                            label="Head Branch"
+                            :model-value="props.job.workflow_job_event.workflow_job.head_branch"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                        ></v-text-field>
                     </v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">State:</v-col>
-                    <v-col>{{ props.job.workflow_job_event.workflow_job.status }}</v-col>
-                </v-row>
-                <v-row no-gutters>
-                    <v-col cols="4">Conclusion:</v-col>
-                    <v-col>{{ props.job.workflow_job_event.workflow_job.conclusion }}</v-col>
+
+                    <v-col cols="12">
+                        <v-text-field
+                            label="GitHub URL"
+                            :model-value="getGitHubWebUrl(props.job)"
+                            readonly
+                            variant="outlined"
+                            density="compact"
+                            append-inner-icon="mdi-open-in-new"
+                            @click:append-inner="openUrl(getGitHubWebUrl(props.job))"
+                        ></v-text-field>
+                    </v-col>
                 </v-row>
             </v-card-text>
+
+            <v-divider></v-divider>
+
             <v-card-actions>
                 <v-spacer></v-spacer>
                 <v-btn
-                    text
+                    text="Close"
+                    variant="plain"
                     @click="$emit('update:job', null)"
-                    >Close</v-btn
-                >
+                ></v-btn>
             </v-card-actions>
         </v-card>
     </v-dialog>
