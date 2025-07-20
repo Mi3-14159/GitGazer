@@ -21,25 +21,6 @@
         return job.workflow_job_event.workflow_job.conclusion || job.workflow_job_event.workflow_job.status || 'In Progress';
     };
 
-    const getJobStatusColor = (job: GitGazerWorkflowJobEvent) => {
-        const status = getJobStatus(job).toLowerCase();
-        switch (status) {
-            case 'success':
-                return 'success';
-            case 'failure':
-            case 'failed':
-                return 'error';
-            case 'cancelled':
-                return 'warning';
-            case 'in progress':
-            case 'in_progress':
-            case 'queued':
-                return 'info';
-            default:
-                return 'default';
-        }
-    };
-
     const formatJobTime = (job: GitGazerWorkflowJobEvent) => {
         const date = new Date(job.workflow_job_event.workflow_job.created_at);
         return date.toLocaleString();
