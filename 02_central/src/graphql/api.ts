@@ -104,7 +104,7 @@ export type Sender = {
 
 export type NotificationRuleInput = {
   integrationId: string,
-  owner: string,
+  owner?: string | null,
   repository_name?: string | null,
   workflow_name?: string | null,
   head_branch?: string | null,
