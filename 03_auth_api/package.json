@@ -7,7 +7,7 @@
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.846.0",
     "@aws-sdk/lib-dynamodb": "^3.848.0",
-    "@types/aws-lambda": "^8.10.150",
+    "@types/aws-lambda": "^8.10.152",
     "@types/node": "^22.15.30",
     "eslint": "^9.31.0",
     "prettier": "^3.6.2",
