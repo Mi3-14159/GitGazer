@@ -6,7 +6,7 @@
   "description": "will handle the auth flow",
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.855.0",
-    "@aws-sdk/lib-dynamodb": "^3.855.0",
+    "@aws-sdk/lib-dynamodb": "^3.856.0",
     "@types/aws-lambda": "^8.10.152",
     "@types/node": "^22.15.30",
     "eslint": "^9.32.0",
