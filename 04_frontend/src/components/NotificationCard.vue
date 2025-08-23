@@ -48,7 +48,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.owner) }}
+                        {{ parseOptional(props.notificationRule.rule.owner) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -65,7 +65,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.repository_name) }}
+                        {{ parseOptional(props.notificationRule.rule.repository_name) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -82,7 +82,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.workflow_name) }}
+                        {{ parseOptional(props.notificationRule.rule.workflow_name) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -99,7 +99,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.head_branch) }}
+                        {{ parseOptional(props.notificationRule.rule.head_branch) }}
                     </v-col>
                 </v-row>
                 <v-row

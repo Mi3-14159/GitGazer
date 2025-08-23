@@ -12,6 +12,7 @@
     const form = ref<any>(null);
 
     const notificationRule = ref<NotificationRuleInput>({
+        id: '',
         owner: '',
         repository_name: '',
         workflow_name: '',
@@ -30,11 +31,12 @@
     onMounted(() => {
         if (props.existingRule) {
             notificationRule.value = {
+                id: props.existingRule.id || '',
                 integrationId: props.existingRule.integrationId,
-                owner: props.existingRule.owner || '',
-                repository_name: props.existingRule.repository_name || '',
-                workflow_name: props.existingRule.workflow_name || '',
-                head_branch: props.existingRule.head_branch || '',
+                owner: props.existingRule.rule.owner || '',
+                repository_name: props.existingRule.rule.repository_name || '',
+                workflow_name: props.existingRule.rule.workflow_name || '',
+                head_branch: props.existingRule.rule.head_branch || '',
                 enabled: props.existingRule.enabled,
                 channels: props.existingRule.channels.map((channel) => ({
                     type: channel?.type || NotificationChannelType.SLACK,

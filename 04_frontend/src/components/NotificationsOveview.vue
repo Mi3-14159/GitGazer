@@ -134,6 +134,7 @@
     };
 
     const parseOptional = (value: string | null | undefined): string => {
+        console.log('Parsing value:', value);
         switch (value) {
             case null:
             case undefined:
@@ -208,19 +209,19 @@
                 </template>
 
                 <template v-slot:item.owner="{item}">
-                    {{ parseOptional(item.owner) }}
+                    {{ parseOptional(item.rule.owner) }}
                 </template>
 
                 <template v-slot:item.repository="{item}">
-                    {{ parseOptional(item.repository_name) }}
+                    {{ parseOptional(item.rule.repository_name) }}
                 </template>
 
                 <template v-slot:item.workflow="{item}">
-                    {{ parseOptional(item.workflow_name) }}
+                    {{ parseOptional(item.rule.workflow_name) }}
                 </template>
 
                 <template v-slot:item.branch="{item}">
-                    {{ parseOptional(item.head_branch) }}
+                    {{ parseOptional(item.rule.head_branch) }}
                 </template>
 
                 <template v-slot:item.enabled="{item}">
