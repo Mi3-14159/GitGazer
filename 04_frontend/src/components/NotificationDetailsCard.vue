@@ -125,14 +125,10 @@
                         md="4"
                         sm="6"
                     >
-                        <v-autocomplete
-                            :items="[true, false]"
-                            item-title=""
-                            item-value=""
+                        <v-checkbox
                             label="Ignore Dependabot"
-                            auto-select-first
                             v-model="notificationRule.ignore_dependabot"
-                        ></v-autocomplete>
+                        ></v-checkbox>
                     </v-col>
 
                     <v-col sm="12">
@@ -150,10 +146,13 @@
                         md="4"
                         sm="6"
                     >
-                        <v-checkbox
+                        <v-switch
                             label="Enabled"
                             v-model="notificationRule.enabled"
-                        ></v-checkbox>
+                            color="success"
+                            density="comfortable"
+                            hide-details
+                        ></v-switch>
                     </v-col>
                 </v-row>
 
