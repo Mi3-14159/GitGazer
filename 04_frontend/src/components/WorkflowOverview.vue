@@ -247,6 +247,7 @@
                 density="compact"
                 hide-default-footer
                 :items-per-page="-1"
+                :sort-by="[{key: 'created_at', order: 'desc'}]"
             >
                 <!-- Group Header Row -->
                 <template v-slot:item="{item}">
