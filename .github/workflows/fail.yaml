@@ -2,6 +2,8 @@ name: Force fail
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
 jobs:
   cd:
     runs-on: ubuntu-latest
