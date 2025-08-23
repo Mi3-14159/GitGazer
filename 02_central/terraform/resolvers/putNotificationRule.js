@@ -7,6 +7,7 @@ import {util} from '@aws-appsync/utils';
  */
 export function request(ctx) {
     const {integrationId, owner, repository_name, workflow_name, head_branch, enabled, channels, ignore_dependabot} = ctx.args.input;
+    let {id} = ctx.args.input;
 
     if (util.authType() === 'User Pool Authorization') {
         if (!ctx.identity['groups'].includes(integrationId)) {
@@ -14,14 +15,15 @@ export function request(ctx) {
         }
     }
 
-    const idParts = [owner, repository_name, workflow_name, head_branch];
-    const key = {id: idParts.join('/')};
+    if (!id) {
+        id = util.autoId();
+    }
     const now = util.time.nowISO8601();
 
     return {
         operation: 'UpdateItem',
         key: {
-            id: util.dynamodb.toDynamoDB(key.id),
+            id: util.dynamodb.toDynamoDB(id),
             integrationId: util.dynamodb.toDynamoDB(integrationId),
         },
         update: {
