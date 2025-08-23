@@ -60,10 +60,6 @@ export const putNotificationRule = /* GraphQL */ `mutation PutNotificationRule($
   putNotificationRule(input: $input) {
     id
     integrationId
-    owner
-    repository_name
-    workflow_name
-    head_branch
     enabled
     created_at
     updated_at
@@ -73,6 +69,13 @@ export const putNotificationRule = /* GraphQL */ `mutation PutNotificationRule($
       __typename
     }
     ignore_dependabot
+    rule {
+      owner
+      repository_name
+      workflow_name
+      head_branch
+      __typename
+    }
     __typename
   }
 }

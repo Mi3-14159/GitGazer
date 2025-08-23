@@ -66,10 +66,6 @@ export const listNotificationRules = /* GraphQL */ `query ListNotificationRules(
     items {
       id
       integrationId
-      owner
-      repository_name
-      workflow_name
-      head_branch
       enabled
       created_at
       updated_at
@@ -79,6 +75,13 @@ export const listNotificationRules = /* GraphQL */ `query ListNotificationRules(
         __typename
       }
       ignore_dependabot
+      rule {
+        owner
+        repository_name
+        workflow_name
+        head_branch
+        __typename
+      }
       __typename
     }
     nextToken

@@ -103,6 +103,7 @@ export type Sender = {
 };
 
 export type NotificationRuleInput = {
+  id?: string | null,
   integrationId: string,
   owner?: string | null,
   repository_name?: string | null,
@@ -133,21 +134,26 @@ export type NotificationRule = {
   __typename: "NotificationRule",
   id: string,
   integrationId: string,
-  owner?: string | null,
-  repository_name?: string | null,
-  workflow_name?: string | null,
-  head_branch?: string | null,
   enabled: boolean,
   created_at: string,
   updated_at: string,
   channels:  Array<Slack | null >,
   ignore_dependabot?: boolean | null,
+  rule: Rule,
 };
 
 export type Slack = {
   __typename: "Slack",
   type: NotificationChannelType,
   webhook_url: string,
+};
+
+export type Rule = {
+  __typename: "Rule",
+  owner?: string | null,
+  repository_name?: string | null,
+  workflow_name?: string | null,
+  head_branch?: string | null,
 };
 
 export type IntegrationInput = {
@@ -243,10 +249,6 @@ export type PutNotificationRuleMutation = {
     __typename: "NotificationRule",
     id: string,
     integrationId: string,
-    owner?: string | null,
-    repository_name?: string | null,
-    workflow_name?: string | null,
-    head_branch?: string | null,
     enabled: boolean,
     created_at: string,
     updated_at: string,
@@ -256,6 +258,13 @@ export type PutNotificationRuleMutation = {
       webhook_url: string,
     } | null >,
     ignore_dependabot?: boolean | null,
+    rule:  {
+      __typename: "Rule",
+      owner?: string | null,
+      repository_name?: string | null,
+      workflow_name?: string | null,
+      head_branch?: string | null,
+    },
   } | null,
 };
 
@@ -357,10 +366,6 @@ export type ListNotificationRulesQuery = {
       __typename: "NotificationRule",
       id: string,
       integrationId: string,
-      owner?: string | null,
-      repository_name?: string | null,
-      workflow_name?: string | null,
-      head_branch?: string | null,
       enabled: boolean,
       created_at: string,
       updated_at: string,
@@ -370,6 +375,13 @@ export type ListNotificationRulesQuery = {
         webhook_url: string,
       } | null >,
       ignore_dependabot?: boolean | null,
+      rule:  {
+        __typename: "Rule",
+        owner?: string | null,
+        repository_name?: string | null,
+        workflow_name?: string | null,
+        head_branch?: string | null,
+      },
     } | null >,
     nextToken?: string | null,
   } | null,
