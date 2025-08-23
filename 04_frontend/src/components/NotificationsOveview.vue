@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import BooleanChip from '@components/BooleanChip.vue';
     import NotificationCard from '@components/NotificationCard.vue';
     import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
     import type {
@@ -132,6 +133,7 @@
         {title: 'Workflow', key: 'workflow', sortable: true},
         {title: 'Branch', key: 'branch', sortable: true},
         {title: 'Enabled', key: 'enabled', sortable: true},
+        {title: 'Ignore Dependabot', key: 'ignore_dependabot', sortable: true},
         {title: 'Channels', key: 'channels', sortable: false},
         {title: 'Actions', key: 'actions', sortable: false, align: 'end' as const},
     ];
@@ -196,13 +198,11 @@
                 </template>
 
                 <template v-slot:item.enabled="{item}">
-                    <v-chip
-                        :color="item.enabled ? 'green' : 'red'"
-                        size="small"
-                        density="compact"
-                    >
-                        {{ item.enabled ? 'Yes' : 'No' }}
-                    </v-chip>
+                    <BooleanChip :value="item.enabled" />
+                </template>
+
+                <template v-slot:item.ignore_dependabot="{item}">
+                    <BooleanChip :value="!!item.ignore_dependabot" />
                 </template>
 
                 <template v-slot:item.channels="{item}"> {{ item.channels.length }} channel(s) </template>
