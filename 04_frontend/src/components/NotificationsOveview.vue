@@ -134,7 +134,6 @@
     };
 
     const parseOptional = (value: string | null | undefined): string => {
-        console.log('Parsing value:', value);
         switch (value) {
             case null:
             case undefined:
