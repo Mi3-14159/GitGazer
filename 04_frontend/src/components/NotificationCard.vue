@@ -5,6 +5,7 @@
         notificationRule: NotificationRule;
         integrations: Integration[];
         onDelete: (integrationId: string, id: string) => void;
+        onEdit: (notificationRule: NotificationRule) => void;
     }>();
 
     const parseOptional = (value: string | null | undefined): string => {
@@ -159,6 +160,12 @@
         </v-card-text>
         <v-card-actions>
             <v-spacer></v-spacer>
+            <v-btn
+                color="primary"
+                text="edit"
+                variant="text"
+                @click="props.onEdit(props.notificationRule)"
+            ></v-btn>
             <v-dialog max-width="500">
                 <template v-slot:activator="{props: activatorProps}">
                     <v-btn

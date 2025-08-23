@@ -19,6 +19,7 @@
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const integrations = reactive(new Array());
     const dialog = ref(false);
+    const editingRule = ref<NotificationRule | null>(null);
     const {smAndDown} = useDisplay();
 
     type PutNotificationRuleResponse = {
@@ -40,8 +41,15 @@
                 query: putNotificationRule,
                 variables,
             });
+
+            // If we're editing an existing rule, remove the old entry first
+            if (editingRule.value) {
+                notificationRules.delete(`${editingRule.value.integrationId}-${editingRule.value.id}`);
+            }
+
+            // Add the updated/new notification rule
             notificationRules.set(
-                `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.owner}/${response.data.putNotificationRule.repository_name}/${response.data.putNotificationRule.workflow_name}`,
+                `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.id}`,
                 response.data.putNotificationRule,
             );
         } catch (error) {
@@ -86,9 +94,25 @@
 
     handleListNotificationRules();
 
+    const onClose = () => {
+        dialog.value = false;
+        editingRule.value = null;
+    };
+
     const onSave = async (notificationRuleInput: NotificationRuleInput) => {
         await handlePutNotificationRule(notificationRuleInput);
         dialog.value = false;
+        editingRule.value = null;
+    };
+
+    const onEdit = (notificationRule: NotificationRule) => {
+        editingRule.value = notificationRule;
+        dialog.value = true;
+    };
+
+    const onAddNew = () => {
+        editingRule.value = null;
+        dialog.value = true;
     };
 
     const handleDeleteNotificationRule = async (integrationId: string, id: string) => {
@@ -160,13 +184,15 @@
                             text="Add Notification Rule"
                             color="primary"
                             v-bind="activatorProps"
+                            @click="onAddNew"
                         ></v-btn>
                     </template>
                     <NotificationDetailsCard
                         v-if="dialog"
-                        :onClose="() => (dialog = false)"
+                        :onClose="onClose"
                         :integrations="integrations"
                         :onSave="onSave"
+                        :existingRule="editingRule"
                     />
                 </v-dialog>
             </v-toolbar>
@@ -208,6 +234,13 @@
                 <template v-slot:item.channels="{item}"> {{ item.channels.length }} channel(s) </template>
 
                 <template v-slot:item.actions="{item}">
+                    <v-btn
+                        color="primary"
+                        variant="text"
+                        icon="mdi-pencil"
+                        density="compact"
+                        @click="onEdit(item)"
+                    ></v-btn>
                     <v-dialog max-width="500">
                         <template v-slot:activator="{props: activatorProps}">
                             <v-btn
@@ -260,6 +293,7 @@
                     :notificationRule="notificationRule"
                     :integrations="integrations"
                     :onDelete="handleDeleteNotificationRule"
+                    :onEdit="onEdit"
                 />
             </v-row>
 
@@ -273,13 +307,15 @@
                             prepend-icon="mdi-plus"
                             text="Add"
                             v-bind="activatorProps"
+                            @click="onAddNew"
                         ></v-btn>
                     </template>
                     <NotificationDetailsCard
                         v-if="dialog"
-                        :onClose="() => (dialog = false)"
+                        :onClose="onClose"
                         :integrations="integrations"
                         :onSave="onSave"
+                        :existingRule="editingRule"
                     />
                 </v-dialog>
             </v-bottom-navigation>

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-    import {Integration, NotificationChannelType, NotificationRuleInput} from '@graphql/api';
-    import {ref} from 'vue';
+    import {Integration, NotificationChannelType, NotificationRule, NotificationRuleInput} from '@graphql/api';
+    import {onMounted, ref} from 'vue';
 
     const props = defineProps<{
         integrations: Integration[];
         onClose: () => void;
         onSave: (notificationRuleInput: NotificationRuleInput) => void;
+        existingRule?: NotificationRule | null;
     }>();
 
     const form = ref<any>(null);
@@ -25,6 +26,25 @@
         ],
     });
 
+    // Populate form with existing data if editing
+    onMounted(() => {
+        if (props.existingRule) {
+            notificationRule.value = {
+                integrationId: props.existingRule.integrationId,
+                owner: props.existingRule.owner || '',
+                repository_name: props.existingRule.repository_name || '',
+                workflow_name: props.existingRule.workflow_name || '',
+                head_branch: props.existingRule.head_branch || '',
+                enabled: props.existingRule.enabled,
+                channels: props.existingRule.channels.map((channel) => ({
+                    type: channel?.type || NotificationChannelType.SLACK,
+                    webhook_url: channel?.webhook_url || '',
+                })),
+                ignore_dependabot: props.existingRule.ignore_dependabot,
+            };
+        }
+    });
+
     const handleSave = async () => {
         const {valid} = await form.value.validate();
         if (valid) {
@@ -35,7 +55,7 @@
 <template>
     <v-card
         prepend-icon="mdi-bell"
-        title="Notification rule"
+        :title="props.existingRule ? 'Edit Notification Rule' : 'New Notification Rule'"
     >
         <v-form ref="form">
             <v-card-text>
