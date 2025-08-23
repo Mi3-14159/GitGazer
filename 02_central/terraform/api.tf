@@ -128,6 +128,7 @@ resource "aws_api_gateway_integration_response" "frontend_proxy_200" {
     "method.response.header.Timestamp"      = "integration.response.header.Date"
     "method.response.header.Cache-Control"  = "integration.response.header.Cache-Control"
   }
+  depends_on = [aws_api_gateway_integration.frontend_proxy]
 }
 
 resource "aws_api_gateway_integration_response" "frontend_proxy_4xx" {
@@ -137,6 +138,7 @@ resource "aws_api_gateway_integration_response" "frontend_proxy_4xx" {
   http_method       = aws_api_gateway_method.frontend_proxy_get[0].http_method
   status_code       = aws_api_gateway_method_response.frontend_proxy_400[0].status_code
   selection_pattern = "4\\d{2}"
+  depends_on        = [aws_api_gateway_integration.frontend_proxy]
 }
 
 resource "aws_api_gateway_integration_response" "frontend_proxy_5xx" {
@@ -146,6 +148,7 @@ resource "aws_api_gateway_integration_response" "frontend_proxy_5xx" {
   http_method       = aws_api_gateway_method.frontend_proxy_get[0].http_method
   status_code       = aws_api_gateway_method_response.frontend_proxy_500[0].status_code
   selection_pattern = "5\\d{2}"
+  depends_on        = [aws_api_gateway_integration.frontend_proxy]
 }
 
 resource "aws_api_gateway_deployment" "this" {
@@ -215,14 +218,14 @@ data "aws_iam_policy_document" "invocation_policy" {
   }
 }
 
-resource "aws_api_gateway_method_settings" "this" {
-  rest_api_id = aws_api_gateway_rest_api.this.id
-  stage_name  = aws_api_gateway_stage.this.stage_name
-  method_path = "*/*"
+# resource "aws_api_gateway_method_settings" "this" {
+#   rest_api_id = aws_api_gateway_rest_api.this.id
+#   stage_name  = aws_api_gateway_stage.this.stage_name
+#   method_path = "*/*"
 
-  settings {
-    metrics_enabled = true
-    logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
-  }
-  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
-}
+#   settings {
+#     metrics_enabled = true
+#     logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
+#   }
+#   depends_on = [aws_cloudwatch_log_group.gw_access_logs]
+# }
