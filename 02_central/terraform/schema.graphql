@@ -142,6 +142,7 @@ type NotificationRule @aws_api_key @aws_cognito_user_pools {
     created_at: AWSDateTime!
     updated_at: AWSDateTime!
     channels: [Slack]!
+    ignore_dependabot: Boolean
 }
 
 input NotificationChannelInput {
@@ -165,6 +166,7 @@ input NotificationRuleInput {
     head_branch: String
     enabled: Boolean!
     channels: [NotificationChannelInput]!
+    ignore_dependabot: Boolean
 }
 
 type NotificationRuleConnection @aws_api_key @aws_cognito_user_pools {

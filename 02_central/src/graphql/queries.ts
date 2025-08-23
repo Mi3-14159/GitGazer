@@ -78,6 +78,7 @@ export const listNotificationRules = /* GraphQL */ `query ListNotificationRules(
         webhook_url
         __typename
       }
+      ignore_dependabot
       __typename
     }
     nextToken

@@ -110,6 +110,7 @@ export type NotificationRuleInput = {
   head_branch?: string | null,
   enabled: boolean,
   channels: Array< NotificationChannelInput | null >,
+  ignore_dependabot?: boolean | null,
 };
 
 export type NotificationChannelInput = {
@@ -140,6 +141,7 @@ export type NotificationRule = {
   created_at: string,
   updated_at: string,
   channels:  Array<Slack | null >,
+  ignore_dependabot?: boolean | null,
 };
 
 export type Slack = {
@@ -253,6 +255,7 @@ export type PutNotificationRuleMutation = {
       type: NotificationChannelType,
       webhook_url: string,
     } | null >,
+    ignore_dependabot?: boolean | null,
   } | null,
 };
 
@@ -366,6 +369,7 @@ export type ListNotificationRulesQuery = {
         type: NotificationChannelType,
         webhook_url: string,
       } | null >,
+      ignore_dependabot?: boolean | null,
     } | null >,
     nextToken?: string | null,
   } | null,

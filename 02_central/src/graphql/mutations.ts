@@ -72,6 +72,7 @@ export const putNotificationRule = /* GraphQL */ `mutation PutNotificationRule($
       webhook_url
       __typename
     }
+    ignore_dependabot
     __typename
   }
 }
