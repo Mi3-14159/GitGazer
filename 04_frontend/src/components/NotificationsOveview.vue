@@ -42,12 +42,6 @@
                 variables,
             });
 
-            // If we're editing an existing rule, remove the old entry first
-            if (editingRule.value) {
-                notificationRules.delete(`${editingRule.value.integrationId}-${editingRule.value.id}`);
-            }
-
-            // Add the updated/new notification rule
             notificationRules.set(
                 `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.id}`,
                 response.data.putNotificationRule,
