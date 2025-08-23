@@ -191,17 +191,27 @@
                 "#REPO": "repository_name",
                 "#WF": "workflow_name",
                 "#enabled": "enabled",
+                "#ignoreDependabot": "ignore_dependabot",
                 "#integrationId": "integrationId"
               },
               "ExpressionAttributeValues": {
                 ":br": {
                   "S.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.head_branch.S"
                 },
+                ":dependabotUser": {
+                  "S": "dependabot[bot]"
+                },
+                ":dependabotWorkflow": {
+                  "S": "Dependabot"
+                },
                 ":empty": {
                   "S": ""
                 },
                 ":enabled": {
                   "Bool": true
+                },
+                ":ignoreDependabotFalse": {
+                  "Bool": false
                 },
                 ":integrationId": {
                   "S.$": "$.dynamodb.NewImage.integrationId.S"
@@ -212,14 +222,20 @@
                 ":repo": {
                   "S.$": "$.dynamodb.NewImage.workflow_job_event.M.repository.M.name.S"
                 },
+                ":sender": {
+                  "S.$": "$.dynamodb.NewImage.workflow_job_event.M.sender.M.login.S"
+                },
                 ":star": {
                   "S": "*"
                 },
                 ":wf": {
                   "S.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S"
+                },
+                ":wf_name": {
+                  "S.$": "$.dynamodb.NewImage.workflow_job_event.M.workflow_job.M.name.S"
                 }
               },
-              "FilterExpression": "#enabled = :enabled AND (#R.#O = :owner OR #R.#O = :star OR #R.#O = :empty) AND (#R.#REPO = :repo OR #R.#REPO = :star OR #R.#REPO = :empty) AND (#R.#WF = :wf OR #R.#WF = :star OR #R.#WF = :empty) AND (#R.#BR = :br OR #R.#BR = :star OR #R.#BR = :empty)",
+              "FilterExpression": "#enabled = :enabled AND (#R.#O = :owner OR #R.#O = :star OR #R.#O = :empty) AND (#R.#REPO = :repo OR #R.#REPO = :star OR #R.#REPO = :empty) AND (#R.#WF = :wf OR #R.#WF = :star OR #R.#WF = :empty) AND (#R.#BR = :br OR #R.#BR = :star OR #R.#BR = :empty) AND (attribute_not_exists(#ignoreDependabot) OR #ignoreDependabot = :ignoreDependabotFalse OR (:sender <> :dependabotUser AND :wf_name <> :dependabotWorkflow))",
               "IndexName": "${notification_rules_table_index_name}",
               "KeyConditionExpression": "#integrationId = :integrationId",
               "Select": "ALL_ATTRIBUTES",

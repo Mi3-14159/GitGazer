@@ -12,17 +12,17 @@
     "@aws-amplify/cli": "^12.14.4",
     "@aws-appsync/eslint-plugin": "^2.0.2",
     "@aws-appsync/utils": "^1.12.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.848.0",
-    "@aws-sdk/credential-provider-node": "^3.844.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.873.0",
+    "@aws-sdk/credential-provider-node": "^3.873.0",
     "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.374.0",
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.152",
     "@types/node": "^22.15.30",
-    "eslint": "^9.31.0",
+    "eslint": "^9.34.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": "^22"

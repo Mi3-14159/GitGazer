@@ -5,6 +5,7 @@
         notificationRule: NotificationRule;
         integrations: Integration[];
         onDelete: (integrationId: string, id: string) => void;
+        onEdit: (notificationRule: NotificationRule) => void;
     }>();
 
     const parseOptional = (value: string | null | undefined): string => {
@@ -47,7 +48,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.owner) }}
+                        {{ parseOptional(props.notificationRule.rule.owner) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -64,7 +65,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.repository_name) }}
+                        {{ parseOptional(props.notificationRule.rule.repository_name) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -81,7 +82,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.workflow_name) }}
+                        {{ parseOptional(props.notificationRule.rule.workflow_name) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -98,7 +99,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ parseOptional(props.notificationRule.head_branch) }}
+                        {{ parseOptional(props.notificationRule.rule.head_branch) }}
                     </v-col>
                 </v-row>
                 <v-row
@@ -159,6 +160,12 @@
         </v-card-text>
         <v-card-actions>
             <v-spacer></v-spacer>
+            <v-btn
+                color="primary"
+                text="edit"
+                variant="text"
+                @click="props.onEdit(props.notificationRule)"
+            ></v-btn>
             <v-dialog max-width="500">
                 <template v-slot:activator="{props: activatorProps}">
                     <v-btn

@@ -6,7 +6,8 @@ import {util} from '@aws-appsync/utils';
  * @returns {import('@aws-appsync/utils').DynamoDBUpdateItemRequest} the request
  */
 export function request(ctx) {
-    const {integrationId, owner, repository_name, workflow_name, head_branch, enabled, channels} = ctx.args.input;
+    const {integrationId, owner, repository_name, workflow_name, head_branch, enabled, channels, ignore_dependabot} = ctx.args.input;
+    let {id} = ctx.args.input;
 
     if (util.authType() === 'User Pool Authorization') {
         if (!ctx.identity['groups'].includes(integrationId)) {
@@ -14,24 +15,27 @@ export function request(ctx) {
         }
     }
 
-    const idParts = [owner, repository_name, workflow_name, head_branch];
-    const key = {id: idParts.join('/')};
+    if (!id) {
+        id = util.autoId();
+    }
     const now = util.time.nowISO8601();
 
     return {
         operation: 'UpdateItem',
         key: {
-            id: util.dynamodb.toDynamoDB(key.id),
+            id: util.dynamodb.toDynamoDB(id),
             integrationId: util.dynamodb.toDynamoDB(integrationId),
         },
         update: {
-            expression: 'SET #created_at = :created_at, #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule',
+            expression:
+                'SET #created_at = :created_at, #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule, #ignore_dependabot = :ignore_dependabot',
             expressionNames: {
                 '#created_at': 'created_at',
                 '#updated_at': 'updated_at',
                 '#enabled': 'enabled',
                 '#channels': 'channels',
                 '#rule': 'rule',
+                '#ignore_dependabot': 'ignore_dependabot',
             },
             expressionValues: {
                 ':created_at': util.dynamodb.toDynamoDB(now),
@@ -39,6 +43,7 @@ export function request(ctx) {
                 ':enabled': util.dynamodb.toDynamoDB(enabled),
                 ':channels': util.dynamodb.toDynamoDB(channels),
                 ':rule': util.dynamodb.toDynamoDB({owner, repository_name, workflow_name, head_branch}),
+                ':ignore_dependabot': util.dynamodb.toDynamoDB(ignore_dependabot),
             },
         },
     };
