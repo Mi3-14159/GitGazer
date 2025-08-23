@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import BooleanChip from '@components/BooleanChip.vue';
     import NotificationCard from '@components/NotificationCard.vue';
     import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
     import type {
@@ -18,6 +19,7 @@
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const integrations = reactive(new Array());
     const dialog = ref(false);
+    const editingRule = ref<NotificationRule | null>(null);
     const {smAndDown} = useDisplay();
 
     type PutNotificationRuleResponse = {
@@ -39,8 +41,9 @@
                 query: putNotificationRule,
                 variables,
             });
+
             notificationRules.set(
-                `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.owner}/${response.data.putNotificationRule.repository_name}/${response.data.putNotificationRule.workflow_name}`,
+                `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.id}`,
                 response.data.putNotificationRule,
             );
         } catch (error) {
@@ -85,9 +88,25 @@
 
     handleListNotificationRules();
 
+    const onClose = () => {
+        dialog.value = false;
+        editingRule.value = null;
+    };
+
     const onSave = async (notificationRuleInput: NotificationRuleInput) => {
         await handlePutNotificationRule(notificationRuleInput);
         dialog.value = false;
+        editingRule.value = null;
+    };
+
+    const onEdit = (notificationRule: NotificationRule) => {
+        editingRule.value = notificationRule;
+        dialog.value = true;
+    };
+
+    const onAddNew = () => {
+        editingRule.value = null;
+        dialog.value = true;
     };
 
     const handleDeleteNotificationRule = async (integrationId: string, id: string) => {
@@ -132,6 +151,7 @@
         {title: 'Workflow', key: 'workflow', sortable: true},
         {title: 'Branch', key: 'branch', sortable: true},
         {title: 'Enabled', key: 'enabled', sortable: true},
+        {title: 'Ignore Dependabot', key: 'ignore_dependabot', sortable: true},
         {title: 'Channels', key: 'channels', sortable: false},
         {title: 'Actions', key: 'actions', sortable: false, align: 'end' as const},
     ];
@@ -158,13 +178,15 @@
                             text="Add Notification Rule"
                             color="primary"
                             v-bind="activatorProps"
+                            @click="onAddNew"
                         ></v-btn>
                     </template>
                     <NotificationDetailsCard
                         v-if="dialog"
-                        :onClose="() => (dialog = false)"
+                        :onClose="onClose"
                         :integrations="integrations"
                         :onSave="onSave"
+                        :existingRule="editingRule"
                     />
                 </v-dialog>
             </v-toolbar>
@@ -180,34 +202,39 @@
                 </template>
 
                 <template v-slot:item.owner="{item}">
-                    {{ parseOptional(item.owner) }}
+                    {{ parseOptional(item.rule.owner) }}
                 </template>
 
                 <template v-slot:item.repository="{item}">
-                    {{ parseOptional(item.repository_name) }}
+                    {{ parseOptional(item.rule.repository_name) }}
                 </template>
 
                 <template v-slot:item.workflow="{item}">
-                    {{ parseOptional(item.workflow_name) }}
+                    {{ parseOptional(item.rule.workflow_name) }}
                 </template>
 
                 <template v-slot:item.branch="{item}">
-                    {{ parseOptional(item.head_branch) }}
+                    {{ parseOptional(item.rule.head_branch) }}
                 </template>
 
                 <template v-slot:item.enabled="{item}">
-                    <v-chip
-                        :color="item.enabled ? 'green' : 'red'"
-                        size="small"
-                        density="compact"
-                    >
-                        {{ item.enabled ? 'Yes' : 'No' }}
-                    </v-chip>
+                    <BooleanChip :value="item.enabled" />
+                </template>
+
+                <template v-slot:item.ignore_dependabot="{item}">
+                    <BooleanChip :value="!!item.ignore_dependabot" />
                 </template>
 
                 <template v-slot:item.channels="{item}"> {{ item.channels.length }} channel(s) </template>
 
                 <template v-slot:item.actions="{item}">
+                    <v-btn
+                        color="primary"
+                        variant="text"
+                        icon="mdi-pencil"
+                        density="compact"
+                        @click="onEdit(item)"
+                    ></v-btn>
                     <v-dialog max-width="500">
                         <template v-slot:activator="{props: activatorProps}">
                             <v-btn
@@ -260,6 +287,7 @@
                     :notificationRule="notificationRule"
                     :integrations="integrations"
                     :onDelete="handleDeleteNotificationRule"
+                    :onEdit="onEdit"
                 />
             </v-row>
 
@@ -273,13 +301,15 @@
                             prepend-icon="mdi-plus"
                             text="Add"
                             v-bind="activatorProps"
+                            @click="onAddNew"
                         ></v-btn>
                     </template>
                     <NotificationDetailsCard
                         v-if="dialog"
-                        :onClose="() => (dialog = false)"
+                        :onClose="onClose"
                         :integrations="integrations"
                         :onSave="onSave"
+                        :existingRule="editingRule"
                     />
                 </v-dialog>
             </v-bottom-navigation>

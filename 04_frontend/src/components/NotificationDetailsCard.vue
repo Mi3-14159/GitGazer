@@ -1,16 +1,18 @@
 <script setup lang="ts">
-    import {Integration, NotificationChannelType, NotificationRuleInput} from '@graphql/api';
-    import {ref} from 'vue';
+    import {Integration, NotificationChannelType, NotificationRule, NotificationRuleInput} from '@graphql/api';
+    import {onMounted, ref} from 'vue';
 
     const props = defineProps<{
         integrations: Integration[];
         onClose: () => void;
         onSave: (notificationRuleInput: NotificationRuleInput) => void;
+        existingRule?: NotificationRule | null;
     }>();
 
     const form = ref<any>(null);
 
     const notificationRule = ref<NotificationRuleInput>({
+        id: '',
         owner: '',
         repository_name: '',
         workflow_name: '',
@@ -25,6 +27,26 @@
         ],
     });
 
+    // Populate form with existing data if editing
+    onMounted(() => {
+        if (props.existingRule) {
+            notificationRule.value = {
+                id: props.existingRule.id || '',
+                integrationId: props.existingRule.integrationId,
+                owner: props.existingRule.rule.owner || '',
+                repository_name: props.existingRule.rule.repository_name || '',
+                workflow_name: props.existingRule.rule.workflow_name || '',
+                head_branch: props.existingRule.rule.head_branch || '',
+                enabled: props.existingRule.enabled,
+                channels: props.existingRule.channels.map((channel) => ({
+                    type: channel?.type || NotificationChannelType.SLACK,
+                    webhook_url: channel?.webhook_url || '',
+                })),
+                ignore_dependabot: props.existingRule.ignore_dependabot,
+            };
+        }
+    });
+
     const handleSave = async () => {
         const {valid} = await form.value.validate();
         if (valid) {
@@ -35,7 +57,7 @@
 <template>
     <v-card
         prepend-icon="mdi-bell"
-        title="Notification rule"
+        :title="props.existingRule ? 'Edit Notification Rule' : 'New Notification Rule'"
     >
         <v-form ref="form">
             <v-card-text>
@@ -98,6 +120,17 @@
                         ></v-text-field>
                     </v-col>
 
+                    <v-col
+                        cols="12"
+                        md="4"
+                        sm="6"
+                    >
+                        <v-checkbox
+                            label="Ignore Dependabot"
+                            v-model="notificationRule.ignore_dependabot"
+                        ></v-checkbox>
+                    </v-col>
+
                     <v-col sm="12">
                         <v-text-field
                             v-if="notificationRule.channels[0]?.type === NotificationChannelType.SLACK"
@@ -113,10 +146,13 @@
                         md="4"
                         sm="6"
                     >
-                        <v-checkbox
+                        <v-switch
                             label="Enabled"
                             v-model="notificationRule.enabled"
-                        ></v-checkbox>
+                            color="success"
+                            density="comfortable"
+                            hide-details
+                        ></v-switch>
                     </v-col>
                 </v-row>
 

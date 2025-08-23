@@ -131,17 +131,22 @@ type Slack @aws_api_key @aws_cognito_user_pools {
 
 union NotificationRuleChannel = Http | Slack
 
-type NotificationRule @aws_api_key @aws_cognito_user_pools {
-    id: String!
-    integrationId: String!
+type Rule @aws_api_key @aws_cognito_user_pools {
     owner: String
     repository_name: String
     workflow_name: String
     head_branch: String
+}
+
+type NotificationRule @aws_api_key @aws_cognito_user_pools {
+    id: String!
+    integrationId: String!
     enabled: Boolean!
     created_at: AWSDateTime!
     updated_at: AWSDateTime!
     channels: [Slack]!
+    ignore_dependabot: Boolean
+    rule: Rule!
 }
 
 input NotificationChannelInput {
@@ -158,6 +163,7 @@ input NotificationChannelInput {
 }
 
 input NotificationRuleInput {
+    id: String
     integrationId: String!
     owner: String
     repository_name: String
@@ -165,6 +171,7 @@ input NotificationRuleInput {
     head_branch: String
     enabled: Boolean!
     channels: [NotificationChannelInput]!
+    ignore_dependabot: Boolean
 }
 
 type NotificationRuleConnection @aws_api_key @aws_cognito_user_pools {
