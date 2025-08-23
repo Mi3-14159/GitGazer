@@ -19,7 +19,7 @@
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.152",
     "@types/node": "^22.15.30",
-    "eslint": "^9.33.0",
+    "eslint": "^9.34.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.2"
