@@ -218,14 +218,14 @@ data "aws_iam_policy_document" "invocation_policy" {
   }
 }
 
-# resource "aws_api_gateway_method_settings" "this" {
-#   rest_api_id = aws_api_gateway_rest_api.this.id
-#   stage_name  = aws_api_gateway_stage.this.stage_name
-#   method_path = "*/*"
+resource "aws_api_gateway_method_settings" "this" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  stage_name  = aws_api_gateway_stage.this.stage_name
+  method_path = "*/*"
 
-#   settings {
-#     metrics_enabled = true
-#     logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
-#   }
-#   depends_on = [aws_cloudwatch_log_group.gw_access_logs]
-# }
+  settings {
+    metrics_enabled = true
+    logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
+  }
+  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
+}
