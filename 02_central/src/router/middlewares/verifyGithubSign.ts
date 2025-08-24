@@ -1,6 +1,6 @@
 import {getLogger} from '@/logger';
 import {Middleware} from '@/router/router';
-import {IntegrationSecret} from '@/types';
+import {SSMIntegrationSecret} from '@/types';
 import {GetParameterCommand, SSMClient} from '@aws-sdk/client-ssm';
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from 'aws-lambda/trigger/api-gateway-proxy';
 import * as crypto from 'crypto';
@@ -56,7 +56,7 @@ const validateSignature = (payload: string, secret: string, signature: string): 
     return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
 };
 
-const loadParameter = async (integrationId: string): Promise<IntegrationSecret | undefined> => {
+const loadParameter = async (integrationId: string): Promise<SSMIntegrationSecret | undefined> => {
     const parameterName = `${process.env.SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX}${integrationId}`;
     if (process.env.ENVIRONMENT === 'dev') {
         return getParameterBySdk(parameterName);
@@ -64,7 +64,7 @@ const loadParameter = async (integrationId: string): Promise<IntegrationSecret |
     return getParameterFromCache(parameterName);
 };
 
-const getParameterFromCache = async (parameterName: string): Promise<IntegrationSecret | undefined> => {
+const getParameterFromCache = async (parameterName: string): Promise<SSMIntegrationSecret | undefined> => {
     const url = `http://localhost:2773/systemsmanager/parameters/get?name=${encodeURIComponent(parameterName)}&withDecryption=true`;
     logger.info('load parameter', url);
 
@@ -85,7 +85,7 @@ const getParameterFromCache = async (parameterName: string): Promise<Integration
     return JSON.parse(Value);
 };
 
-const getParameterBySdk = async (parameterName: string): Promise<IntegrationSecret | undefined> => {
+const getParameterBySdk = async (parameterName: string): Promise<SSMIntegrationSecret | undefined> => {
     const command = new GetParameterCommand({
         Name: parameterName,
         WithDecryption: true,

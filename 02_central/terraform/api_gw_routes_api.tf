@@ -12,6 +12,9 @@ locals {
     "notifications" = {
       method = "GET"
     },
+    "integrations" = {
+      method = "GET"
+    },
   }
 }
 
