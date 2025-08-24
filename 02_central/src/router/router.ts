@@ -30,7 +30,7 @@ export class Router {
         const {httpMethod, resource} = event;
         const handler = this.routeKeys.get(`${httpMethod} ${resource}`);
 
-        if (!handler) {
+        if (!handler || typeof handler !== 'function') {
             return {
                 statusCode: 404,
                 body: 'Not Found',
