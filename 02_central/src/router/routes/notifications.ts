@@ -1,4 +1,4 @@
-import {getNotificationRules} from '@/clients/dynamodb';
+import {getNotificationRulesByIntegrationId} from '@/clients/dynamodb';
 import {getLogger} from '../../logger';
 import {Router} from '../router';
 
@@ -21,7 +21,7 @@ router.get('/api/notifications', async (event) => {
         };
     }
 
-    const notificationRules = await getNotificationRules({
+    const notificationRules = await getNotificationRulesByIntegrationId({
         integrationIds: groups,
     });
 

@@ -16,12 +16,13 @@ module "this" {
       GRAPHQL_URI                                 = local.aws_appsync_graphql_uris["GRAPHQL"]
       EXPIRE_IN_SEC                               = var.expire_in_sec
       SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX = local.ssm_parameter_gh_webhook_secret_name_prefix
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn
   cloudwatch_logs_kms_key_id        = aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 30
-  layers                            = ["arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11"]
+  layers                            = ["arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:18"]
 }
 
 resource "aws_lambda_alias" "live" {

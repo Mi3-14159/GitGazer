@@ -1,5 +1,5 @@
 import {lowercaseHeaders} from '@/router/middlewares/lowercaseHeaders';
-import {APIGatewayProxyEvent} from 'aws-lambda';
+import {APIGatewayProxyEventWithCustomAuth} from '@/types';
 import {describe, expect, it} from 'vitest';
 
 describe('lowercaseHeaders middleware', () => {
@@ -10,7 +10,7 @@ describe('lowercaseHeaders middleware', () => {
                 Authorization: 'Bearer token123',
                 'X-Custom-Header': 'custom-value',
             },
-        } as Partial<APIGatewayProxyEvent> as APIGatewayProxyEvent;
+        } as Partial<APIGatewayProxyEventWithCustomAuth> as APIGatewayProxyEventWithCustomAuth;
 
         const result = await lowercaseHeaders(mockEvent);
 
@@ -23,7 +23,7 @@ describe('lowercaseHeaders middleware', () => {
     });
 
     it('should return undefined when headers property is undefined', async () => {
-        const mockEvent = {} as APIGatewayProxyEvent;
+        const mockEvent = {} as APIGatewayProxyEventWithCustomAuth;
 
         const result = await lowercaseHeaders(mockEvent);
 
@@ -34,7 +34,7 @@ describe('lowercaseHeaders middleware', () => {
     it('should handle empty headers object', async () => {
         const mockEvent = {
             headers: {},
-        } as APIGatewayProxyEvent;
+        } as APIGatewayProxyEventWithCustomAuth;
 
         const result = await lowercaseHeaders(mockEvent);
 
@@ -49,7 +49,7 @@ describe('lowercaseHeaders middleware', () => {
                 'User-Agent': 'Mozilla/5.0 (Test Browser)',
                 'x-forwarded-for': '192.168.1.1',
             },
-        } as Partial<APIGatewayProxyEvent> as APIGatewayProxyEvent;
+        } as Partial<APIGatewayProxyEventWithCustomAuth> as APIGatewayProxyEventWithCustomAuth;
 
         const result = await lowercaseHeaders(mockEvent);
 
@@ -67,7 +67,7 @@ describe('lowercaseHeaders middleware', () => {
                 'content-type': 'text/html',
                 accept: 'text/html,application/xhtml+xml',
             },
-        } as Partial<APIGatewayProxyEvent> as APIGatewayProxyEvent;
+        } as Partial<APIGatewayProxyEventWithCustomAuth> as APIGatewayProxyEventWithCustomAuth;
 
         const result = await lowercaseHeaders(mockEvent);
 
@@ -83,7 +83,7 @@ describe('lowercaseHeaders middleware', () => {
             headers: {
                 'Content-Length': '1234',
             },
-        } as Partial<APIGatewayProxyEvent> as APIGatewayProxyEvent;
+        } as Partial<APIGatewayProxyEventWithCustomAuth> as APIGatewayProxyEventWithCustomAuth;
 
         const result = await lowercaseHeaders(mockEvent);
 
@@ -100,7 +100,7 @@ describe('lowercaseHeaders middleware', () => {
         };
         const mockEvent = {
             headers: originalHeaders,
-        } as Partial<APIGatewayProxyEvent> as APIGatewayProxyEvent;
+        } as Partial<APIGatewayProxyEventWithCustomAuth> as APIGatewayProxyEventWithCustomAuth;
 
         await lowercaseHeaders(mockEvent);
 

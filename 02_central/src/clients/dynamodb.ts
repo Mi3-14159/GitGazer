@@ -5,16 +5,17 @@ import {getLogger} from '@/logger';
 import {NotificationRule} from '@/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
-if (!notificationTableName) {
-    throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
-}
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const log = getLogger();
 
-export const getNotificationRules = async (params: {integrationIds: string[]; limit?: 10}): Promise<NotificationRule[]> => {
+export const getNotificationRulesByIntegrationId = async (params: {integrationIds: string[]; limit?: 10}): Promise<NotificationRule[]> => {
     log.info(`Getting notification rules for integration IDs: ${params.integrationIds.join(', ')}`);
+
+    if (!notificationTableName) {
+        throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
+    }
 
     const commands = params.integrationIds.map((integrationId) => {
         return new QueryCommand({
