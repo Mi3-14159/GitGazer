@@ -1,4 +1,4 @@
-import {getNotificationRulesByIntegrationId} from '@/clients/dynamodb';
+import {getNotificationRules} from '@/controllers/notifications';
 import {getLogger} from '../../logger';
 import {Router} from '../router';
 
@@ -14,15 +14,8 @@ router.get('/api/notifications', async (event) => {
         },
     } = event;
 
-    if (!groups || groups.length === 0) {
-        return {
-            statusCode: 403,
-            body: JSON.stringify({message: 'Forbidden'}),
-        };
-    }
-
-    const notificationRules = await getNotificationRulesByIntegrationId({
-        integrationIds: groups,
+    const notificationRules = await getNotificationRules({
+        integrationIds: groups ?? [],
     });
 
     return {

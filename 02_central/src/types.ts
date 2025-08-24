@@ -32,8 +32,8 @@ export interface APIGatewayProxyEventWithCustomAuth extends Omit<APIGatewayProxy
 export type CustomAPIGatewayProxyHandler = (event: APIGatewayProxyEventWithCustomAuth, context: Context) => Promise<APIGatewayProxyResult>;
 
 export type NotificationRule = {
-    id: string;
     integrationId: string;
+    id: string;
     channels: NotificationRuleChannel[];
     createdAt: Date;
     updatedAt: Date;
@@ -52,4 +52,12 @@ export type NotificationRuleRule = {
     owner: string;
     repository_name: string;
     workflow_name: string;
+};
+
+export type Job = {
+    integrationId: string;
+    job_id: number;
+    created_at: Date;
+    expire_at: Date;
+    workflow_job_event: WorkflowJobEvent;
 };

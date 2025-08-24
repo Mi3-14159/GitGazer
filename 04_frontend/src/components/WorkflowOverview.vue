@@ -4,7 +4,7 @@
     import {GitGazerWorkflowJobEvent, ListJobsQueryVariables} from '@graphql/api';
     import {listJobs} from '@graphql/queries';
     import {onPutJob} from '@graphql/subscriptions';
-    import {CONNECTION_STATE_CHANGE, ConnectionState, generateClient, get, type GraphQLQuery, type GraphQLSubscription} from 'aws-amplify/api';
+    import {CONNECTION_STATE_CHANGE, ConnectionState, generateClient, type GraphQLQuery, type GraphQLSubscription} from 'aws-amplify/api';
     import {fetchAuthSession} from 'aws-amplify/auth';
     import {Hub} from 'aws-amplify/utils';
     import {Subscription} from 'rxjs';
@@ -32,22 +32,6 @@
         {title: 'Status', value: 'status', sortable: true},
         {title: 'Created', value: 'created_at', sortable: true},
     ];
-
-    // 1) Get the current session tokens
-    const session = await fetchAuthSession();
-    // API Gateway Cognito authorizer typically expects the **ID token**
-    const idToken = session.tokens?.idToken?.toString();
-
-    get({
-        apiName: 'api',
-        path: '/api/integrations/5a73257e-97bc-4f9e-90b9-2d157c5ebe19/jobs',
-        options: {
-            headers: {
-                Authorization: `Bearer ${idToken}`,
-            },
-            withCredentials: true,
-        },
-    });
 
     // Helper functions for table display
     const getJobStatus = (job: GitGazerWorkflowJobEvent) => {

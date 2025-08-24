@@ -35,6 +35,11 @@ export const extractToken = (event: APIGatewayProxyEvent): string | undefined =>
 };
 
 export const extractCognitoGroups: Middleware = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult | undefined> => {
+    event.requestContext.authorizer = {
+        isAuthorized: false,
+        groups: [],
+    };
+
     try {
         // Extract and validate JWT token
         const token = extractToken(event);

@@ -17,6 +17,7 @@ module "this" {
       EXPIRE_IN_SEC                               = var.expire_in_sec
       SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX = local.ssm_parameter_gh_webhook_secret_name_prefix
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
+      DYNAMO_DB_JOBS_TABLE_ARN                    = aws_dynamodb_table.jobs.name
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn
@@ -58,6 +59,24 @@ data "aws_iam_policy_document" "this" {
       "ssm:GetParameter",
     ]
     resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_gh_webhook_secret_name_prefix}*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:GetItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+    ]
+    resources = compact([
+      aws_dynamodb_table.jobs.arn,
+      "${aws_dynamodb_table.jobs.arn}/index/*",
+      try(aws_dynamodb_table.notification_rules[0].arn, null),
+      try("${aws_dynamodb_table.notification_rules[0].arn}/index/*", null),
+    ])
   }
 }
 

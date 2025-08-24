@@ -1,17 +1,37 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient, GetCommandOutput, QueryCommand} from '@aws-sdk/lib-dynamodb';
+import {DynamoDBDocumentClient, QueryCommand, QueryCommandOutput} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {NotificationRule} from '@/types';
+import {Job, NotificationRule} from '@/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
+const jobsTableName = process.env.DYNAMO_DB_JOBS_TABLE_ARN;
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-const log = getLogger();
+const logger = getLogger();
 
-export const getNotificationRulesByIntegrationId = async (params: {integrationIds: string[]; limit?: 10}): Promise<NotificationRule[]> => {
-    log.info(`Getting notification rules for integration IDs: ${params.integrationIds.join(', ')}`);
+const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
+    logger.trace('Executing DynamoDB query commands', commands);
+
+    const result = await Promise.allSettled(commands.map((command) => client.send(command)));
+
+    const fulfilled = result.filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<QueryCommandOutput>[];
+    const rejected = result.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+
+    if (rejected.length > 0) {
+        logger.error(`Failed to get notifications for integration IDs: ${rejected.map((r) => r.reason).join(', ')}`);
+    }
+
+    return fulfilled
+        .map((r) => {
+            return r.value.Items as T[];
+        })
+        .flat();
+};
+
+export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
+    logger.info(`Getting notification rules for integrations: ${params.integrationIds.join(', ')}`);
 
     if (!notificationTableName) {
         throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
@@ -24,18 +44,32 @@ export const getNotificationRulesByIntegrationId = async (params: {integrationId
             ExpressionAttributeValues: {
                 ':integrationId': integrationId,
             },
-            Limit: params.limit,
+            Limit: params.limit ?? 10,
+            IndexName: 'integrationId-index',
         });
     });
 
-    const result = await Promise.allSettled(commands.map((command) => client.send(command)));
-    // handle results
-    const fulfilled = result.filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<GetCommandOutput>[];
-    const rejected = result.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+    return query<NotificationRule>(commands);
+};
 
-    if (rejected.length > 0) {
-        log.error(`Failed to get notifications for integration IDs: ${rejected.map((r) => r.reason).join(', ')}`);
+export const getJobsBy = async (params: {integrationIds: string[]; limit?: number}): Promise<Job[]> => {
+    logger.info(`Getting jobs for integrations: ${params.integrationIds.join(', ')}`);
+
+    if (!jobsTableName) {
+        throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
     }
 
-    return fulfilled.map((r) => r.value.Item as NotificationRule);
+    const commands = params.integrationIds.map((integrationId) => {
+        return new QueryCommand({
+            TableName: jobsTableName,
+            KeyConditionExpression: 'integrationId = :integrationId',
+            ExpressionAttributeValues: {
+                ':integrationId': integrationId,
+            },
+            Limit: params.limit ?? 50,
+            IndexName: 'newest_integration_index',
+        });
+    });
+
+    return query<Job>(commands);
 };
