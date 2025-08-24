@@ -5,7 +5,7 @@ module "this" {
   description      = "GitGazers jobs processor"
   filename         = local.artifact
   function_name    = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
-  handler          = "index.handler"
+  handler          = "src/index.handler"
   runtime          = "nodejs22.x"
   source_code_hash = filebase64sha256(local.artifact)
   timeout          = 15
@@ -16,12 +16,14 @@ module "this" {
       GRAPHQL_URI                                 = local.aws_appsync_graphql_uris["GRAPHQL"]
       EXPIRE_IN_SEC                               = var.expire_in_sec
       SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX = local.ssm_parameter_gh_webhook_secret_name_prefix
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
+      DYNAMO_DB_JOBS_TABLE_ARN                    = aws_dynamodb_table.jobs.name
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn
   cloudwatch_logs_kms_key_id        = aws_kms_key.this.arn
   cloudwatch_logs_retention_in_days = 30
-  layers                            = ["arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11"]
+  layers                            = ["arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:18"]
 }
 
 resource "aws_lambda_alias" "live" {
@@ -57,6 +59,24 @@ data "aws_iam_policy_document" "this" {
       "ssm:GetParameter",
     ]
     resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_gh_webhook_secret_name_prefix}*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:GetItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+    ]
+    resources = compact([
+      aws_dynamodb_table.jobs.arn,
+      "${aws_dynamodb_table.jobs.arn}/index/*",
+      try(aws_dynamodb_table.notification_rules[0].arn, null),
+      try("${aws_dynamodb_table.notification_rules[0].arn}/index/*", null),
+    ])
   }
 }
 

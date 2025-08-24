@@ -3,448 +3,445 @@
 //  This file was automatically generated and should not be edited.
 
 export type GitGazerWorkflowJobEventInput = {
-  integrationId: string,
-  job_id: number,
-  created_at: string,
-  expire_at: number,
-  workflow_job_event: WorkflowJobEventInput,
+    integrationId: string;
+    job_id: number;
+    created_at: string;
+    expire_at: number;
+    workflow_job_event: WorkflowJobEventInput;
 };
 
 export type WorkflowJobEventInput = {
-  action: string,
-  workflow_job: WorkflowJobInput,
-  repository: RepositoryInput,
-  sender: SenderInput,
+    action: string;
+    workflow_job: WorkflowJobInput;
+    repository: RepositoryInput;
+    sender: SenderInput;
 };
 
 export type WorkflowJobInput = {
-  id: number,
-  run_id: number,
-  run_url: string,
-  status: string,
-  conclusion?: string | null,
-  name: string,
-  workflow_name: string,
-  head_branch: string,
-  run_attempt: number,
-  created_at: string,
-  started_at: string,
-  completed_at?: string | null,
+    id: number;
+    run_id: number;
+    run_url: string;
+    status: string;
+    conclusion?: string | null;
+    name: string;
+    workflow_name: string;
+    head_branch: string;
+    run_attempt: number;
+    created_at: string;
+    started_at: string;
+    completed_at?: string | null;
 };
 
 export type RepositoryInput = {
-  full_name: string,
-  name: string,
-  html_url: string,
-  owner: OwnerInput,
+    full_name: string;
+    name: string;
+    html_url: string;
+    owner: OwnerInput;
 };
 
 export type OwnerInput = {
-  login: string,
+    login: string;
 };
 
 export type SenderInput = {
-  login: string,
-  type: string,
-  id: number,
+    login: string;
+    type: string;
+    id: number;
 };
 
 export type GitGazerWorkflowJobEvent = {
-  __typename: "GitGazerWorkflowJobEvent",
-  integrationId: string,
-  job_id: number,
-  created_at: string,
-  expire_at: number,
-  workflow_job_event: WorkflowJobEvent,
+    __typename: 'GitGazerWorkflowJobEvent';
+    integrationId: string;
+    job_id: number;
+    created_at: string;
+    expire_at: number;
+    workflow_job_event: WorkflowJobEvent;
 };
 
 export type WorkflowJobEvent = {
-  __typename: "WorkflowJobEvent",
-  action: string,
-  workflow_job: WorkflowJob,
-  repository: Repository,
-  sender: Sender,
+    __typename: 'WorkflowJobEvent';
+    action: string;
+    workflow_job: WorkflowJob;
+    repository: Repository;
+    sender: Sender;
 };
 
 export type WorkflowJob = {
-  __typename: "WorkflowJob",
-  id: number,
-  run_id: number,
-  workflow_name: string,
-  run_url: string,
-  run_attempt: number,
-  status: string,
-  conclusion?: string | null,
-  created_at: string,
-  started_at: string,
-  completed_at?: string | null,
-  name: string,
-  head_branch: string,
+    __typename: 'WorkflowJob';
+    id: number;
+    run_id: number;
+    workflow_name: string;
+    run_url: string;
+    run_attempt: number;
+    status: string;
+    conclusion?: string | null;
+    created_at: string;
+    started_at: string;
+    completed_at?: string | null;
+    name: string;
+    head_branch: string;
 };
 
 export type Repository = {
-  __typename: "Repository",
-  full_name: string,
-  name: string,
-  html_url: string,
-  owner: Owner,
+    __typename: 'Repository';
+    full_name: string;
+    name: string;
+    html_url: string;
+    owner: Owner;
 };
 
 export type Owner = {
-  __typename: "Owner",
-  login: string,
+    __typename: 'Owner';
+    login: string;
 };
 
 export type Sender = {
-  __typename: "Sender",
-  login: string,
-  type: string,
-  id: number,
+    __typename: 'Sender';
+    login: string;
+    type: string;
+    id: number;
 };
 
 export type NotificationRuleInput = {
-  id?: string | null,
-  integrationId: string,
-  owner?: string | null,
-  repository_name?: string | null,
-  workflow_name?: string | null,
-  head_branch?: string | null,
-  enabled: boolean,
-  channels: Array< NotificationChannelInput | null >,
-  ignore_dependabot?: boolean | null,
+    id?: string | null;
+    integrationId: string;
+    owner?: string | null;
+    repository_name?: string | null;
+    workflow_name?: string | null;
+    head_branch?: string | null;
+    enabled: boolean;
+    channels: Array<NotificationChannelInput | null>;
+    ignore_dependabot?: boolean | null;
 };
 
 export type NotificationChannelInput = {
-  type: NotificationChannelType,
-  body?: string | null,
-  headers?: string | null,
-  method?: string | null,
-  query_parameters?: string | null,
-  url?: string | null,
-  webhook_url?: string | null,
+    type: NotificationChannelType;
+    body?: string | null;
+    headers?: string | null;
+    method?: string | null;
+    query_parameters?: string | null;
+    url?: string | null;
+    webhook_url?: string | null;
 };
 
 export enum NotificationChannelType {
-  HTTP = "HTTP",
-  SLACK = "SLACK",
+    HTTP = 'HTTP',
+    SLACK = 'SLACK',
 }
 
-
 export type NotificationRule = {
-  __typename: "NotificationRule",
-  id: string,
-  integrationId: string,
-  enabled: boolean,
-  created_at: string,
-  updated_at: string,
-  channels:  Array<Slack | null >,
-  ignore_dependabot?: boolean | null,
-  rule: Rule,
+    __typename: 'NotificationRule';
+    id: string;
+    integrationId: string;
+    enabled: boolean;
+    created_at: string;
+    updated_at: string;
+    channels: Array<Slack | null>;
+    ignore_dependabot?: boolean | null;
+    rule: Rule;
 };
 
 export type Slack = {
-  __typename: "Slack",
-  type: NotificationChannelType,
-  webhook_url: string,
+    __typename: 'Slack';
+    type: NotificationChannelType;
+    webhook_url: string;
 };
 
 export type Rule = {
-  __typename: "Rule",
-  owner?: string | null,
-  repository_name?: string | null,
-  workflow_name?: string | null,
-  head_branch?: string | null,
+    __typename: 'Rule';
+    owner?: string | null;
+    repository_name?: string | null;
+    workflow_name?: string | null;
+    head_branch?: string | null;
 };
 
 export type IntegrationInput = {
-  id?: string | null,
-  secret?: string | null,
-  label: string,
-  users?: Array< string | null > | null,
+    id?: string | null;
+    secret?: string | null;
+    label: string;
+    users?: Array<string | null> | null;
 };
 
 export type Integration = {
-  __typename: "Integration",
-  id: string,
-  label: string,
-  secret: string,
-  owner: string,
-  users: Array< string | null >,
+    __typename: 'Integration';
+    id: string;
+    label: string;
+    secret: string;
+    owner: string;
+    users: Array<string | null>;
 };
 
 export type GitGazerWorkflowJobEventFilterInput = {
-  integrationId: string,
-  job_id?: number | null,
-  expire_at?: number | null,
-  created_at?: string | null,
+    integrationId: string;
+    job_id?: number | null;
+    expire_at?: number | null;
+    created_at?: string | null;
 };
 
 export type GitGazerWorkflowJobEventConnection = {
-  __typename: "GitGazerWorkflowJobEventConnection",
-  items:  Array<GitGazerWorkflowJobEvent >,
-  nextToken?: string | null,
+    __typename: 'GitGazerWorkflowJobEventConnection';
+    items: Array<GitGazerWorkflowJobEvent>;
+    nextToken?: string | null;
 };
 
 export type NotificationRuleConnection = {
-  __typename: "NotificationRuleConnection",
-  items:  Array<NotificationRule | null >,
-  nextToken?: string | null,
+    __typename: 'NotificationRuleConnection';
+    items: Array<NotificationRule | null>;
+    nextToken?: string | null;
 };
 
 export type PutJobMutationVariables = {
-  input: GitGazerWorkflowJobEventInput,
+    input: GitGazerWorkflowJobEventInput;
 };
 
 export type PutJobMutation = {
-  putJob?:  {
-    __typename: "GitGazerWorkflowJobEvent",
-    integrationId: string,
-    job_id: number,
-    created_at: string,
-    expire_at: number,
-    workflow_job_event:  {
-      __typename: "WorkflowJobEvent",
-      action: string,
-      workflow_job:  {
-        __typename: "WorkflowJob",
-        id: number,
-        run_id: number,
-        workflow_name: string,
-        run_url: string,
-        run_attempt: number,
-        status: string,
-        conclusion?: string | null,
-        created_at: string,
-        started_at: string,
-        completed_at?: string | null,
-        name: string,
-        head_branch: string,
-      },
-      repository:  {
-        __typename: "Repository",
-        full_name: string,
-        name: string,
-        html_url: string,
-        owner:  {
-          __typename: "Owner",
-          login: string,
-        },
-      },
-      sender:  {
-        __typename: "Sender",
-        login: string,
-        type: string,
-        id: number,
-      },
-    },
-  } | null,
+    putJob?: {
+        __typename: 'GitGazerWorkflowJobEvent';
+        integrationId: string;
+        job_id: number;
+        created_at: string;
+        expire_at: number;
+        workflow_job_event: {
+            __typename: 'WorkflowJobEvent';
+            action: string;
+            workflow_job: {
+                __typename: 'WorkflowJob';
+                id: number;
+                run_id: number;
+                workflow_name: string;
+                run_url: string;
+                run_attempt: number;
+                status: string;
+                conclusion?: string | null;
+                created_at: string;
+                started_at: string;
+                completed_at?: string | null;
+                name: string;
+                head_branch: string;
+            };
+            repository: {
+                __typename: 'Repository';
+                full_name: string;
+                name: string;
+                html_url: string;
+                owner: {
+                    __typename: 'Owner';
+                    login: string;
+                };
+            };
+            sender: {
+                __typename: 'Sender';
+                login: string;
+                type: string;
+                id: number;
+            };
+        };
+    } | null;
 };
 
 export type PutNotificationRuleMutationVariables = {
-  input: NotificationRuleInput,
+    input: NotificationRuleInput;
 };
 
 export type PutNotificationRuleMutation = {
-  putNotificationRule?:  {
-    __typename: "NotificationRule",
-    id: string,
-    integrationId: string,
-    enabled: boolean,
-    created_at: string,
-    updated_at: string,
-    channels:  Array< {
-      __typename: "Slack",
-      type: NotificationChannelType,
-      webhook_url: string,
-    } | null >,
-    ignore_dependabot?: boolean | null,
-    rule:  {
-      __typename: "Rule",
-      owner?: string | null,
-      repository_name?: string | null,
-      workflow_name?: string | null,
-      head_branch?: string | null,
-    },
-  } | null,
+    putNotificationRule?: {
+        __typename: 'NotificationRule';
+        id: string;
+        integrationId: string;
+        enabled: boolean;
+        created_at: string;
+        updated_at: string;
+        channels: Array<{
+            __typename: 'Slack';
+            type: NotificationChannelType;
+            webhook_url: string;
+        } | null>;
+        ignore_dependabot?: boolean | null;
+        rule: {
+            __typename: 'Rule';
+            owner?: string | null;
+            repository_name?: string | null;
+            workflow_name?: string | null;
+            head_branch?: string | null;
+        };
+    } | null;
 };
 
 export type PutIntegrationMutationVariables = {
-  input?: IntegrationInput | null,
+    input?: IntegrationInput | null;
 };
 
 export type PutIntegrationMutation = {
-  putIntegration?:  {
-    __typename: "Integration",
-    id: string,
-    label: string,
-    secret: string,
-    owner: string,
-    users: Array< string | null >,
-  } | null,
+    putIntegration?: {
+        __typename: 'Integration';
+        id: string;
+        label: string;
+        secret: string;
+        owner: string;
+        users: Array<string | null>;
+    } | null;
 };
 
 export type DeleteIntegrationMutationVariables = {
-  id: string,
+    id: string;
 };
 
 export type DeleteIntegrationMutation = {
-  deleteIntegration?: boolean | null,
+    deleteIntegration?: boolean | null;
 };
 
 export type DeleteNotificationRuleMutationVariables = {
-  integrationId: string,
-  id: string,
+    integrationId: string;
+    id: string;
 };
 
 export type DeleteNotificationRuleMutation = {
-  deleteNotificationRule?: boolean | null,
+    deleteNotificationRule?: boolean | null;
 };
 
 export type ListJobsQueryVariables = {
-  filter: GitGazerWorkflowJobEventFilterInput,
-  limit?: number | null,
-  nextToken?: string | null,
+    filter: GitGazerWorkflowJobEventFilterInput;
+    limit?: number | null;
+    nextToken?: string | null;
 };
 
 export type ListJobsQuery = {
-  listJobs?:  {
-    __typename: "GitGazerWorkflowJobEventConnection",
-    items:  Array< {
-      __typename: "GitGazerWorkflowJobEvent",
-      integrationId: string,
-      job_id: number,
-      created_at: string,
-      expire_at: number,
-      workflow_job_event:  {
-        __typename: "WorkflowJobEvent",
-        action: string,
-        workflow_job:  {
-          __typename: "WorkflowJob",
-          id: number,
-          run_id: number,
-          workflow_name: string,
-          run_url: string,
-          run_attempt: number,
-          status: string,
-          conclusion?: string | null,
-          created_at: string,
-          started_at: string,
-          completed_at?: string | null,
-          name: string,
-          head_branch: string,
-        },
-        repository:  {
-          __typename: "Repository",
-          full_name: string,
-          name: string,
-          html_url: string,
-          owner:  {
-            __typename: "Owner",
-            login: string,
-          },
-        },
-        sender:  {
-          __typename: "Sender",
-          login: string,
-          type: string,
-          id: number,
-        },
-      },
-    } >,
-    nextToken?: string | null,
-  } | null,
+    listJobs?: {
+        __typename: 'GitGazerWorkflowJobEventConnection';
+        items: Array<{
+            __typename: 'GitGazerWorkflowJobEvent';
+            integrationId: string;
+            job_id: number;
+            created_at: string;
+            expire_at: number;
+            workflow_job_event: {
+                __typename: 'WorkflowJobEvent';
+                action: string;
+                workflow_job: {
+                    __typename: 'WorkflowJob';
+                    id: number;
+                    run_id: number;
+                    workflow_name: string;
+                    run_url: string;
+                    run_attempt: number;
+                    status: string;
+                    conclusion?: string | null;
+                    created_at: string;
+                    started_at: string;
+                    completed_at?: string | null;
+                    name: string;
+                    head_branch: string;
+                };
+                repository: {
+                    __typename: 'Repository';
+                    full_name: string;
+                    name: string;
+                    html_url: string;
+                    owner: {
+                        __typename: 'Owner';
+                        login: string;
+                    };
+                };
+                sender: {
+                    __typename: 'Sender';
+                    login: string;
+                    type: string;
+                    id: number;
+                };
+            };
+        }>;
+        nextToken?: string | null;
+    } | null;
 };
 
 export type ListNotificationRulesQueryVariables = {
-  nextToken?: string | null,
+    nextToken?: string | null;
 };
 
 export type ListNotificationRulesQuery = {
-  listNotificationRules?:  {
-    __typename: "NotificationRuleConnection",
-    items:  Array< {
-      __typename: "NotificationRule",
-      id: string,
-      integrationId: string,
-      enabled: boolean,
-      created_at: string,
-      updated_at: string,
-      channels:  Array< {
-        __typename: "Slack",
-        type: NotificationChannelType,
-        webhook_url: string,
-      } | null >,
-      ignore_dependabot?: boolean | null,
-      rule:  {
-        __typename: "Rule",
-        owner?: string | null,
-        repository_name?: string | null,
-        workflow_name?: string | null,
-        head_branch?: string | null,
-      },
-    } | null >,
-    nextToken?: string | null,
-  } | null,
+    listNotificationRules?: {
+        __typename: 'NotificationRuleConnection';
+        items: Array<{
+            __typename: 'NotificationRule';
+            id: string;
+            integrationId: string;
+            enabled: boolean;
+            created_at: string;
+            updated_at: string;
+            channels: Array<{
+                __typename: 'Slack';
+                type: NotificationChannelType;
+                webhook_url: string;
+            } | null>;
+            ignore_dependabot?: boolean | null;
+            rule: {
+                __typename: 'Rule';
+                owner?: string | null;
+                repository_name?: string | null;
+                workflow_name?: string | null;
+                head_branch?: string | null;
+            };
+        } | null>;
+        nextToken?: string | null;
+    } | null;
 };
 
-export type ListIntegrationsQueryVariables = {
-};
+export type ListIntegrationsQueryVariables = {};
 
 export type ListIntegrationsQuery = {
-  listIntegrations:  Array< {
-    __typename: "Integration",
-    id: string,
-    label: string,
-    secret: string,
-    owner: string,
-    users: Array< string | null >,
-  } | null >,
+    listIntegrations: Array<{
+        __typename: 'Integration';
+        id: string;
+        label: string;
+        secret: string;
+        owner: string;
+        users: Array<string | null>;
+    } | null>;
 };
 
-export type OnPutJobSubscriptionVariables = {
-};
+export type OnPutJobSubscriptionVariables = {};
 
 export type OnPutJobSubscription = {
-  onPutJob?:  {
-    __typename: "GitGazerWorkflowJobEvent",
-    integrationId: string,
-    job_id: number,
-    created_at: string,
-    expire_at: number,
-    workflow_job_event:  {
-      __typename: "WorkflowJobEvent",
-      action: string,
-      workflow_job:  {
-        __typename: "WorkflowJob",
-        id: number,
-        run_id: number,
-        workflow_name: string,
-        run_url: string,
-        run_attempt: number,
-        status: string,
-        conclusion?: string | null,
-        created_at: string,
-        started_at: string,
-        completed_at?: string | null,
-        name: string,
-        head_branch: string,
-      },
-      repository:  {
-        __typename: "Repository",
-        full_name: string,
-        name: string,
-        html_url: string,
-        owner:  {
-          __typename: "Owner",
-          login: string,
-        },
-      },
-      sender:  {
-        __typename: "Sender",
-        login: string,
-        type: string,
-        id: number,
-      },
-    },
-  } | null,
+    onPutJob?: {
+        __typename: 'GitGazerWorkflowJobEvent';
+        integrationId: string;
+        job_id: number;
+        created_at: string;
+        expire_at: number;
+        workflow_job_event: {
+            __typename: 'WorkflowJobEvent';
+            action: string;
+            workflow_job: {
+                __typename: 'WorkflowJob';
+                id: number;
+                run_id: number;
+                workflow_name: string;
+                run_url: string;
+                run_attempt: number;
+                status: string;
+                conclusion?: string | null;
+                created_at: string;
+                started_at: string;
+                completed_at?: string | null;
+                name: string;
+                head_branch: string;
+            };
+            repository: {
+                __typename: 'Repository';
+                full_name: string;
+                name: string;
+                html_url: string;
+                owner: {
+                    __typename: 'Owner';
+                    login: string;
+                };
+            };
+            sender: {
+                __typename: 'Sender';
+                login: string;
+                type: string;
+                id: number;
+            };
+        };
+    } | null;
 };

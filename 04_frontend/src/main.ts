@@ -1,7 +1,7 @@
-import {registerPlugins} from './plugins';
 import {Amplify} from 'aws-amplify';
-import App from './App.vue';
 import {createApp} from 'vue';
+import App from './App.vue';
+import {registerPlugins} from './plugins';
 import router from './router';
 
 Amplify.configure({
@@ -26,6 +26,12 @@ Amplify.configure({
             endpoint: import.meta.env.VITE_GRAPHQL_ENDPOINT,
             region: import.meta.env.VITE_GRAPHQL_REGION,
             defaultAuthMode: 'userPool',
+        },
+        REST: {
+            api: {
+                endpoint: import.meta.env.VITE_REST_API_ENDPOINT,
+                region: import.meta.env.VITE_REST_API_REGION,
+            },
         },
     },
 });

@@ -10,6 +10,30 @@ data "aws_cloudfront_origin_request_policy" "managed_all_viewer_except_host_head
   name = "Managed-AllViewerExceptHostHeader"
 }
 
+resource "aws_cloudfront_response_headers_policy" "cors_policy" {
+  name = "${var.name_prefix}-cors-policy-${terraform.workspace}"
+
+  cors_config {
+    access_control_allow_credentials = true
+
+    access_control_allow_headers {
+      items = ["Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key", "X-Amz-Security-Token", "X-Amz-User-Agent"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    }
+
+    access_control_allow_origins {
+      items = ["http://localhost:5173", "https://${var.custom_domain_config.domain_name}"]
+    }
+
+    access_control_max_age_sec = 600
+
+    origin_override = true
+  }
+}
+
 resource "aws_cloudfront_origin_access_control" "ui_bucket" {
   count                             = var.with_frontend_stack ? 1 : 0
   name                              = "${var.name_prefix}-ui-bucket-${terraform.workspace}"
@@ -103,13 +127,14 @@ resource "aws_cloudfront_distribution" "this" {
   dynamic "ordered_cache_behavior" {
     for_each = var.with_frontend_stack ? [1] : []
     content {
-      path_pattern             = "/${local.api_gateway_stage_name}/api/*"
-      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-      cached_methods           = ["GET", "HEAD", "OPTIONS"]
-      target_origin_id         = aws_api_gateway_rest_api.this.id
-      viewer_protocol_policy   = "https-only"
-      cache_policy_id          = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+      path_pattern               = "/${local.api_gateway_stage_name}/api/*"
+      allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods             = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id           = aws_api_gateway_rest_api.this.id
+      viewer_protocol_policy     = "https-only"
+      cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
     }
   }
 
