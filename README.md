@@ -22,18 +22,8 @@ cd terraform
 terraform apply
 ```
 
-2. you need to create the authentication stack.
-
-```bash
-cd 03_auth_api
-npm ci
-npm run buildZip
-cd terraform
-terraform apply
-```
-
-3. this is to update the code settings. Set the `aws_appsync_graphql_api_additional_authentication_providers` variable and apply terraform again.
-4. build the frontend and sync it to s3
+2. this is to update the code settings. Set the `aws_appsync_graphql_api_additional_authentication_providers` variable and apply terraform again.
+3. build the frontend and sync it to s3
 
 You first need to set these environment variables in `.env.local`, replace the values with yours.
 
