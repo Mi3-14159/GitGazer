@@ -4,6 +4,91 @@ resource "aws_cloudwatch_log_group" "gw_access_logs" {
   retention_in_days = 30
 }
 
+data "aws_iam_policy_document" "invocation_assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["apigateway.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+data "aws_iam_policy_document" "dynamodb_assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["apigateway.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_iam_role" "invocation_role" {
+  name               = "${var.name_prefix}-api-gw-invocation-${terraform.workspace}"
+  assume_role_policy = data.aws_iam_policy_document.invocation_assume_role.json
+}
+
+resource "aws_iam_role_policy" "invocation_policy" {
+  name   = "default"
+  role   = aws_iam_role.invocation_role.id
+  policy = data.aws_iam_policy_document.invocation_policy.json
+}
+
+resource "aws_iam_role" "dynamodb_role" {
+  name               = "${var.name_prefix}-api-gw-dynamodb-${terraform.workspace}"
+  assume_role_policy = data.aws_iam_policy_document.dynamodb_assume_role.json
+}
+
+resource "aws_iam_role_policy" "dynamodb_policy" {
+  name   = "dynamodb_access"
+  role   = aws_iam_role.dynamodb_role.id
+  policy = data.aws_iam_policy_document.dynamodb_policy.json
+}
+
+data "aws_iam_policy_document" "invocation_policy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_alias.live.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
+  }
+}
+
+data "aws_iam_policy_document" "dynamodb_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:Scan",
+      "dynamodb:Query"
+    ]
+    resources = [
+      aws_dynamodb_table.jobs.arn,
+      "${aws_dynamodb_table.jobs.arn}/index/*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey"
+    ]
+    resources = [aws_kms_key.this.arn]
+  }
+}
+
 resource "aws_api_gateway_rest_api" "this" {
   name        = "${var.name_prefix}-github-rest-api-${terraform.workspace}"
   description = "GitGazer REST API"
@@ -12,6 +97,24 @@ resource "aws_api_gateway_rest_api" "this" {
   }
 }
 
+resource "aws_api_gateway_stage" "this" {
+  deployment_id = aws_api_gateway_deployment.this.id
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  stage_name    = local.api_gateway_stage_name
+  depends_on    = [aws_cloudwatch_log_group.gw_access_logs]
+}
+
+resource "aws_api_gateway_method_settings" "this" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  stage_name  = aws_api_gateway_stage.this.stage_name
+  method_path = "*/*"
+
+  settings {
+    metrics_enabled = true
+    logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
+  }
+  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
+}
 resource "aws_api_gateway_request_validator" "jobs_validator" {
   name                        = "${var.name_prefix}-jobs-validator-${terraform.workspace}"
   rest_api_id                 = aws_api_gateway_rest_api.this.id
@@ -360,108 +463,4 @@ resource "aws_api_gateway_deployment" "this" {
   lifecycle {
     create_before_destroy = true
   }
-}
-
-resource "aws_api_gateway_stage" "this" {
-  deployment_id = aws_api_gateway_deployment.this.id
-  rest_api_id   = aws_api_gateway_rest_api.this.id
-  stage_name    = local.api_gateway_stage_name
-  depends_on    = [aws_cloudwatch_log_group.gw_access_logs]
-}
-
-data "aws_iam_policy_document" "invocation_assume_role" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["apigateway.amazonaws.com"]
-    }
-
-    actions = ["sts:AssumeRole"]
-  }
-}
-
-data "aws_iam_policy_document" "dynamodb_assume_role" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["apigateway.amazonaws.com"]
-    }
-
-    actions = ["sts:AssumeRole"]
-  }
-}
-
-resource "aws_iam_role" "invocation_role" {
-  name               = "${var.name_prefix}-api-gw-invocation-${terraform.workspace}"
-  assume_role_policy = data.aws_iam_policy_document.invocation_assume_role.json
-}
-
-resource "aws_iam_role_policy" "invocation_policy" {
-  name   = "default"
-  role   = aws_iam_role.invocation_role.id
-  policy = data.aws_iam_policy_document.invocation_policy.json
-}
-
-resource "aws_iam_role" "dynamodb_role" {
-  name               = "${var.name_prefix}-api-gw-dynamodb-${terraform.workspace}"
-  assume_role_policy = data.aws_iam_policy_document.dynamodb_assume_role.json
-}
-
-resource "aws_iam_role_policy" "dynamodb_policy" {
-  name   = "dynamodb_access"
-  role   = aws_iam_role.dynamodb_role.id
-  policy = data.aws_iam_policy_document.dynamodb_policy.json
-}
-
-data "aws_iam_policy_document" "invocation_policy" {
-  statement {
-    effect    = "Allow"
-    actions   = ["lambda:InvokeFunction"]
-    resources = [aws_lambda_alias.live.arn]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["s3:GetObject"]
-    resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
-  }
-}
-
-data "aws_iam_policy_document" "dynamodb_policy" {
-  statement {
-    effect = "Allow"
-    actions = [
-      "dynamodb:Scan",
-      "dynamodb:Query"
-    ]
-    resources = [
-      aws_dynamodb_table.jobs.arn,
-      "${aws_dynamodb_table.jobs.arn}/index/*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "kms:Decrypt",
-      "kms:GenerateDataKey"
-    ]
-    resources = [aws_kms_key.this.arn]
-  }
-}
-
-resource "aws_api_gateway_method_settings" "this" {
-  rest_api_id = aws_api_gateway_rest_api.this.id
-  stage_name  = aws_api_gateway_stage.this.stage_name
-  method_path = "*/*"
-
-  settings {
-    metrics_enabled = true
-    logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
-  }
-  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
 }
