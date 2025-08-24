@@ -157,19 +157,5 @@ locals {
   ssm_parameter_gh_webhook_secret_name_prefix = "/${var.name_prefix}-${terraform.workspace}/gh-webhook-secret/"
   frontend_failover_sub_path                  = "fe-failover"
 
-  # api_gateway_routes = [
-  #   {
-  #     path   = "/api/jobs"
-  #     method = "GET"
-  #   },
-  #   {
-  #     path   = "/api/notifications"
-  #     method = "GET"
-  #   },
-  #   {
-  #     path   = "/api/notifications"
-  #     method = "PUT"
-  #     integration
-  #   },
-  # ]
+  github_oauth_scopes = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
 }

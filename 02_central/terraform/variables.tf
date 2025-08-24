@@ -94,3 +94,27 @@ variable "create_gitgazer_alerting" {
   description = "Create alerting for the GitGater resources"
   default     = true
 }
+
+variable "gh_oauth_app_client_id_encrypted" {
+  type        = string
+  sensitive   = true
+  description = "GitHub OAuth app client id, encrypted with KMS"
+}
+
+variable "gh_oauth_app_client_secret_encrypted" {
+  type        = string
+  sensitive   = true
+  description = "GitHub OAuth app client secret, encrypted with KMS"
+}
+
+variable "callback_uls" {
+  type        = list(string)
+  description = "List of callback URLs for the Cognito User Pool Client"
+  default     = []
+}
+
+variable "github_oauth_scopes" {
+  type        = list(string)
+  description = "List of additional GitHub OAuth scopes to request"
+  default     = []
+}
