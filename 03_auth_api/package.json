@@ -6,6 +6,7 @@
   "description": "will handle the auth flow",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.152",
+    "@types/node": "^24.3.0",
     "eslint": "^9.34.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
