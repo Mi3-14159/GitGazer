@@ -1,6 +1,6 @@
+import {lowercaseHeaders} from '@/router/middlewares/lowercaseHeaders';
 import {APIGatewayProxyEvent} from 'aws-lambda';
 import {describe, expect, it} from 'vitest';
-import {lowercaseHeaders} from './lowercaseHeaders';
 
 describe('lowercaseHeaders middleware', () => {
     it('should convert header keys to lowercase', async () => {

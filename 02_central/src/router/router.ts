@@ -1,12 +1,10 @@
-import {getLogger} from '@/logger';
-import {APIGatewayProxyEvent, APIGatewayProxyResult} from 'aws-lambda/trigger/api-gateway-proxy';
+import {APIGatewayProxyEventWithCustomAuth} from '@/types';
+import {APIGatewayProxyResult} from 'aws-lambda/trigger/api-gateway-proxy';
 
-const logger = getLogger();
-
-export type Middleware = (event: APIGatewayProxyEvent) => Promise<APIGatewayProxyResult | undefined>;
+export type Middleware = (event: APIGatewayProxyEventWithCustomAuth) => Promise<APIGatewayProxyResult | undefined>;
 
 // Custom handler type without context and callback
-export type RouteHandler = (event: APIGatewayProxyEvent) => Promise<APIGatewayProxyResult>;
+export type RouteHandler = (event: APIGatewayProxyEventWithCustomAuth) => Promise<APIGatewayProxyResult>;
 
 export class Router {
     routeKeys = new Map<string, RouteHandler>();
@@ -28,10 +26,9 @@ export class Router {
         return this;
     }
 
-    handle: RouteHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    handle: RouteHandler = async (event: APIGatewayProxyEventWithCustomAuth): Promise<APIGatewayProxyResult> => {
         const {httpMethod, resource} = event;
         const handler = this.routeKeys.get(`${httpMethod} ${resource}`);
-        logger.info(`Handling request for resource: ${httpMethod} ${resource}`, this.getRoutes());
 
         if (!handler) {
             return {
@@ -58,7 +55,7 @@ export class Router {
         // Don't merge middlewares globally - instead wrap the handlers with their middlewares
         router.routeKeys.forEach((handler, routeKey) => {
             // Create a wrapped handler that runs the subrouter's middlewares before the actual handler
-            const wrappedHandler: RouteHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+            const wrappedHandler: RouteHandler = async (event: APIGatewayProxyEventWithCustomAuth): Promise<APIGatewayProxyResult> => {
                 // Run the subrouter's middlewares first
                 for (const middleware of router.middlewares) {
                     const middlewareResult = await middleware(event);

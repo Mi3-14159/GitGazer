@@ -1,17 +1,24 @@
+import {getLogger} from '@/logger';
+import {Middleware} from '@/router/router';
+import {IntegrationSecret} from '@/types';
 import {GetParameterCommand, SSMClient} from '@aws-sdk/client-ssm';
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from 'aws-lambda/trigger/api-gateway-proxy';
 import * as crypto from 'crypto';
-import {getLogger} from '../../logger';
-import {IntegrationSecret} from '../../types';
-import {Middleware} from '../router';
 
 const logger = getLogger();
-getLogger();
-
 const ssmClient = new SSMClient({});
 
 export const verifyGithubSign: Middleware = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult | undefined> => {
-    const integrationId = event.path.replace('/api/import/', '');
+    const {pathParameters} = event;
+
+    if (!pathParameters?.integrationId) {
+        return {
+            statusCode: 400,
+            body: 'Bad request: Missing integration ID.',
+        };
+    }
+
+    const integrationId = pathParameters.integrationId;
     const parameter = await loadParameter(integrationId);
     const secret = parameter?.secret;
     if (!secret) {

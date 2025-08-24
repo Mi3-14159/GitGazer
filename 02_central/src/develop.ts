@@ -1,10 +1,11 @@
 import * as http from 'http';
 
-import {APIGatewayProxyEvent, APIGatewayProxyResult, Callback, Context} from 'aws-lambda';
+import {APIGatewayProxyResult, Context} from 'aws-lambda';
 
-import {handler} from './index';
-import {getLogger} from './logger';
-import router from './router';
+import {handler} from '@/index';
+import {getLogger} from '@/logger';
+import router from '@/router';
+import {APIGatewayProxyEventWithCustomAuth} from '@/types';
 
 const logger = getLogger();
 const PORT = 8080;
@@ -17,6 +18,9 @@ function extractPathParameters(routePattern: string, actualPath: string): Record
 
     // Extract the route path from the pattern (remove method prefix)
     const routePath = routePattern.split(' ', 2)[1];
+    if (!routePath) {
+        return pathParams;
+    }
 
     // Convert route pattern to regex with named groups
     const paramNames: string[] = [];
@@ -42,7 +46,7 @@ function findMatchingRoute(method: string, path: string): string | null {
     // Try exact match first
     const exactMatch = `${method} ${path}`;
     if (routeKeys.includes(exactMatch)) {
-        return exactMatch;
+        return path;
     }
 
     // Try pattern matching for parameterized routes
@@ -93,7 +97,7 @@ function findMatchingRoute(method: string, path: string): string | null {
                 }
             });
 
-            const event: APIGatewayProxyEvent = {
+            const event: APIGatewayProxyEventWithCustomAuth = {
                 resource,
                 path,
                 httpMethod,
@@ -140,8 +144,7 @@ function findMatchingRoute(method: string, path: string): string | null {
                 isBase64Encoded: false,
             };
 
-            const callback: Callback<APIGatewayProxyResult> = () => {};
-            const result: APIGatewayProxyResult = (await handler(event, {} as Context, callback)) as APIGatewayProxyResult;
+            const result: APIGatewayProxyResult = (await handler(event, {} as Context)) as APIGatewayProxyResult;
             if (!result) {
                 res.statusCode = 500;
                 res.end();
