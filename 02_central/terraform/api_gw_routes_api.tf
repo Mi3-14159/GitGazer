@@ -1,15 +1,35 @@
 locals {
   api_resources = {
     "jobs" = {
-      method = "GET"
+      methods = ["GET"]
     },
     "notifications" = {
-      method = "GET"
+      methods = ["GET", "PUT"]
     },
     "integrations" = {
-      method = "GET"
+      methods = ["GET"]
     },
   }
+
+  # Flatten the structure to create a map of resource-method combinations
+  api_resource_methods = {
+    for resource_key, resource_config in local.api_resources :
+    resource_key => {
+      for method in resource_config.methods :
+      method => {
+        resource_name = resource_key
+        method        = method
+      }
+    }
+  }
+
+  # Further flatten to create individual entries for each resource-method combination
+  api_methods_flat = merge([
+    for resource_key, methods in local.api_resource_methods : {
+      for method_key, method_config in methods :
+      "${resource_key}-${method_key}" => method_config
+    }
+  ]...)
 }
 
 resource "aws_api_gateway_resource" "api_resources" {
@@ -20,9 +40,9 @@ resource "aws_api_gateway_resource" "api_resources" {
 }
 
 resource "aws_api_gateway_method" "api_resources" {
-  for_each      = aws_api_gateway_resource.api_resources
-  http_method   = try(local.api_resources[each.key].method, null)
-  resource_id   = aws_api_gateway_resource.api_resources[each.key].id
+  for_each      = local.api_methods_flat
+  http_method   = each.value.method
+  resource_id   = aws_api_gateway_resource.api_resources[each.value.resource_name].id
   rest_api_id   = aws_api_gateway_rest_api.this.id
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito.id
@@ -31,7 +51,7 @@ resource "aws_api_gateway_method" "api_resources" {
 resource "aws_api_gateway_integration" "api_resources" {
   for_each                = aws_api_gateway_method.api_resources
   http_method             = aws_api_gateway_method.api_resources[each.key].http_method
-  resource_id             = aws_api_gateway_resource.api_resources[each.key].id
+  resource_id             = aws_api_gateway_method.api_resources[each.key].resource_id
   rest_api_id             = aws_api_gateway_rest_api.this.id
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
