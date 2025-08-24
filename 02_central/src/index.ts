@@ -1,35 +1,15 @@
-import {APIGatewayProxyEvent, APIGatewayProxyHandler} from 'aws-lambda';
-import {authorize} from './auth';
-import {createWorkflowJob} from './graphql';
+import {APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult} from 'aws-lambda';
 import {getLogger} from './logger';
+import app from './router';
 
-const log = getLogger();
+const logger = getLogger();
 
-export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent) => {
-    log.info('handle event', JSON.stringify(event));
+export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    logger.info('handle event', JSON.stringify(event));
 
-    const authorizeResult = await authorize(event);
-    if (authorizeResult) {
-        return authorizeResult;
-    }
+    const result = await app.handle(event);
 
-    try {
-        const githubEvent = JSON.parse(event.body);
-        const integrationId = event.path.replace('/api/import/', '');
-        await createWorkflowJob(integrationId, githubEvent);
-    } catch (error) {
-        log.error({
-            err: error,
-            event,
-        });
-        return {
-            statusCode: 500,
-            body: JSON.stringify({message: 'error'}),
-        };
-    }
+    logger.info('handle result', JSON.stringify(result));
 
-    return {
-        statusCode: 200,
-        body: JSON.stringify({message: 'ok'}),
-    };
+    return result;
 };

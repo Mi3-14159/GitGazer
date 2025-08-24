@@ -7,12 +7,13 @@
     "@aws-crypto/sha256-js": "^5.2.0",
     "node-fetch": "^3.3.2"
   },
-  "description": "handles sqs events and sends them to graphql api",
+  "description": "lambda as API",
   "devDependencies": {
     "@aws-amplify/cli": "^14.0.0",
     "@aws-appsync/eslint-plugin": "^2.0.2",
     "@aws-appsync/utils": "^2.0.3",
     "@aws-sdk/client-cognito-identity-provider": "^3.873.0",
+    "@aws-sdk/client-ssm": "^3.873.0",
     "@aws-sdk/credential-provider-node": "^3.873.0",
     "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.374.0",
@@ -22,7 +23,11 @@
     "eslint": "^9.34.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
-    "typescript": "^5.9.2"
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": "^22"
@@ -30,22 +35,24 @@
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
   "main": "index.js",
-  "name": "jobs-processor",
+  "name": "api-lambda",
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-x64": "^4.47.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.47.1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json && tsc-alias",
     "buildZip": "npm run clean && npm run build && npm run zip",
     "clean": "rimraf ./dist ./tmp",
     "codegen": "amplify codegen --nodownload",
-    "dev:node": "node --enable-source-maps --watch dist/index.js",
-    "dev:tsc": "tsc --watch --preserveWatchOutput",
+    "dev": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
     "pretty": "prettier --write src terraform/functions terraform/resolvers",
     "prezip": "mkdir -p tmp && cp -r dist/* tmp/ && cp package*.json tmp",
-    "start": "node --env-file .env dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:unit": "vitest --project unit --run",
     "zip": "cd tmp && npm ci --omit=dev && zip lambda.zip -qr *"
   },
   "version": "1.0.0"

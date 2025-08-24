@@ -5,7 +5,7 @@ module "this" {
   description      = "GitGazers jobs processor"
   filename         = local.artifact
   function_name    = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
-  handler          = "index.handler"
+  handler          = "src/index.handler"
   runtime          = "nodejs22.x"
   source_code_hash = filebase64sha256(local.artifact)
   timeout          = 15

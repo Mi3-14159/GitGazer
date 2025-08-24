@@ -1,20 +1,35 @@
 {
   "compilerOptions": {
-    "lib": ["es2021", "dom"],
-    "removeComments": true,
-    "moduleResolution": "node",
-    "noUnusedLocals": false,
-    "experimentalDecorators": true, // Enables experimental support for ES7 decorators.
-    "emitDecoratorMetadata": true, // Emit design-type metadata for decorated declarations in source.
-    "noUnusedParameters": true,
-    "target": "es5",
-    "outDir": "dist",
-    "esModuleInterop": true,
     "baseUrl": "./",
-    "resolveJsonModule": true
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2021", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "dist",
+    "paths": {
+      "@/*": ["src/*"],
+      "@common/*": ["../common/src/*"]
+    },
+    "preserveConstEnums": true,
+    "pretty": true,
+    "removeComments": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "target": "es2020",
+    "types": ["node", "vitest"]
   },
+  "exclude": ["node_modules/**/*", "dist/**/*"],
   "include": ["./**/*.ts"],
-  "exclude": ["node_modules/**/*"],
-  "types": ["jest", "node"],
-  "extends": "../tsconfig.json"
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
+  "types": ["vitest", "node", "@types/vitest"]
 }

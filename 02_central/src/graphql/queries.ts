@@ -2,10 +2,10 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
-import * as APITypes from "./api";
+import * as APITypes from './api';
 type GeneratedQuery<InputType, OutputType> = string & {
-  __generatedQueryInput: InputType;
-  __generatedQueryOutput: OutputType;
+    __generatedQueryInput: InputType;
+    __generatedQueryOutput: OutputType;
 };
 
 export const listJobs = /* GraphQL */ `query ListJobs(
@@ -88,10 +88,7 @@ export const listNotificationRules = /* GraphQL */ `query ListNotificationRules(
     __typename
   }
 }
-` as GeneratedQuery<
-  APITypes.ListNotificationRulesQueryVariables,
-  APITypes.ListNotificationRulesQuery
->;
+` as GeneratedQuery<APITypes.ListNotificationRulesQueryVariables, APITypes.ListNotificationRulesQuery>;
 export const listIntegrations = /* GraphQL */ `query ListIntegrations {
   listIntegrations {
     id
@@ -102,7 +99,4 @@ export const listIntegrations = /* GraphQL */ `query ListIntegrations {
     __typename
   }
 }
-` as GeneratedQuery<
-  APITypes.ListIntegrationsQueryVariables,
-  APITypes.ListIntegrationsQuery
->;
+` as GeneratedQuery<APITypes.ListIntegrationsQueryVariables, APITypes.ListIntegrationsQuery>;

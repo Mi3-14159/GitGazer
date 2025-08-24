@@ -2,10 +2,10 @@
 /* eslint-disable */
 // this is an auto generated file. This will be overwritten
 
-import * as APITypes from "./api";
+import * as APITypes from './api';
 type GeneratedMutation<InputType, OutputType> = string & {
-  __generatedMutationInput: InputType;
-  __generatedMutationOutput: OutputType;
+    __generatedMutationInput: InputType;
+    __generatedMutationOutput: OutputType;
 };
 
 export const putJob = /* GraphQL */ `mutation PutJob($input: GitGazerWorkflowJobEventInput!) {
@@ -52,10 +52,7 @@ export const putJob = /* GraphQL */ `mutation PutJob($input: GitGazerWorkflowJob
     __typename
   }
 }
-` as GeneratedMutation<
-  APITypes.PutJobMutationVariables,
-  APITypes.PutJobMutation
->;
+` as GeneratedMutation<APITypes.PutJobMutationVariables, APITypes.PutJobMutation>;
 export const putNotificationRule = /* GraphQL */ `mutation PutNotificationRule($input: NotificationRuleInput!) {
   putNotificationRule(input: $input) {
     id
@@ -79,10 +76,7 @@ export const putNotificationRule = /* GraphQL */ `mutation PutNotificationRule($
     __typename
   }
 }
-` as GeneratedMutation<
-  APITypes.PutNotificationRuleMutationVariables,
-  APITypes.PutNotificationRuleMutation
->;
+` as GeneratedMutation<APITypes.PutNotificationRuleMutationVariables, APITypes.PutNotificationRuleMutation>;
 export const putIntegration = /* GraphQL */ `mutation PutIntegration($input: IntegrationInput) {
   putIntegration(input: $input) {
     id
@@ -93,21 +87,12 @@ export const putIntegration = /* GraphQL */ `mutation PutIntegration($input: Int
     __typename
   }
 }
-` as GeneratedMutation<
-  APITypes.PutIntegrationMutationVariables,
-  APITypes.PutIntegrationMutation
->;
+` as GeneratedMutation<APITypes.PutIntegrationMutationVariables, APITypes.PutIntegrationMutation>;
 export const deleteIntegration = /* GraphQL */ `mutation DeleteIntegration($id: String!) {
   deleteIntegration(id: $id)
 }
-` as GeneratedMutation<
-  APITypes.DeleteIntegrationMutationVariables,
-  APITypes.DeleteIntegrationMutation
->;
+` as GeneratedMutation<APITypes.DeleteIntegrationMutationVariables, APITypes.DeleteIntegrationMutation>;
 export const deleteNotificationRule = /* GraphQL */ `mutation DeleteNotificationRule($integrationId: String!, $id: String!) {
   deleteNotificationRule(integrationId: $integrationId, id: $id)
 }
-` as GeneratedMutation<
-  APITypes.DeleteNotificationRuleMutationVariables,
-  APITypes.DeleteNotificationRuleMutation
->;
+` as GeneratedMutation<APITypes.DeleteNotificationRuleMutationVariables, APITypes.DeleteNotificationRuleMutation>;
