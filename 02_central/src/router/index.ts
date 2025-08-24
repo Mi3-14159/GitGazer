@@ -2,6 +2,7 @@ import {getLogger} from '../logger';
 import {extractCognitoGroups} from './middlewares/authorization';
 import {lowercaseHeaders} from './middlewares/lowercaseHeaders';
 import {Router} from './router';
+import authCongitoRoutes from './routes/authCongito';
 import importRoutes from './routes/import';
 import integrationsRoutes from './routes/integrations';
 import jobsRoutes from './routes/jobs';
@@ -17,6 +18,7 @@ app.middleware(lowercaseHeaders);
 app.middleware(extractCognitoGroups);
 
 // Option 2: Use route-specific middleware (as implemented in import route)
+app.use(authCongitoRoutes);
 app.use(importRoutes);
 app.use(notificationsRoutes);
 app.use(jobsRoutes);

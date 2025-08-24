@@ -35,6 +35,13 @@ export const extractToken = (event: APIGatewayProxyEvent): string | undefined =>
 };
 
 export const extractCognitoGroups: Middleware = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult | undefined> => {
+    const {resource} = event;
+
+    // skip authorization for Cognito routes
+    if (resource.startsWith('/api/auth/cognito/')) {
+        return;
+    }
+
     event.requestContext.authorizer = {
         isAuthorized: false,
         groups: [],

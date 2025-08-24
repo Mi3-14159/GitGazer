@@ -86,3 +86,9 @@ resource "aws_api_gateway_authorizer" "cognito" {
   provider_arns   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : "arn:aws:cognito-idp:${provider.user_pool_config.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/${provider.user_pool_config.user_pool_id}" if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
   identity_source = "method.request.header.Authorization"
 }
+
+resource "aws_api_gateway_resource" "api_root" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "api"
+}
