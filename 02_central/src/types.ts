@@ -1,6 +1,5 @@
 import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
-import {APIGatewayProxyEvent, APIGatewayProxyResult} from 'aws-lambda';
-import {Context} from 'vm';
+import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
 
 export type IntegrationSecret = {
     secret: string;
