@@ -12,7 +12,7 @@
     "@aws-amplify/cli": "^14.0.0",
     "@aws-appsync/eslint-plugin": "^2.0.2",
     "@aws-appsync/utils": "^2.0.3",
-    "@aws-sdk/client-cognito-identity-provider": "^3.876.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.882.0",
     "@aws-sdk/client-dynamodb": "^3.873.0",
     "@aws-sdk/client-ssm": "^3.876.0",
     "@aws-sdk/credential-provider-node": "^3.876.0",
