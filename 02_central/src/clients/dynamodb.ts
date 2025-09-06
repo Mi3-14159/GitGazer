@@ -1,10 +1,14 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
+import {DeleteCommand, DynamoDBDocumentClient, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
 import {Job, NotificationRule} from '@/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
+if (!notificationTableName) {
+    throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
+}
+
 const jobsTableName = process.env.DYNAMO_DB_JOBS_TABLE_ARN;
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -32,22 +36,24 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
         .flat();
 };
 
-export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
+export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number; id?: string}): Promise<NotificationRule[]> => {
     logger.info(`Getting notification rules for integrations: ${params.integrationIds.join(', ')}`);
 
-    if (!notificationTableName) {
-        throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
+    const keyConditionExpressionParts = ['integrationId = :integrationId'];
+    if (params.id) {
+        keyConditionExpressionParts.push('id = :id');
     }
 
     const commands = params.integrationIds.map((integrationId) => {
         return new QueryCommand({
             TableName: notificationTableName,
-            KeyConditionExpression: 'integrationId = :integrationId',
+            KeyConditionExpression: keyConditionExpressionParts.join(' AND '),
             ExpressionAttributeValues: {
                 ':integrationId': integrationId,
+                ...(params.id && {':id': params.id}),
             },
             Limit: params.limit ?? 10,
-            IndexName: 'integrationId-index',
+            IndexName: !params.id ? 'integrationId-index' : undefined,
         });
     });
 
@@ -78,10 +84,6 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
 
 export const putNotificationRule = async (rule: NotificationRule, createOnly?: boolean): Promise<NotificationRule> => {
     logger.info(`Updating notification rule: ${rule.id}`);
-
-    if (!notificationTableName) {
-        throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
-    }
 
     const now = Date.now();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
@@ -118,4 +120,18 @@ export const putNotificationRule = async (rule: NotificationRule, createOnly?: b
 
     const result = await client.send(command);
     return result.Attributes as NotificationRule;
+};
+
+export const deleteNotificationRule = async (ruleId: string, integrationId: string): Promise<void> => {
+    logger.info(`Deleting notification rule: ${ruleId}`);
+
+    const command = new DeleteCommand({
+        TableName: notificationTableName,
+        Key: {
+            id: ruleId,
+            integrationId,
+        },
+    });
+
+    await client.send(command);
 };

@@ -10,6 +10,11 @@ locals {
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
     },
+    "notifications/{id}" = {
+      methods            = ["DELETE"]
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+    },
     "integrations" = {
       methods            = ["GET"]
       authorization_type = "JWT"

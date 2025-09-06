@@ -2,88 +2,41 @@
     import BooleanChip from '@components/BooleanChip.vue';
     import NotificationCard from '@components/NotificationCard.vue';
     import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
-    import type {
-        DeleteNotificationRuleMutationVariables,
-        Integration,
-        NotificationRule,
-        NotificationRuleInput,
-        PutNotificationRuleMutationVariables,
-    } from '@graphql/api';
-    import {deleteNotificationRule, putNotificationRule} from '@graphql/mutations';
-    import {listIntegrations, listNotificationRules} from '@graphql/queries';
-    import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {computed, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
+    import {NotificationRule} from '../../../02_central/src/types';
+    import {useIntegration} from '../composables/useIntegration';
+    import {useNotification} from '../composables/useNotification';
 
-    const client = generateClient();
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const integrations = reactive(new Array());
     const dialog = ref(false);
     const editingRule = ref<NotificationRule | null>(null);
     const {smAndDown} = useDisplay();
 
-    type PutNotificationRuleResponse = {
-        putNotificationRule: NotificationRule;
-    };
+    const {getNotifications, postNotification, deleteNotification} = useNotification();
+    const {getIntegrations} = useIntegration();
 
-    type ListIntegrationsResponse = {
-        listIntegrations: Integration[];
-    };
-
-    type DeleteNotificationRuleResponse = {
-        deleteNotificationRule: boolean;
-    };
-
-    const handlePutNotificationRule = async (putNotificationRuleInput: NotificationRuleInput) => {
-        try {
-            const variables: PutNotificationRuleMutationVariables = {input: putNotificationRuleInput};
-            const response = await client.graphql<GraphQLQuery<PutNotificationRuleResponse>>({
-                query: putNotificationRule,
-                variables,
-            });
-
-            notificationRules.set(
-                `${response.data.putNotificationRule.integrationId}-${response.data.putNotificationRule.id}`,
-                response.data.putNotificationRule,
-            );
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    type ListNotificationRulesResponse = {
-        listNotificationRules: {
-            items: NotificationRule[];
-        };
+    const handlePutNotificationRule = async (notificationRule: NotificationRule) => {
+        const response = await postNotification(notificationRule);
+        notificationRules.set(`${response.integrationId}-${response.id}`, response);
     };
 
     const handleListNotificationRules = async () => {
-        try {
-            const [notificationRulesResponse, integrationsResponse] = await Promise.allSettled([
-                client.graphql<GraphQLQuery<ListNotificationRulesResponse>>({
-                    query: listNotificationRules,
-                }),
-                client.graphql<GraphQLQuery<ListIntegrationsResponse>>({
-                    query: listIntegrations,
-                }),
-            ]);
+        const [notificationRulesResponse, integrationsResponse] = await Promise.allSettled([getNotifications(), getIntegrations()]);
 
-            if (notificationRulesResponse.status !== 'fulfilled') {
-                throw new Error(notificationRulesResponse.reason);
-            }
-
-            if (integrationsResponse.status !== 'fulfilled') {
-                throw new Error(integrationsResponse.reason);
-            }
-
-            notificationRulesResponse.value.data.listNotificationRules.items?.forEach((notificationRule: NotificationRule) => {
+        notificationRulesResponse.status === 'fulfilled' &&
+            notificationRulesResponse.value.forEach((notificationRule: NotificationRule) => {
                 notificationRules.set(`${notificationRule.integrationId}-${notificationRule.id}`, notificationRule);
             });
 
-            integrations.push(...integrationsResponse.value.data.listIntegrations);
-        } catch (error) {
-            console.error(error);
-        }
+        integrationsResponse.status === 'fulfilled' && integrations.push(...integrationsResponse.value);
+    };
+
+    const handleDeleteNotificationRule = async (integrationId: string, id: string) => {
+        await deleteNotification(id);
+
+        notificationRules.delete(`${integrationId}-${id}`);
     };
 
     handleListNotificationRules();
@@ -93,8 +46,8 @@
         editingRule.value = null;
     };
 
-    const onSave = async (notificationRuleInput: NotificationRuleInput) => {
-        await handlePutNotificationRule(notificationRuleInput);
+    const onSave = async (notificationRule: NotificationRule) => {
+        await handlePutNotificationRule(notificationRule);
         dialog.value = false;
         editingRule.value = null;
     };
@@ -107,24 +60,6 @@
     const onAddNew = () => {
         editingRule.value = null;
         dialog.value = true;
-    };
-
-    const handleDeleteNotificationRule = async (integrationId: string, id: string) => {
-        try {
-            const variables: DeleteNotificationRuleMutationVariables = {integrationId, id};
-            await client.graphql<GraphQLQuery<DeleteNotificationRuleResponse>>({
-                query: deleteNotificationRule,
-                variables,
-            });
-        } catch (error) {
-            console.error(error);
-        }
-
-        const notificationRuleToDelete = Array.from(notificationRules.values()).find((rule) => rule.id === id);
-        if (notificationRuleToDelete) {
-            // Remove from the reactive map
-            notificationRules.delete(`${notificationRuleToDelete.integrationId}-${notificationRuleToDelete.id}`);
-        }
     };
 
     const parseOptional = (value: string | null | undefined): string => {
@@ -263,7 +198,7 @@
                                         text="Yes, delete"
                                         color="error"
                                         @click="
-                                            handleDeleteNotificationRule(item.integrationId, item.id);
+                                            handleDeleteNotificationRule(item.integrationId, item.id!);
                                             isActive.value = false;
                                         "
                                     ></v-btn>

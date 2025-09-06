@@ -1,24 +1,30 @@
 <script setup lang="ts">
-    import {Integration, NotificationChannelType, NotificationRule, NotificationRuleInput} from '@graphql/api';
+    import {Integration, NotificationChannelType} from '@graphql/api';
     import {onMounted, ref} from 'vue';
+    import {NotificationRule} from '../../../02_central/src/types';
 
     const props = defineProps<{
         integrations: Integration[];
         onClose: () => void;
-        onSave: (notificationRuleInput: NotificationRuleInput) => void;
+        onSave: (notificationRule: NotificationRule) => void;
         existingRule?: NotificationRule | null;
     }>();
 
     const form = ref<any>(null);
 
-    const notificationRule = ref<NotificationRuleInput>({
+    const notificationRule = ref<NotificationRule>({
         id: '',
-        owner: '',
-        repository_name: '',
-        workflow_name: '',
-        head_branch: '',
         integrationId: '',
         enabled: false,
+        createdAt: '',
+        updatedAt: '',
+        ignore_dependabot: false,
+        rule: {
+            owner: '',
+            repository_name: '',
+            workflow_name: '',
+            head_branch: '',
+        },
         channels: [
             {
                 type: NotificationChannelType.SLACK,
@@ -31,18 +37,7 @@
     onMounted(() => {
         if (props.existingRule) {
             notificationRule.value = {
-                id: props.existingRule.id || '',
-                integrationId: props.existingRule.integrationId,
-                owner: props.existingRule.rule.owner || '',
-                repository_name: props.existingRule.rule.repository_name || '',
-                workflow_name: props.existingRule.rule.workflow_name || '',
-                head_branch: props.existingRule.rule.head_branch || '',
-                enabled: props.existingRule.enabled,
-                channels: props.existingRule.channels.map((channel) => ({
-                    type: channel?.type || NotificationChannelType.SLACK,
-                    webhook_url: channel?.webhook_url || '',
-                })),
-                ignore_dependabot: props.existingRule.ignore_dependabot,
+                ...props.existingRule,
             };
         }
     });
@@ -82,7 +77,7 @@
                     >
                         <v-text-field
                             label="Owner"
-                            v-model="notificationRule.owner"
+                            v-model="notificationRule.rule.owner"
                         ></v-text-field>
                     </v-col>
 
@@ -93,7 +88,7 @@
                     >
                         <v-text-field
                             label="Repository name"
-                            v-model="notificationRule.repository_name"
+                            v-model="notificationRule.rule.repository_name"
                         ></v-text-field>
                     </v-col>
 
@@ -104,7 +99,7 @@
                     >
                         <v-text-field
                             label="Workflow name"
-                            v-model="notificationRule.workflow_name"
+                            v-model="notificationRule.rule.workflow_name"
                         ></v-text-field>
                     </v-col>
 
@@ -115,7 +110,7 @@
                     >
                         <v-text-field
                             label="Head branch"
-                            v-model="notificationRule.head_branch"
+                            v-model="notificationRule.rule.head_branch"
                             placeholder="e.g., main, master, feature/*"
                         ></v-text-field>
                     </v-col>

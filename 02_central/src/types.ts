@@ -29,8 +29,8 @@ export type NotificationRule = {
     integrationId: string;
     id?: string;
     channels: NotificationRuleChannel[];
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: string;
+    updatedAt: string;
     enabled: boolean;
     ignore_dependabot: boolean;
     rule: NotificationRuleRule;
@@ -42,8 +42,8 @@ export const isNotificationRule = (rule: any): rule is NotificationRule => {
         typeof rule.integrationId === 'string' &&
         Array.isArray(rule.channels) &&
         rule.channels.every(isNotificationRuleChannel) &&
-        rule.createdAt instanceof Date &&
-        rule.updatedAt instanceof Date &&
+        typeof rule.createdAt === 'string' &&
+        typeof rule.updatedAt === 'string' &&
         typeof rule.enabled === 'boolean' &&
         typeof rule.ignore_dependabot === 'boolean' &&
         isNotificationRuleRule(rule.rule)

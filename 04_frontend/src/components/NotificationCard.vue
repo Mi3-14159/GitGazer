@@ -1,5 +1,6 @@
 <script setup lang="ts">
-    import type {Integration, NotificationRule} from '@graphql/api';
+    import type {Integration} from '@graphql/api';
+    import {NotificationRule} from '../../../02_central/src/types';
 
     const props = defineProps<{
         notificationRule: NotificationRule;
@@ -153,7 +154,7 @@
                         cols="8"
                         class="field-value"
                     >
-                        {{ new Date(props.notificationRule.created_at).toLocaleString() }}
+                        {{ new Date(props.notificationRule.createdAt).toLocaleString() }}
                     </v-col>
                 </v-row>
             </v-container>
@@ -191,7 +192,7 @@
                                 text="Yes, delete"
                                 color="error"
                                 @click="
-                                    onDelete(props.notificationRule.integrationId, props.notificationRule.id);
+                                    onDelete(props.notificationRule.integrationId, props.notificationRule.id!);
                                     isActive.value = false;
                                 "
                             ></v-btn>

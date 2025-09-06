@@ -22,7 +22,14 @@
     "skipLibCheck": true,
     "composite": true
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/typed-router.d.ts", "../02_central/src/graphql/**/*.ts"],
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx",
+    "./src/**/*.vue",
+    "./src/typed-router.d.ts",
+    "../02_central/src/graphql/**/*.ts",
+    "../02_central/src/types.ts"
+  ],
   "exclude": ["dist", "node_modules", "cypress"],
   "references": [{"path": "./tsconfig.node.json"}],
   "extends": "../tsconfig.json"

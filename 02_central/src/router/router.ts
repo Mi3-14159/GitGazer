@@ -22,6 +22,11 @@ export class Router {
         return this;
     }
 
+    delete(route: string, handler: RouteHandler): Router {
+        this.routeKeys.set(`DELETE ${route}`, handler);
+        return this;
+    }
+
     // Add middleware method
     middleware(middleware: MiddlewareHandler): Router {
         this.middlewares.push(middleware);

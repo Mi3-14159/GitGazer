@@ -1,8 +1,11 @@
 import {Amplify} from 'aws-amplify';
+import {fetchAuthSession} from 'aws-amplify/auth';
 import {createApp} from 'vue';
 import App from './App.vue';
 import {registerPlugins} from './plugins';
 import router from './router';
+
+const authToken = (await fetchAuthSession()).tokens?.idToken?.toString();
 
 Amplify.configure({
     Auth: {
@@ -31,6 +34,9 @@ Amplify.configure({
             api: {
                 endpoint: import.meta.env.VITE_REST_API_ENDPOINT,
                 region: import.meta.env.VITE_REST_API_REGION,
+            },
+            headers: async () => {
+                return {Authorization: authToken};
             },
         },
     },
