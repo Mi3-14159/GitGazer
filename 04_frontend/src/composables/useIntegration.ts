@@ -1,6 +1,6 @@
+import {Integration} from '@common/types';
 import {get} from 'aws-amplify/api';
 import {fetchAuthSession} from 'aws-amplify/auth';
-import {Integration} from '../../../02_central/src/types';
 
 export const useIntegration = () => {
     const getIntegrations = async () => {

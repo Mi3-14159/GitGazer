@@ -1,5 +1,5 @@
 import {getParameters} from '@/clients/ssm';
-import {Integration} from '@/types';
+import {Integration} from '@common/types';
 
 export const getIntegrations = async (params: {integrationIds: string[]; limit?: number}): Promise<Integration[]> => {
     const {integrationIds} = params;

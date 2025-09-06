@@ -1,13 +1,16 @@
 <script setup lang="ts">
+    import {Integration} from '@common/types';
     import IntegrationCard from '@components/IntegrationCard.vue';
     import IntegrationDetailsCard from '@components/IntegrationDetailsCard.vue';
-    import {DeleteIntegrationMutationVariables, Integration, PutIntegrationMutationVariables} from '@graphql/api';
+    import {DeleteIntegrationMutationVariables, PutIntegrationMutationVariables} from '@graphql/api';
     import {deleteIntegration, putIntegration} from '@graphql/mutations';
-    import {listIntegrations} from '@graphql/queries';
     import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {AuthUser, fetchAuthSession, getCurrentUser} from 'aws-amplify/auth';
     import {computed, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
+    import {useIntegration} from '../composables/useIntegration';
+
+    const {getIntegrations} = useIntegration();
 
     const client = generateClient();
     const integrations = reactive(new Map());
@@ -23,21 +26,11 @@
 
     getUser();
 
-    type ListIntegrationsResponse = {
-        listIntegrations: Integration[];
-    };
-
     const handleListIntegrations = async () => {
-        try {
-            const response = await client.graphql<GraphQLQuery<ListIntegrationsResponse>>({
-                query: listIntegrations,
-            });
-            response.data.listIntegrations.forEach((integration: Integration) => {
-                integrations.set(integration.id, integration);
-            });
-        } catch (error) {
-            console.error(error);
-        }
+        const response = await getIntegrations();
+        response.forEach((integration: Integration) => {
+            integrations.set(integration.id, integration);
+        });
     };
 
     handleListIntegrations();

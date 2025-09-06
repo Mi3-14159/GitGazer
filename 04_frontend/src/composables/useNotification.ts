@@ -1,6 +1,6 @@
+import {NotificationRule} from '@common/types';
 import {del, get, post} from 'aws-amplify/api';
 import {fetchAuthSession} from 'aws-amplify/auth';
-import {NotificationRule} from '../../../02_central/src/types';
 
 export const useNotification = () => {
     const getNotifications = async () => {

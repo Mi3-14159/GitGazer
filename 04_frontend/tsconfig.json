@@ -8,7 +8,8 @@
     "moduleResolution": "bundler",
     "paths": {
       "@components/*": ["src/components/*"],
-      "@graphql/*": ["../02_central/src/graphql/*"]
+      "@graphql/*": ["../02_central/src/graphql/*"],
+      "@common/*": ["../common/src/*"]
     },
     "resolveJsonModule": true,
     "types": ["vite/client", "node"],
@@ -28,7 +29,7 @@
     "./src/**/*.vue",
     "./src/typed-router.d.ts",
     "../02_central/src/graphql/**/*.ts",
-    "../02_central/src/types.ts"
+    "../common/src/types/**/*.ts"
   ],
   "exclude": ["dist", "node_modules", "cypress"],
   "references": [{"path": "./tsconfig.node.json"}],

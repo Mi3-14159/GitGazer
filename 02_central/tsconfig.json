@@ -12,7 +12,8 @@
     "noUnusedParameters": true,
     "outDir": "dist",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@common/*": ["../common/src/*"]
     },
     "preserveConstEnums": true,
     "pretty": true,

@@ -2,7 +2,8 @@ import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DeleteCommand, DynamoDBDocumentClient, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {Job, NotificationRule} from '@/types';
+import {Job} from '@/types';
+import {NotificationRule} from '@common/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {

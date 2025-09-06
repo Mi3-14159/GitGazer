@@ -1,6 +1,6 @@
 <script setup lang="ts">
+    import {NotificationRule} from '@common/types';
     import type {Integration} from '@graphql/api';
-    import {NotificationRule} from '../../../02_central/src/types';
 
     const props = defineProps<{
         notificationRule: NotificationRule;

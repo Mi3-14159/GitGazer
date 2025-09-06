@@ -1,10 +1,10 @@
 <script setup lang="ts">
+    import {NotificationRule} from '@common/types';
     import BooleanChip from '@components/BooleanChip.vue';
     import NotificationCard from '@components/NotificationCard.vue';
     import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
     import {computed, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
-    import {NotificationRule} from '../../../02_central/src/types';
     import {useIntegration} from '../composables/useIntegration';
     import {useNotification} from '../composables/useNotification';
 

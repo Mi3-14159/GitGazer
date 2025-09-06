@@ -1,5 +1,5 @@
-import {Integration} from '@/types';
 import {GetParametersCommand, SSMClient} from '@aws-sdk/client-ssm';
+import {Integration} from '@common/types';
 
 import {getLogger} from '@/logger';
 

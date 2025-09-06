@@ -1,7 +1,7 @@
 <script setup lang="ts">
+    import {NotificationRule} from '@common/types';
     import {Integration, NotificationChannelType} from '@graphql/api';
     import {onMounted, ref} from 'vue';
-    import {NotificationRule} from '../../../02_central/src/types';
 
     const props = defineProps<{
         integrations: Integration[];

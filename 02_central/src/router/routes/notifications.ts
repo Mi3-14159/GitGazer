@@ -1,5 +1,5 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
-import {isNotificationRule} from '@/types';
+import {isNotificationRule} from '@common/types';
 import {getLogger} from '../../logger';
 import {Router} from '../router';
 

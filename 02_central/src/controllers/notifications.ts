@@ -1,5 +1,5 @@
 import {deleteNotificationRule as ddeleteNotificationRule, getNotificationRulesBy, putNotificationRule} from '@/clients/dynamodb';
-import {NotificationRule} from '@/types';
+import {NotificationRule} from '@common/types';
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
     const {integrationIds} = params;
