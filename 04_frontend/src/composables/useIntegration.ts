@@ -9,7 +9,7 @@ export const useIntegration = () => {
 
         const restOperation = get({
             apiName: 'api',
-            path: '/api/integrations',
+            path: '/integrations',
             options: {
                 withCredentials: true,
                 headers: {

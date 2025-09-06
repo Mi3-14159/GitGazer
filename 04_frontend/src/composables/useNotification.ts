@@ -9,7 +9,7 @@ export const useNotification = () => {
 
         const restOperation = get({
             apiName: 'api',
-            path: '/api/notifications',
+            path: '/notifications',
             options: {
                 withCredentials: true,
                 headers: {
@@ -28,7 +28,7 @@ export const useNotification = () => {
 
         const restOperation = post({
             apiName: 'api',
-            path: '/api/notifications',
+            path: '/notifications',
             options: {
                 withCredentials: true,
                 headers: {
@@ -48,7 +48,7 @@ export const useNotification = () => {
 
         const restOperation = del({
             apiName: 'api',
-            path: `/api/notifications/${id}`,
+            path: `/notifications/${id}`,
             options: {
                 withCredentials: true,
                 headers: {
