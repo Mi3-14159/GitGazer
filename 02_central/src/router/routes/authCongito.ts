@@ -37,7 +37,11 @@ router.get('/api/auth/cognito/private', async () => {
     };
 });
 
-const parseBody = (body: string): Body => {
+const parseBody = (body: string, isBase64Encoded: boolean): Body => {
+    if (isBase64Encoded) {
+        body = Buffer.from(body, 'base64').toString('utf-8');
+    }
+
     const result: Record<string, string> = {};
 
     body.split('&').forEach((param) => {
@@ -51,7 +55,7 @@ const parseBody = (body: string): Body => {
 router.post('/api/auth/cognito/token', async (event) => {
     logger.info('Handling request for /api/auth/cognito/token');
 
-    const {body} = event;
+    const {body, isBase64Encoded} = event;
     if (!body) {
         logger.error('No body found');
         return {
@@ -60,7 +64,7 @@ router.post('/api/auth/cognito/token', async (event) => {
         };
     }
 
-    const result = parseBody(body);
+    const result = parseBody(body, isBase64Encoded);
     const token = await (
         await fetch(
             `https://github.com/login/oauth/access_token?client_id=${result.client_id}&client_secret=${result.client_secret}&code=${result.code}`,

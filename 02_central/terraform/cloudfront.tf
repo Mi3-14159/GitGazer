@@ -75,28 +75,13 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   origin {
-    domain_name = "${aws_api_gateway_rest_api.this.id}.execute-api.${var.aws_region}.amazonaws.com"
-    origin_id   = aws_api_gateway_rest_api.this.id
+    domain_name = "${aws_apigatewayv2_api.this.id}.execute-api.${var.aws_region}.amazonaws.com"
+    origin_id   = aws_apigatewayv2_api.this.id
     custom_origin_config {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
-    }
-  }
-
-  dynamic "origin" {
-    for_each = var.with_frontend_stack ? [1] : []
-    content {
-      domain_name = "${aws_api_gateway_rest_api.this.id}.execute-api.${var.aws_region}.amazonaws.com"
-      origin_id   = "${aws_api_gateway_rest_api.this.id}-frontend"
-      origin_path = "/${local.api_gateway_stage_name}/${local.frontend_failover_sub_path}"
-      custom_origin_config {
-        http_port              = 80
-        https_port             = 443
-        origin_protocol_policy = "https-only"
-        origin_ssl_protocols   = ["TLSv1.2"]
-      }
     }
   }
 
@@ -109,6 +94,21 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  dynamic "origin" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
+      domain_name = "${aws_apigatewayv2_api.this.id}.execute-api.${var.aws_region}.amazonaws.com"
+      origin_id   = "${aws_apigatewayv2_api.this.id}-frontend"
+      origin_path = "/${local.frontend_failover_sub_path}"
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
   origin_group {
     origin_id = "frontend-with-failover"
 
@@ -117,7 +117,7 @@ resource "aws_cloudfront_distribution" "this" {
     }
 
     dynamic "member" {
-      for_each = var.with_frontend_stack ? [module.ui_bucket.s3_bucket_id, "${aws_api_gateway_rest_api.this.id}-frontend"] : []
+      for_each = var.with_frontend_stack ? [module.ui_bucket.s3_bucket_id, "${aws_apigatewayv2_api.this.id}-frontend"] : []
       content {
         origin_id = member.value
       }
@@ -127,10 +127,10 @@ resource "aws_cloudfront_distribution" "this" {
   dynamic "ordered_cache_behavior" {
     for_each = var.with_frontend_stack ? [1] : []
     content {
-      path_pattern               = "/${local.api_gateway_stage_name}/api/*"
+      path_pattern               = "/api/*"
       allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
       cached_methods             = ["GET", "HEAD", "OPTIONS"]
-      target_origin_id           = aws_api_gateway_rest_api.this.id
+      target_origin_id           = aws_apigatewayv2_api.this.id
       viewer_protocol_policy     = "https-only"
       cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
       origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id

@@ -18,6 +18,7 @@ module "this" {
       SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX = local.ssm_parameter_gh_webhook_secret_name_prefix
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
       DYNAMO_DB_JOBS_TABLE_ARN                    = aws_dynamodb_table.jobs.name
+      UI_BUCKET_NAME                              = module.ui_bucket.s3_bucket_id
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn
@@ -78,6 +79,12 @@ data "aws_iam_policy_document" "this" {
       try("${aws_dynamodb_table.notification_rules[0].arn}/index/*", null),
     ])
   }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
+  }
 }
 
 resource "aws_iam_policy" "this" {
@@ -96,5 +103,5 @@ resource "aws_lambda_permission" "apigw" {
   function_name = aws_lambda_alias.live.function_name
   qualifier     = aws_lambda_alias.live.name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*"
 }

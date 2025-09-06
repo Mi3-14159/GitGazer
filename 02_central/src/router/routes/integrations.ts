@@ -8,14 +8,9 @@ const router = new Router();
 router.get('/api/integrations', async (event) => {
     logger.info('Handling request for /api/integrations');
 
-    const {
-        requestContext: {
-            authorizer: {groups},
-        },
-    } = event;
-
+    const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const integrations = await getIntegrations({
-        integrationIds: groups ?? [],
+        integrationIds: groups,
     });
 
     return {

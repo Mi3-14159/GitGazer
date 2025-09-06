@@ -1,14 +1,13 @@
 import {getLogger} from '@/logger';
-import {Middleware} from '@/router/router';
 import {SSMIntegrationSecret} from '@/types';
 import {GetParameterCommand, SSMClient} from '@aws-sdk/client-ssm';
-import {APIGatewayProxyEvent, APIGatewayProxyResult} from 'aws-lambda/trigger/api-gateway-proxy';
+import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from 'aws-lambda/trigger/api-gateway-proxy';
 import * as crypto from 'crypto';
 
 const logger = getLogger();
 const ssmClient = new SSMClient({});
 
-export const verifyGithubSign: Middleware = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult | undefined> => {
+export const verifyGithubSign = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<void | APIGatewayProxyResultV2> => {
     const {pathParameters} = event;
 
     if (!pathParameters?.integrationId) {

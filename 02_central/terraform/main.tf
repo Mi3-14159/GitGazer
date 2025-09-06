@@ -153,7 +153,6 @@ locals {
     GRAPHQL  = try(format("https://%s/graphql", aws_appsync_domain_name.this.domain_name), aws_appsync_graphql_api.this.uris["GRAPHQL"])
     REALTIME = try(format("wss://%s/graphql/realtime", aws_appsync_domain_name.this.domain_name), aws_appsync_graphql_api.this.uris["REALTIME"])
   }
-  api_gateway_stage_name                      = "v1"
   ssm_parameter_gh_webhook_secret_name_prefix = "/${var.name_prefix}-${terraform.workspace}/gh-webhook-secret/"
   frontend_failover_sub_path                  = "fe-failover"
 

@@ -1,16 +1,14 @@
-import {APIGatewayProxyResult} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from 'aws-lambda';
 import {getLogger} from './logger';
 import app from './router';
-import {APIGatewayProxyEventWithCustomAuth, CustomAPIGatewayProxyHandler} from './types';
 
 const logger = getLogger();
 
-export const handler: CustomAPIGatewayProxyHandler = async (event: APIGatewayProxyEventWithCustomAuth): Promise<APIGatewayProxyResult> => {
+export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> => {
     logger.info('handle event', JSON.stringify(event));
 
-    const result = await app.handle(event);
+    let result = await app.handle(event);
 
-    logger.info('handle result', JSON.stringify(result));
-
+    logger.info('result', JSON.stringify(result));
     return result;
 };

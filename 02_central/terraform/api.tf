@@ -1,34 +1,47 @@
 resource "aws_cloudwatch_log_group" "gw_access_logs" {
   count             = var.apigateway_logging_enabled ? 1 : 0
-  name              = "/aws/apigateway/${var.name_prefix}-rest-api-${terraform.workspace}/${local.api_gateway_stage_name}"
+  name              = "/aws/apigatewayv2/${var.name_prefix}-http-api-${terraform.workspace}"
   retention_in_days = 30
 }
 
-resource "aws_api_gateway_rest_api" "this" {
-  name        = "${var.name_prefix}-github-rest-api-${terraform.workspace}"
-  description = "GitGazer REST API"
-  endpoint_configuration {
-    types = ["REGIONAL"]
+resource "aws_apigatewayv2_api" "this" {
+  name          = "${var.name_prefix}-github-http-api-${terraform.workspace}"
+  description   = "GitGazer HTTP API"
+  protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_credentials = var.custom_domain_config != null ? true : false
+    allow_headers     = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
+    allow_methods     = ["*"]
+    allow_origins     = var.custom_domain_config != null ? ["https://${var.custom_domain_config.domain_name}"] : ["*"]
+    expose_headers    = ["date", "keep-alive"]
+    max_age           = 86400
   }
 }
 
-resource "aws_api_gateway_deployment" "this" {
-  rest_api_id = aws_api_gateway_rest_api.this.id
+resource "aws_apigatewayv2_stage" "this" {
+  api_id      = aws_apigatewayv2_api.this.id
+  name        = "$default"
+  auto_deploy = true
 
-  triggers = {
-    redeployment = uuid()
+  dynamic "access_log_settings" {
+    for_each = var.apigateway_logging_enabled ? [1] : []
+    content {
+      destination_arn = aws_cloudwatch_log_group.gw_access_logs[0].arn
+      format = jsonencode({
+        requestId      = "$context.requestId"
+        ip             = "$context.identity.sourceIp"
+        requestTime    = "$context.requestTime"
+        httpMethod     = "$context.httpMethod"
+        routeKey       = "$context.routeKey"
+        status         = "$context.status"
+        protocol       = "$context.protocol"
+        responseLength = "$context.responseLength"
+      })
+    }
   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_api_gateway_stage" "this" {
-  deployment_id = aws_api_gateway_deployment.this.id
-  rest_api_id   = aws_api_gateway_rest_api.this.id
-  stage_name    = local.api_gateway_stage_name
-  depends_on    = [aws_cloudwatch_log_group.gw_access_logs]
+  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
 }
 
 data "aws_iam_policy_document" "invocation_assume_role" {
@@ -47,10 +60,12 @@ data "aws_iam_policy_document" "invocation_assume_role" {
 resource "aws_iam_role" "invocation_role" {
   name               = "${var.name_prefix}-api-gw-invocation-${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.invocation_assume_role.json
-  inline_policy {
-    name   = "default"
-    policy = data.aws_iam_policy_document.invocation_policy.json
-  }
+}
+
+resource "aws_iam_role_policy" "invocation_policy" {
+  name   = "default"
+  role   = aws_iam_role.invocation_role.id
+  policy = data.aws_iam_policy_document.invocation_policy.json
 }
 
 data "aws_iam_policy_document" "invocation_policy" {
@@ -67,28 +82,14 @@ data "aws_iam_policy_document" "invocation_policy" {
   }
 }
 
-resource "aws_api_gateway_method_settings" "this" {
-  rest_api_id = aws_api_gateway_rest_api.this.id
-  stage_name  = aws_api_gateway_stage.this.stage_name
-  method_path = "*/*"
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.this.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "${var.name_prefix}-cognito-authorizer-${terraform.workspace}"
 
-  settings {
-    metrics_enabled = true
-    logging_level   = var.apigateway_logging_enabled ? "INFO" : "OFF"
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.this.id]
+    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.this.id}"
   }
-  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
-}
-
-resource "aws_api_gateway_authorizer" "cognito" {
-  name            = "${var.name_prefix}-cognito-authorizer-${terraform.workspace}"
-  rest_api_id     = aws_api_gateway_rest_api.this.id
-  type            = "COGNITO_USER_POOLS"
-  provider_arns   = [for provider in var.aws_appsync_graphql_api_additional_authentication_providers : "arn:aws:cognito-idp:${provider.user_pool_config.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/${provider.user_pool_config.user_pool_id}" if provider.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
-  identity_source = "method.request.header.Authorization"
-}
-
-resource "aws_api_gateway_resource" "api_root" {
-  rest_api_id = aws_api_gateway_rest_api.this.id
-  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
-  path_part   = "api"
 }

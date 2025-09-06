@@ -1,13 +1,10 @@
-import {Middleware} from '@/router/router';
-import {APIGatewayProxyEvent, APIGatewayProxyResult} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
-export const lowercaseHeaders: Middleware = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult | undefined> => {
+export const lowercaseHeaders = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<void> => {
     if (!event.headers) {
-        return undefined;
+        return;
     }
 
-    const lowercaseHeaders = Object.fromEntries(Object.entries(event.headers).map(([key, value]) => [key.toLowerCase(), value]));
-    event.headers = lowercaseHeaders;
-
-    return undefined;
+    const normalizedHeaders = Object.fromEntries(Object.entries(event.headers).map(([key, value]) => [key.toLowerCase(), value]));
+    event.headers = normalizedHeaders;
 };

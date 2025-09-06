@@ -1,14 +1,11 @@
-import {APIGatewayProxyEventWithCustomAuth} from '@/types';
-import {APIGatewayProxyResult} from 'aws-lambda/trigger/api-gateway-proxy';
+import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from 'aws-lambda/trigger/api-gateway-proxy';
 
-export type Middleware = (event: APIGatewayProxyEventWithCustomAuth) => Promise<APIGatewayProxyResult | undefined>;
-
-// Custom handler type without context and callback
-export type RouteHandler = (event: APIGatewayProxyEventWithCustomAuth) => Promise<APIGatewayProxyResult>;
+export type RouteHandler = (event: APIGatewayProxyEventV2WithJWTAuthorizer) => Promise<APIGatewayProxyResultV2>;
+export type MiddlewareHandler = (event: APIGatewayProxyEventV2WithJWTAuthorizer) => Promise<APIGatewayProxyResultV2 | void>;
 
 export class Router {
     routeKeys = new Map<string, RouteHandler>();
-    middlewares: Middleware[] = [];
+    middlewares: Array<MiddlewareHandler> = [];
 
     get(route: string, handler: RouteHandler): Router {
         this.routeKeys.set(`GET ${route}`, handler);
@@ -20,15 +17,20 @@ export class Router {
         return this;
     }
 
+    put(route: string, handler: RouteHandler): Router {
+        this.routeKeys.set(`PUT ${route}`, handler);
+        return this;
+    }
+
     // Add middleware method
-    middleware(middleware: Middleware): Router {
+    middleware(middleware: MiddlewareHandler): Router {
         this.middlewares.push(middleware);
         return this;
     }
 
-    handle: RouteHandler = async (event: APIGatewayProxyEventWithCustomAuth): Promise<APIGatewayProxyResult> => {
-        const {httpMethod, resource} = event;
-        const handler = this.routeKeys.get(`${httpMethod} ${resource}`);
+    handle: RouteHandler = async (event) => {
+        const {routeKey} = event;
+        const handler = this.routeKeys.get(routeKey);
 
         if (!handler || typeof handler !== 'function') {
             return {
@@ -47,16 +49,15 @@ export class Router {
         }
 
         // If we reach here, all middlewares passed
-        const result = await handler(event);
-        return result;
+        return await handler(event);
     };
 
     use(router: Router): Router {
         // Don't merge middlewares globally - instead wrap the handlers with their middlewares
         router.routeKeys.forEach((handler, routeKey) => {
-            // Create a wrapped handler that runs the subrouter's middlewares before the actual handler
-            const wrappedHandler: RouteHandler = async (event: APIGatewayProxyEventWithCustomAuth): Promise<APIGatewayProxyResult> => {
-                // Run the subrouter's middlewares first
+            // Create a wrapped handler that runs the sub-router's middlewares before the actual handler
+            const wrappedHandler: RouteHandler = async (event) => {
+                // Run the sub-router's middlewares first
                 for (const middleware of router.middlewares) {
                     const middlewareResult = await middleware(event);
                     if (middlewareResult) {
@@ -65,7 +66,7 @@ export class Router {
                     }
                 }
                 // If all middlewares passed, run the actual handler
-                return handler(event);
+                return await handler(event);
             };
             this.routeKeys.set(routeKey, wrappedHandler);
         });

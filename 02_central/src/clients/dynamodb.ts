@@ -1,5 +1,5 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DynamoDBDocumentClient, QueryCommand, QueryCommandOutput} from '@aws-sdk/lib-dynamodb';
+import {DynamoDBDocumentClient, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
 import {Job, NotificationRule} from '@/types';
@@ -74,4 +74,48 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
     });
 
     return query<Job>(commands);
+};
+
+export const putNotificationRule = async (rule: NotificationRule, createOnly?: boolean): Promise<NotificationRule> => {
+    logger.info(`Updating notification rule: ${rule.id}`);
+
+    if (!notificationTableName) {
+        throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
+    }
+
+    const now = Date.now();
+    const {owner, repository_name, workflow_name, head_branch} = rule.rule;
+
+    const command = new UpdateCommand({
+        TableName: notificationTableName,
+        Key: {
+            id: rule.id ?? crypto.randomUUID(),
+            integrationId: rule.integrationId,
+        },
+        UpdateExpression:
+            'SET #created_at = :created_at, #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule, #ignore_dependabot = :ignore_dependabot',
+        ExpressionAttributeNames: {
+            '#created_at': 'created_at',
+            '#updated_at': 'updated_at',
+            '#enabled': 'enabled',
+            '#channels': 'channels',
+            '#rule': 'rule',
+            '#ignore_dependabot': 'ignore_dependabot',
+        },
+        ExpressionAttributeValues: {
+            ':created_at': now,
+            ':updated_at': now,
+            ':enabled': rule.enabled,
+            ':channels': rule.channels,
+            ':rule': {owner, repository_name, workflow_name, head_branch},
+            ':ignore_dependabot': rule.ignore_dependabot,
+        },
+        ...(createOnly && {
+            ConditionExpression: 'attribute_not_exists(id)',
+        }),
+        ReturnValues: 'ALL_NEW',
+    });
+
+    const result = await client.send(command);
+    return result.Attributes as NotificationRule;
 };

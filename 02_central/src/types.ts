@@ -27,7 +27,7 @@ export type CustomAPIGatewayProxyHandler = (event: APIGatewayProxyEventWithCusto
 
 export type NotificationRule = {
     integrationId: string;
-    id: string;
+    id?: string;
     channels: NotificationRuleChannel[];
     createdAt: Date;
     updatedAt: Date;
@@ -36,9 +36,27 @@ export type NotificationRule = {
     rule: NotificationRuleRule;
 };
 
+// implement a guard clause for NotificationRule
+export const isNotificationRule = (rule: any): rule is NotificationRule => {
+    return (
+        typeof rule.integrationId === 'string' &&
+        Array.isArray(rule.channels) &&
+        rule.channels.every(isNotificationRuleChannel) &&
+        rule.createdAt instanceof Date &&
+        rule.updatedAt instanceof Date &&
+        typeof rule.enabled === 'boolean' &&
+        typeof rule.ignore_dependabot === 'boolean' &&
+        isNotificationRuleRule(rule.rule)
+    );
+};
+
 export type NotificationRuleChannel = {
     type: string;
     webhook_url: string;
+};
+
+export const isNotificationRuleChannel = (channel: any): channel is NotificationRuleChannel => {
+    return typeof channel.type === 'string' && typeof channel.webhook_url === 'string';
 };
 
 export type NotificationRuleRule = {
@@ -46,6 +64,15 @@ export type NotificationRuleRule = {
     owner: string;
     repository_name: string;
     workflow_name: string;
+};
+
+export const isNotificationRuleRule = (rule: any): rule is NotificationRuleRule => {
+    return (
+        typeof rule.head_branch === 'string' &&
+        typeof rule.owner === 'string' &&
+        typeof rule.repository_name === 'string' &&
+        typeof rule.workflow_name === 'string'
+    );
 };
 
 export type Job = {
@@ -64,3 +91,8 @@ export type Integration = {
 };
 
 export type SSMIntegrationSecret = Omit<Integration, 'id'>;
+
+export type LambdaAuthorizerContext = {
+    'cognito:groups'?: string[];
+    [key: string]: any;
+};

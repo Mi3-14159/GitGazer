@@ -14,9 +14,9 @@ resource "aws_cognito_identity_provider" "github" {
     oidc_issuer                   = "https://github.com"
     authorize_scopes              = local.github_oauth_scopes
     authorize_url                 = "https://github.com/login/oauth/authorize"
-    token_url                     = "${aws_api_gateway_stage.this.invoke_url}/api/auth/cognito/token"
-    attributes_url                = "${aws_api_gateway_stage.this.invoke_url}/api/auth/cognito/user"
-    jwks_uri                      = "${aws_api_gateway_stage.this.invoke_url}/api/auth/cognito/token"
+    token_url                     = "${aws_apigatewayv2_api.this.api_endpoint}/api/auth/cognito/token"
+    attributes_url                = "${aws_apigatewayv2_api.this.api_endpoint}/api/auth/cognito/user"
+    jwks_uri                      = "${aws_apigatewayv2_api.this.api_endpoint}/api/auth/cognito/token"
     attributes_url_add_attributes = "false"
   }
 

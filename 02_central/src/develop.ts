@@ -1,11 +1,10 @@
 import * as http from 'http';
 
-import {APIGatewayProxyResult, Context} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyStructuredResultV2} from 'aws-lambda';
 
 import {handler} from '@/index';
 import {getLogger} from '@/logger';
 import router from '@/router';
-import {APIGatewayProxyEventWithCustomAuth} from '@/types';
 
 const logger = getLogger();
 const PORT = 8080;
@@ -97,54 +96,47 @@ function findMatchingRoute(method: string, path: string): string | null {
                 }
             });
 
-            const event: APIGatewayProxyEventWithCustomAuth = {
-                resource,
-                path,
-                httpMethod,
+            const event: APIGatewayProxyEventV2WithJWTAuthorizer = {
+                routeKey: resource,
                 headers: Object.fromEntries(
                     Object.entries(headers || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value || '']),
                 ),
-                multiValueHeaders: {},
                 queryStringParameters,
-                multiValueQueryStringParameters: null,
                 pathParameters,
-                stageVariables: null,
                 requestContext: {
                     routeKey: resource, // Use the same as resource for consistency
                     accountId: 'mocked-account-id',
                     apiId: 'mocked-api-id',
-                    identity: {
-                        sourceIp: req.socket.remoteAddress ?? '',
-                        userAgent: req.headers['user-agent'] ?? null,
-                        accessKey: '',
-                        accountId: '',
-                        apiKey: '',
-                        apiKeyId: '',
-                        caller: '',
-                        clientCert: null,
-                        cognitoAuthenticationProvider: '',
-                        cognitoAuthenticationType: '',
-                        cognitoIdentityId: '',
-                        cognitoIdentityPoolId: '',
-                        principalOrgId: '',
-                        user: '',
-                        userArn: '',
-                    },
-                    path,
                     stage: 'dev',
                     requestId: 'mocked-request-id',
-                    requestTimeEpoch: Date.now(),
-                    resourceId: 'mocked-resource-id',
-                    resourcePath: matchingRoute ? matchingRoute.split(' ', 2)[1] : path,
-                    protocol: '',
-                    httpMethod: '',
-                    authorizer: {},
+                    authorizer: {
+                        principalId: 'mocked-principal-id',
+                        integrationLatency: 0,
+                        jwt: {
+                            claims: {},
+                            scopes: [],
+                        },
+                    },
+                    domainName: '',
+                    domainPrefix: '',
+                    http: {
+                        method: httpMethod,
+                        path: '',
+                        protocol: '',
+                        sourceIp: '',
+                        userAgent: '',
+                    },
+                    time: '',
+                    timeEpoch: 0,
                 },
                 body: body,
                 isBase64Encoded: false,
+                version: '',
+                rawPath: '',
+                rawQueryString: '',
             };
 
-            const result: APIGatewayProxyResult = (await handler(event, {} as Context)) as APIGatewayProxyResult;
+            const result = (await handler(event)) as APIGatewayProxyStructuredResultV2;
             if (!result) {
                 res.statusCode = 500;
                 res.end();
