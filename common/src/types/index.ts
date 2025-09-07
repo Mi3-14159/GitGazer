@@ -69,3 +69,11 @@ export const isIntegration = (integration: any): integration is Integration => {
     typeof integration.secret === "string"
   );
 };
+
+export type Job<Subtype> = {
+  integrationId: string;
+  job_id: number;
+  created_at: string;
+  expire_at: string;
+  workflow_job_event: Subtype;
+};

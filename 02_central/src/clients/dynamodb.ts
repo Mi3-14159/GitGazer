@@ -2,8 +2,8 @@ import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DeleteCommand, DynamoDBDocumentClient, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {Job} from '@/types';
-import {NotificationRule} from '@common/types';
+import {Job, NotificationRule} from '@common/types';
+import {WorkflowJobEvent} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
@@ -61,7 +61,7 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
     return query<NotificationRule>(commands);
 };
 
-export const getJobsBy = async (params: {integrationIds: string[]; limit?: number}): Promise<Job[]> => {
+export const getJobsBy = async (params: {integrationIds: string[]; limit?: number}): Promise<Job<WorkflowJobEvent>[]> => {
     logger.info(`Getting jobs for integrations: ${params.integrationIds.join(', ')}`);
 
     if (!jobsTableName) {
@@ -80,7 +80,7 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
         });
     });
 
-    return query<Job>(commands);
+    return query<Job<WorkflowJobEvent>>(commands);
 };
 
 export const putNotificationRule = async (rule: NotificationRule, createOnly?: boolean): Promise<NotificationRule> => {

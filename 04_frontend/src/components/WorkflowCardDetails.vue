@@ -1,12 +1,13 @@
 <script setup lang="ts">
-    import type {GitGazerWorkflowJobEvent} from '@graphql/api';
+    import {Job} from '@common/types';
+    import {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {computed} from 'vue';
 
     const props = defineProps<{
-        job: GitGazerWorkflowJobEvent | null;
+        job: Job<WorkflowJobEvent> | null;
     }>();
 
-    const emit = defineEmits<{(e: 'update:job', value: GitGazerWorkflowJobEvent | null): void}>();
+    const emit = defineEmits<{(e: 'update:job', value: Job<WorkflowJobEvent> | null): void}>();
 
     // Use a computed property to control the dialog visibility.
     const dialog = computed({
@@ -17,16 +18,16 @@
     });
 
     // Helper functions
-    const getJobStatus = (job: GitGazerWorkflowJobEvent) => {
+    const getJobStatus = (job: Job<WorkflowJobEvent>) => {
         return job.workflow_job_event.workflow_job.conclusion || job.workflow_job_event.workflow_job.status || 'In Progress';
     };
 
-    const formatJobTime = (job: GitGazerWorkflowJobEvent) => {
+    const formatJobTime = (job: Job<WorkflowJobEvent>) => {
         const date = new Date(job.workflow_job_event.workflow_job.created_at);
         return date.toLocaleString();
     };
 
-    const getGitHubWebUrl = (job: GitGazerWorkflowJobEvent) => {
+    const getGitHubWebUrl = (job: Job<WorkflowJobEvent>) => {
         const repoFullName = job.workflow_job_event.repository.full_name;
         const runId = job.workflow_job_event.workflow_job.run_id;
         return `https://github.com/${repoFullName}/actions/runs/${runId}`;

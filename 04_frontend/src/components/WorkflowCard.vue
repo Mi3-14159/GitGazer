@@ -1,17 +1,18 @@
 <script setup lang="ts">
+    import {Job} from '@common/types';
     import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
-    import type {GitGazerWorkflowJobEvent} from '@graphql/api';
+    import {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {ref} from 'vue';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
     const props = defineProps<{
         run_id: number;
         repository_full_name?: string;
-        jobs: GitGazerWorkflowJobEvent[];
+        jobs: Job<WorkflowJobEvent>[];
         workflow_name?: string;
     }>();
 
     // For group view: selected job to view
-    const selectedJob = ref<GitGazerWorkflowJobEvent | null>(null);
+    const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
 </script>
 
 <template>

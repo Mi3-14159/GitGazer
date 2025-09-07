@@ -26,14 +26,6 @@ export interface APIGatewayProxyEventWithCustomAuth extends Omit<APIGatewayProxy
 // Custom handler type that uses the extended event
 export type CustomAPIGatewayProxyHandler = (event: APIGatewayProxyEventWithCustomAuth, context: Context) => Promise<APIGatewayProxyResult>;
 
-export type Job = {
-    integrationId: string;
-    job_id: number;
-    created_at: Date;
-    expire_at: Date;
-    workflow_job_event: WorkflowJobEvent;
-};
-
 export type SSMIntegrationSecret = Omit<Integration, 'id'>;
 
 export type LambdaAuthorizerContext = {
