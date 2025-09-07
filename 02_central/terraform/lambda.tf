@@ -10,6 +10,7 @@ module "this" {
   source_code_hash = filebase64sha256(local.artifact)
   timeout          = 15
   publish          = true
+  memory_size      = 256
   environment = {
     variables = {
       ENVIRONMENT                                 = terraform.workspace
