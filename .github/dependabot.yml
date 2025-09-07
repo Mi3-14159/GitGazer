@@ -28,24 +28,6 @@ updates:
       include: "scope"
 
   - package-ecosystem: "npm"
-    directory: "/03_auth_api"
-    open-pull-requests-limit: 10
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-
-  - package-ecosystem: "terraform"
-    directory: "/03_auth_api/terraform"
-    open-pull-requests-limit: 10
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-
-  - package-ecosystem: "npm"
 
     directory: "/04_frontend"
     open-pull-requests-limit: 10
