@@ -82,7 +82,7 @@ function findMatchingRoute(method: string, path: string): string | null {
 
             // Find the matching route to determine the correct resource pattern
             const matchingRoute = findMatchingRoute(httpMethod, path);
-            const resource = matchingRoute || path;
+            const routeKey = `${httpMethod} ${matchingRoute || path}`;
 
             // Extract path parameters based on the route pattern
             const pathParameters = matchingRoute ? extractPathParameters(matchingRoute, path) : {};
@@ -97,14 +97,14 @@ function findMatchingRoute(method: string, path: string): string | null {
             });
 
             const event: APIGatewayProxyEventV2WithJWTAuthorizer = {
-                routeKey: resource,
+                routeKey,
                 headers: Object.fromEntries(
                     Object.entries(headers || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value || '']),
                 ),
                 queryStringParameters,
                 pathParameters,
                 requestContext: {
-                    routeKey: resource, // Use the same as resource for consistency
+                    routeKey, // Use the same as resource for consistency
                     accountId: 'mocked-account-id',
                     apiId: 'mocked-api-id',
                     stage: 'dev',

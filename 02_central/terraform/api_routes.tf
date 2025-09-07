@@ -16,7 +16,12 @@ locals {
       authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
     },
     "integrations" = {
-      methods            = ["GET"]
+      methods            = ["GET", "POST"]
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+    },
+    "integrations/{id}" = {
+      methods            = ["DELETE"]
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
     },

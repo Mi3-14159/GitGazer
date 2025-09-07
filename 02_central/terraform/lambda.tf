@@ -19,6 +19,8 @@ module "this" {
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
       DYNAMO_DB_JOBS_TABLE_ARN                    = aws_dynamodb_table.jobs.name
       UI_BUCKET_NAME                              = module.ui_bucket.s3_bucket_id
+      KMS_KEY_ID                                  = aws_kms_key.this.id
+      COGNITO_USER_POOL_ID                        = element([for each in var.aws_appsync_graphql_api_additional_authentication_providers : each.user_pool_config.user_pool_id if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"], 0)
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn
@@ -48,6 +50,7 @@ data "aws_iam_policy_document" "this" {
     actions = [
       "kms:Decrypt",
       "kms:GenerateDataKey",
+      "kms:Encrypt",
     ]
     resources = [
       aws_kms_key.this.arn,
@@ -59,6 +62,8 @@ data "aws_iam_policy_document" "this" {
     actions = [
       "ssm:GetParameter",
       "ssm:GetParameters",
+      "ssm:PutParameter",
+      "ssm:DeleteParameter",
     ]
     resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_gh_webhook_secret_name_prefix}*"]
   }
@@ -85,6 +90,22 @@ data "aws_iam_policy_document" "this" {
     effect    = "Allow"
     actions   = ["s3:GetObject"]
     resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
+  }
+
+  dynamic "statement" {
+    for_each = var.create_gitgazer_alerting ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "cognito-idp:CreateGroup",
+        "cognito-idp:DeleteGroup",
+        "cognito-idp:UpdateGroup",
+        "cognito-idp:AddUserToGroup",
+        "cognito-idp:RemoveUserFromGroup",
+        "cognito-idp:AdminAddUserToGroup",
+      ]
+      resources = [for each in var.aws_appsync_graphql_api_additional_authentication_providers : "arn:aws:cognito-idp:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/${each.user_pool_config.user_pool_id}" if each.authentication_type == "AMAZON_COGNITO_USER_POOLS"]
+    }
   }
 }
 

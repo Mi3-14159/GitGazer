@@ -1,30 +1,18 @@
 <script setup lang="ts">
-    import {Integration} from '@graphql/api';
     import {ref} from 'vue';
 
     const props = defineProps<{
-        integration?: Integration;
         onClose: () => void;
-        onSave: (integration: Integration) => void;
+        onSave: (label: string) => void;
     }>();
 
     const form = ref<any>(null);
-
-    const integration = ref<Integration>(
-        props.integration ?? {
-            __typename: 'Integration',
-            owner: '',
-            id: '',
-            label: '',
-            secret: '',
-            users: [],
-        },
-    );
+    const label = ref('');
 
     const handleSave = async () => {
         const {valid} = await form.value.validate();
         if (valid) {
-            props.onSave(integration.value);
+            props.onSave(label.value);
         }
     };
 </script>
@@ -43,7 +31,7 @@
                     >
                         <v-text-field
                             label="Label *"
-                            v-model="integration.label"
+                            v-model="label"
                             :rules="[(v) => !!v || 'Label is required']"
                             required
                         ></v-text-field>

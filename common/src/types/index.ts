@@ -60,3 +60,12 @@ export type Integration = {
   owner: string;
   secret: string;
 };
+
+export const isIntegration = (integration: any): integration is Integration => {
+  return (
+    typeof integration.id === "string" &&
+    typeof integration.label === "string" &&
+    typeof integration.owner === "string" &&
+    typeof integration.secret === "string"
+  );
+};

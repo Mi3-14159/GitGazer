@@ -2,17 +2,13 @@
     import {Integration} from '@common/types';
     import IntegrationCard from '@components/IntegrationCard.vue';
     import IntegrationDetailsCard from '@components/IntegrationDetailsCard.vue';
-    import {DeleteIntegrationMutationVariables, PutIntegrationMutationVariables} from '@graphql/api';
-    import {deleteIntegration, putIntegration} from '@graphql/mutations';
-    import {generateClient, type GraphQLQuery} from 'aws-amplify/api';
     import {AuthUser, fetchAuthSession, getCurrentUser} from 'aws-amplify/auth';
     import {computed, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
     import {useIntegration} from '../composables/useIntegration';
 
-    const {getIntegrations} = useIntegration();
+    const {getIntegrations, createIntegration, deleteIntegration} = useIntegration();
 
-    const client = generateClient();
     const integrations = reactive(new Map());
     const user = ref<AuthUser>();
     const dialog = ref(false);
@@ -35,50 +31,20 @@
 
     handleListIntegrations();
 
-    type PutIntegrationsResponse = {
-        putIntegration: Integration;
-    };
-
-    const handlePutIntegration = async (integration: Integration) => {
-        try {
-            const variables: PutIntegrationMutationVariables = {input: {label: integration.label}};
-            const response = await client.graphql<GraphQLQuery<PutIntegrationsResponse>>({
-                query: putIntegration,
-                variables,
-            });
-
-            integrations.set(response.data.putIntegration.id, response.data.putIntegration);
-            await fetchAuthSession({forceRefresh: true});
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    type DeleteIntegrationResponse = {
-        deleteIntegration: boolean;
+    const handlePutIntegration = async (label: string) => {
+        const integration = await createIntegration(label);
+        integrations.set(integration.id, integration);
+        await fetchAuthSession({forceRefresh: true});
     };
 
     const handleDeleteIntegration = async (id: string) => {
-        try {
-            const variables: DeleteIntegrationMutationVariables = {id};
-            const response = await client.graphql<GraphQLQuery<DeleteIntegrationResponse>>({
-                query: deleteIntegration,
-                variables,
-            });
-
-            if (response.data.deleteIntegration) {
-                integrations.delete(id);
-                await fetchAuthSession({forceRefresh: true});
-            } else {
-                console.error('Integration could not be deleted');
-            }
-        } catch (error) {
-            console.error(error);
-        }
+        await deleteIntegration(id);
+        integrations.delete(id);
+        await fetchAuthSession({forceRefresh: true});
     };
 
-    const onSave = async (integration: Integration) => {
-        await handlePutIntegration(integration);
+    const onSave = async (label: string) => {
+        await handlePutIntegration(label);
         dialog.value = false;
     };
 
@@ -87,7 +53,7 @@
     };
 
     const getIntegrationUrl = (id: string) => {
-        return `${import.meta.env.VITE_IMPORT_URL_BASE}${id}`;
+        return `${import.meta.env.VITE_IMPORT_URL_BASE}/${id}`;
     };
 
     const getOwnerAnnotation = (owner: string) => {
