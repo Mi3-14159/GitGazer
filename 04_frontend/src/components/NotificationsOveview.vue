@@ -14,7 +14,7 @@
     const editingRule = ref<NotificationRule | null>(null);
     const {smAndDown} = useDisplay();
 
-    const {getNotifications, postNotification, deleteNotification} = useNotification();
+    const {getNotifications, isLoadingNotifications, postNotification, deleteNotification} = useNotification();
     const {getIntegrations} = useIntegration();
 
     const handlePutNotificationRule = async (notificationRule: NotificationRule) => {
@@ -98,8 +98,20 @@
 
 <template>
     <v-main>
+        <!-- Loading Spinner -->
+        <div
+            v-if="isLoadingNotifications"
+            class="d-flex justify-center align-center"
+            style="min-height: 300px"
+        >
+            <v-progress-circular
+                indeterminate
+                size="30"
+                color="primary"
+            />
+        </div>
         <!-- Desktop Table View -->
-        <div v-if="!smAndDown">
+        <div v-else-if="!smAndDown">
             <v-toolbar flat>
                 <v-toolbar-title>Notifications</v-toolbar-title>
                 <v-spacer></v-spacer>

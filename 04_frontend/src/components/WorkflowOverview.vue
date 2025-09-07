@@ -7,7 +7,7 @@
     import {useDisplay} from 'vuetify';
     import {useJobs} from '../composables/useJobs';
 
-    const {getJobs} = useJobs();
+    const {getJobs, isLoadingJobs} = useJobs();
 
     const jobs = reactive(new Map<number, Job<WorkflowJobEvent>>());
     const {smAndDown} = useDisplay();
@@ -97,8 +97,21 @@
 
 <template>
     <v-main>
+        <!-- Loading Spinner -->
+        <div
+            v-if="isLoadingJobs"
+            class="d-flex justify-center align-center"
+            style="min-height: 300px"
+        >
+            <v-progress-circular
+                indeterminate
+                size="30"
+                color="primary"
+            />
+        </div>
+
         <!-- Desktop Table View -->
-        <div v-if="!smAndDown">
+        <div v-else-if="!smAndDown">
             <v-data-table
                 :headers="headers"
                 :items="Array.from(jobs.values())"

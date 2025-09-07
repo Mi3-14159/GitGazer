@@ -7,7 +7,7 @@
     import {useDisplay} from 'vuetify';
     import {useIntegration} from '../composables/useIntegration';
 
-    const {getIntegrations, createIntegration, deleteIntegration} = useIntegration();
+    const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
 
     const integrations = reactive(new Map());
     const user = ref<AuthUser>();
@@ -75,8 +75,21 @@
 
 <template>
     <v-main>
+        <!-- Loading Spinner -->
+        <div
+            v-if="isLoadingIntegrations"
+            class="d-flex justify-center align-center"
+            style="min-height: 300px"
+        >
+            <v-progress-circular
+                indeterminate
+                size="30"
+                color="primary"
+            />
+        </div>
+
         <!-- Desktop Table View -->
-        <div v-if="!smAndDown">
+        <div v-else-if="!smAndDown">
             <v-toolbar flat>
                 <v-toolbar-title>Integrations</v-toolbar-title>
                 <v-spacer></v-spacer>

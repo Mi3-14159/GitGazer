@@ -1,15 +1,22 @@
 import {Integration} from '@common/types';
 import {del, get, post} from 'aws-amplify/api';
+import {ref} from 'vue';
 
 export const useIntegration = () => {
+    const isLoadingIntegrations = ref(false);
+
     const getIntegrations = async () => {
+        isLoadingIntegrations.value = true;
         const restOperation = get({
             apiName: 'api',
             path: '/integrations',
         });
 
         const {body} = await restOperation.response;
-        return (await body.json()) as Integration[];
+        const integrations = (await body.json()) as Integration[];
+        isLoadingIntegrations.value = false;
+
+        return integrations;
     };
 
     const createIntegration = async (label: string): Promise<Integration> => {
@@ -40,6 +47,7 @@ export const useIntegration = () => {
 
     return {
         getIntegrations,
+        isLoadingIntegrations,
         createIntegration,
         deleteIntegration,
     };
