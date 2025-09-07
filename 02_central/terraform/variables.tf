@@ -44,29 +44,6 @@ variable "apigateway_logging_enabled" {
   default     = true
 }
 
-variable "aws_appsync_graphql_api_logging_enabled" {
-  type        = bool
-  description = "Enable logging of the AppSync GraphQL API"
-  default     = true
-}
-
-variable "aws_appsync_graphql_api_additional_authentication_providers" {
-  type = list(object({
-    authentication_type = string
-    user_pool_config = optional(object({
-      user_pool_id        = string
-      app_id_client_regex = optional(string)
-      aws_region          = optional(string)
-    }))
-  }))
-  description = "Additional authentication providers for the AppSync GraphQL API"
-  default     = []
-  validation {
-    condition     = length([for provider in var.aws_appsync_graphql_api_additional_authentication_providers : provider.authentication_type if provider.authentication_type != "API_KEY" && provider.authentication_type != "AMAZON_COGNITO_USER_POOLS"]) == 0
-    error_message = "In this implementation only API_KEY and AMAZON_COGNITO_USER_POOLS are allowed as additional authentication providers. If you need more, please open an issue on the GitHub repository."
-  }
-}
-
 variable "custom_domain_config" {
   type = object({
     hosted_zone_id  = string
