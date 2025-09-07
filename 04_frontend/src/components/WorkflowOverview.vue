@@ -93,9 +93,6 @@
     };
 
     handleListJobs();
-    setInterval(() => {
-        handleListJobs();
-    }, 1000 * 15);
 </script>
 
 <template>
