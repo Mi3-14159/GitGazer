@@ -158,7 +158,7 @@
                                 size="small"
                                 variant="flat"
                             >
-                                {{ item.workflow_job_event.workflow_job.status }}
+                                {{ item.workflow_job_event.workflow_job.conclusion }}
                             </v-chip>
                         </td>
                         <td>{{ item.created_at }}</td>
