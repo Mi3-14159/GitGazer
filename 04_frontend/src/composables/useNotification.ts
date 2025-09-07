@@ -1,21 +1,11 @@
 import {NotificationRule} from '@common/types';
 import {del, get, post} from 'aws-amplify/api';
-import {fetchAuthSession} from 'aws-amplify/auth';
 
 export const useNotification = () => {
     const getNotifications = async () => {
-        const session = await fetchAuthSession();
-        const authToken = session.tokens?.idToken;
-
         const restOperation = get({
             apiName: 'api',
             path: '/notifications',
-            options: {
-                withCredentials: true,
-                headers: {
-                    Authorization: `Bearer ${authToken}`,
-                },
-            },
         });
 
         const {body} = await restOperation.response;
@@ -23,17 +13,10 @@ export const useNotification = () => {
     };
 
     const postNotification = async (notificationRule: NotificationRule) => {
-        const session = await fetchAuthSession();
-        const authToken = session.tokens?.idToken;
-
         const restOperation = post({
             apiName: 'api',
             path: '/notifications',
             options: {
-                withCredentials: true,
-                headers: {
-                    Authorization: `Bearer ${authToken}`,
-                },
                 body: notificationRule,
             },
         });
@@ -43,18 +26,9 @@ export const useNotification = () => {
     };
 
     const deleteNotification = async (id: string) => {
-        const session = await fetchAuthSession();
-        const authToken = session.tokens?.idToken;
-
         const restOperation = del({
             apiName: 'api',
             path: `/notifications/${id}`,
-            options: {
-                withCredentials: true,
-                headers: {
-                    Authorization: `Bearer ${authToken}`,
-                },
-            },
         });
 
         return (await restOperation.response).statusCode === 204;
