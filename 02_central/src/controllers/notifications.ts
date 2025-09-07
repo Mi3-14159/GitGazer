@@ -1,5 +1,5 @@
 import {deleteNotificationRule as ddeleteNotificationRule, getNotificationRulesBy, putNotificationRule} from '@/clients/dynamodb';
-import {NotificationRule} from '@common/types';
+import {NotificationRule, NotificationRuleUpdate} from '@common/types';
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
     const {integrationIds} = params;
@@ -14,7 +14,7 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
     return rules;
 };
 
-export const postNotificationRule = async (rule: NotificationRule, userGroups: string[]): Promise<NotificationRule> => {
+export const postNotificationRule = async (rule: NotificationRuleUpdate, userGroups: string[]): Promise<NotificationRule> => {
     if (!rule.integrationId || !userGroups.includes(rule.integrationId)) {
         throw new Error('Unauthorized to create notification rule for this integration');
     }

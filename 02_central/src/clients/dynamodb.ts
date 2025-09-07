@@ -2,7 +2,7 @@ import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {Job, NotificationRule} from '@common/types';
+import {Job, NotificationRule, NotificationRuleUpdate} from '@common/types';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
@@ -84,10 +84,10 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
     return query<Job<WorkflowJobEvent>>(commands);
 };
 
-export const putNotificationRule = async (rule: NotificationRule, createOnly?: boolean): Promise<NotificationRule> => {
+export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
     logger.info(`Updating notification rule: ${rule.id}`);
 
-    const now = Date.now();
+    const now = Date.now().toLocaleString();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
 
     const command = new UpdateCommand({
@@ -97,7 +97,7 @@ export const putNotificationRule = async (rule: NotificationRule, createOnly?: b
             integrationId: rule.integrationId,
         },
         UpdateExpression:
-            'SET #created_at = :created_at, #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule, #ignore_dependabot = :ignore_dependabot',
+            'SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule, #ignore_dependabot = :ignore_dependabot',
         ExpressionAttributeNames: {
             '#created_at': 'created_at',
             '#updated_at': 'updated_at',

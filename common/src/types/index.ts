@@ -24,7 +24,7 @@ export const isNotificationRule = (rule: any): rule is NotificationRule => {
 };
 
 export enum NotificationRuleChannelType {
-  SLACK = "slack",
+  SLACK = "SLACK",
 }
 
 export type NotificationRuleChannel = {
@@ -56,6 +56,24 @@ export const isNotificationRuleRule = (
     typeof rule.owner === "string" &&
     typeof rule.repository_name === "string" &&
     typeof rule.workflow_name === "string"
+  );
+};
+
+export type NotificationRuleUpdate = Omit<
+  NotificationRule,
+  "createdAt" | "updatedAt"
+>;
+
+export const isNotificationRuleUpdate = (
+  rule: any
+): rule is NotificationRuleUpdate => {
+  return (
+    typeof rule.integrationId === "string" &&
+    Array.isArray(rule.channels) &&
+    rule.channels.every(isNotificationRuleChannel) &&
+    typeof rule.enabled === "boolean" &&
+    typeof rule.ignore_dependabot === "boolean" &&
+    isNotificationRuleRule(rule.rule)
   );
 };
 

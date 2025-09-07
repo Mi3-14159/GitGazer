@@ -1,5 +1,5 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
-import {isNotificationRule} from '@common/types';
+import {isNotificationRuleUpdate} from '@common/types';
 import {getLogger} from '../../logger';
 import {Router} from '../router';
 
@@ -28,7 +28,8 @@ router.post('/api/notifications', async (event) => {
 
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const rule = JSON.parse(event.body ?? '{}');
-    if (!isNotificationRule(rule)) {
+
+    if (!isNotificationRuleUpdate(rule)) {
         return {
             statusCode: 400,
             body: JSON.stringify({error: 'Invalid notification rule'}),
