@@ -1,5 +1,5 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DeleteCommand, DynamoDBDocumentClient, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
+import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
 import {Job, NotificationRule} from '@common/types';
@@ -77,6 +77,7 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
             },
             Limit: params.limit ?? 50,
             IndexName: 'newest_integration_index',
+            ScanIndexForward: false,
         });
     });
 
@@ -135,4 +136,16 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
     });
 
     await client.send(command);
+};
+
+export const putJob = async (job: Job<WorkflowJobEvent>): Promise<Job<WorkflowJobEvent>> => {
+    logger.info(`Putting job: ${job.job_id}`);
+
+    const command = new PutCommand({
+        TableName: jobsTableName,
+        Item: job,
+    });
+
+    await client.send(command);
+    return job;
 };

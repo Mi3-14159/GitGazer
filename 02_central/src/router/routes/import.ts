@@ -1,4 +1,4 @@
-import {createWorkflowJob} from '../../graphql';
+import {createWorkflowJob} from '@/controllers/imports';
 import {getLogger} from '../../logger';
 import {verifyGithubSign} from '../middlewares/verifyGithubSign';
 import {Router} from '../router';
