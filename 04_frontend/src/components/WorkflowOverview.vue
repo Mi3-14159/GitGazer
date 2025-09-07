@@ -3,7 +3,7 @@
     import WorkflowCard from '@components/WorkflowCard.vue';
     import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
     import {WorkflowJobEvent} from '@octokit/webhooks-types';
-    import {computed, reactive, ref} from 'vue';
+    import {computed, onMounted, onUnmounted, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
     import {useJobs} from '../composables/useJobs';
 
@@ -12,6 +12,7 @@
     const jobs = reactive(new Map<number, Job<WorkflowJobEvent>>());
     const {smAndDown} = useDisplay();
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
+    const isInitialLoad = ref(true);
 
     // Table headers for desktop view
     const headers = [
@@ -90,16 +91,38 @@
             formatJobTime(job);
             jobs.set(job.job_id, job);
         });
+
+        // Mark initial load as complete
+        if (isInitialLoad.value) {
+            isInitialLoad.value = false;
+        }
     };
 
+    // Initial load
     handleListJobs();
+
+    // Set up polling
+    let pollingInterval: NodeJS.Timeout;
+
+    onMounted(() => {
+        // Poll every 20 seconds
+        pollingInterval = setInterval(() => {
+            handleListJobs();
+        }, 20000);
+    });
+
+    onUnmounted(() => {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+    });
 </script>
 
 <template>
     <v-main>
-        <!-- Loading Spinner -->
+        <!-- Loading Spinner - Only show during initial load -->
         <div
-            v-if="isLoadingJobs"
+            v-if="isLoadingJobs && isInitialLoad"
             class="d-flex justify-center align-center"
             style="min-height: 300px"
         >
