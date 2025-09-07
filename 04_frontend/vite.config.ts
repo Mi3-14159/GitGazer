@@ -32,7 +32,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@components': resolve(__dirname, 'src/components'),
-            '@graphql': resolve(__dirname, '../02_central/src/graphql/'),
+            '@common': resolve(__dirname, '../common/src'),
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
     },

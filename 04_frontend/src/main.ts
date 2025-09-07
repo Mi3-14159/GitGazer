@@ -24,11 +24,6 @@ Amplify.configure(
             },
         },
         API: {
-            GraphQL: {
-                endpoint: import.meta.env.VITE_GRAPHQL_ENDPOINT,
-                region: import.meta.env.VITE_GRAPHQL_REGION,
-                defaultAuthMode: 'userPool',
-            },
             REST: {
                 api: {
                     endpoint: import.meta.env.VITE_REST_API_ENDPOINT,

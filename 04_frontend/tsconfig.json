@@ -8,7 +8,6 @@
     "moduleResolution": "bundler",
     "paths": {
       "@components/*": ["src/components/*"],
-      "@graphql/*": ["../02_central/src/graphql/*"],
       "@common/*": ["../common/src/*"]
     },
     "resolveJsonModule": true,
@@ -23,14 +22,7 @@
     "skipLibCheck": true,
     "composite": true
   },
-  "include": [
-    "./src/**/*.ts",
-    "./src/**/*.tsx",
-    "./src/**/*.vue",
-    "./src/typed-router.d.ts",
-    "../02_central/src/graphql/**/*.ts",
-    "../common/src/types/**/*.ts"
-  ],
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/typed-router.d.ts", "../common/src/**/*.ts"],
   "exclude": ["dist", "node_modules", "cypress"],
   "references": [{"path": "./tsconfig.node.json"}],
   "extends": "../tsconfig.json"

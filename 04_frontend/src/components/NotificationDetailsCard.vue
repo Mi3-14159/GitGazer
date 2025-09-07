@@ -1,6 +1,5 @@
 <script setup lang="ts">
-    import {NotificationRule} from '@common/types';
-    import {Integration, NotificationChannelType} from '@graphql/api';
+    import {Integration, NotificationRule, NotificationRuleChannelType} from '@common/types';
     import {onMounted, ref} from 'vue';
 
     const props = defineProps<{
@@ -27,7 +26,7 @@
         },
         channels: [
             {
-                type: NotificationChannelType.SLACK,
+                type: NotificationRuleChannelType.SLACK,
                 webhook_url: '',
             },
         ],
@@ -128,7 +127,7 @@
 
                     <v-col sm="12">
                         <v-text-field
-                            v-if="notificationRule.channels[0]?.type === NotificationChannelType.SLACK"
+                            v-if="notificationRule.channels[0]?.type === NotificationRuleChannelType.SLACK"
                             label="Slack Webhook URL *"
                             v-model="notificationRule.channels[0].webhook_url"
                             :rules="[(v) => !!v || 'Slack Webhook URL is required']"

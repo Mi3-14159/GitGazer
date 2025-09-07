@@ -23,8 +23,12 @@ export const isNotificationRule = (rule: any): rule is NotificationRule => {
   );
 };
 
+export enum NotificationRuleChannelType {
+  SLACK = "slack",
+}
+
 export type NotificationRuleChannel = {
-  type: string;
+  type: NotificationRuleChannelType;
   webhook_url: string;
 };
 
@@ -32,7 +36,8 @@ export const isNotificationRuleChannel = (
   channel: any
 ): channel is NotificationRuleChannel => {
   return (
-    typeof channel.type === "string" && typeof channel.webhook_url === "string"
+    Object.values(NotificationRuleChannelType).includes(channel.type) &&
+    typeof channel.webhook_url === "string"
   );
 };
 
