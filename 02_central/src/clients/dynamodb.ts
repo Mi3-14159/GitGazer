@@ -87,7 +87,7 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
 export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
     logger.info(`Updating notification rule: ${rule.id}`);
 
-    const now = Date.now().toLocaleString();
+    const now = new Date().toUTCString();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
 
     const command = new UpdateCommand({
