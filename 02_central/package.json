@@ -39,7 +39,7 @@
   "name": "api-lambda",
   "optionalDependencies": {
     "@rollup/rollup-darwin-x64": "^4.50.1",
-    "@rollup/rollup-linux-x64-gnu": "^4.50.0"
+    "@rollup/rollup-linux-x64-gnu": "^4.50.1"
   },
   "repository": {
     "type": "git",
