@@ -1,5 +1,9 @@
 # GitGazer
 
+<p align="center">
+   <img src="./docs/logo.png" alt="GitGazer Logo" width="200" height="auto">
+</p>
+
 GitGazer aims to be a monitoring tool for the github workflows. It provides a workflows overview and a notification system.
 
 A demo is available at <https://app.gitgazer.com/>
