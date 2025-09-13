@@ -1,5 +1,5 @@
 import {Job} from '@common/types';
-import {WorkflowJobEvent} from '@octokit/webhooks-types';
+import type {WorkflowJobEvent} from '@octokit/webhooks-types';
 import {get} from 'aws-amplify/api';
 import {ref} from 'vue';
 

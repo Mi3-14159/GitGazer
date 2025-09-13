@@ -2,7 +2,7 @@
     import {Job} from '@common/types';
     import WorkflowCard from '@components/WorkflowCard.vue';
     import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
-    import {WorkflowJobEvent} from '@octokit/webhooks-types';
+    import type {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {computed, onMounted, onUnmounted, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
     import {useJobs} from '../composables/useJobs';

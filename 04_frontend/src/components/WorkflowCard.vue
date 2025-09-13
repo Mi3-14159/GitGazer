@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import {Job} from '@common/types';
     import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
-    import {WorkflowJobEvent} from '@octokit/webhooks-types';
+    import type {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {ref} from 'vue';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
     const props = defineProps<{
