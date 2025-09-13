@@ -8,6 +8,7 @@ const logger = getLogger();
 const ssmClient = new SSMClient({});
 
 export const verifyGithubSign = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<void | APIGatewayProxyResultV2> => {
+    logger.debug('running verifyGithubSign middleware');
     const {pathParameters} = event;
 
     if (!pathParameters?.integrationId) {

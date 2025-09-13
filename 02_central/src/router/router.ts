@@ -1,7 +1,10 @@
+import {getLogger} from '@/logger';
 import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from 'aws-lambda/trigger/api-gateway-proxy';
 
 export type RouteHandler = (event: APIGatewayProxyEventV2WithJWTAuthorizer) => Promise<APIGatewayProxyResultV2>;
 export type MiddlewareHandler = (event: APIGatewayProxyEventV2WithJWTAuthorizer) => Promise<APIGatewayProxyResultV2 | void>;
+
+const logger = getLogger();
 
 export class Router {
     routeKeys = new Map<string, RouteHandler>();
@@ -34,7 +37,7 @@ export class Router {
     }
 
     handle: RouteHandler = async (event) => {
-        const {routeKey} = event;
+        const {routeKey, rawPath} = event;
         const handler = this.routeKeys.get(routeKey);
 
         if (!handler || typeof handler !== 'function') {
@@ -54,6 +57,7 @@ export class Router {
         }
 
         // If we reach here, all middlewares passed
+        logger.info(`handling request: ${routeKey}, ${rawPath}`);
         return await handler(event);
     };
 

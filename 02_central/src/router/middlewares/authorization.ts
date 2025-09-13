@@ -4,6 +4,7 @@ import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from '
 const logger = getLogger();
 
 export const extractCognitoGroups = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2 | void> => {
+    logger.debug('running extractCognitoGroups middleware');
     const {rawPath} = event;
 
     // skip authorization for Cognito routes

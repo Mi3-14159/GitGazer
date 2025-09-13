@@ -1,14 +1,10 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
 import {isNotificationRuleUpdate} from '@common/types';
-import {getLogger} from '../../logger';
 import {Router} from '../router';
 
-const logger = getLogger();
 const router = new Router();
 
 router.get('/api/notifications', async (event) => {
-    logger.info('Handling request for /api/notifications');
-
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const notificationRules = await getNotificationRules({
         integrationIds: groups,
@@ -24,8 +20,6 @@ router.get('/api/notifications', async (event) => {
 });
 
 router.post('/api/notifications', async (event) => {
-    logger.info(`Handling request for /api/notifications`);
-
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const rule = JSON.parse(event.body ?? '{}');
 
@@ -51,8 +45,6 @@ router.post('/api/notifications', async (event) => {
 });
 
 router.delete('/api/notifications/{id}', async (event) => {
-    logger.info('Handling request for', event.routeKey, event.rawPath);
-
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     if (!event.pathParameters?.id) {
         return {

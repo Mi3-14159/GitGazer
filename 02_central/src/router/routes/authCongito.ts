@@ -14,8 +14,6 @@ type Body = {
 };
 
 router.get('/api/auth/cognito/public', async () => {
-    logger.info('Handling request for /api/auth/cognito/public');
-
     return {
         statusCode: 200,
         body: 'Ok',
@@ -26,8 +24,6 @@ router.get('/api/auth/cognito/public', async () => {
 });
 
 router.get('/api/auth/cognito/private', async () => {
-    logger.info('Handling request for /api/auth/cognito/private');
-
     return {
         statusCode: 200,
         body: 'Ok',
@@ -53,8 +49,6 @@ const parseBody = (body: string, isBase64Encoded: boolean): Body => {
 };
 
 router.post('/api/auth/cognito/token', async (event) => {
-    logger.info('Handling request for /api/auth/cognito/token');
-
     const {body, isBase64Encoded} = event;
     if (!body) {
         logger.error('No body found');
@@ -91,8 +85,6 @@ router.post('/api/auth/cognito/token', async (event) => {
 });
 
 router.get('/api/auth/cognito/user', async (event) => {
-    logger.info('Handling request for /api/auth/cognito/user');
-
     const user: any = await (
         await fetch('https://api.github.com/user', {
             method: 'GET',

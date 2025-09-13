@@ -28,6 +28,6 @@ authRoutes.use(integrationsRoutes);
 
 app.use(authRoutes);
 
-logger.info({msg: 'Routes setup completed'});
+logger.info({msg: 'Routes setup completed', routes: Array.from(app.routeKeys.keys())});
 
 export default app;

@@ -1,13 +1,9 @@
 import {createIntegration, deleteIntegration, getIntegrations} from '@/controllers/integrations';
-import {getLogger} from '../../logger';
 import {Router} from '../router';
 
-const logger = getLogger();
 const router = new Router();
 
 router.get('/api/integrations', async (event) => {
-    logger.info('Handling request for /api/integrations');
-
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const integrations = await getIntegrations({
         integrationIds: groups,
@@ -23,8 +19,6 @@ router.get('/api/integrations', async (event) => {
 });
 
 router.post('/api/integrations', async (event) => {
-    logger.info('Handling request for /api/integrations');
-
     if (!event.body) {
         return {
             statusCode: 400,
@@ -74,8 +68,6 @@ router.post('/api/integrations', async (event) => {
 });
 
 router.delete('/api/integrations/{id}', async (event) => {
-    logger.info(`Handling request for /api/integrations/${event.pathParameters?.id}`);
-
     const integrationId = event.pathParameters?.id;
     if (!integrationId) {
         return {

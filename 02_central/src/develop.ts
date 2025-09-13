@@ -155,7 +155,6 @@ function findMatchingRoute(method: string, path: string): string | null {
 
     logger.info({
         port: PORT,
-        availableRoutes: router.getRoutes(),
         msg: `Development server listening on http://localhost:${PORT}`,
     });
     server.listen(PORT);
