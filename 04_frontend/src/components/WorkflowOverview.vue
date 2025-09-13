@@ -16,12 +16,19 @@
 
     // Table headers for desktop view
     const headers = [
-        {title: 'Repository', value: 'repository_full_name', sortable: true},
-        {title: 'Workflow', value: 'workflow_name', sortable: true},
-        {title: 'Job Name', value: 'job_name', sortable: true},
-        {title: 'Status', value: 'status', sortable: true},
-        {title: 'Created', value: 'created_at', sortable: true},
+        {title: 'Repository', key: 'workflow_job_event.repository.full_name'},
+        {title: 'Workflow', key: 'workflow_job_event.workflow_job.workflow_name'},
+        {title: 'Job Name', key: 'workflow_job_event.workflow_job.name'},
+        {title: 'Branch', key: 'workflow_job_event.workflow_job.head_branch'},
+        {
+            title: 'Status',
+            key: 'workflow_job_event.workflow_job.status',
+            value: (item: Job<WorkflowJobEvent>) => getJobStatus(item),
+        },
+        {title: 'Created', key: 'created_at', order: 'desc'},
     ];
+
+    const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
 
     // Helper functions for table display
     const getJobStatus = (job: Job<WorkflowJobEvent>) => {
@@ -58,7 +65,7 @@
 
     // Group jobs by workflow for mobile card view
     const groupedJobs = computed(() => {
-        const groups = new Map<number, {repository_full_name: string; jobs: Job<WorkflowJobEvent>[]; workflow_name: string}>();
+        const groups = new Map<number, {repository_full_name: string; jobs: Job<WorkflowJobEvent>[]; workflow_name: string; head_branch: string}>();
 
         for (const job of jobs.values()) {
             const key = job.workflow_job_event.workflow_job.run_id;
@@ -67,6 +74,7 @@
                     repository_full_name: job.workflow_job_event.repository.full_name,
                     jobs: [],
                     workflow_name: job.workflow_job_event.workflow_job.workflow_name!,
+                    head_branch: job.workflow_job_event.workflow_job.head_branch || 'unknown',
                 });
             groups.get(key)?.jobs.push(job);
         }
@@ -80,7 +88,13 @@
         });
 
         return Array.from(groups.entries())
-            .map(([run_id, {repository_full_name, jobs, workflow_name}]) => ({run_id, repository_full_name, jobs, workflow_name}))
+            .map(([run_id, {repository_full_name, jobs, workflow_name, head_branch}]) => ({
+                run_id,
+                repository_full_name,
+                jobs,
+                workflow_name,
+                head_branch,
+            }))
             .reverse();
     });
 
@@ -141,8 +155,9 @@
                 item-key="job_id"
                 class="elevation-1"
                 density="compact"
-                :items-per-page="-1"
-                :sort-by="[{key: 'created_at', order: 'desc'}]"
+                :items-per-page="50"
+                :items-per-page-options="[10, 25, 50, 100]"
+                v-model:sort-by="sortBy"
             >
                 <template v-slot:item="{item}">
                     <tr
@@ -152,6 +167,7 @@
                         <td>{{ item.workflow_job_event.repository.full_name }}</td>
                         <td>{{ item.workflow_job_event.workflow_job.workflow_name }}</td>
                         <td>{{ item.workflow_job_event.workflow_job.name }}</td>
+                        <td>{{ item.workflow_job_event.workflow_job.head_branch }}</td>
                         <td>
                             <v-chip
                                 :color="getJobStatusColor(item)"
