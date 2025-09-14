@@ -12,6 +12,11 @@ export const newLogger = (): pino.Logger => {
                       },
                   }
                 : undefined,
+        formatters: {
+            level: (label) => {
+                return {level: label.toUpperCase()};
+            },
+        },
     });
 };
 
