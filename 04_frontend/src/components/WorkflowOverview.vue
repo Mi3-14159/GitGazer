@@ -16,27 +16,22 @@
 
     // Table headers for desktop view
     const headers = [
-        {title: 'Repository', key: 'workflow_job_event.repository.full_name'},
-        {title: 'Workflow', key: 'workflow_job_event.workflow_job.workflow_name'},
-        {title: 'Job Name', key: 'workflow_job_event.workflow_job.name'},
-        {title: 'Branch', key: 'workflow_job_event.workflow_job.head_branch'},
+        {title: 'Repository', key: 'full_name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.repository.full_name},
+        {title: 'Workflow', key: 'workflow_name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.workflow_name},
+        {title: 'Job Name', key: 'name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.name},
+        {title: 'Branch', key: 'head_branch', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.head_branch},
         {
             title: 'Status',
-            key: 'workflow_job_event.workflow_job.status',
-            value: (item: Job<WorkflowJobEvent>) => getJobStatus(item),
+            key: 'status',
+            value: (item: Job<WorkflowJobEvent>) =>
+                item.workflow_job_event?.workflow_job?.conclusion || item.workflow_job_event?.workflow_job?.status || 'unknown',
         },
-        {title: 'Created', key: 'created_at', order: 'desc'},
+        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at},
     ];
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
 
-    // Helper functions for table display
-    const getJobStatus = (job: Job<WorkflowJobEvent>) => {
-        return job.workflow_job_event.workflow_job.conclusion || job.workflow_job_event.workflow_job.status || 'unknown';
-    };
-
-    const getJobStatusColor = (job: Job<WorkflowJobEvent>) => {
-        const status = getJobStatus(job).toLowerCase();
+    const getJobStatusColor = (status: string) => {
         switch (status) {
             case 'success':
                 return 'success';
@@ -159,26 +154,13 @@
                 :items-per-page-options="[10, 25, 50, 100]"
                 v-model:sort-by="sortBy"
             >
-                <template v-slot:item="{item}">
-                    <tr
-                        class="clickable-row"
-                        @click="viewJob(item)"
-                    >
-                        <td>{{ item.workflow_job_event.repository.full_name }}</td>
-                        <td>{{ item.workflow_job_event.workflow_job.workflow_name }}</td>
-                        <td>{{ item.workflow_job_event.workflow_job.name }}</td>
-                        <td>{{ item.workflow_job_event.workflow_job.head_branch }}</td>
-                        <td>
-                            <v-chip
-                                :color="getJobStatusColor(item)"
-                                size="small"
-                                variant="flat"
-                            >
-                                {{ getJobStatus(item) }}
-                            </v-chip>
-                        </td>
-                        <td>{{ item.created_at }}</td>
-                    </tr>
+                <template v-slot:item.status="{value}">
+                    <v-chip
+                        :color="getJobStatusColor(value)"
+                        size="small"
+                        variant="flat"
+                        :text="value"
+                    ></v-chip>
                 </template>
             </v-data-table>
         </div>
