@@ -3,8 +3,6 @@ import {deleteParameter, getParameters, putParameter} from '@/clients/ssm';
 import {getLogger} from '@/logger';
 import {Integration} from '@common/types';
 
-const logger = getLogger();
-
 export const getIntegrations = async (params: {integrationIds: string[]; limit?: number}): Promise<Integration[]> => {
     const {integrationIds} = params;
     if (integrationIds.length === 0) {
@@ -19,6 +17,7 @@ export const getIntegrations = async (params: {integrationIds: string[]; limit?:
 };
 
 export const createIntegration = async (label: string, owner: string, userName: string): Promise<Integration> => {
+    const logger = getLogger();
     logger.info(`Creating integration with label: ${label} for owner: ${owner} and user name: ${userName}`);
     const integration: Integration = {
         id: crypto.randomUUID(),
@@ -40,6 +39,7 @@ export const createIntegration = async (label: string, owner: string, userName: 
 };
 
 export const deleteIntegration = async (id: string, userGroups: string[]): Promise<void> => {
+    const logger = getLogger();
     logger.info(`Deleting integration with ID: ${id}`);
 
     // Check if the user is authorized to delete the integration

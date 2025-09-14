@@ -2,7 +2,6 @@ import {APIGatewayProxyResult} from 'aws-lambda';
 import {getLogger} from '../../logger';
 import {Router} from '../router';
 
-const logger = getLogger();
 const router = new Router();
 
 type Body = {
@@ -49,6 +48,7 @@ const parseBody = (body: string, isBase64Encoded: boolean): Body => {
 };
 
 router.post('/api/auth/cognito/token', async (event) => {
+    const logger = getLogger(); // Get logger at runtime
     const {body, isBase64Encoded} = event;
     if (!body) {
         logger.error('No body found');

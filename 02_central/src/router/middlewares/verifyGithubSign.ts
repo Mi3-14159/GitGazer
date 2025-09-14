@@ -4,11 +4,11 @@ import {GetParameterCommand, SSMClient} from '@aws-sdk/client-ssm';
 import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from 'aws-lambda/trigger/api-gateway-proxy';
 import * as crypto from 'crypto';
 
-const logger = getLogger();
 const ssmClient = new SSMClient({});
 
 export const verifyGithubSign = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<void | APIGatewayProxyResultV2> => {
-    logger.debug('running verifyGithubSign middleware');
+    const logger = getLogger(); // Get logger at runtime
+    logger.debug({message: 'running verifyGithubSign middleware'});
     const {pathParameters} = event;
 
     if (!pathParameters?.integrationId) {
@@ -65,8 +65,9 @@ const loadParameter = async (integrationId: string): Promise<SSMIntegrationSecre
 };
 
 const getParameterFromCache = async (parameterName: string): Promise<SSMIntegrationSecret | undefined> => {
+    const logger = getLogger(); // Get logger at runtime
     const url = `http://localhost:2773/systemsmanager/parameters/get?name=${encodeURIComponent(parameterName)}&withDecryption=true`;
-    logger.info('load parameter', url);
+    logger.info({message: 'load parameter', url});
 
     const response = await fetch(url, {
         method: 'GET',
@@ -76,7 +77,7 @@ const getParameterFromCache = async (parameterName: string): Promise<SSMIntegrat
     });
 
     if (!response.ok) {
-        logger.error(`failed to load parameter: ${parameterName}`, response.status, response.statusText);
+        logger.error({message: 'failed to load parameter', parameterName, status: response.status, statusText: response.statusText});
         return undefined;
     }
 
@@ -86,6 +87,7 @@ const getParameterFromCache = async (parameterName: string): Promise<SSMIntegrat
 };
 
 const getParameterBySdk = async (parameterName: string): Promise<SSMIntegrationSecret | undefined> => {
+    const logger = getLogger(); // Get logger at runtime
     const command = new GetParameterCommand({
         Name: parameterName,
         WithDecryption: true,
@@ -100,7 +102,7 @@ const getParameterBySdk = async (parameterName: string): Promise<SSMIntegrationS
 
         return JSON.parse(response.Parameter.Value);
     } catch (error) {
-        logger.error('failed to load parameter', error);
+        logger.error({message: 'failed to load parameter', error});
         return undefined;
     }
 };

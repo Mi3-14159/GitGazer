@@ -21,6 +21,7 @@ module "this" {
       UI_BUCKET_NAME                              = module.ui_bucket.s3_bucket_id
       KMS_KEY_ID                                  = aws_kms_key.this.id
       COGNITO_USER_POOL_ID                        = aws_cognito_user_pool.this.id
+      PINO_LOG_LEVEL                              = "info"
     }
   }
   kms_key_arn                       = aws_kms_key.this.arn

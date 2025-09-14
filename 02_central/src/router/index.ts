@@ -9,6 +9,7 @@ import integrationsRoutes from './routes/integrations';
 import jobsRoutes from './routes/jobs';
 import notificationsRoutes from './routes/notifications';
 
+// Setup logs - these run at module initialization before any requests
 const logger = getLogger();
 logger.info({msg: 'Setting up routes'});
 

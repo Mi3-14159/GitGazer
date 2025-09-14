@@ -3,13 +3,13 @@ import {getLogger} from '../../logger';
 import {verifyGithubSign} from '../middlewares/verifyGithubSign';
 import {Router} from '../router';
 
-const logger = getLogger();
 const router = new Router();
 
 // Register the auth middleware for this router
 router.middleware(verifyGithubSign);
 
 router.post('/api/import/{integrationId}', async (event) => {
+    const logger = getLogger(); // Get logger at runtime
     const {pathParameters, body} = event;
 
     if (!body || !pathParameters?.integrationId) {

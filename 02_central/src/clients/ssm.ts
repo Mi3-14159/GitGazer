@@ -3,7 +3,6 @@ import {Integration} from '@common/types';
 
 import {getLogger} from '@/logger';
 
-const logger = getLogger();
 const ssmClient = new SSMClient({});
 const webhookSecretNamePrefix = process.env.SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX;
 if (!webhookSecretNamePrefix) {
@@ -16,6 +15,7 @@ if (!kmsKeyId) {
 }
 
 export const getParameters = async (params: {names: string[]}): Promise<Integration[]> => {
+    const logger = getLogger(); // Get logger at runtime
     const command = new GetParametersCommand({
         Names: params.names.map((name) => `${webhookSecretNamePrefix}${name}`),
         WithDecryption: true,

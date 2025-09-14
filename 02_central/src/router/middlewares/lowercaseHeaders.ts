@@ -1,9 +1,8 @@
 import {getLogger} from '@/logger';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
-const logger = getLogger();
-
 export const lowercaseHeaders = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<void> => {
+    const logger = getLogger();
     logger.debug('running lowercaseHeaders middleware');
     if (!event.headers) {
         return;

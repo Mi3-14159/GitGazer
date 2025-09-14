@@ -14,14 +14,13 @@ const jobsTableName = process.env.DYNAMO_DB_JOBS_TABLE_ARN;
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-const logger = getLogger();
-
 const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
-    logger.trace('Executing DynamoDB query commands', commands);
+    const logger = getLogger();
+    logger.trace({message: 'Executing DynamoDB query commands', commands});
 
     const now = Date.now();
     const result = await Promise.allSettled(commands.map((command) => client.send(command)));
-    logger.info(`DynamoDB query execution time: ${Date.now() - now}ms`);
+    logger.info({message: 'DynamoDB query execution time', duration: Date.now() - now});
 
     const fulfilled = result.filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<QueryCommandOutput>[];
     const rejected = result.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
@@ -38,7 +37,8 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
 };
 
 export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number; id?: string}): Promise<NotificationRule[]> => {
-    logger.info(`Getting notification rules for integrations: ${params.integrationIds.join(', ')}`);
+    const logger = getLogger();
+    logger.info({message: 'Getting notification rules for integrations', integrations: params.integrationIds});
 
     const keyConditionExpressionParts = ['integrationId = :integrationId'];
     if (params.id) {
@@ -62,7 +62,8 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
 };
 
 export const getJobsBy = async (params: {integrationIds: string[]; limit?: number}): Promise<Job<WorkflowJobEvent>[]> => {
-    logger.info(`Getting jobs for integrations: ${params.integrationIds.join(', ')}`);
+    const logger = getLogger();
+    logger.info({message: 'Getting jobs for integrations', integrations: params.integrationIds});
 
     if (!jobsTableName) {
         throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
@@ -85,7 +86,8 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
 };
 
 export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
-    logger.info(`Updating notification rule: ${rule.id}`);
+    const logger = getLogger();
+    logger.info({message: 'Updating notification rule', ruleId: rule.id});
 
     const now = new Date().toUTCString();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
@@ -125,7 +127,8 @@ export const putNotificationRule = async (rule: NotificationRuleUpdate, createOn
 };
 
 export const deleteNotificationRule = async (ruleId: string, integrationId: string): Promise<void> => {
-    logger.info(`Deleting notification rule: ${ruleId}`);
+    const logger = getLogger();
+    logger.info({message: 'Deleting notification rule', ruleId});
 
     const command = new DeleteCommand({
         TableName: notificationTableName,
@@ -139,7 +142,8 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
 };
 
 export const putJob = async (job: Job<WorkflowJobEvent>): Promise<Job<WorkflowJobEvent>> => {
-    logger.info(`Putting job: ${job.job_id}`);
+    const logger = getLogger();
+    logger.info({message: 'Putting job', jobId: job.job_id});
 
     const command = new PutCommand({
         TableName: jobsTableName,

@@ -1,6 +1,6 @@
 import * as http from 'http';
 
-import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyStructuredResultV2} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyStructuredResultV2, Context} from 'aws-lambda';
 
 import {handler} from '@/index';
 import {getLogger} from '@/logger';
@@ -8,6 +8,20 @@ import router from '@/router';
 
 const logger = getLogger();
 const PORT = 8080;
+const context: Context = {
+    callbackWaitsForEmptyEventLoop: false,
+    functionName: 'dev-function',
+    functionVersion: '1',
+    invokedFunctionArn: 'arn:aws:lambda:local:0:function:dev-function',
+    memoryLimitInMB: '128',
+    awsRequestId: 'dev-request-id',
+    logGroupName: '/aws/lambda/dev-function',
+    logStreamName: '2024/01/01/[$LATEST]dev-log-stream',
+    getRemainingTimeInMillis: () => 30000,
+    done: () => {},
+    fail: () => {},
+    succeed: () => {},
+};
 
 /**
  * Extract path parameters from the actual path using the route pattern
@@ -136,7 +150,7 @@ function findMatchingRoute(method: string, path: string): string | null {
                 rawQueryString: '',
             };
 
-            const result = (await handler(event)) as APIGatewayProxyStructuredResultV2;
+            const result = (await handler(event, context)) as APIGatewayProxyStructuredResultV2;
             if (!result) {
                 res.statusCode = 500;
                 res.end();

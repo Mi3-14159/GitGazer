@@ -4,8 +4,6 @@ import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from '
 export type RouteHandler = (event: APIGatewayProxyEventV2WithJWTAuthorizer) => Promise<APIGatewayProxyResultV2>;
 export type MiddlewareHandler = (event: APIGatewayProxyEventV2WithJWTAuthorizer) => Promise<APIGatewayProxyResultV2 | void>;
 
-const logger = getLogger();
-
 export class Router {
     routeKeys = new Map<string, RouteHandler>();
     middlewares: Array<MiddlewareHandler> = [];
@@ -57,6 +55,7 @@ export class Router {
         }
 
         // If we reach here, all middlewares passed
+        const logger = getLogger();
         logger.info(`handling request: ${routeKey}, ${rawPath}`);
         return await handler(event);
     };
