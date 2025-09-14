@@ -1,4 +1,4 @@
-import {reset, set} from '@/logger';
+import {set} from '@/logger';
 import app from '@/router';
 import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2, Context} from 'aws-lambda';
 
@@ -11,6 +11,6 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer, co
 
     logger.debug({message: 'result', result});
 
-    reset();
+    logger.flush();
     return result;
 };
