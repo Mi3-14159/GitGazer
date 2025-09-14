@@ -18,9 +18,7 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
     const logger = getLogger();
     logger.trace({message: 'Executing DynamoDB query commands', commands});
 
-    const now = Date.now();
     const result = await Promise.allSettled(commands.map((command) => client.send(command)));
-    logger.info({message: 'DynamoDB query execution time', duration: Date.now() - now});
 
     const fulfilled = result.filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<QueryCommandOutput>[];
     const rejected = result.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
