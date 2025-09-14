@@ -1,7 +1,7 @@
 import {createWorkflowJob} from '@/controllers/imports';
-import {getLogger} from '../../logger';
-import {verifyGithubSign} from '../middlewares/verifyGithubSign';
-import {Router} from '../router';
+import {getLogger} from '@/logger';
+import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
+import {Router} from '@/router/router';
 
 const router = new Router();
 

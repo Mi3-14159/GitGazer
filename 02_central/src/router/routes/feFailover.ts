@@ -1,5 +1,5 @@
 import {getIndexHtml} from '@/clients/s3';
-import {Router} from '../router';
+import {Router} from '@/router/router';
 
 const router = new Router();
 

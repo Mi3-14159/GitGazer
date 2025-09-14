@@ -1,6 +1,6 @@
+import {getLogger} from '@/logger';
+import {Router} from '@/router/router';
 import {APIGatewayProxyResult} from 'aws-lambda';
-import {getLogger} from '../../logger';
-import {Router} from '../router';
 
 const router = new Router();
 

@@ -1,13 +1,13 @@
-import {getLogger} from '../logger';
-import {extractCognitoGroups} from './middlewares/authorization';
-import {lowercaseHeaders} from './middlewares/lowercaseHeaders';
-import {Router} from './router';
-import authCongitoRoutes from './routes/authCongito';
-import feFailover from './routes/feFailover';
-import importRoutes from './routes/import';
-import integrationsRoutes from './routes/integrations';
-import jobsRoutes from './routes/jobs';
-import notificationsRoutes from './routes/notifications';
+import {getLogger} from '@/logger';
+import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {lowercaseHeaders} from '@/router/middlewares/lowercaseHeaders';
+import {Router} from '@/router/router';
+import authCongitoRoutes from '@/router/routes/authCongito';
+import feFailover from '@/router/routes/feFailover';
+import importRoutes from '@/router/routes/import';
+import integrationsRoutes from '@/router/routes/integrations';
+import jobsRoutes from '@/router/routes/jobs';
+import notificationsRoutes from '@/router/routes/notifications';
 
 // Setup logs - these run at module initialization before any requests
 const logger = getLogger();

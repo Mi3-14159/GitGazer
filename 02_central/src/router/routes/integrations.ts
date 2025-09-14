@@ -1,5 +1,5 @@
 import {createIntegration, deleteIntegration, getIntegrations} from '@/controllers/integrations';
-import {Router} from '../router';
+import {Router} from '@/router/router';
 
 const router = new Router();
 

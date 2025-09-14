@@ -1,6 +1,6 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
+import {Router} from '@/router/router';
 import {isNotificationRuleUpdate} from '@common/types';
-import {Router} from '../router';
 
 const router = new Router();
 
