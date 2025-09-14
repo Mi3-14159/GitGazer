@@ -28,3 +28,8 @@ export const set = (key: string, value: unknown): pino.Logger => {
     logger = logger.child({[key]: value});
     return logger;
 };
+
+export const resetLogger = (): pino.Logger => {
+    logger = newLogger();
+    return logger;
+};
