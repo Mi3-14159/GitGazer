@@ -153,6 +153,7 @@
                 :items-per-page="50"
                 :items-per-page-options="[10, 25, 50, 100]"
                 v-model:sort-by="sortBy"
+                @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
             >
                 <template v-slot:item.status="{value}">
                     <v-chip
@@ -208,5 +209,15 @@
 
     .clickable-row:hover {
         background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    /* Make data table rows clickable */
+    :deep(.v-data-table tbody tr) {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    :deep(.v-data-table tbody tr:hover) {
+        background-color: rgba(0, 0, 0, 0.08) !important;
     }
 </style>
