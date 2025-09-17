@@ -14,7 +14,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.888.0",
     "@aws-sdk/client-dynamodb": "^3.882.0",
     "@aws-sdk/client-s3": "^3.888.0",
-    "@aws-sdk/client-ssm": "^3.888.0",
+    "@aws-sdk/client-ssm": "^3.890.0",
     "@aws-sdk/credential-provider-node": "^3.888.0",
     "@aws-sdk/lib-dynamodb": "^3.888.0",
     "@aws-sdk/protocol-http": "^3.374.0",
