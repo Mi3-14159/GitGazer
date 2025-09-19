@@ -65,12 +65,12 @@ jobs:
         run: |
           mkdir -p ~/.terraform.d/plugin-cache
 
-      - name: Cache Terraform plugins
-        uses: actions/cache@v4
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('./02_central/terraform/.terraform.lock.hcl') }}
-          restore-keys: ${{ runner.os }}-terraform-
+      # - name: Cache Terraform plugins
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.terraform.d/plugin-cache
+      #     key: ${{ runner.os }}-terraform-${{ hashFiles('./02_central/terraform/.terraform.lock.hcl') }}
+      #     restore-keys: ${{ runner.os }}-terraform-
 
       - uses: hashicorp/setup-terraform@v3
         with:
