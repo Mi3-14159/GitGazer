@@ -112,3 +112,5 @@ jobs:
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         working-directory: ./02_central/terraform
         run: terraform apply tfplan
+        env:
+          GITHUB_TOKEN: ""
