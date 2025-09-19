@@ -63,9 +63,9 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          #role-session-name: gitgazer-frontend-deployment
+          role-session-name: gitgazer-frontend-deployment
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          #mask-aws-account-id: true
+          mask-aws-account-id: true
 
       - name: Deploy
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
