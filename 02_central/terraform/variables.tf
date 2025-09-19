@@ -1,7 +1,3 @@
-variable "github_owner" {
-  type        = string
-  description = "GitHub owner of the repositories, organization or user"
-}
 
 variable "aws_region" {
   type        = string
@@ -52,18 +48,6 @@ variable "custom_domain_config" {
   })
   description = "Configuration for the custom domain"
   default     = null
-}
-
-variable "create_github_organization_webhook" {
-  type        = bool
-  description = "Create a webhook in the GitHub organization. Can only be used if the var.github_owner is an organization."
-  default     = false
-}
-
-variable "create_github_repository_webhooks_repositories" {
-  type        = list(string)
-  description = "Create webhooks in the GitHub repositories. Can only be used if the var.github_owner is a user."
-  default     = []
 }
 
 variable "create_gitgazer_alerting" {
