@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: "Set to true to deploy to AWS (only works on main branch)"
+        description: Deploy to AWS
         required: false
         type: boolean
         default: false
