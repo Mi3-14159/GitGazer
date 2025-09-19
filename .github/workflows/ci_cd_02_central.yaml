@@ -66,20 +66,25 @@ jobs:
           terraform_version: ${{ steps.terraform-version.outputs.version }}
 
       - name: Terraform fmt
+        working-directory: ./02_central/terraform
         run: terraform fmt -check -diff
 
       - name: Terraform init
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
         run: terraform init
 
       - name: Terraform validate
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
         run: terraform validate
 
       - name: Terraform plan
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
         run: terraform plan -out=tfplan
 
       # - name: Terraform Apply
       #   if: github.ref == 'refs/heads/main' || inputs.deploy == true
+      #   working-directory: ./02_central/terraform
       #   run: terraform apply tfplan
