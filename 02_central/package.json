@@ -6,7 +6,7 @@
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
     "node-fetch": "^3.3.2",
-    "pino": "^9.9.5"
+    "pino": "^9.10.0"
   },
   "description": "lambda as API",
   "devDependencies": {
