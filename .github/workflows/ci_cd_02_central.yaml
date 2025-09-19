@@ -70,15 +70,15 @@ jobs:
         working-directory: ./02_central/terraform
         run: terraform fmt -check -diff
 
-      - name: Terraform init
-        if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
-        run: terraform init
-
       - name: Create terraform backend file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         working-directory: ./02_central/terraform
         run: echo "${{ secrets.TERRAFORM_BACKEND }}" > backend.tf
+
+      - name: Terraform init
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: terraform init
 
       - name: Create tfvars file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
