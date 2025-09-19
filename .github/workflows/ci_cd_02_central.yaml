@@ -2,11 +2,11 @@ name: CI/CD 02_central
 on:
   push:
     paths:
-      - "02_central/*"
+      - "02_central/**"
       - ".github/workflows/ci_cd_02_central.yaml"
   pull_request:
     paths:
-      - "02_central/*"
+      - "02_central/**"
       - ".github/workflows/ci_cd_02_central.yaml"
   workflow_dispatch:
     inputs:
