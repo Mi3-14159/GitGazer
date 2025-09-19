@@ -5,7 +5,7 @@ updates:
     rebase-strategy: auto
     schedule:
       interval: cron
-      cronjob: "* * * * MON-THU"
+      cronjob: "0 9 * * MON-THU"
       timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
@@ -24,7 +24,7 @@ updates:
     rebase-strategy: auto
     schedule:
       interval: cron
-      cronjob: "* * * * TUE-THU"
+      cronjob: "15 9 * * TUE-THU"
       timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
@@ -43,7 +43,7 @@ updates:
     rebase-strategy: auto
     schedule:
       interval: cron
-      cronjob: "* * * * MON-THU"
+      cronjob: "30 9 * * MON-THU"
       timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
@@ -62,7 +62,7 @@ updates:
     rebase-strategy: auto
     schedule:
       interval: cron
-      cronjob: "* * * * MON-THU"
+      cronjob: "30 10 * * MON-THU"
       timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
