@@ -2,37 +2,75 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
-    open-pull-requests-limit: 10
+    rebase-strategy: auto
     schedule:
-      interval: "daily"
+      interval: cron
+      cronjob: "* * * * MON-THU"
+      timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      terraform-patches:
+        patterns: ["*"]
+        update-types: ["patch"]
+      terraform-minors:
+        patterns: ["*"]
+        update-types: ["minor"]
 
   - package-ecosystem: "terraform"
     directory: "/02_central/terraform"
     open-pull-requests-limit: 10
+    rebase-strategy: auto
     schedule:
-      interval: "daily"
+      interval: cron
+      cronjob: "* * * * TUE-THU"
+      timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      terraform-patches:
+        patterns: ["*"]
+        update-types: ["patch"]
+      terraform-minors:
+        patterns: ["*"]
+        update-types: ["minor"]
 
   - package-ecosystem: "npm"
     directory: "/02_central"
     open-pull-requests-limit: 10
+    rebase-strategy: auto
     schedule:
-      interval: "daily"
+      interval: cron
+      cronjob: "* * * * MON-THU"
+      timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      npm-patches:
+        patterns: ["*"]
+        update-types: ["patch"]
+      npm-minors:
+        patterns: ["*"]
+        update-types: ["minor"]
 
   - package-ecosystem: "npm"
-
     directory: "/04_frontend"
     open-pull-requests-limit: 10
+    rebase-strategy: auto
     schedule:
-      interval: "daily"
+      interval: cron
+      cronjob: "* * * * MON-THU"
+      timezone: "Europe/Berlin"
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      npm-patches:
+        patterns: ["*"]
+        update-types: ["patch"]
+      npm-minors:
+        patterns: ["*"]
+        update-types: ["minor"]
