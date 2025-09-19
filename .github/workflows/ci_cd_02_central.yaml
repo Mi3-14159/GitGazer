@@ -108,7 +108,7 @@ jobs:
         working-directory: ./02_central/terraform
         run: terraform plan -out=tfplan
 
-      # - name: Terraform Apply
-      #   if: github.ref == 'refs/heads/main' || inputs.deploy == true
-      #   working-directory: ./02_central/terraform
-      #   run: terraform apply tfplan
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: terraform apply tfplan
