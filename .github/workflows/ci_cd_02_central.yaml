@@ -73,7 +73,7 @@ jobs:
       - name: Create terraform backend file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         working-directory: ./02_central/terraform
-        run: echo "${{ secrets.TERRAFORM_BACKEND }}" > backend.tf
+        run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
 
       - name: Terraform init
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
@@ -83,7 +83,7 @@ jobs:
       - name: Create tfvars file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         working-directory: ./02_central/terraform
-        run: echo "${{ secrets.TERRAFORM_TF_VARS }}" > terraform.tfvars
+        run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
 
       - name: Terraform validate
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
