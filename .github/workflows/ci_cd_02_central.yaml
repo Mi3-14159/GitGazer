@@ -55,7 +55,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: gitgazer-deployment
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          mask-aws-account-id: false
+          mask-aws-account-id: true
 
       - name: Get Terraform version from .tool-versions
         id: terraform-version
