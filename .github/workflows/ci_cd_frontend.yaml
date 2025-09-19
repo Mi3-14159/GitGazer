@@ -1,18 +1,29 @@
-permissions:
-  contents: read
-name: CD frontend
+name: CI/CD frontend
 on:
   push:
     branches:
       - main
     paths:
       - "04_frontend/**"
-      - ".github/workflows/cd_frontend.yaml"
+      - ".github/workflows/ci_cd_frontend.yaml"
+  pull_request:
+    paths:
+      - "04_frontend/**"
+      - ".github/workflows/ci_cd_frontend.yaml"
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  cd:
+  build-test-deploy:
+    name: Build, Test & Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ./04_frontend
@@ -20,8 +31,8 @@ jobs:
       group: 04_frontend-${{ github.ref }}
       cancel-in-progress: false
     environment:
-      name: app.gitgazer.com
-      url: https://app.gitgazer.com/
+      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -48,12 +59,17 @@ jobs:
           VITE_REST_API_REGION: ${{ vars.REST_API_REGION }}
           VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
 
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+
       - name: Deploy
-        if: ${{ github.actor != 'dependabot[bot]' }}
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --include "*" --exclude "*.html"
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
