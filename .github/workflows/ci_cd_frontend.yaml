@@ -22,9 +22,6 @@ jobs:
   build-test-deploy:
     name: Build, Test & Deploy
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     defaults:
       run:
         working-directory: ./04_frontend
@@ -34,6 +31,9 @@ jobs:
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
       url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
