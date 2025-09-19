@@ -1,0 +1,101 @@
+name: CI/CD 02_central
+on:
+  push:
+    paths:
+      - "02_central/**"
+      - ".github/workflows/ci_cd_02_central.yaml"
+  pull_request:
+    paths:
+      - "02_central/**"
+      - ".github/workflows/ci_cd_02_central.yaml"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-test-deploy:
+    name: Build, Test & Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./02_central
+    concurrency:
+      group: 02_central-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: ./02_central/package.json
+          cache: "npm"
+          cache-dependency-path: ./02_central/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run buildZip
+
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+
+      - name: Get Terraform version from .tool-versions
+        id: terraform-version
+        run: echo "version=$(grep '^terraform ' ../.tool-versions | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+
+      - name: Terraform fmt
+        working-directory: ./02_central/terraform
+        run: terraform fmt -check -diff
+
+      - name: Create terraform backend file
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
+
+      - name: Terraform init
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: terraform init
+
+      - name: Create tfvars file
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
+
+      - name: Terraform validate
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: terraform validate
+
+      - name: Terraform plan
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./02_central/terraform
+        run: terraform plan -out=tfplan
+
+      # - name: Terraform Apply
+      #   if: github.ref == 'refs/heads/main' || inputs.deploy == true
+      #   working-directory: ./02_central/terraform
+      #   run: terraform apply tfplan

@@ -24,6 +24,10 @@ resource "aws_apigatewayv2_stage" "this" {
   name        = "$default"
   auto_deploy = true
 
+  default_route_settings {
+    detailed_metrics_enabled = true
+  }
+
   dynamic "access_log_settings" {
     for_each = var.apigateway_logging_enabled ? [1] : []
     content {
