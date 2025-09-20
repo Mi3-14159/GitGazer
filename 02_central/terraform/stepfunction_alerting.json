@@ -68,7 +68,7 @@
                                         "type": "mrkdwn"
                                       },
                                       {
-                                        "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S)",
+                                        "text.$": "States.Format('*Workflow:* <{}/actions/runs/{}/workflow|{} / {}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.repository.M.html_url.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.run_id.N, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.workflow_name.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_job_event.M.workflow_job.M.name.S)",
                                         "type": "mrkdwn"
                                       },
                                       {
