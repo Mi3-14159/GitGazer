@@ -26,6 +26,9 @@ jobs:
     concurrency:
       group: 02_central-${{ github.ref }}
       cancel-in-progress: false
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
     permissions:
       contents: read
       id-token: write
