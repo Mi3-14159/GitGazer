@@ -49,14 +49,14 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json && tsc-alias",
-    "buildZip": "npm run clean && npm run build && npm run zip",
+    "buildZip": "npm run build && npm run zip",
     "clean": "rimraf ./dist ./tmp",
-    "codegen": "amplify codegen --nodownload",
     "dev": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
-    "pretty": "prettier --write src terraform/functions terraform/resolvers",
-    "prezip": "mkdir -p tmp && cp -r dist/* tmp/ && cp package*.json tmp",
+    "postbuild": "cp package*.json dist && cd dist && npm ci --omit=dev",
+    "prebuild": "npm run clean",
+    "pretty": "prettier --write src",
     "test:unit": "vitest --project unit --run",
-    "zip": "cd tmp && npm ci --omit=dev && zip lambda.zip -qr *"
+    "zip": "cd dist && zip lambda.zip -qr *"
   },
   "version": "1.0.0"
 }

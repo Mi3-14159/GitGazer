@@ -23,7 +23,7 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  artifact                                    = "${path.module}/../tmp/lambda.zip"
+  artifact                                    = "${path.module}/../dist/lambda.zip"
   ssm_parameter_gh_webhook_secret_name_prefix = "/${var.name_prefix}-${terraform.workspace}/gh-webhook-secret/"
   frontend_failover_sub_path                  = "fe-failover"
   github_oauth_scopes                         = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
