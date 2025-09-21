@@ -2,7 +2,7 @@ import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {Job, NotificationRule, NotificationRuleUpdate} from '@common/types';
+import {Job, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
@@ -59,13 +59,26 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
     return query<NotificationRule>(commands);
 };
 
-export const getJobsBy = async (params: {integrationIds: string[]; limit?: number}): Promise<Job<WorkflowJobEvent>[]> => {
+export const getJobsBy = async (params: {
+    integrationIds: string[];
+    limit?: number;
+    projection?: ProjectionType;
+}): Promise<Job<Partial<WorkflowJobEvent>>[]> => {
     const logger = getLogger();
     logger.info({message: 'Getting jobs for integrations', integrations: params.integrationIds});
 
     if (!jobsTableName) {
         throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
     }
+
+    const projectionExpressionValues = [
+        'job_id',
+        'created_at',
+        'integrationId',
+        'workflow_job_event.workflow_job.head_branch',
+        'workflow_job_event.workflow_job.#status',
+        'workflow_job_event.workflow_job.conclusion',
+    ];
 
     const commands = params.integrationIds.map((integrationId) => {
         return new QueryCommand({
@@ -74,13 +87,20 @@ export const getJobsBy = async (params: {integrationIds: string[]; limit?: numbe
             ExpressionAttributeValues: {
                 ':integrationId': integrationId,
             },
-            Limit: params.limit ?? 50,
+            ExpressionAttributeNames:
+                params.projection === ProjectionType.minimal
+                    ? {
+                          '#status': 'status',
+                      }
+                    : undefined,
+            Limit: params.limit ?? 10,
             IndexName: 'newest_integration_index',
             ScanIndexForward: false,
+            ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
         });
     });
 
-    return query<Job<WorkflowJobEvent>>(commands);
+    return query<Job<Partial<WorkflowJobEvent>>>(commands);
 };
 
 export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {

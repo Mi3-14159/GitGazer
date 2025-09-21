@@ -100,3 +100,29 @@ export type Job<Subtype> = {
   expire_at: number;
   workflow_job_event: Subtype;
 };
+
+export enum ProjectionType {
+  minimal = "minimal",
+}
+
+export type JobRequestParameters = {
+  limit?: number;
+  projection?: ProjectionType;
+};
+
+export const isJobRequestParameters = (
+  params: any
+): params is JobRequestParameters => {
+  if (params.limit && isNaN(parseInt(params.limit, 10))) {
+    return false;
+  }
+
+  if (
+    params.projection &&
+    !Object.values(ProjectionType).includes(params.projection)
+  ) {
+    return false;
+  }
+
+  return true;
+};
