@@ -20,6 +20,17 @@ resource "aws_iam_role" "api" {
   assume_role_policy = data.aws_iam_policy_document.api_assume_role.json
 }
 
+resource "aws_iam_role_policy_attachment" "api_tracing_lambda_insights" {
+  count      = var.enable_lambda_api_tracing ? 1 : 0
+  role       = aws_iam_role.api.id
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "api_tracing_application_signals" {
+  count      = var.enable_lambda_api_tracing ? 1 : 0
+  role       = aws_iam_role.api.id
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaApplicationSignalsExecutionRolePolicy"
+}
 
 data "aws_iam_policy_document" "api" {
   statement {
@@ -31,6 +42,18 @@ data "aws_iam_policy_document" "api" {
       "logs:DescribeLogStreams",
     ]
     resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-jobs-processor-${terraform.workspace}:*"]
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_lambda_api_tracing ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+      ]
+      resources = ["*"]
+    }
   }
 
   statement {
@@ -125,9 +148,15 @@ resource "aws_lambda_function" "api" {
       KMS_KEY_ID                                  = aws_kms_key.this.id
       COGNITO_USER_POOL_ID                        = aws_cognito_user_pool.this.id
       PINO_LOG_LEVEL                              = "info"
+      AWS_LAMBDA_EXEC_WRAPPER                     = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
     }
   }
-  layers = ["arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:18"]
+  layers = flatten([
+    "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:18",
+    var.enable_lambda_api_tracing ? [
+      "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:60",
+      "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:9"
+  ] : []])
 }
 
 resource "aws_lambda_alias" "live" {

@@ -79,3 +79,9 @@ variable "github_oauth_scopes" {
   description = "List of additional GitHub OAuth scopes to request"
   default     = []
 }
+
+variable "enable_lambda_api_tracing" {
+  type        = bool
+  description = "Enable AWS X-Ray tracing for the Lambda functions"
+  default     = false
+}
