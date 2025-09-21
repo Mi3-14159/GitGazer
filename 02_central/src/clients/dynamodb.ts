@@ -77,7 +77,7 @@ export const getJobsBy = async (params: {
         'integrationId',
         'workflow_job_event.repository.full_name',
         'workflow_job_event.workflow_job.workflow_name',
-        'workflow_job_event.workflow_job.name',
+        'workflow_job_event.workflow_job.#name',
         'workflow_job_event.workflow_job.head_branch',
         'workflow_job_event.workflow_job.#status',
         'workflow_job_event.workflow_job.conclusion',
@@ -94,6 +94,7 @@ export const getJobsBy = async (params: {
                 params.projection === ProjectionType.minimal
                     ? {
                           '#status': 'status',
+                          '#name': 'name',
                       }
                     : undefined,
             Limit: params.limit ?? 10,
