@@ -7,7 +7,7 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer, co
 
     logger.debug({message: 'handle event', event});
 
-    let result = await app.handle(event);
+    const result = await app.handle(event);
 
     logger.debug({message: 'result', result});
 
