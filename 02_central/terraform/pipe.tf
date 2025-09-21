@@ -2,10 +2,13 @@ resource "aws_iam_role" "alerting" {
   count              = var.create_gitgazer_alerting ? 1 : 0
   name               = "${var.name_prefix}-alerting-pipe-${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.alerting_assume_role_policy[0].json
-  inline_policy {
-    name   = "alerting"
-    policy = data.aws_iam_policy_document.alerting_policy[0].json
-  }
+}
+
+resource "aws_iam_role_policy" "alerting" {
+  count  = var.create_gitgazer_alerting ? 1 : 0
+  name   = "${var.name_prefix}-alerting-pipe-${terraform.workspace}"
+  role   = aws_iam_role.alerting[0].id
+  policy = data.aws_iam_policy_document.alerting_policy[0].json
 }
 
 data "aws_iam_policy_document" "alerting_assume_role_policy" {
