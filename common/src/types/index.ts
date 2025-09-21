@@ -113,6 +113,10 @@ export type JobRequestParameters = {
 export const isJobRequestParameters = (
   params: any
 ): params is JobRequestParameters => {
+  if (!params) {
+    return true;
+  }
+
   if (params.limit && isNaN(parseInt(params.limit, 10))) {
     return false;
   }
