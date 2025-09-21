@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import {Job} from '@common/types';
+    import {Job, ProjectionType} from '@common/types';
     import WorkflowCard from '@components/WorkflowCard.vue';
     import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
@@ -94,7 +94,7 @@
     });
 
     const handleListJobs = async () => {
-        const response = await getJobs();
+        const response = await getJobs({limit: 50, projection: ProjectionType.minimal});
 
         response.forEach((job: Job<WorkflowJobEvent>) => {
             formatJobTime(job);
