@@ -7,19 +7,6 @@ const router = new Router();
 router.get('/api/jobs', async (event) => {
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const {queryStringParameters} = event;
-    if (queryStringParameters?.offset) {
-        try {
-            queryStringParameters.offset = JSON.parse(queryStringParameters.offset);
-        } catch (e) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({message: 'Invalid offset format'}),
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            };
-        }
-    }
 
     if (!isJobRequestParameters(queryStringParameters)) {
         return {
@@ -31,13 +18,12 @@ router.get('/api/jobs', async (event) => {
         };
     }
 
-    const {limit, projection, offset} = queryStringParameters ?? {};
+    const {limit, projection} = queryStringParameters ?? {};
 
     const jobs = await getJobs({
         integrationIds: groups,
         limit,
         projection,
-        offset,
     });
 
     return {

@@ -60,15 +60,12 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
 };
 
 export const getJobsBy = async (params: {
-    queryInput: {
-        integrationId: string;
-        exclusiveStartKeys?: Record<string, any>;
-    }[];
+    integrationIds: string[];
     limit?: number;
     projection?: ProjectionType;
 }): Promise<Job<Partial<WorkflowJobEvent>>[]> => {
     const logger = getLogger();
-    logger.info({message: 'Getting jobs for integrations', integrations: params.queryInput});
+    logger.info({message: 'Getting jobs for integrations', integrations: params.integrationIds});
 
     if (!jobsTableName) {
         throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
@@ -87,12 +84,12 @@ export const getJobsBy = async (params: {
         'workflow_job_event.workflow_job.run_id',
     ];
 
-    const commands = params.queryInput.map((queryInput) => {
+    const commands = params.integrationIds.map((integrationId) => {
         return new QueryCommand({
             TableName: jobsTableName,
             KeyConditionExpression: 'integrationId = :integrationId',
             ExpressionAttributeValues: {
-                ':integrationId': queryInput.integrationId,
+                ':integrationId': integrationId,
             },
             ExpressionAttributeNames:
                 params.projection === ProjectionType.minimal
@@ -103,9 +100,8 @@ export const getJobsBy = async (params: {
                     : undefined,
             Limit: params.limit ?? 10,
             IndexName: 'newest_integration_index',
-            ScanIndexForward: !!queryInput.exclusiveStartKeys,
+            ScanIndexForward: false,
             ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
-            ExclusiveStartKey: queryInput.exclusiveStartKeys,
         });
     });
 

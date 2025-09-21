@@ -105,26 +105,9 @@ export enum ProjectionType {
   minimal = "minimal",
 }
 
-export type JobRequestParametersOffset = {
-  integrationId: string;
-  job_id: number;
-  created_at: string;
-};
-
-export const isJobRequestParametersOffset = (
-  offset: any
-): offset is JobRequestParametersOffset => {
-  return (
-    typeof offset.integrationId === "string" &&
-    typeof offset.job_id === "number" &&
-    typeof offset.created_at === "string"
-  );
-};
-
 export type JobRequestParameters = {
   limit?: number;
   projection?: ProjectionType;
-  offset?: JobRequestParametersOffset[];
 };
 
 export const isJobRequestParameters = (
@@ -143,15 +126,6 @@ export const isJobRequestParameters = (
     !Object.values(ProjectionType).includes(params.projection)
   ) {
     return false;
-  }
-
-  if (params.offset) {
-    if (
-      !Array.isArray(params.offset) ||
-      !params.offset.every(isJobRequestParametersOffset)
-    ) {
-      return false;
-    }
   }
 
   return true;
