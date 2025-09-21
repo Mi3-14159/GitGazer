@@ -18,7 +18,7 @@ router.get('/api/jobs', async (event) => {
         };
     }
 
-    const {limit, projection} = queryStringParameters;
+    const {limit, projection} = queryStringParameters ?? {};
 
     const jobs = await getJobs({
         integrationIds: groups,
