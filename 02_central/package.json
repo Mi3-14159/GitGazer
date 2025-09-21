@@ -56,6 +56,5 @@
     "test:unit": "vitest --project unit --run",
     "zip": "cd dist && zip lambda.zip -qr *"
   },
-  "type": "module",
   "version": "1.0.0"
 }
