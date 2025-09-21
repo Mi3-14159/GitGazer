@@ -4,10 +4,12 @@ on:
     paths:
       - "02_central/**"
       - ".github/workflows/ci_cd_02_central.yaml"
+      - "common/**"
   pull_request:
     paths:
       - "02_central/**"
       - ".github/workflows/ci_cd_02_central.yaml"
+      - "common/**"
   workflow_dispatch:
     inputs:
       deploy:

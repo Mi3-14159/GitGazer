@@ -6,10 +6,12 @@ on:
     paths:
       - "04_frontend/**"
       - ".github/workflows/ci_cd_frontend.yaml"
+      - "common/**"
   pull_request:
     paths:
       - "04_frontend/**"
       - ".github/workflows/ci_cd_frontend.yaml"
+      - "common/**"
   workflow_dispatch:
     inputs:
       deploy:
