@@ -81,6 +81,7 @@ export const getJobsBy = async (params: {
         'workflow_job_event.workflow_job.head_branch',
         'workflow_job_event.workflow_job.#status',
         'workflow_job_event.workflow_job.conclusion',
+        'workflow_job_event.workflow_job.run_id',
     ];
 
     const commands = params.integrationIds.map((integrationId) => {
