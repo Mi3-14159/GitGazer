@@ -1,7 +1,10 @@
 <template>
     <div class="d-flex align-center">
         <span>{{ title }}</span>
-        <v-menu offset-y :close-on-content-click="false">
+        <v-menu
+            offset-y
+            :close-on-content-click="false"
+        >
             <template v-slot:activator="{props}">
                 <v-btn
                     icon
