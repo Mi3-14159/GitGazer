@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     BooleanChip: typeof import('./src/components/BooleanChip.vue')['default']
+    ColumnFilter: typeof import('./src/components/ColumnFilter.vue')['default']
     IntegrationCard: typeof import('./src/components/IntegrationCard.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']

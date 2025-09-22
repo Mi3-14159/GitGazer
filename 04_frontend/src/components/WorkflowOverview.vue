@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import {Job, ProjectionType} from '@common/types';
+    import ColumnFilter from '@components/ColumnFilter.vue';
     import WorkflowCard from '@components/WorkflowCard.vue';
     import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
@@ -13,23 +14,82 @@
     const {smAndDown} = useDisplay();
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
     const isInitialLoad = ref(true);
+    const uniqueValuesCache = reactive(new Map<string, Set<string>>());
 
     // Table headers for desktop view
     const headers = [
-        {title: 'Repository', key: 'full_name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.repository.full_name},
-        {title: 'Workflow', key: 'workflow_name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.workflow_name},
-        {title: 'Job Name', key: 'name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.name},
-        {title: 'Branch', key: 'head_branch', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.head_branch},
+        {
+            title: 'Repository',
+            key: 'full_name',
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.repository.full_name,
+            filterableColumn: true,
+        },
+        {
+            title: 'Workflow',
+            key: 'workflow_name',
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.workflow_name,
+            filterableColumn: true,
+        },
+        {title: 'Job name', key: 'name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.name, filterableColumn: true},
+        {
+            title: 'Branch',
+            key: 'head_branch',
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.head_branch,
+            filterableColumn: true,
+        },
         {
             title: 'Status',
             key: 'status',
             value: (item: Job<WorkflowJobEvent>) =>
                 item.workflow_job_event?.workflow_job?.conclusion || item.workflow_job_event?.workflow_job?.status || 'unknown',
+            filterableColumn: true,
         },
-        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at},
+        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false},
     ];
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
+
+    // Define which columns should have filters (exclude 'created_at' as it's a timestamp)
+    const filterableColumns = headers.filter((header) => header.filterableColumn);
+
+    // Dynamically generate filter state for each filterable column
+    const columnFilters = reactive(
+        Object.fromEntries(filterableColumns.map((column) => [column.key, new Set<string>()])) as Record<string, Set<string>>,
+    );
+
+    // Filter jobs based on column filters
+    const filteredJobs = computed(() => {
+        return Array.from(jobs.values()).filter((job) => {
+            // Check each filterable column
+            return filterableColumns.every((column) => {
+                const filterSet = columnFilters[column.key];
+                if (!filterSet) return true;
+
+                const value = (column.value(job) as string) || 'unknown';
+                return !filterSet.has(value);
+            });
+        });
+    });
+
+    // Toggle filter for a column value
+    const toggleFilter = (column: string, value: string) => {
+        const filterSet = columnFilters[column];
+        if (!filterSet) return;
+
+        if (filterSet.has(value)) {
+            filterSet.delete(value);
+        } else {
+            filterSet.add(value);
+        }
+    };
+
+    // Clear all filters for a column
+    const clearColumnFilter = (column: string) => {
+        const filterSet = columnFilters[column];
+        if (filterSet) {
+            filterSet.clear();
+        }
+    };
 
     const getJobStatusColor = (status: string) => {
         switch (status) {
@@ -99,6 +159,14 @@
         response.forEach((job: Job<WorkflowJobEvent>) => {
             formatJobTime(job);
             jobs.set(job.job_id, job);
+            filterableColumns.forEach((column) => {
+                const uniqueValues = uniqueValuesCache.get(column.key);
+                if (uniqueValues) {
+                    uniqueValues.add((column.value(job) as string) || 'unknown');
+                } else {
+                    uniqueValuesCache.set(column.key, new Set([(column.value(job) as string) || 'unknown']));
+                }
+            });
         });
 
         // Mark initial load as complete
@@ -146,7 +214,7 @@
         <div v-else-if="!smAndDown">
             <v-data-table
                 :headers="headers"
-                :items="Array.from(jobs.values())"
+                :items="filteredJobs"
                 item-key="job_id"
                 class="elevation-1"
                 density="compact"
@@ -155,6 +223,21 @@
                 v-model:sort-by="sortBy"
                 @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
             >
+                <!-- Dynamic header filters for filterable columns -->
+                <template
+                    v-for="column in filterableColumns"
+                    :key="`header-${column.key}`"
+                    #[`header.${column.key}`]="{column: headerColumn}"
+                >
+                    <ColumnFilter
+                        :title="headerColumn.title || column.title"
+                        :available-values="Array.from(uniqueValuesCache.get(column.key) ?? [])"
+                        :hidden-values="columnFilters[column.key]"
+                        @toggle-filter="toggleFilter(column.key, $event)"
+                        @clear-filter="clearColumnFilter(column.key)"
+                    />
+                </template>
+
                 <template v-slot:item.status="{value}">
                     <v-chip
                         :color="getJobStatusColor(value)"
@@ -219,5 +302,17 @@
 
     :deep(.v-data-table tbody tr:hover) {
         background-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    /* Prevent text wrapping in table cells */
+    :deep(.v-data-table td) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 0;
+    }
+
+    :deep(.v-data-table th) {
+        white-space: nowrap;
     }
 </style>
