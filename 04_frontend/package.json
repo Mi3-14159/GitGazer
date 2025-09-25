@@ -2,9 +2,9 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "aws-amplify": "^6.15.6",
-    "vue": "^3.5.21",
+    "vue": "^3.5.22",
     "vue-router": "^4.5.1",
-    "vuetify": "^3.10.2"
+    "vuetify": "^3.10.3"
   },
   "devDependencies": {
     "@babel/types": "^7.28.4",
