@@ -50,3 +50,68 @@ resource "aws_cognito_user_group" "default" {
   user_pool_id = aws_cognito_user_pool.this.id
   description  = "default user group"
 }
+
+resource "aws_cognito_identity_pool" "this" {
+  identity_pool_name               = "${var.name_prefix}-${terraform.workspace}"
+  allow_unauthenticated_identities = false
+  allow_classic_flow               = false
+
+  cognito_identity_providers {
+    client_id               = aws_cognito_user_pool_client.this.id
+    provider_name           = aws_cognito_user_pool.this.endpoint
+    server_side_token_check = false
+  }
+}
+
+resource "aws_iam_role" "cognito_authenticated" {
+  name = "${var.name_prefix}-cognito-authenticated-role-${terraform.workspace}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Effect = "Allow"
+        Condition = {
+          StringEquals = {
+            "cognito-identity.amazonaws.com:aud" = aws_cognito_identity_pool.this.id
+          }
+          "ForAnyValue:StringLike" = {
+            "cognito-identity.amazonaws.com:amr" = "authenticated"
+          }
+        }
+        Principal = {
+          Federated = "cognito-identity.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_authenticated_websocket" {
+  name = "${var.name_prefix}-cognito-websocket-policy-${terraform.workspace}"
+  role = aws_iam_role.cognito_authenticated.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "execute-api:Invoke"
+        ]
+        Resource = [
+          "${aws_apigatewayv2_api.websocket.execution_arn}/${aws_apigatewayv2_stage.websocket_ws.name}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_cognito_identity_pool_roles_attachment" "this" {
+  identity_pool_id = aws_cognito_identity_pool.this.id
+
+  roles = {
+    "authenticated" = aws_iam_role.cognito_authenticated.arn
+  }
+}
