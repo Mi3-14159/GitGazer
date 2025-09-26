@@ -32,7 +32,7 @@ export default defineConfig({
     define: {'process.env': {}},
     resolve: {
         alias: {
-            '@components': resolve(__dirname, 'src/components'),
+            '@': resolve(__dirname, 'src'),
             '@common': resolve(__dirname, '../common/src'),
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],

@@ -1,12 +1,12 @@
 <script setup lang="ts">
     import {Job, ProjectionType} from '@common/types';
-    import ColumnFilter from '@components/ColumnFilter.vue';
-    import WorkflowCard from '@components/WorkflowCard.vue';
-    import WorkflowCardDetails from '@components/WorkflowCardDetails.vue';
+    import ColumnFilter from '@/components/ColumnFilter.vue';
+    import WorkflowCard from '@/components/WorkflowCard.vue';
+    import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {computed, onMounted, onUnmounted, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
-    import {useJobs} from '../composables/useJobs';
+    import {useJobs} from '@/composables/useJobs';
 
     const {getJobs, isLoadingJobs} = useJobs();
 

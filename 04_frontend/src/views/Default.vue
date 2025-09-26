@@ -1,8 +1,8 @@
 <script setup lang="ts">
-    import IntegrationsOverview from '@components/IntegrationsOverview.vue';
-    import Navigation from '@components/Navigation.vue';
-    import NotificationsOveview from '@components/NotificationsOveview.vue';
-    import WorkflowOverview from '@components/WorkflowOverview.vue';
+    import IntegrationsOverview from '@/components/IntegrationsOverview.vue';
+    import Navigation from '@/components/Navigation.vue';
+    import NotificationsOveview from '@/components/NotificationsOveview.vue';
+    import WorkflowOverview from '@/components/WorkflowOverview.vue';
     import {fetchUserAttributes, getCurrentUser, type FetchUserAttributesOutput} from 'aws-amplify/auth';
     import {ref} from 'vue';
     import {useRouter} from 'vue-router';

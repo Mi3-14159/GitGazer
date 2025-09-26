@@ -1,9 +1,9 @@
 import {Amplify} from 'aws-amplify';
 import {fetchAuthSession} from 'aws-amplify/auth';
 import {createApp} from 'vue';
-import App from './App.vue';
-import {registerPlugins} from './plugins';
-import router from './router';
+import App from '@/App.vue';
+import {registerPlugins} from '@/plugins';
+import router from '@/router';
 
 Amplify.configure(
     {

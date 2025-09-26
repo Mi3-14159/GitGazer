@@ -1,12 +1,12 @@
 <script setup lang="ts">
     import {NotificationRule} from '@common/types';
-    import BooleanChip from '@components/BooleanChip.vue';
-    import NotificationCard from '@components/NotificationCard.vue';
-    import NotificationDetailsCard from '@components/NotificationDetailsCard.vue';
+    import BooleanChip from '@/components/BooleanChip.vue';
+    import NotificationCard from '@/components/NotificationCard.vue';
+    import NotificationDetailsCard from '@/components/NotificationDetailsCard.vue';
     import {computed, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
-    import {useIntegration} from '../composables/useIntegration';
-    import {useNotification} from '../composables/useNotification';
+    import {useIntegration} from '@/composables/useIntegration';
+    import {useNotification} from '@/composables/useNotification';
 
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const integrations = reactive(new Array());

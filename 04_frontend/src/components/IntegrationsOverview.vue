@@ -1,11 +1,11 @@
 <script setup lang="ts">
     import {Integration} from '@common/types';
-    import IntegrationCard from '@components/IntegrationCard.vue';
-    import IntegrationDetailsCard from '@components/IntegrationDetailsCard.vue';
+    import IntegrationCard from '@/components/IntegrationCard.vue';
+    import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
     import {AuthUser, fetchAuthSession, getCurrentUser} from 'aws-amplify/auth';
     import {computed, reactive, ref} from 'vue';
     import {useDisplay} from 'vuetify';
-    import {useIntegration} from '../composables/useIntegration';
+    import {useIntegration} from '@/composables/useIntegration';
 
     const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
 

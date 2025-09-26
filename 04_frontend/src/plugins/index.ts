@@ -5,7 +5,7 @@
  */
 
 // Plugins
-import vuetify from './vuetify';
+import vuetify from '@/plugins/vuetify';
 
 // Types
 import type {App} from 'vue';
