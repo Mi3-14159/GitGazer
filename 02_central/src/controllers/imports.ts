@@ -1,4 +1,11 @@
-import {putJob} from '@/clients/dynamodb';
+import {deleteConnection, getConnections, putJob} from '@/clients/dynamodb';
+import {getLogger} from '@/logger';
+import {
+    ApiGatewayManagementApiClient,
+    ApiGatewayManagementApiServiceException,
+    GoneException,
+    PostToConnectionCommand,
+} from '@aws-sdk/client-apigatewaymanagementapi';
 import {Job} from '@common/types';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
 
@@ -7,6 +14,21 @@ if (!_expireInSec) {
     throw new Error('Missing EXPIRE_IN_SEC environment variable');
 }
 const expireInSec = parseInt(_expireInSec);
+
+const websocketApiDomain = process.env.WEBSOCKET_API_DOMAIN_NAME;
+if (!websocketApiDomain) {
+    throw new Error('Missing WEBSOCKET_API_DOMAIN_NAME environment variable');
+}
+
+const stage = process.env.WEBSOCKET_API_STAGE;
+if (!stage) {
+    throw new Error('Missing WEBSOCKET_API_STAGE environment variable');
+}
+
+const apiClient = new ApiGatewayManagementApiClient({
+    region: process.env.AWS_REGION,
+    endpoint: `https://${websocketApiDomain}/${stage}`,
+});
 
 export const createWorkflowJob = async (integrationId: string, event: WorkflowJobEvent): Promise<Job<WorkflowJobEvent>> => {
     const job: Job<WorkflowJobEvent> = {
@@ -17,5 +39,46 @@ export const createWorkflowJob = async (integrationId: string, event: WorkflowJo
         workflow_job_event: event,
     };
 
-    return await putJob(job);
+    const response = await putJob(job);
+    await postToConnections({eventType: 'NEW_JOB', payload: job});
+    return response;
+};
+
+const postToConnections = async (params: {eventType: string; payload: unknown}) => {
+    const logger = getLogger();
+    const connections = await getConnections();
+
+    const promises = [];
+    for (const connectionId of connections) {
+        const apiCommand = new PostToConnectionCommand({
+            ConnectionId: connectionId,
+            Data: JSON.stringify(params),
+        });
+        promises.push(apiClient.send(apiCommand));
+    }
+
+    const results = await Promise.allSettled(promises);
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const connectionId = connections[i];
+        if (result.status === 'fulfilled') {
+            logger.info(`Successfully sent message to ${connectionId}: ${JSON.stringify(result.value)}`);
+        } else {
+            await handlePostToConnectionError(connectionId, result.reason);
+        }
+    }
+};
+
+const handlePostToConnectionError = async (connectionId: string, error: any) => {
+    const logger = getLogger();
+
+    if (error instanceof GoneException) {
+        logger.warn(`Connection ${connectionId} is gone, skipping.`);
+        await deleteConnection(connectionId);
+    } else if (error instanceof ApiGatewayManagementApiServiceException) {
+        logger.info(`API Gateway Service Exception: ${error.message}, status code: ${error.$metadata.httpStatusCode}`);
+        await deleteConnection(connectionId);
+    } else {
+        throw error;
+    }
 };

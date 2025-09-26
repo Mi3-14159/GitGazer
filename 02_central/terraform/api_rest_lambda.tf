@@ -94,6 +94,8 @@ data "aws_iam_policy_document" "api" {
       "${aws_dynamodb_table.jobs.arn}/index/*",
       try(aws_dynamodb_table.notification_rules[0].arn, null),
       try("${aws_dynamodb_table.notification_rules[0].arn}/index/*", null),
+      aws_dynamodb_table.connections.arn,
+      "${aws_dynamodb_table.connections.arn}/index/*",
     ])
   }
 
@@ -118,6 +120,16 @@ data "aws_iam_policy_document" "api" {
       resources = [aws_cognito_user_pool.this.arn]
     }
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "execute-api:ManageConnections"
+    ]
+    resources = [
+      "${aws_apigatewayv2_api.websocket.execution_arn}/*"
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "api" {
@@ -139,7 +151,9 @@ resource "aws_lambda_function" "api" {
   memory_size      = 256
   environment {
     variables = {
+      AWS_LAMBDA_EXEC_WRAPPER                     = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
       ENVIRONMENT                                 = terraform.workspace
+      PINO_LOG_LEVEL                              = "info"
       EXPIRE_IN_SEC                               = var.expire_in_sec
       SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX = local.ssm_parameter_gh_webhook_secret_name_prefix
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
@@ -147,8 +161,9 @@ resource "aws_lambda_function" "api" {
       UI_BUCKET_NAME                              = module.ui_bucket.s3_bucket_id
       KMS_KEY_ID                                  = aws_kms_key.this.id
       COGNITO_USER_POOL_ID                        = aws_cognito_user_pool.this.id
-      PINO_LOG_LEVEL                              = "info"
-      AWS_LAMBDA_EXEC_WRAPPER                     = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
+      DYNAMO_DB_CONNECTIONS_TABLE_ARN             = aws_dynamodb_table.connections.name
+      WEBSOCKET_API_DOMAIN_NAME                   = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
+      WEBSOCKET_API_STAGE                         = aws_apigatewayv2_stage.websocket_ws.name
     }
   }
   layers = flatten([

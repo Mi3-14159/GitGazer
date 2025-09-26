@@ -3,11 +3,13 @@ locals {
 }
 
 resource "aws_dynamodb_table" "jobs" {
-  name             = "${var.name_prefix}-jobs-${terraform.workspace}"
-  billing_mode     = "PAY_PER_REQUEST"
-  hash_key         = "job_id"
-  stream_enabled   = var.create_gitgazer_alerting
-  stream_view_type = "NEW_IMAGE"
+  name                        = "${var.name_prefix}-jobs-${terraform.workspace}"
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "job_id"
+  stream_enabled              = var.create_gitgazer_alerting
+  stream_view_type            = "NEW_IMAGE"
+  deletion_protection_enabled = true
+
   attribute {
     name = "job_id"
     type = "N"
@@ -53,11 +55,12 @@ resource "aws_dynamodb_table" "jobs" {
 }
 
 resource "aws_dynamodb_table" "notification_rules" {
-  count        = var.create_gitgazer_alerting ? 1 : 0
-  name         = "${var.name_prefix}-notification-rules-${terraform.workspace}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "id"
-  range_key    = "integrationId"
+  count                       = var.create_gitgazer_alerting ? 1 : 0
+  name                        = "${var.name_prefix}-notification-rules-${terraform.workspace}"
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "id"
+  range_key                   = "integrationId"
+  deletion_protection_enabled = true
 
   attribute {
     name = "id"
@@ -82,5 +85,17 @@ resource "aws_dynamodb_table" "notification_rules" {
 
   point_in_time_recovery {
     enabled = var.enabled_pitr
+  }
+}
+
+resource "aws_dynamodb_table" "connections" {
+  name                        = "${var.name_prefix}-connections-${terraform.workspace}"
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "connectionId"
+  deletion_protection_enabled = true
+
+  attribute {
+    name = "connectionId"
+    type = "S"
   }
 }

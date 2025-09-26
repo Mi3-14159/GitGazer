@@ -1,5 +1,5 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
+import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, ScanCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
 import {Job, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
@@ -8,6 +8,11 @@ import {WorkflowJobEvent} from '@octokit/webhooks-types';
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
     throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
+}
+
+const connectionTableName = process.env.DYNAMO_DB_CONNECTIONS_TABLE_ARN;
+if (!connectionTableName) {
+    throw new Error('DYNAMO_DB_CONNECTIONS_TABLE_ARN is not defined');
 }
 
 const jobsTableName = process.env.DYNAMO_DB_JOBS_TABLE_ARN;
@@ -175,4 +180,32 @@ export const putJob = async (job: Job<WorkflowJobEvent>): Promise<Job<WorkflowJo
 
     await client.send(command);
     return job;
+};
+
+export const getConnections = async (): Promise<string[]> => {
+    const logger = getLogger();
+    logger.info({message: 'Getting connections'});
+
+    const scanCommand = new ScanCommand({
+        ProjectionExpression: 'connectionId',
+        TableName: connectionTableName,
+        ConsistentRead: true,
+        Limit: 1000,
+    });
+
+    const scanData = await client.send(scanCommand);
+    const connections = scanData?.Items?.map((item) => item.connectionId) ?? [];
+    return connections;
+};
+
+export const deleteConnection = async (connectionId: string): Promise<void> => {
+    const logger = getLogger();
+    logger.info({message: 'Deleting connection', connectionId});
+
+    const command = new DeleteCommand({
+        TableName: connectionTableName,
+        Key: {connectionId},
+    });
+
+    await client.send(command);
 };

@@ -109,6 +109,18 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  # WebSocket API Origin
+  origin {
+    domain_name = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
+    origin_id   = "websocket-api"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
   origin_group {
     origin_id = "frontend-with-failover"
 
@@ -131,6 +143,21 @@ resource "aws_cloudfront_distribution" "this" {
       allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
       cached_methods             = ["GET", "HEAD", "OPTIONS"]
       target_origin_id           = aws_apigatewayv2_api.this.id
+      viewer_protocol_policy     = "https-only"
+      cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
+    }
+  }
+
+  # WebSocket API Cache Behavior
+  dynamic "ordered_cache_behavior" {
+    for_each = var.with_frontend_stack ? [1] : []
+    content {
+      path_pattern               = "/ws"
+      allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods             = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id           = "websocket-api"
       viewer_protocol_policy     = "https-only"
       cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
       origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
