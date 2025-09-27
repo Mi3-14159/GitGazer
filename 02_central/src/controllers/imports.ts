@@ -6,7 +6,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {Job} from '@common/types';
+import {Job, StreamJobEvent, StreamJobEventType} from '@common/types';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
 
 const _expireInSec = process.env.EXPIRE_IN_SEC;
@@ -40,11 +40,11 @@ export const createWorkflowJob = async (integrationId: string, event: WorkflowJo
     };
 
     const response = await putJob(job);
-    await postToConnections({eventType: 'JOB', payload: job});
+    await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
     return response;
 };
 
-const postToConnections = async (params: {eventType: string; payload: unknown}) => {
+const postToConnections = async (params: StreamJobEvent<WorkflowJobEvent>) => {
     const logger = getLogger();
     const connections = await getConnections();
 
