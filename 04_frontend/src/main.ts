@@ -1,9 +1,11 @@
-import {Amplify} from 'aws-amplify';
-import {fetchAuthSession} from 'aws-amplify/auth';
-import {createApp} from 'vue';
 import App from '@/App.vue';
+import {useAuth} from '@/composables/useAuth';
 import {registerPlugins} from '@/plugins';
 import router from '@/router';
+import {Amplify} from 'aws-amplify';
+import {createApp} from 'vue';
+
+const {getSession} = useAuth();
 
 Amplify.configure(
     {
@@ -11,6 +13,7 @@ Amplify.configure(
             Cognito: {
                 userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
                 userPoolClientId: import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID,
+                identityPoolId: import.meta.env.VITE_COGNITO_IDENTITY_POOL_ID,
                 signUpVerificationMethod: 'code',
                 loginWith: {
                     oauth: {
@@ -36,7 +39,7 @@ Amplify.configure(
         API: {
             REST: {
                 headers: async () => {
-                    const session = await fetchAuthSession();
+                    const session = await getSession();
                     const authToken = session?.tokens?.idToken?.toString();
                     return {Authorization: authToken!};
                 },

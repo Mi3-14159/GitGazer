@@ -1,12 +1,14 @@
 <script setup lang="ts">
-    import {Integration} from '@common/types';
     import IntegrationCard from '@/components/IntegrationCard.vue';
     import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
-    import {AuthUser, fetchAuthSession, getCurrentUser} from 'aws-amplify/auth';
-    import {computed, reactive, ref} from 'vue';
-    import {useDisplay} from 'vuetify';
+    import {useAuth} from '@/composables/useAuth';
     import {useIntegration} from '@/composables/useIntegration';
+    import {Integration} from '@common/types';
+    import {AuthUser} from 'aws-amplify/auth';
+    import {computed, onMounted, reactive, ref} from 'vue';
+    import {useDisplay} from 'vuetify';
 
+    const {getSession, getUser} = useAuth();
     const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
 
     const integrations = reactive(new Map());
@@ -15,13 +17,6 @@
     const {smAndDown} = useDisplay();
     const showSecret = reactive(new Map<string, boolean>());
 
-    const getUser = async () => {
-        const currentUser = await getCurrentUser();
-        user.value = currentUser;
-    };
-
-    getUser();
-
     const handleListIntegrations = async () => {
         const response = await getIntegrations();
         response.forEach((integration: Integration) => {
@@ -29,18 +24,16 @@
         });
     };
 
-    handleListIntegrations();
-
     const handlePutIntegration = async (label: string) => {
         const integration = await createIntegration(label);
         integrations.set(integration.id, integration);
-        await fetchAuthSession({forceRefresh: true});
+        await getSession({forceRefresh: true});
     };
 
     const handleDeleteIntegration = async (id: string) => {
         await deleteIntegration(id);
         integrations.delete(id);
-        await fetchAuthSession({forceRefresh: true});
+        await getSession({forceRefresh: true});
     };
 
     const onSave = async (label: string) => {
@@ -70,6 +63,11 @@
 
     const integrationsArray = computed(() => {
         return Array.from(integrations.values());
+    });
+
+    onMounted(async () => {
+        user.value = await getUser();
+        handleListIntegrations();
     });
 </script>
 

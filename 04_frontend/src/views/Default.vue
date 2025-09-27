@@ -3,21 +3,19 @@
     import Navigation from '@/components/Navigation.vue';
     import NotificationsOveview from '@/components/NotificationsOveview.vue';
     import WorkflowOverview from '@/components/WorkflowOverview.vue';
-    import {fetchUserAttributes, getCurrentUser, type FetchUserAttributesOutput} from 'aws-amplify/auth';
-    import {ref} from 'vue';
+    import {useAuth} from '@/composables/useAuth';
+    import {type FetchUserAttributesOutput} from 'aws-amplify/auth';
+    import {onMounted, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
+    const {getUserAttributes} = useAuth();
     const router = useRouter();
 
     const user = ref<FetchUserAttributesOutput>();
 
-    const getUser = async () => {
-        await getCurrentUser();
-        const currentUser = await fetchUserAttributes();
-        user.value = currentUser;
-    };
-
-    getUser();
+    onMounted(async () => {
+        user.value = await getUserAttributes();
+    });
 </script>
 
 <template>
