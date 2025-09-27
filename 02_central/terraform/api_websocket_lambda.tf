@@ -89,8 +89,8 @@ resource "aws_iam_role_policy" "api_websocket" {
 
 data "archive_file" "api_websocket" {
   type        = "zip"
-  source_file = "${path.module}/../src/handlerWebSocket.js"
-  output_path = "${path.module}/../dist/handlerWebSocket.zip"
+  source_file = "${path.module}/../src/handlerWebsocket.js"
+  output_path = "${path.module}/../dist/handlerWebsocket.zip"
 }
 
 resource "aws_lambda_function" "api_websocket" {
@@ -98,7 +98,7 @@ resource "aws_lambda_function" "api_websocket" {
   filename         = data.archive_file.api_websocket.output_path
   function_name    = "${var.name_prefix}-websocket-handler-${terraform.workspace}"
   role             = aws_iam_role.api_websocket.arn
-  handler          = "handlerWebSocket.handler"
+  handler          = "handlerWebsocket.handler"
   runtime          = "nodejs22.x"
   source_code_hash = data.archive_file.api_websocket.output_base64sha256
   timeout          = 10
