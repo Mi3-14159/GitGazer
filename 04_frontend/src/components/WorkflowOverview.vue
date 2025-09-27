@@ -1,19 +1,20 @@
 <script setup lang="ts">
-    import {Job, ProjectionType} from '@common/types';
     import ColumnFilter from '@/components/ColumnFilter.vue';
     import WorkflowCard from '@/components/WorkflowCard.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
+    import {useJobsStore} from '@/stores/jobs';
+    import {Job} from '@common/types';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
-    import {computed, onMounted, onUnmounted, reactive, ref} from 'vue';
+    import {computed, onMounted, reactive, ref, watch} from 'vue';
     import {useDisplay} from 'vuetify';
-    import {useJobs} from '@/composables/useJobs';
+    import {storeToRefs} from 'pinia';
 
-    const {getJobs, isLoadingJobs} = useJobs();
+    const jobsStore = useJobsStore();
+    const {initializeStore} = jobsStore;
+    const {jobs, isLoading} = storeToRefs(jobsStore);
 
-    const jobs = reactive(new Map<number, Job<WorkflowJobEvent>>());
     const {smAndDown} = useDisplay();
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
-    const isInitialLoad = ref(true);
     const uniqueValuesCache = reactive(new Map<string, Set<string>>());
 
     // Table headers for desktop view
@@ -49,8 +50,21 @@
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
 
-    // Define which columns should have filters (exclude 'created_at' as it's a timestamp)
     const filterableColumns = headers.filter((header) => header.filterableColumn);
+
+    watch(
+        jobs,
+        (newJobs) => {
+            filterableColumns.forEach((column) => {
+                const values = new Set<string>();
+                for (const job of newJobs) {
+                    values.add((column.value(job) as string) || 'unknown');
+                }
+                uniqueValuesCache.set(column.key, values);
+            });
+        },
+        {immediate: true},
+    );
 
     // Dynamically generate filter state for each filterable column
     const columnFilters = reactive(
@@ -59,7 +73,7 @@
 
     // Filter jobs based on column filters
     const filteredJobs = computed(() => {
-        return Array.from(jobs.values()).filter((job) => {
+        return jobs.value.filter((job) => {
             // Check each filterable column
             return filterableColumns.every((column) => {
                 const filterSet = columnFilters[column.key];
@@ -109,11 +123,6 @@
         }
     };
 
-    const formatJobTime = (job: Job<WorkflowJobEvent>) => {
-        const date = new Date(job.created_at);
-        job.created_at = date.toLocaleString();
-    };
-
     const viewJob = (job: Job<WorkflowJobEvent>) => {
         selectedJob.value = job;
     };
@@ -122,7 +131,7 @@
     const groupedJobs = computed(() => {
         const groups = new Map<number, {repository_full_name: string; jobs: Job<WorkflowJobEvent>[]; workflow_name: string; head_branch: string}>();
 
-        for (const job of jobs.values()) {
+        for (const job of jobs.value) {
             const key = job.workflow_job_event.workflow_job.run_id;
             if (!groups.has(key))
                 groups.set(key, {
@@ -153,45 +162,8 @@
             .reverse();
     });
 
-    const handleListJobs = async () => {
-        const response = await getJobs({limit: 50, projection: ProjectionType.minimal});
-
-        response.forEach((job: Job<WorkflowJobEvent>) => {
-            formatJobTime(job);
-            jobs.set(job.job_id, job);
-            filterableColumns.forEach((column) => {
-                const uniqueValues = uniqueValuesCache.get(column.key);
-                if (uniqueValues) {
-                    uniqueValues.add((column.value(job) as string) || 'unknown');
-                } else {
-                    uniqueValuesCache.set(column.key, new Set([(column.value(job) as string) || 'unknown']));
-                }
-            });
-        });
-
-        // Mark initial load as complete
-        if (isInitialLoad.value) {
-            isInitialLoad.value = false;
-        }
-    };
-
-    // Initial load
-    handleListJobs();
-
-    // Set up polling
-    let pollingInterval: NodeJS.Timeout;
-
-    onMounted(() => {
-        // Poll every 20 seconds
-        pollingInterval = setInterval(() => {
-            handleListJobs();
-        }, 20000);
-    });
-
-    onUnmounted(() => {
-        if (pollingInterval) {
-            clearInterval(pollingInterval);
-        }
+    onMounted(async () => {
+        await initializeStore();
     });
 </script>
 
@@ -199,7 +171,7 @@
     <v-main>
         <!-- Loading Spinner - Only show during initial load -->
         <div
-            v-if="isLoadingJobs && isInitialLoad"
+            v-if="isLoading"
             class="d-flex justify-center align-center"
             style="min-height: 300px"
         >

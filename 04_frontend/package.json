@@ -1,7 +1,10 @@
 {
   "dependencies": {
+    "@aws-sdk/protocol-http": "^3.370.0",
+    "@aws-sdk/signature-v4": "^3.370.0",
     "@mdi/font": "^7.4.47",
     "aws-amplify": "^6.15.6",
+    "pinia": "^3.0.3",
     "vue": "^3.5.22",
     "vue-router": "^4.5.1",
     "vuetify": "^3.10.3"

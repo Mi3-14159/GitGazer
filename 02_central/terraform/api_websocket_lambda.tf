@@ -106,10 +106,13 @@ resource "aws_lambda_function" "api_websocket" {
   memory_size      = 128
   environment {
     variables = {
-      ENVIRONMENT             = terraform.workspace
-      PINO_LOG_LEVEL          = "info"
-      AWS_LAMBDA_EXEC_WRAPPER = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
-      TABLE_NAME              = aws_dynamodb_table.connections.name
+      ENVIRONMENT                                    = terraform.workspace
+      PINO_LOG_LEVEL                                 = "info"
+      AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
+      TABLE_NAME                                     = aws_dynamodb_table.connections.name
+      COGNITO_USER_POOL_ID                           = aws_cognito_user_pool.this.id
+      COGNITO_CLIENT_ID                              = aws_cognito_user_pool_client.this.id
+      DYNAMODB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
     }
   }
   layers = flatten([

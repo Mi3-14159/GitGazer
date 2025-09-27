@@ -3,6 +3,7 @@ import {useAuth} from '@/composables/useAuth';
 import {registerPlugins} from '@/plugins';
 import router from '@/router';
 import {Amplify} from 'aws-amplify';
+import {createPinia} from 'pinia';
 import {createApp} from 'vue';
 
 const {getSession} = useAuth();
@@ -52,4 +53,5 @@ const app = createApp(App);
 
 registerPlugins(app);
 
+app.use(createPinia());
 app.use(router).mount('#app');

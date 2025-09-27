@@ -1,5 +1,5 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, ScanCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb';
+import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
 import {Job, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
@@ -182,19 +182,22 @@ export const putJob = async (job: Job<WorkflowJobEvent>): Promise<Job<WorkflowJo
     return job;
 };
 
-export const getConnections = async (): Promise<string[]> => {
+export const getConnections = async (integrationId: string): Promise<string[]> => {
     const logger = getLogger();
     logger.info({message: 'Getting connections'});
 
-    const scanCommand = new ScanCommand({
-        ProjectionExpression: 'connectionId',
+    const queryCommand = new QueryCommand({
         TableName: connectionTableName,
         ConsistentRead: true,
         Limit: 1000,
+        KeyConditionExpression: 'integrationId = :integrationId',
+        ExpressionAttributeValues: {
+            ':integrationId': integrationId,
+        },
     });
 
-    const scanData = await client.send(scanCommand);
-    const connections = scanData?.Items?.map((item) => item.connectionId) ?? [];
+    const queryData = await client.send(queryCommand);
+    const connections = queryData?.Items?.map((item) => item.connectionId) ?? [];
     return connections;
 };
 

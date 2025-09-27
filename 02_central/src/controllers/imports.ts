@@ -46,7 +46,7 @@ export const createWorkflowJob = async (integrationId: string, event: WorkflowJo
 
 const postToConnections = async (params: StreamJobEvent<WorkflowJobEvent>) => {
     const logger = getLogger();
-    const connections = await getConnections();
+    const connections = await getConnections(params.payload.integrationId);
 
     const promises = [];
     for (const connectionId of connections) {
