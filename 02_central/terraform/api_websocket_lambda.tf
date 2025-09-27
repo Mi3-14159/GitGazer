@@ -75,6 +75,7 @@ data "aws_iam_policy_document" "api_websocket" {
       "execute-api:ManageConnections"
     ]
     resources = [
+      #"${module.api_gateway.api_execution_arn}/*"
       "${aws_apigatewayv2_api.websocket.execution_arn}/*"
     ]
   }
@@ -88,8 +89,8 @@ resource "aws_iam_role_policy" "api_websocket" {
 
 data "archive_file" "api_websocket" {
   type        = "zip"
-  source_file = "${path.root}/../src/handlerWebSocket.js"
-  output_path = "${path.root}/../dist/handlerWebSocket.zip"
+  source_file = "${path.module}/../src/handlerWebSocket.js"
+  output_path = "${path.module}/../dist/handlerWebSocket.zip"
 }
 
 resource "aws_lambda_function" "api_websocket" {
