@@ -40,7 +40,7 @@ export const createWorkflowJob = async (integrationId: string, event: WorkflowJo
     };
 
     const response = await putJob(job);
-    await postToConnections({eventType: 'NEW_JOB', payload: job});
+    await postToConnections({eventType: 'JOB', payload: job});
     return response;
 };
 
