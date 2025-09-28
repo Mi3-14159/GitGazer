@@ -1,5 +1,5 @@
 const {DynamoDBClient} = require('@aws-sdk/client-dynamodb');
-const {DynamoDBDocumentClient, DeleteCommand, PutCommand, QueryCommand} = require('@aws-sdk/lib-dynamodb');
+const {DynamoDBDocumentClient, DeleteCommand, QueryCommand, BatchWriteCommand} = require('@aws-sdk/lib-dynamodb');
 
 // DynamoDB clients
 const ddbClient = new DynamoDBClient({region: process.env.AWS_REGION});
@@ -151,33 +151,44 @@ const onConnect = async (event) => {
     }
 
     const cognitoGroups = userPayload['cognito:groups'] || [];
-    const promises = [];
-    cognitoGroups.forEach((group) => {
-        const command = new PutCommand({
-            TableName: process.env.TABLE_NAME,
+
+    if (cognitoGroups.length === 0) {
+        console.log('No Cognito groups found for user:', userPayload.sub);
+        return {statusCode: 401, body: 'Connection denied: No authorized groups found'};
+    }
+
+    // Prepare batch write items
+    const writeRequests = cognitoGroups.map((group) => ({
+        PutRequest: {
             Item: {
                 integrationId: group,
                 connectionId: event.requestContext.connectionId,
                 sub: userPayload.sub,
                 connectedAt: new Date().toISOString(),
             },
+        },
+    }));
+
+    try {
+        const batchCommand = new BatchWriteCommand({
+            RequestItems: {
+                [process.env.TABLE_NAME]: writeRequests,
+            },
         });
-        promises.push(docClient.send(command));
-    });
 
-    const results = await Promise.allSettled(promises);
-    results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-            console.log(`Connection stored for group ${cognitoGroups[index]}:`, JSON.stringify(result.value));
-        } else {
-            console.error(`Failed to store connection for group ${cognitoGroups[index]}:`, result.reason);
+        const result = await docClient.send(batchCommand);
+
+        console.log(`Connection stored for groups: ${cognitoGroups.join(', ')}`);
+
+        if (result.UnprocessedItems && Object.keys(result.UnprocessedItems).length > 0) {
+            console.warn('Some items were not processed:', JSON.stringify(result.UnprocessedItems));
+            // TODO: implement a retry mechanism for unprocessed items
         }
-    });
-
-    if (results.some((result) => result.status === 'rejected')) {
+    } catch (error) {
+        console.error('Failed to store connections:', error);
         return {
             statusCode: 500,
-            body: 'Failed to connect for one or more groups.',
+            body: 'Failed to connect: ' + error.message,
         };
     }
 
