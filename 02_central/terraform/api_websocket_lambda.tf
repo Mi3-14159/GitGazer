@@ -65,6 +65,7 @@ data "aws_iam_policy_document" "api_websocket" {
       "dynamodb:GetItem",
       "dynamodb:Scan",
       "dynamodb:Query",
+      "dynamodb:BatchWriteItem"
     ]
     resources = [aws_dynamodb_table.connections.arn, "${aws_dynamodb_table.connections.arn}/index/*"]
   }
