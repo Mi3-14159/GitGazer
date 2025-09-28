@@ -103,7 +103,7 @@ resource "aws_lambda_function" "api_websocket" {
   source_code_hash = data.archive_file.api_websocket.output_base64sha256
   timeout          = 10
   publish          = true
-  memory_size      = 128
+  memory_size      = 512 # speedup jwt verification with more memory = more CPU
   environment {
     variables = {
       ENVIRONMENT                                    = terraform.workspace
