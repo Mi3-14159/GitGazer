@@ -13,6 +13,7 @@ export const useJobsStore = defineStore('jobs', () => {
 
     const uniqueJobs = reactive(new Map<number, Job<WorkflowJobEvent>>());
     const isLoading = ref(false);
+    let ws: WebSocket | null = null;
 
     const jobs = computed(() => {
         return Array.from(uniqueJobs.values());
@@ -58,7 +59,7 @@ export const useJobsStore = defineStore('jobs', () => {
             });
         }
 
-        const ws = new WebSocket(websocketUrl.toString());
+        ws = new WebSocket(websocketUrl.toString());
 
         ws.onopen = () => console.info('WebSocket connected');
         ws.onmessage = (event) => {
@@ -68,7 +69,16 @@ export const useJobsStore = defineStore('jobs', () => {
             uniqueJobs.set(gitgazerEvent.payload.job_id, gitgazerEvent.payload);
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
-        ws.onclose = (event) => console.info(`WebSocket closed: ${event.code} ${event.reason}`);
+        ws.onclose = (event) => {
+            console.info(`WebSocket closed: ${event.code} ${event.reason}`);
+            switch (event.code) {
+                case 1006: // Abnormal Closure - Try to reconnect
+                    initializeStore();
+                    break;
+                default:
+                    break;
+            }
+        };
 
         return ws;
     };
@@ -114,7 +124,12 @@ export const useJobsStore = defineStore('jobs', () => {
 
     const initializeStore = async () => {
         await handleListJobs();
-        connectToIamWebSocket();
+
+        if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
+            return;
+        }
+
+        await connectToIamWebSocket();
     };
 
     return {
