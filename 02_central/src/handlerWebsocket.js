@@ -84,45 +84,62 @@ const onDisconnect = async (event) => {
             return {statusCode: 200, body: 'No records to disconnect.'};
         }
 
-        // Delete all records for this connectionId
-        const deletePromises = queryResponse.Items.map((item) => {
-            const deleteCommand = new DeleteCommand({
-                TableName: process.env.TABLE_NAME,
+        // Prepare batch delete items
+        const deleteRequests = queryResponse.Items.map((item) => ({
+            DeleteRequest: {
                 Key: {
                     integrationId: item.integrationId,
                     connectionId: item.connectionId,
                 },
-            });
-            return docClient.send(deleteCommand);
+            },
+        }));
+
+        const batchCommand = new BatchWriteCommand({
+            RequestItems: {
+                [process.env.TABLE_NAME]: deleteRequests,
+            },
         });
 
-        const deleteResults = await Promise.allSettled(deletePromises);
+        const result = await docClient.send(batchCommand);
 
-        // Log results
-        deleteResults.forEach((result, index) => {
-            const item = queryResponse.Items[index];
-            if (result.status === 'fulfilled') {
-                console.log(`Successfully deleted connection for integrationId: ${item.integrationId}, connectionId: ${connectionId}`);
-            } else {
-                console.error(`Failed to delete connection for integrationId: ${item.integrationId}, connectionId: ${connectionId}:`, result.reason);
-            }
-        });
+        console.log(`Successfully deleted ${queryResponse.Items.length} connection records for connectionId: ${connectionId}`);
 
-        // Check if any deletions failed
-        if (deleteResults.some((result) => result.status === 'rejected')) {
-            return {
-                statusCode: 500,
-                body: 'Failed to disconnect some records: ' + JSON.stringify(deleteResults.filter((r) => r.status === 'rejected')),
-            };
+        // Handle unprocessed items (if any)
+        if (result.UnprocessedItems && Object.keys(result.UnprocessedItems).length > 0) {
+            console.warn('Some items were not processed during disconnect:', JSON.stringify(result.UnprocessedItems));
+            // In a production environment, you might want to retry unprocessed items
         }
 
-        return {statusCode: 200, body: `Disconnected. Removed ${deleteResults.length} records.`};
+        return {statusCode: 200, body: `Disconnected. Removed ${queryResponse.Items.length} records.`};
     } catch (err) {
         console.error('Error during disconnect:', err);
-        return {
-            statusCode: 500,
-            body: 'Failed to disconnect: ' + JSON.stringify(err),
-        };
+
+        // Handle different error types appropriately
+        if (err.name === 'ValidationException') {
+            console.error('Validation error during batch delete:', err.message);
+            return {
+                statusCode: 400,
+                body: 'Invalid request: ' + err.message,
+            };
+        } else if (err.name === 'ProvisionedThroughputExceededException' || err.name === 'ThrottlingException') {
+            console.error('Throttling error during batch delete:', err.message);
+            return {
+                statusCode: 429,
+                body: 'Service temporarily unavailable: ' + err.message,
+            };
+        } else if (err.name === 'ResourceNotFoundException') {
+            console.error('Resource not found during batch delete:', err.message);
+            return {
+                statusCode: 404,
+                body: 'Resource not found: ' + err.message,
+            };
+        } else {
+            // Generic error handling for unknown errors
+            return {
+                statusCode: 500,
+                body: 'Failed to disconnect: ' + (err.message || JSON.stringify(err)),
+            };
+        }
     }
 };
 
