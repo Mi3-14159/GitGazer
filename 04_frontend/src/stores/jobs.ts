@@ -72,7 +72,13 @@ export const useJobsStore = defineStore('jobs', () => {
         ws.onclose = (event) => {
             console.info(`WebSocket closed: ${event.code} ${event.reason}`);
             switch (event.code) {
-                case 1006: // Abnormal Closure - Try to reconnect
+                // Try to reconnect
+                case 1000: // Normal Closure
+                case 1001: // Going Away
+                case 1006: // Abnormal Closure
+                case 1011: // Internal Error
+                case 1012: // Service Restart
+                case 1013: // Try Again Later
                     initializeStore();
                     break;
                 default:
