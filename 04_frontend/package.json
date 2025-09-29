@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@aws-sdk/protocol-http": "^3.370.0",
+    "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.370.0",
     "@mdi/font": "^7.4.47",
     "aws-amplify": "^6.15.6",
