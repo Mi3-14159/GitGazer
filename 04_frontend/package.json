@@ -3,7 +3,7 @@
     "@aws-sdk/protocol-http": "^3.374.0",
     "@aws-sdk/signature-v4": "^3.374.0",
     "@mdi/font": "^7.4.47",
-    "aws-amplify": "^6.15.6",
+    "aws-amplify": "^6.15.7",
     "pinia": "^3.0.3",
     "vue": "^3.5.22",
     "vue-router": "^4.5.1",
