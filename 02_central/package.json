@@ -11,7 +11,7 @@
   "devDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.896.0",
     "@aws-sdk/client-dynamodb": "^3.896.0",
-    "@aws-sdk/client-s3": "^3.896.0",
+    "@aws-sdk/client-s3": "^3.899.0",
     "@aws-sdk/client-ssm": "^3.896.0",
     "@aws-sdk/lib-dynamodb": "^3.896.0",
     "@octokit/webhooks-types": "^7.6.1",
