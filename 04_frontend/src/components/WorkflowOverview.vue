@@ -22,27 +22,27 @@
         {
             title: 'Repository',
             key: 'full_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.repository.full_name,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.repository.full_name,
             filterableColumn: true,
         },
         {
             title: 'Workflow',
             key: 'workflow_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.workflow_name,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.workflow_name,
             filterableColumn: true,
         },
-        {title: 'Job name', key: 'name', value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.name, filterableColumn: true},
+        {title: 'Job name', key: 'name', value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name, filterableColumn: true},
         {
             title: 'Branch',
             key: 'head_branch',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_job_event.workflow_job.head_branch,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.head_branch,
             filterableColumn: true,
         },
         {
             title: 'Status',
             key: 'status',
             value: (item: Job<WorkflowJobEvent>) =>
-                item.workflow_job_event?.workflow_job?.conclusion || item.workflow_job_event?.workflow_job?.status || 'unknown',
+                item.workflow_event?.workflow_job?.conclusion || item.workflow_event?.workflow_job?.status || 'unknown',
             filterableColumn: true,
         },
         {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false},
@@ -132,22 +132,20 @@
         const groups = new Map<number, {repository_full_name: string; jobs: Job<WorkflowJobEvent>[]; workflow_name: string; head_branch: string}>();
 
         for (const job of jobs.value) {
-            const key = job.workflow_job_event.workflow_job.run_id;
+            const key = job.workflow_event.workflow_job.run_id;
             if (!groups.has(key))
                 groups.set(key, {
-                    repository_full_name: job.workflow_job_event.repository.full_name,
+                    repository_full_name: job.workflow_event.repository.full_name,
                     jobs: [],
-                    workflow_name: job.workflow_job_event.workflow_job.workflow_name!,
-                    head_branch: job.workflow_job_event.workflow_job.head_branch || 'unknown',
+                    workflow_name: job.workflow_event.workflow_job.workflow_name!,
+                    head_branch: job.workflow_event.workflow_job.head_branch || 'unknown',
                 });
             groups.get(key)?.jobs.push(job);
         }
 
         groups.forEach(({jobs}) => {
             jobs.sort(
-                (a, b) =>
-                    new Date(b.workflow_job_event.workflow_job.created_at).getTime() -
-                    new Date(a.workflow_job_event.workflow_job.created_at).getTime(),
+                (a, b) => new Date(b.workflow_event.workflow_job.created_at).getTime() - new Date(a.workflow_event.workflow_job.created_at).getTime(),
             );
         });
 

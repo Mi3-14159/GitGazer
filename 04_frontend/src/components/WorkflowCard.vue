@@ -1,6 +1,6 @@
 <script setup lang="ts">
-    import {Job} from '@common/types';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
+    import {Job} from '@common/types';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {ref} from 'vue';
     // Accept either a single job or a group of jobs, plus workflow_name in group view
@@ -48,15 +48,15 @@
                     <v-col
                         cols="auto"
                         v-for="job in props.jobs"
-                        :key="job.workflow_job_event.workflow_job.id"
+                        :key="job.workflow_event.workflow_job.id"
                     >
                         <!-- Display job name clickable to open details with a border and status-based bg color -->
                         <div
                             class="job-badge"
-                            :class="job.workflow_job_event.workflow_job.conclusion ?? job.workflow_job_event.workflow_job.status"
+                            :class="job.workflow_event.workflow_job.conclusion ?? job.workflow_event.workflow_job.status"
                             @click="selectedJob = job"
                         >
-                            {{ job.workflow_job_event.workflow_job.name }}
+                            {{ job.workflow_event.workflow_job.name }}
                         </div>
                     </v-col>
                 </v-row>
