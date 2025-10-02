@@ -5,5 +5,5 @@ on:
 permissions:
   contents: read
 jobs:
-  cd:
+  nested_a:
     uses: ./.github/workflows/nested_b.yaml

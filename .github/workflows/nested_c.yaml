@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 jobs:
-  cd:
+  nested_c:
     runs-on: ubuntu-latest
     steps:
       - name: Finish job
