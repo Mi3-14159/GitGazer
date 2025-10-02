@@ -105,21 +105,19 @@ export async function fetchWithRetry(url: string | URL, options: FetchRetryOptio
 
             // Success case - return immediately
             if (response.ok) {
-                return {
-                    ...response,
+                return Object.assign(response, {
                     attempt,
                     retries,
-                };
+                });
             }
 
             // Non-ok response - check if we should retry
             if (!shouldContinueRetrying(attempt, null, response, retries, isMethodEligible, shouldRetry)) {
                 // let caller inspect non-ok status
-                return {
-                    ...response,
+                return Object.assign(response, {
                     attempt,
                     retries,
-                };
+                });
             }
 
             // Calculate delay, respecting Retry-After header for 429/503
