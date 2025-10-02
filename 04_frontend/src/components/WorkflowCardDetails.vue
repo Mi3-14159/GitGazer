@@ -135,7 +135,7 @@
                     >
                         <v-text-field
                             label="Job ID"
-                            :model-value="props.job.job_id"
+                            :model-value="props.job.workflow_job_event.workflow_job.id"
                             readonly
                             variant="outlined"
                             density="compact"

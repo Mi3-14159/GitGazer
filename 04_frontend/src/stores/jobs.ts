@@ -11,7 +11,7 @@ import {computed, reactive, ref} from 'vue';
 export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
-    const uniqueJobs = reactive(new Map<number, Job<WorkflowJobEvent>>());
+    const uniqueJobs = reactive(new Map<string, Job<WorkflowJobEvent>>());
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
 
@@ -66,7 +66,7 @@ export const useJobsStore = defineStore('jobs', () => {
             const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WorkflowJobEvent>;
 
             formatJobTime(gitgazerEvent.payload);
-            uniqueJobs.set(gitgazerEvent.payload.job_id, gitgazerEvent.payload);
+            uniqueJobs.set(gitgazerEvent.payload.id, gitgazerEvent.payload);
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
         ws.onclose = (event) => {
@@ -124,7 +124,7 @@ export const useJobsStore = defineStore('jobs', () => {
 
         response.forEach((job: Job<WorkflowJobEvent>) => {
             formatJobTime(job);
-            uniqueJobs.set(job.job_id, job);
+            uniqueJobs.set(job.id, job);
         });
     };
 

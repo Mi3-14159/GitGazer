@@ -5,9 +5,9 @@
     import {useJobsStore} from '@/stores/jobs';
     import {Job} from '@common/types';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
+    import {storeToRefs} from 'pinia';
     import {computed, onMounted, reactive, ref, watch} from 'vue';
     import {useDisplay} from 'vuetify';
-    import {storeToRefs} from 'pinia';
 
     const jobsStore = useJobsStore();
     const {initializeStore} = jobsStore;
@@ -187,7 +187,7 @@
             <v-data-table
                 :headers="headers"
                 :items="filteredJobs"
-                item-key="job_id"
+                item-key="id"
                 class="elevation-1"
                 density="compact"
                 :items-per-page="50"

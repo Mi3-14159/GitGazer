@@ -95,7 +95,7 @@ export const isIntegration = (integration: any): integration is Integration => {
 
 export type Job<Subtype> = {
   integrationId: string;
-  job_id: number;
+  id: string;
   created_at: string;
   expire_at?: number;
   workflow_job_event: Subtype;

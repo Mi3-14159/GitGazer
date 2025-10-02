@@ -5,18 +5,19 @@ locals {
 resource "aws_dynamodb_table" "jobs" {
   name                        = "${var.name_prefix}-jobs-${terraform.workspace}"
   billing_mode                = "PAY_PER_REQUEST"
-  hash_key                    = "job_id"
+  hash_key                    = "integrationId"
+  range_key                   = "id"
   stream_enabled              = var.create_gitgazer_alerting
   stream_view_type            = "NEW_IMAGE"
   deletion_protection_enabled = true
 
   attribute {
-    name = "job_id"
-    type = "N"
+    name = "integrationId"
+    type = "S"
   }
 
   attribute {
-    name = "integrationId"
+    name = "id"
     type = "S"
   }
 
@@ -37,13 +38,6 @@ resource "aws_dynamodb_table" "jobs" {
   ttl {
     attribute_name = "expire_at"
     enabled        = true
-  }
-
-  global_secondary_index {
-    name            = "integrationId-index"
-    hash_key        = "integrationId"
-    range_key       = "job_id"
-    projection_type = "ALL"
   }
 
   global_secondary_index {

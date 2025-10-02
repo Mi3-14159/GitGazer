@@ -30,7 +30,7 @@ const apiClient = new ApiGatewayManagementApiClient({
 export const createWorkflowJob = async (integrationId: string, event: WorkflowJobEvent): Promise<Job<WorkflowJobEvent>> => {
     const job: Job<WorkflowJobEvent> = {
         integrationId,
-        job_id: event.workflow_job.id,
+        id: `${event.workflow_job.run_id}/${event.workflow_job.id}`,
         created_at: event.workflow_job.created_at,
         expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
         workflow_job_event: event,

@@ -77,9 +77,9 @@ export const getJobsBy = async (params: {
     }
 
     const projectionExpressionValues = [
-        'job_id',
-        'created_at',
         'integrationId',
+        'id',
+        'created_at',
         'workflow_job_event.repository.full_name',
         'workflow_job_event.workflow_job.workflow_name',
         'workflow_job_event.workflow_job.#name',
@@ -87,6 +87,7 @@ export const getJobsBy = async (params: {
         'workflow_job_event.workflow_job.#status',
         'workflow_job_event.workflow_job.conclusion',
         'workflow_job_event.workflow_job.run_id',
+        'workflow_job_event.workflow_job.id',
     ];
 
     const commands = params.integrationIds.map((integrationId) => {
@@ -171,7 +172,12 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
 
 export const putJob = async (job: Job<WorkflowJobEvent>): Promise<Job<WorkflowJobEvent>> => {
     const logger = getLogger();
-    logger.info({message: 'Putting job', jobId: job.job_id});
+    logger.info({
+        message: 'Putting job',
+        runId: job.workflow_job_event.workflow_job.run_id,
+        jobId: job.workflow_job_event.workflow_job.id,
+        id: job.id,
+    });
 
     const command = new PutCommand({
         TableName: jobsTableName,
