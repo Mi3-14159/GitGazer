@@ -9,11 +9,8 @@ import {
 import {Job, StreamJobEvent, StreamJobEventType} from '@common/types';
 import {WorkflowJobEvent} from '@octokit/webhooks-types';
 
-const _expireInSec = process.env.EXPIRE_IN_SEC;
-if (!_expireInSec) {
-    throw new Error('Missing EXPIRE_IN_SEC environment variable');
-}
-const expireInSec = parseInt(_expireInSec);
+const expireInSecString = process.env.EXPIRE_IN_SEC;
+const expireInSec = parseInt(expireInSecString ?? '') || undefined;
 
 const websocketApiDomain = process.env.WEBSOCKET_API_DOMAIN_NAME;
 if (!websocketApiDomain) {
@@ -35,7 +32,7 @@ export const createWorkflowJob = async (integrationId: string, event: WorkflowJo
         integrationId,
         job_id: event.workflow_job.id,
         created_at: event.workflow_job.created_at,
-        expire_at: Math.floor(new Date().getTime() / 1000) + expireInSec,
+        expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
         workflow_job_event: event,
     };
 

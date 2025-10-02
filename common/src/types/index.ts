@@ -97,7 +97,7 @@ export type Job<Subtype> = {
   integrationId: string;
   job_id: number;
   created_at: string;
-  expire_at: number;
+  expire_at?: number;
   workflow_job_event: Subtype;
 };
 
