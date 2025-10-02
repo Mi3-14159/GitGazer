@@ -1,0 +1,9 @@
+name: Nested A
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  cd:
+    uses: ./.github/workflows/nested_b.yaml

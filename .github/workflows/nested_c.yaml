@@ -1,0 +1,12 @@
+name: Nested C
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Finish job
+        run: exit 0
