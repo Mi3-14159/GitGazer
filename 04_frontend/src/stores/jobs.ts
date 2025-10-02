@@ -3,7 +3,7 @@ import {Sha256} from '@aws-crypto/sha256-js';
 import {HttpRequest} from '@aws-sdk/protocol-http';
 import {SignatureV4} from '@aws-sdk/signature-v4';
 import {Job, JobRequestParameters, ProjectionType, StreamJobEvent} from '@common/types';
-import type {WorkflowJobEvent} from '@octokit/webhooks-types';
+import type {WebhookEvent, WorkflowJobEvent} from '@octokit/webhooks-types';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
 import {computed, reactive, ref} from 'vue';
@@ -63,10 +63,12 @@ export const useJobsStore = defineStore('jobs', () => {
 
         ws.onopen = () => console.info('WebSocket connected');
         ws.onmessage = (event) => {
-            const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WorkflowJobEvent>;
-
-            formatJobTime(gitgazerEvent.payload);
-            uniqueJobs.set(gitgazerEvent.payload.id, gitgazerEvent.payload);
+            const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WebhookEvent>;
+            if (isWorkflowJobEvent(gitgazerEvent.payload.workflow_event)) {
+                const workflowJobEvent = gitgazerEvent.payload as Job<WorkflowJobEvent>;
+                formatJobTime(workflowJobEvent);
+                uniqueJobs.set(workflowJobEvent.id, workflowJobEvent);
+            }
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
         ws.onclose = (event) => {
@@ -113,7 +115,9 @@ export const useJobsStore = defineStore('jobs', () => {
         });
 
         const {body} = await restOperation.response;
-        const jobs = (await body.json()) as unknown as Job<WorkflowJobEvent>[];
+        const events = (await body.json()) as unknown as Job<WebhookEvent>[];
+        const jobs = events.filter((e): e is Job<WorkflowJobEvent> => isWorkflowJobEvent(e.workflow_event));
+
         isLoading.value = false;
 
         return jobs;
@@ -136,6 +140,10 @@ export const useJobsStore = defineStore('jobs', () => {
         }
 
         await connectToIamWebSocket();
+    };
+
+    const isWorkflowJobEvent = (event: WebhookEvent): event is WorkflowJobEvent => {
+        return (event as WorkflowJobEvent).workflow_job !== undefined && (event as WorkflowJobEvent).workflow_job.id !== undefined;
     };
 
     return {
