@@ -8,8 +8,103 @@
         "ProcessorConfig": {
           "Mode": "INLINE"
         },
-        "StartAt": "Query notification rule",
+        "StartAt": "Parallel",
         "States": {
+          "Parallel": {
+            "Branches": [
+              {
+                "StartAt": "Query notification rule",
+                "States": {
+                  "Query notification rule": {
+                    "End": true,
+                    "Parameters": {
+                      "ExpressionAttributeNames": {
+                        "#BR": "head_branch",
+                        "#O": "owner",
+                        "#R": "rule",
+                        "#REPO": "repository_name",
+                        "#WF": "workflow_name",
+                        "#enabled": "enabled",
+                        "#ignoreDependabot": "ignore_dependabot",
+                        "#integrationId": "integrationId"
+                      },
+                      "ExpressionAttributeValues": {
+                        ":br": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.head_branch.S"
+                        },
+                        ":dependabotUser": {
+                          "S": "dependabot[bot]"
+                        },
+                        ":dependabotWorkflow": {
+                          "S": "Dependabot"
+                        },
+                        ":empty": {
+                          "S": ""
+                        },
+                        ":enabled": {
+                          "Bool": true
+                        },
+                        ":ignoreDependabotFalse": {
+                          "Bool": false
+                        },
+                        ":integrationId": {
+                          "S.$": "$.dynamodb.NewImage.integrationId.S"
+                        },
+                        ":owner": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.repository.M.owner.M.login.S"
+                        },
+                        ":repo": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.repository.M.name.S"
+                        },
+                        ":sender": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.sender.M.login.S"
+                        },
+                        ":star": {
+                          "S": "*"
+                        },
+                        ":wf": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.workflow_name.S"
+                        },
+                        ":wf_name": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.name.S"
+                        }
+                      },
+                      "FilterExpression": "#enabled = :enabled AND (#R.#O = :owner OR #R.#O = :star OR #R.#O = :empty) AND (#R.#REPO = :repo OR #R.#REPO = :star OR #R.#REPO = :empty) AND (#R.#WF = :wf OR #R.#WF = :star OR #R.#WF = :empty) AND (#R.#BR = :br OR #R.#BR = :star OR #R.#BR = :empty) AND (attribute_not_exists(#ignoreDependabot) OR #ignoreDependabot = :ignoreDependabotFalse OR (:sender <> :dependabotUser AND :wf_name <> :dependabotWorkflow))",
+                      "IndexName": "${notification_rules_table_index_name}",
+                      "KeyConditionExpression": "#integrationId = :integrationId",
+                      "Select": "ALL_ATTRIBUTES",
+                      "TableName": "${notification_rules_table_name}"
+                    },
+                    "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+                    "Type": "Task"
+                  }
+                }
+              },
+              {
+                "StartAt": "Get workflow run",
+                "States": {
+                  "Get workflow run": {
+                    "End": true,
+                    "Parameters": {
+                      "Key": {
+                        "id": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.run_id.N"
+                        },
+                        "integrationId": {
+                          "S.$": "$.dynamodb.NewImage.integrationId.S"
+                        }
+                      },
+                      "TableName": "${jobs_table_name}"
+                    },
+                    "Resource": "arn:aws:states:::dynamodb:getItem",
+                    "Type": "Task"
+                  }
+                }
+              }
+            ],
+            "Next": "Process notification rules",
+            "Type": "Parallel"
+          },
           "Process notification rules": {
             "End": true,
             "ItemProcessor": {
@@ -21,9 +116,17 @@
                 "Check if array of notification channels is present and rule is enabled": {
                   "Choices": [
                     {
-                      "IsPresent": true,
-                      "Next": "Iterate notification channels",
-                      "Variable": "$.channels"
+                      "And": [
+                        {
+                          "IsPresent": true,
+                          "Variable": "$.rule"
+                        },
+                        {
+                          "IsPresent": true,
+                          "Variable": "$.rule.channels"
+                        }
+                      ],
+                      "Next": "Iterate notification channels"
                     }
                   ],
                   "Default": "No notification channels defined",
@@ -40,7 +143,7 @@
                       "Call Slack": {
                         "End": true,
                         "Parameters": {
-                          "ApiEndpoint.$": "$.M.webhook_url.S",
+                          "ApiEndpoint.$": "$.channel.M.webhook_url.S",
                           "InvocationConfig": {
                             "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
                           },
@@ -76,6 +179,10 @@
                                         "type": "mrkdwn"
                                       },
                                       {
+                                        "text.$": "States.Format('*Event:* {}', $.workflow_run.workflow_event.M.workflow_run.M.event.S)",
+                                        "type": "mrkdwn"
+                                      },
+                                      {
                                         "text.$": "States.Format('*Sender:* <https://github.com/{}|{}>', $$.Execution.Input[0].dynamodb.NewImage.workflow_event.M.sender.M.login.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_event.M.sender.M.login.S)",
                                         "type": "mrkdwn"
                                       }
@@ -103,13 +210,13 @@
                       "Call third-party API": {
                         "End": true,
                         "Parameters": {
-                          "ApiEndpoint.$": "$.M.url.S",
+                          "ApiEndpoint.$": "$.channel.M.url.S",
                           "Authentication": {
                             "ConnectionArn": "${aws_cloudwatch_event_connection_generic_arn}"
                           },
-                          "Method.$": "$.M.method.S",
+                          "Method.$": "$.channel.M.method.S",
                           "RequestBody": {
-                            "text.$": "States.Format($.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_event.M.workflow_job.M.workflow_name.S)"
+                            "text.$": "States.Format($.channel.M.body.S, $$.Execution.Input[0].dynamodb.NewImage.workflow_event.M.workflow_job.M.workflow_name.S)"
                           }
                         },
                         "Resource": "arn:aws:states:::http:invoke",
@@ -130,19 +237,19 @@
                             "And": [
                               {
                                 "StringEquals": "HTTP",
-                                "Variable": "$.M.type.S"
+                                "Variable": "$.channel.M.type.S"
                               },
                               {
                                 "IsPresent": true,
-                                "Variable": "$.M.body.S"
+                                "Variable": "$.channel.M.body.S"
                               },
                               {
                                 "IsPresent": true,
-                                "Variable": "$.M.method.S"
+                                "Variable": "$.channel.M.method.S"
                               },
                               {
                                 "IsPresent": true,
-                                "Variable": "$.M.url.S"
+                                "Variable": "$.channel.M.url.S"
                               }
                             ],
                             "Next": "Call third-party API"
@@ -151,11 +258,11 @@
                             "And": [
                               {
                                 "StringEquals": "SLACK",
-                                "Variable": "$.M.type.S"
+                                "Variable": "$.channel.M.type.S"
                               },
                               {
                                 "IsPresent": true,
-                                "Variable": "$.M.webhook_url.S"
+                                "Variable": "$.channel.M.webhook_url.S"
                               }
                             ],
                             "Next": "Call Slack"
@@ -170,7 +277,11 @@
                       }
                     }
                   },
-                  "ItemsPath": "$.channels.L",
+                  "ItemSelector": {
+                    "channel.$": "$$.Map.Item.Value",
+                    "workflow_run.$": "$.workflow_run"
+                  },
+                  "ItemsPath": "$.rule.channels.L",
                   "Type": "Map"
                 },
                 "No notification channels defined": {
@@ -178,71 +289,12 @@
                 }
               }
             },
-            "ItemsPath": "$.Items",
-            "Type": "Map"
-          },
-          "Query notification rule": {
-            "Next": "Process notification rules",
-            "Parameters": {
-              "ExpressionAttributeNames": {
-                "#BR": "head_branch",
-                "#O": "owner",
-                "#R": "rule",
-                "#REPO": "repository_name",
-                "#WF": "workflow_name",
-                "#enabled": "enabled",
-                "#ignoreDependabot": "ignore_dependabot",
-                "#integrationId": "integrationId"
-              },
-              "ExpressionAttributeValues": {
-                ":br": {
-                  "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.head_branch.S"
-                },
-                ":dependabotUser": {
-                  "S": "dependabot[bot]"
-                },
-                ":dependabotWorkflow": {
-                  "S": "Dependabot"
-                },
-                ":empty": {
-                  "S": ""
-                },
-                ":enabled": {
-                  "Bool": true
-                },
-                ":ignoreDependabotFalse": {
-                  "Bool": false
-                },
-                ":integrationId": {
-                  "S.$": "$.dynamodb.NewImage.integrationId.S"
-                },
-                ":owner": {
-                  "S.$": "$.dynamodb.NewImage.workflow_event.M.repository.M.owner.M.login.S"
-                },
-                ":repo": {
-                  "S.$": "$.dynamodb.NewImage.workflow_event.M.repository.M.name.S"
-                },
-                ":sender": {
-                  "S.$": "$.dynamodb.NewImage.workflow_event.M.sender.M.login.S"
-                },
-                ":star": {
-                  "S": "*"
-                },
-                ":wf": {
-                  "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.workflow_name.S"
-                },
-                ":wf_name": {
-                  "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.name.S"
-                }
-              },
-              "FilterExpression": "#enabled = :enabled AND (#R.#O = :owner OR #R.#O = :star OR #R.#O = :empty) AND (#R.#REPO = :repo OR #R.#REPO = :star OR #R.#REPO = :empty) AND (#R.#WF = :wf OR #R.#WF = :star OR #R.#WF = :empty) AND (#R.#BR = :br OR #R.#BR = :star OR #R.#BR = :empty) AND (attribute_not_exists(#ignoreDependabot) OR #ignoreDependabot = :ignoreDependabotFalse OR (:sender <> :dependabotUser AND :wf_name <> :dependabotWorkflow))",
-              "IndexName": "${notification_rules_table_index_name}",
-              "KeyConditionExpression": "#integrationId = :integrationId",
-              "Select": "ALL_ATTRIBUTES",
-              "TableName": "${notification_rules_table_name}"
+            "ItemSelector": {
+              "rule.$": "$$.Map.Item.Value",
+              "workflow_run.$": "$[1].Item"
             },
-            "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
-            "Type": "Task"
+            "ItemsPath": "$[0].Items",
+            "Type": "Map"
           }
         }
       },
