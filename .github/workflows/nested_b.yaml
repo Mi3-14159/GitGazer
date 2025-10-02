@@ -7,3 +7,6 @@ permissions:
 jobs:
   nested_b:
     uses: ./.github/workflows/nested_c.yaml
+
+  nested_d:
+    uses: ./.github/workflows/nested_d.yaml
