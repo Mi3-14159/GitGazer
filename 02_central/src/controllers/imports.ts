@@ -53,7 +53,9 @@ export async function createWorkflow<T extends WorkflowJobEvent | WorkflowRunEve
     }
 
     const response = await putJob(job);
-    await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
+    if (isWorkflowJobEvent(event)) {
+        await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
+    }
     return response;
 }
 
