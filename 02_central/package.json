@@ -4,7 +4,7 @@
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
   "dependencies": {
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.899.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.901.0",
     "pino": "^9.12.0"
   },
   "description": "lambda as API",
