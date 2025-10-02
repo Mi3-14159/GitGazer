@@ -1,5 +1,6 @@
 import {getLogger} from '@/logger';
 import {SSMIntegrationSecret} from '@/types';
+import {fetchWithRetry} from '@/utils/fetch';
 import {GetParameterCommand, SSMClient} from '@aws-sdk/client-ssm';
 import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2} from 'aws-lambda/trigger/api-gateway-proxy';
 import * as crypto from 'crypto';
@@ -69,7 +70,7 @@ const getParameterFromCache = async (parameterName: string): Promise<SSMIntegrat
     const url = `http://localhost:2773/systemsmanager/parameters/get?name=${encodeURIComponent(parameterName)}&withDecryption=true`;
     logger.info({message: 'load parameter', url});
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
         method: 'GET',
         headers: {
             'X-Aws-Parameters-Secrets-Token': process.env.AWS_SESSION_TOKEN ?? '',
