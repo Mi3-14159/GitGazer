@@ -93,12 +93,18 @@ export const isIntegration = (integration: any): integration is Integration => {
   );
 };
 
+export enum JobType {
+  WORKFLOW_JOB = "workflow_job",
+  WORKFLOW_RUN = "workflow_run",
+}
+
 export type Job<Subtype> = {
   integrationId: string;
   id: string;
   created_at: string;
   expire_at?: number;
-  workflow_job_event: Subtype;
+  event_type: JobType;
+  workflow_event: Subtype;
 };
 
 export enum ProjectionType {
