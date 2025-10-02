@@ -1,13 +1,14 @@
 import {deleteConnection, getConnections, putJob} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
+import {isWorkflowJobEvent, isWorkflowRunEvent} from '@/types';
 import {
     ApiGatewayManagementApiClient,
     ApiGatewayManagementApiServiceException,
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {Job, StreamJobEvent, StreamJobEventType} from '@common/types';
-import {WorkflowJobEvent} from '@octokit/webhooks-types';
+import {Job, JobType, StreamJobEvent, StreamJobEventType} from '@common/types';
+import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;
 const expireInSec = parseInt(expireInSecString ?? '') || undefined;
@@ -27,21 +28,36 @@ const apiClient = new ApiGatewayManagementApiClient({
     endpoint: `https://${websocketApiDomain}/${stage}`,
 });
 
-export const createWorkflowJob = async (integrationId: string, event: WorkflowJobEvent): Promise<Job<WorkflowJobEvent>> => {
-    const job: Job<WorkflowJobEvent> = {
-        integrationId,
-        id: `${event.workflow_job.run_id}/${event.workflow_job.id}`,
-        created_at: event.workflow_job.created_at,
-        expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
-        workflow_job_event: event,
-    };
+export async function createWorkflow<T extends WorkflowJobEvent | WorkflowRunEvent>(integrationId: string, event: T): Promise<Job<T>> {
+    let job: Job<T>;
+    if (isWorkflowJobEvent(event)) {
+        job = {
+            integrationId,
+            id: [event.workflow_job.run_id, event.workflow_job.id].join('/'),
+            created_at: event.workflow_job.created_at,
+            expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
+            event_type: JobType.WORKFLOW_JOB,
+            workflow_event: event,
+        };
+    } else if (isWorkflowRunEvent(event)) {
+        job = {
+            integrationId,
+            id: `${event.workflow_run.id}`,
+            created_at: event.workflow_run.created_at,
+            expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
+            event_type: JobType.WORKFLOW_RUN,
+            workflow_event: event,
+        };
+    } else {
+        throw new Error('Unsupported event type');
+    }
 
     const response = await putJob(job);
     await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
     return response;
-};
+}
 
-const postToConnections = async (params: StreamJobEvent<WorkflowJobEvent>) => {
+const postToConnections = async <T extends WorkflowJobEvent | WorkflowRunEvent>(params: StreamJobEvent<T>) => {
     const logger = getLogger();
     const connections = await getConnections(params.payload.integrationId);
 

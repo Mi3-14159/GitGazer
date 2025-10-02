@@ -2,8 +2,8 @@ import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {Job, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
-import {WorkflowJobEvent} from '@octokit/webhooks-types';
+import {Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
+import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
@@ -80,14 +80,15 @@ export const getJobsBy = async (params: {
         'integrationId',
         'id',
         'created_at',
-        'workflow_job_event.repository.full_name',
-        'workflow_job_event.workflow_job.workflow_name',
-        'workflow_job_event.workflow_job.#name',
-        'workflow_job_event.workflow_job.head_branch',
-        'workflow_job_event.workflow_job.#status',
-        'workflow_job_event.workflow_job.conclusion',
-        'workflow_job_event.workflow_job.run_id',
-        'workflow_job_event.workflow_job.id',
+        'event_type',
+        'workflow_event.repository.full_name',
+        'workflow_event.workflow_job.workflow_name',
+        'workflow_event.workflow_job.#name',
+        'workflow_event.workflow_job.head_branch',
+        'workflow_event.workflow_job.#status',
+        'workflow_event.workflow_job.conclusion',
+        'workflow_event.workflow_job.run_id',
+        'workflow_event.workflow_job.id',
     ];
 
     const commands = params.integrationIds.map((integrationId) => {
@@ -96,6 +97,7 @@ export const getJobsBy = async (params: {
             KeyConditionExpression: 'integrationId = :integrationId',
             ExpressionAttributeValues: {
                 ':integrationId': integrationId,
+                ':event_type': JobType.WORKFLOW_JOB,
             },
             ExpressionAttributeNames:
                 params.projection === ProjectionType.minimal
@@ -108,6 +110,7 @@ export const getJobsBy = async (params: {
             IndexName: 'newest_integration_index',
             ScanIndexForward: false,
             ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
+            FilterExpression: 'event_type = :event_type',
         });
     });
 
@@ -170,12 +173,10 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
     await client.send(command);
 };
 
-export const putJob = async (job: Job<WorkflowJobEvent>): Promise<Job<WorkflowJobEvent>> => {
+export const putJob = async <T extends WorkflowJobEvent | WorkflowRunEvent>(job: Job<T>): Promise<Job<T>> => {
     const logger = getLogger();
     logger.info({
         message: 'Putting job',
-        runId: job.workflow_job_event.workflow_job.run_id,
-        jobId: job.workflow_job_event.workflow_job.id,
         id: job.id,
     });
 

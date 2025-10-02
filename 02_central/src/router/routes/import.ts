@@ -1,4 +1,4 @@
-import {createWorkflowJob} from '@/controllers/imports';
+import {createWorkflow} from '@/controllers/imports';
 import {getLogger} from '@/logger';
 import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
 import {Router} from '@/router/router';
@@ -21,7 +21,7 @@ router.post('/api/import/{integrationId}', async (event) => {
 
     try {
         const githubEvent = JSON.parse(body);
-        await createWorkflowJob(pathParameters.integrationId, githubEvent);
+        await createWorkflow(pathParameters.integrationId, githubEvent);
     } catch (error) {
         logger.error({
             err: error,
