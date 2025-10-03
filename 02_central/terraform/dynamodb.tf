@@ -121,4 +121,8 @@ resource "aws_dynamodb_table" "integrations" {
     enabled     = true
     kms_key_arn = aws_kms_key.this.arn
   }
+
+  point_in_time_recovery {
+    enabled = var.enabled_pitr
+  }
 }
