@@ -37,8 +37,8 @@ resource "aws_cognito_user_pool_domain" "this" {
 resource "aws_cognito_user_pool_client" "this" {
   name                                 = "client"
   user_pool_id                         = aws_cognito_user_pool.this.id
-  callback_urls                        = concat(["http://localhost:5173"], var.callback_uls)
-  logout_urls                          = concat(["http://localhost:5173"], var.callback_uls)
+  callback_urls                        = distinct(compact(concat(["http://localhost:5173"], var.callback_uls, [try(format("https://%s", var.custom_domain_config.domain_name), null)])))
+  logout_urls                          = distinct(compact(concat(["http://localhost:5173"], var.callback_uls, [try(format("https://%s", var.custom_domain_config.domain_name), null)])))
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
