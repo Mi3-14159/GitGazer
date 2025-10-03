@@ -10,12 +10,6 @@ variable "name_prefix" {
   default     = "gitgazer"
 }
 
-variable "gh_webhook_secret_encrypted" {
-  type        = string
-  sensitive   = true
-  description = "GitHub webhook secret, encrypted with KMS"
-}
-
 variable "enabled_pitr" {
   type        = bool
   description = "Enable point in time recovery for the DynamoDB table"

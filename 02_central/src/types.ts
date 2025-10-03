@@ -1,4 +1,3 @@
-import {Integration} from '@common/types';
 import {WebhookEvent, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
 
@@ -25,8 +24,6 @@ export interface APIGatewayProxyEventWithCustomAuth extends Omit<APIGatewayProxy
 
 // Custom handler type that uses the extended event
 export type CustomAPIGatewayProxyHandler = (event: APIGatewayProxyEventWithCustomAuth, context: Context) => Promise<APIGatewayProxyResult>;
-
-export type SSMIntegrationSecret = Omit<Integration, 'id'>;
 
 export type LambdaAuthorizerContext = {
     'cognito:groups'?: string[];

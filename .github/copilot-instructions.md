@@ -20,7 +20,7 @@ The backend serves as both API and GitHub webhook processor, while the frontend 
 - **Router Pattern**: Custom router in `src/router/router.ts` handles API Gateway events
 - **Middleware Chain**: Sequential processing with `lowercaseHeaders` → `extractCognitoGroups` → route handlers
 - **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in `tsconfig.json` and `vitest.config.ts`
-- **AWS Client Pattern**: Centralized clients in `src/clients/` (DynamoDB, S3, SSM, Cognito)
+- **AWS Client Pattern**: Centralized clients in `src/clients/` (DynamoDB, S3, Cognito)
 - **Type Guards**: All types in `common/types/index.ts` have corresponding `isType()` guards
 
 ### Development Workflows
@@ -97,7 +97,7 @@ npm run build  # Production build for S3 deployment
 
 **Add new API endpoint**: Create route in `src/router/routes/`, add to router in `src/router/index.ts`
 **Add new notification channel**: Extend `NotificationRuleChannelType` enum in `common/types/`
-**Debug webhook issues**: Check `verifyGithubSign.ts` middleware and integration secrets in SSM
+**Debug webhook issues**: Check `verifyGithubSign.ts` middleware and integration secrets in DynamoDB
 **Local testing**: Use `src/develop.ts` to simulate API Gateway events locally
 
 Focus on serverless patterns, proper error handling with structured logging (`pino`), and maintaining type safety across the shared type system.

@@ -71,17 +71,6 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
-      "ssm:GetParameter",
-      "ssm:GetParameters",
-      "ssm:PutParameter",
-      "ssm:DeleteParameter",
-    ]
-    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_gh_webhook_secret_name_prefix}*"]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
       "dynamodb:GetItem",
@@ -153,20 +142,19 @@ resource "aws_lambda_function" "api" {
   memory_size      = 256
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER                     = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
-      ENVIRONMENT                                 = terraform.workspace
-      PINO_LOG_LEVEL                              = "info"
-      EXPIRE_IN_SEC                               = var.expire_in_sec
-      SSM_PARAMETER_GH_WEBHOOK_SECRET_NAME_PREFIX = local.ssm_parameter_gh_webhook_secret_name_prefix
-      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN           = try(aws_dynamodb_table.notification_rules[0].name, null)
-      DYNAMO_DB_JOBS_TABLE_ARN                    = aws_dynamodb_table.jobs.name
-      UI_BUCKET_NAME                              = module.ui_bucket.s3_bucket_id
-      KMS_KEY_ID                                  = aws_kms_key.this.id
-      COGNITO_USER_POOL_ID                        = aws_cognito_user_pool.this.id
-      DYNAMO_DB_CONNECTIONS_TABLE_ARN             = aws_dynamodb_table.connections.name
-      WEBSOCKET_API_DOMAIN_NAME                   = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
-      WEBSOCKET_API_STAGE                         = aws_apigatewayv2_stage.websocket_ws.name
-      DYNAMO_DB_INTEGRATIONS_TABLE_ARN            = aws_dynamodb_table.integrations.name
+      AWS_LAMBDA_EXEC_WRAPPER           = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
+      ENVIRONMENT                       = terraform.workspace
+      PINO_LOG_LEVEL                    = "info"
+      EXPIRE_IN_SEC                     = var.expire_in_sec
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN = try(aws_dynamodb_table.notification_rules[0].name, null)
+      DYNAMO_DB_JOBS_TABLE_ARN          = aws_dynamodb_table.jobs.name
+      UI_BUCKET_NAME                    = module.ui_bucket.s3_bucket_id
+      KMS_KEY_ID                        = aws_kms_key.this.id
+      COGNITO_USER_POOL_ID              = aws_cognito_user_pool.this.id
+      DYNAMO_DB_CONNECTIONS_TABLE_ARN   = aws_dynamodb_table.connections.name
+      WEBSOCKET_API_DOMAIN_NAME         = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
+      WEBSOCKET_API_STAGE               = aws_apigatewayv2_stage.websocket_ws.name
+      DYNAMO_DB_INTEGRATIONS_TABLE_ARN  = aws_dynamodb_table.integrations.name
     }
   }
   layers = flatten([

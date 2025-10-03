@@ -1,8 +1,16 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {DeleteCommand, DynamoDBDocumentClient, PutCommand, QueryCommand, QueryCommandOutput, UpdateCommand} from '@aws-sdk/lib-dynamodb';
+import {
+    DeleteCommand,
+    DynamoDBDocumentClient,
+    PutCommand,
+    QueryCommand,
+    QueryCommandOutput,
+    TransactGetCommand,
+    UpdateCommand,
+} from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
-import {Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
+import {Integration, Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
 import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
@@ -16,6 +24,14 @@ if (!connectionTableName) {
 }
 
 const jobsTableName = process.env.DYNAMO_DB_JOBS_TABLE_ARN;
+if (!jobsTableName) {
+    throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
+}
+
+const integrationsTableName = process.env.DYNAMO_DB_INTEGRATIONS_TABLE_ARN;
+if (!integrationsTableName) {
+    throw new Error('DYNAMO_DB_INTEGRATIONS_TABLE_ARN is not defined');
+}
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -71,10 +87,6 @@ export const getJobsBy = async (params: {
 }): Promise<Job<Partial<WorkflowJobEvent>>[]> => {
     const logger = getLogger();
     logger.info({message: 'Getting jobs for integrations', integrations: params.integrationIds});
-
-    if (!jobsTableName) {
-        throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
-    }
 
     const projectionExpressionValues = [
         'integrationId',
@@ -218,4 +230,60 @@ export const deleteConnection = async (connectionId: string): Promise<void> => {
     });
 
     await client.send(command);
+};
+
+export const getIntegrations = async (ids: string[]): Promise<Integration[]> => {
+    const logger = getLogger();
+    logger.info({message: 'Getting integrations', ids});
+
+    if (ids.length === 0) {
+        return [];
+    }
+
+    // DynamoDB TransactGetItems has a limit of 100 items per transaction
+    if (ids.length > 100) {
+        throw new Error('Cannot retrieve more than 100 integrations in a single transaction');
+    }
+
+    const transactItems = ids.map((id) => ({
+        Get: {
+            TableName: integrationsTableName,
+            Key: {id},
+        },
+    }));
+
+    const command = new TransactGetCommand({
+        TransactItems: transactItems,
+    });
+
+    const result = await client.send(command);
+    return result.Responses?.map((response) => response.Item as Integration).filter(Boolean) ?? [];
+};
+
+export const createIntegration = async (integration: Integration): Promise<Integration> => {
+    const logger = getLogger();
+    logger.info({message: 'Creating integration', id: integration.id});
+
+    const command = new PutCommand({
+        TableName: integrationsTableName,
+        Item: integration,
+        ConditionExpression: 'attribute_not_exists(id)',
+    });
+
+    const result = await client.send(command);
+    return result.Attributes as Integration;
+};
+
+export const deleteIntegration = async (id: string): Promise<Integration> => {
+    const logger = getLogger();
+    logger.info({message: 'Deleting integration', id});
+
+    const command = new DeleteCommand({
+        TableName: integrationsTableName,
+        Key: {id},
+        ReturnValues: 'ALL_OLD',
+    });
+
+    const result = await client.send(command);
+    return result.Attributes as Integration;
 };

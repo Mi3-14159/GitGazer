@@ -1,5 +1,9 @@
 import {addUserToGroup, deleteGroup, newGroup} from '@/clients/cognito';
-import {deleteParameter, getParameters, putParameter} from '@/clients/ssm';
+import {
+    createIntegration as createIntegrationDDB,
+    deleteIntegration as deleteIntegrationDDB,
+    getIntegrations as getIntegrationsDDB,
+} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {Integration} from '@common/types';
 
@@ -9,9 +13,7 @@ export const getIntegrations = async (params: {integrationIds: string[]; limit?:
         return [];
     }
 
-    const integrations = await getParameters({
-        names: integrationIds,
-    });
+    const integrations = await getIntegrationsDDB(integrationIds);
 
     return integrations as Integration[];
 };
@@ -26,7 +28,7 @@ export const createIntegration = async (label: string, owner: string, userName: 
         secret: crypto.randomUUID(),
     };
 
-    const results = await Promise.allSettled([putParameter(integration), newGroup(integration.id, integration.label)]);
+    const results = await Promise.allSettled([createIntegrationDDB(integration), newGroup(integration.id, integration.label)]);
 
     results.forEach((result) => {
         if (result.status === 'rejected') {
@@ -47,7 +49,7 @@ export const deleteIntegration = async (id: string, userGroups: string[]): Promi
         throw new Error('User is not authorized to delete this integration');
     }
 
-    const results = await Promise.allSettled([await deleteParameter(id), await deleteGroup(id)]);
+    const results = await Promise.allSettled([await deleteIntegrationDDB(id), await deleteGroup(id)]);
 
     results.forEach((result) => {
         if (result.status === 'rejected') {
