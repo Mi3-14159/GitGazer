@@ -76,7 +76,6 @@ data "aws_iam_policy_document" "api_websocket" {
       "execute-api:ManageConnections"
     ]
     resources = [
-      #"${module.api_gateway.api_execution_arn}/*"
       "${aws_apigatewayv2_api.websocket.execution_arn}/*"
     ]
   }
