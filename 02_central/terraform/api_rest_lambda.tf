@@ -96,6 +96,8 @@ data "aws_iam_policy_document" "api" {
       try("${aws_dynamodb_table.notification_rules[0].arn}/index/*", null),
       aws_dynamodb_table.connections.arn,
       "${aws_dynamodb_table.connections.arn}/index/*",
+      aws_dynamodb_table.integrations.arn,
+      "${aws_dynamodb_table.integrations.arn}/index/*",
     ])
   }
 
@@ -164,6 +166,7 @@ resource "aws_lambda_function" "api" {
       DYNAMO_DB_CONNECTIONS_TABLE_ARN             = aws_dynamodb_table.connections.name
       WEBSOCKET_API_DOMAIN_NAME                   = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
       WEBSOCKET_API_STAGE                         = aws_apigatewayv2_stage.websocket_ws.name
+      DYNAMO_DB_INTEGRATIONS_TABLE_ARN            = aws_dynamodb_table.integrations.name
     }
   }
   layers = flatten([
