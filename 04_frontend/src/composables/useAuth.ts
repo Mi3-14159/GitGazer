@@ -18,7 +18,16 @@ export const useAuth = () => {
             promiseGetSession = fetchAuthSession({forceRefresh: params?.forceRefresh});
         }
 
-        return await promiseGetSession;
+        const session = await promiseGetSession;
+        const now = Math.floor(new Date().getTime() / 1000);
+        if (!session.tokens?.idToken?.payload.exp) {
+            return await getSession({forceRefresh: true});
+        } else if (session.tokens.idToken.payload.exp < now + 60) {
+            console.warn('ID token is expired, refreshing session', session.tokens.idToken.payload.exp, now + 60);
+            return await getSession({forceRefresh: true});
+        }
+
+        return session;
     };
 
     const getUserAttributes = async (): Promise<FetchUserAttributesOutput> => {
