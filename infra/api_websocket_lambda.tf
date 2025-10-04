@@ -89,8 +89,8 @@ resource "aws_iam_role_policy" "api_websocket" {
 
 data "archive_file" "api_websocket" {
   type        = "zip"
-  source_file = "${path.module}/../src/handlerWebsocket.js"
-  output_path = "${path.module}/../dist/handlerWebsocket.zip"
+  source_file = "${path.module}/../02_central/src/handlerWebsocket.js"
+  output_path = "${path.module}/dist/handlerWebsocket.zip"
 }
 
 resource "aws_lambda_function" "api_websocket" {

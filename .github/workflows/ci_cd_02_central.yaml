@@ -3,11 +3,13 @@ on:
   push:
     paths:
       - "02_central/**"
+      - "infra/**"
       - ".github/workflows/ci_cd_02_central.yaml"
       - "common/**"
   pull_request:
     paths:
       - "02_central/**"
+      - "infra/**"
       - ".github/workflows/ci_cd_02_central.yaml"
       - "common/**"
   workflow_dispatch:
@@ -86,37 +88,37 @@ jobs:
           terraform_version: ${{ steps.terraform-version.outputs.version }}
 
       - name: Terraform fmt
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: terraform fmt -check -diff
 
       - name: Create terraform backend file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
 
       - name: Terraform init
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: |
           export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
           terraform init
 
       - name: Create tfvars file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
 
       - name: Terraform validate
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: terraform validate
 
       - name: Terraform plan
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central/terraform
+        working-directory: infra
         run: terraform apply tfplan
