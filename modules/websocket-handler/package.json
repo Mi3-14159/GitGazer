@@ -1,0 +1,35 @@
+{
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/Mi3-14159/GitGazer/issues"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.902.0",
+    "@aws-sdk/lib-dynamodb": "^3.902.0",
+    "@types/aws-lambda": "^8.10.155",
+    "@types/node": "^24.6.2"
+  },
+  "engines": {
+    "node": "^22"
+  },
+  "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
+  "keywords": [],
+  "name": "@gitgazer/websocket-handler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mi3-14159/GitGazer.git"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json && tsc-alias",
+    "buildZip": "npm run build && npm run zip",
+    "clean": "rimraf dist ./tmp",
+    "lint": "npm -C \"$(git rev-parse --show-toplevel)\" run lint",
+    "lint:fix": "npm -C \"$(git rev-parse --show-toplevel)\" run lint:fix",
+    "postbuild": "cp package*.json dist && cp ../../package-lock.json dist && cd dist && npm ci --omit=dev",
+    "prebuild": "npm run clean",
+    "pretty": "npm -C \"$(git rev-parse --show-toplevel)\" run pretty",
+    "test:unit": "vitest --project unit --run",
+    "zip": "cd dist && zip lambda.zip -qr *"
+  },
+  "version": "1.0.0"
+}

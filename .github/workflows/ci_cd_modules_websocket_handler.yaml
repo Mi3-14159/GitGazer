@@ -1,0 +1,130 @@
+name: CI/CD websocket handler
+on:
+  push:
+    paths:
+      - modules/websocket-handler/**
+      - .github/workflows/ci_cd_modules_websocket_handler.yaml
+  pull_request:
+    paths:
+      - modules/websocket-handler/**
+      - .github/workflows/ci_cd_modules_websocket_handler.yaml
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-test-deploy:
+    name: Build, Test & Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/websocket-handler
+    concurrency:
+      group: websocket-handler-${{ github.ref }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          cache: "npm"
+          node-version-file: ./modules/websocket-handler/package.json
+          cache-dependency-path: ./modules/websocket-handler/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run buildZip
+
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+
+      - name: Get Terraform version from .tool-versions
+        id: terraform-version
+        run: echo "version=$(grep '^terraform ' ../.tool-versions | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Configure Terraform plugin cache
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('./02_central/terraform/.terraform.lock.hcl') }}
+          restore-keys: ${{ runner.os }}-terraform-
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+
+      - name: Terraform fmt
+        working-directory: modules/websocket-handler/infra
+        run: terraform fmt -check -diff
+
+      - name: Create terraform backend file
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: modules/websocket-handler/infra
+        run: cat > backend.tf<< EOF
+          terraform {
+            backend "s3" {
+              bucket       = "060102055153-terraform-state"
+              key          = "gitgazer/central.tfstate"
+              region       = "eu-central-1"
+              encrypt      = true
+              use_lockfile = true
+            }
+          }
+          EOF
+
+      - name: Terraform init
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: modules/websocket-handler/infra
+        run: |
+          export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
+          terraform init
+
+      - name: Create tfvars file
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: modules/websocket-handler/infra
+        run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
+
+      - name: Terraform validate
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: modules/websocket-handler/infra
+        run: terraform validate
+
+      - name: Terraform plan
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: modules/websocket-handler/infra
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: modules/websocket-handler/infra
+        run: terraform apply tfplan

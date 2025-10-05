@@ -1,0 +1,29 @@
+const config = {
+    arrowParens: 'always',
+    bracketSameLine: false,
+    bracketSpacing: false,
+    overrides: [
+        {
+            files: ['*.json'],
+            options: {
+                tabWidth: 2,
+            },
+        },
+        {
+            files: ['package-lock.json'],
+            options: {
+                requirePragma: true,
+            },
+        },
+    ],
+    printWidth: 150,
+    semi: true,
+    singleAttributePerLine: true,
+    singleQuote: true,
+    tabWidth: 4,
+    trailingComma: 'all',
+    vueIndentScriptAndStyle: true,
+    plugins: ['prettier-plugin-sort-json'],
+};
+
+export default config;
