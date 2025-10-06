@@ -1,4 +1,4 @@
-import {deleteConnection, getConnections} from '@/clients/dynamodb';
+import {deleteConnection, getConnections, putJob} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {isWorkflowJobEvent, isWorkflowRunEvent} from '@/types';
 import {
@@ -52,11 +52,11 @@ export async function createWorkflow<T extends WorkflowJobEvent | WorkflowRunEve
         throw new Error('Unsupported event type');
     }
 
-    //const response = await putJob(job);
+    const response = await putJob(job);
     if (isWorkflowJobEvent(event)) {
         await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
     }
-    return job;
+    return response;
 }
 
 const postToConnections = async <T extends WorkflowJobEvent | WorkflowRunEvent>(params: StreamJobEvent<T>) => {
