@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 
 import {getLogger} from '@/logger';
+import {WebsocketConnection} from '@/types';
 import {Integration, Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
 import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
@@ -201,7 +202,7 @@ export const putJob = async <T extends WorkflowJobEvent | WorkflowRunEvent>(job:
     return job;
 };
 
-export const getConnections = async (integrationId: string): Promise<string[]> => {
+export const getConnections = async (integrationId: string): Promise<WebsocketConnection[]> => {
     const logger = getLogger();
     logger.info({message: 'Getting connections'});
 
@@ -216,17 +217,16 @@ export const getConnections = async (integrationId: string): Promise<string[]> =
     });
 
     const queryData = await client.send(queryCommand);
-    const connections = queryData?.Items?.map((item) => item.connectionId) ?? [];
-    return connections;
+    return (queryData.Items as WebsocketConnection[]) || [];
 };
 
-export const deleteConnection = async (connectionId: string): Promise<void> => {
+export const deleteConnection = async (params: {integrationId: string; connectionId: string}): Promise<void> => {
     const logger = getLogger();
-    logger.info({message: 'Deleting connection', connectionId});
+    logger.info({message: 'Deleting connection', params});
 
     const command = new DeleteCommand({
         TableName: connectionTableName,
-        Key: {connectionId},
+        Key: params,
     });
 
     await client.send(command);

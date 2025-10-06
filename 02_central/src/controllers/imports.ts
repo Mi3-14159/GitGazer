@@ -1,4 +1,4 @@
-import {deleteConnection, getConnections, putJob} from '@/clients/dynamodb';
+import {deleteConnection, getConnections} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {isWorkflowJobEvent, isWorkflowRunEvent} from '@/types';
 import {
@@ -52,11 +52,11 @@ export async function createWorkflow<T extends WorkflowJobEvent | WorkflowRunEve
         throw new Error('Unsupported event type');
     }
 
-    const response = await putJob(job);
+    //const response = await putJob(job);
     if (isWorkflowJobEvent(event)) {
         await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
     }
-    return response;
+    return job;
 }
 
 const postToConnections = async <T extends WorkflowJobEvent | WorkflowRunEvent>(params: StreamJobEvent<T>) => {
@@ -64,9 +64,9 @@ const postToConnections = async <T extends WorkflowJobEvent | WorkflowRunEvent>(
     const connections = await getConnections(params.payload.integrationId);
 
     const promises = [];
-    for (const connectionId of connections) {
+    for (const connection of connections) {
         const apiCommand = new PostToConnectionCommand({
-            ConnectionId: connectionId,
+            ConnectionId: connection.connectionId,
             Data: JSON.stringify(params),
         });
         promises.push(apiClient.send(apiCommand));
@@ -75,24 +75,24 @@ const postToConnections = async <T extends WorkflowJobEvent | WorkflowRunEvent>(
     const results = await Promise.allSettled(promises);
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        const connectionId = connections[i];
+        const connection = connections[i];
         if (result.status === 'fulfilled') {
-            logger.info(`Successfully sent message to ${connectionId}: ${JSON.stringify(result.value)}`);
+            logger.info(`Successfully sent message to ${connection.connectionId}: ${JSON.stringify(result.value)}`);
         } else {
-            await handlePostToConnectionError(connectionId, result.reason);
+            await handlePostToConnectionError(connection.integrationId, connection.connectionId, result.reason);
         }
     }
 };
 
-const handlePostToConnectionError = async (connectionId: string, error: any) => {
+const handlePostToConnectionError = async (integrationId: string, connectionId: string, error: any) => {
     const logger = getLogger();
 
     if (error instanceof GoneException) {
         logger.warn(`Connection ${connectionId} is gone, skipping.`);
-        await deleteConnection(connectionId);
+        await deleteConnection({integrationId, connectionId});
     } else if (error instanceof ApiGatewayManagementApiServiceException) {
         logger.info(`API Gateway Service Exception: ${error.message}, status code: ${error.$metadata.httpStatusCode}`);
-        await deleteConnection(connectionId);
+        await deleteConnection({integrationId, connectionId});
     } else {
         throw error;
     }

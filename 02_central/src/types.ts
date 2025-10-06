@@ -29,3 +29,10 @@ export type LambdaAuthorizerContext = {
     'cognito:groups'?: string[];
     [key: string]: any;
 };
+
+export type WebsocketConnection = {
+    integrationId: string;
+    connectionId: string;
+    sub: string;
+    connectedAt: string;
+};
