@@ -17,7 +17,7 @@
     "@types/aws-lambda": "^8.10.155",
     "@types/node": "^24.6.2",
     "@typescript-eslint/eslint-plugin": "^8.45.0",
-    "@typescript-eslint/parser": "^8.45.0",
+    "@typescript-eslint/parser": "^8.46.0",
     "eslint": "^9.36.0",
     "pino-pretty": "^13.1.1",
     "prettier": "^3.6.2",
