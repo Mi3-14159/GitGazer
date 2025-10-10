@@ -11,15 +11,15 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      terraform-patches:
+      actions-patches:
         patterns: ["*"]
         update-types: ["patch"]
-      terraform-minors:
+      actions-minors:
         patterns: ["*"]
         update-types: ["minor"]
 
   - package-ecosystem: "terraform"
-    directory: "/02_central/terraform"
+    directory: "/infra"
     open-pull-requests-limit: 10
     rebase-strategy: auto
     schedule:
@@ -49,10 +49,10 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      npm-patches:
+      02_central-patches:
         patterns: ["*"]
         update-types: ["patch"]
-      npm-minors:
+      02_central-minors:
         patterns: ["*"]
         update-types: ["minor"]
 
@@ -68,9 +68,9 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      npm-patches:
+      04_frontend-patches:
         patterns: ["*"]
         update-types: ["patch"]
-      npm-minors:
+      04_frontend-minors:
         patterns: ["*"]
         update-types: ["minor"]
