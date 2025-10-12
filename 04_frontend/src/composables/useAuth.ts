@@ -23,7 +23,6 @@ export const useAuth = () => {
         if (!session.tokens?.idToken?.payload.exp) {
             return await getSession({forceRefresh: true});
         } else if (session.tokens.idToken.payload.exp < now + 60) {
-            console.warn('ID token is expired, refreshing session', session.tokens.idToken.payload.exp, now + 60);
             return await getSession({forceRefresh: true});
         }
 
