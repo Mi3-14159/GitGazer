@@ -13,7 +13,7 @@
     "@babel/types": "^7.28.4",
     "@octokit/webhooks-types": "^7.6.1",
     "@types/node": "^24.7.2",
-    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
     "@typescript-eslint/parser": "^8.46.0",
     "@vitejs/plugin-vue": "^6.0.1",
     "eslint": "^9.37.0",
