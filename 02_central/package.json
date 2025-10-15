@@ -10,7 +10,7 @@
   "devDependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.910.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.908.0",
-    "@aws-sdk/client-dynamodb": "^3.908.0",
+    "@aws-sdk/client-dynamodb": "^3.910.0",
     "@aws-sdk/client-s3": "^3.908.0",
     "@aws-sdk/lib-dynamodb": "^3.908.0",
     "@octokit/webhooks-types": "^7.6.1",
