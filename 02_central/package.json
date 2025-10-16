@@ -4,7 +4,7 @@
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
   "dependencies": {
-    "pino": "^9.12.0"
+    "pino": "^10.0.0"
   },
   "description": "lambda as API",
   "devDependencies": {
