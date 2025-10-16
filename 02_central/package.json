@@ -14,7 +14,7 @@
     "@aws-sdk/client-s3": "^3.910.0",
     "@aws-sdk/lib-dynamodb": "^3.910.0",
     "@octokit/webhooks-types": "^7.6.1",
-    "@types/aws-lambda": "^8.10.155",
+    "@types/aws-lambda": "^8.10.156",
     "@types/node": "^24.7.2",
     "@typescript-eslint/eslint-plugin": "^8.46.1",
     "@typescript-eslint/parser": "^8.45.0",
