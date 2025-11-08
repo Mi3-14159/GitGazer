@@ -13,10 +13,7 @@ updates:
     groups:
       actions-patches:
         patterns: ["*"]
-        update-types: ["patch"]
-      actions-minors:
-        patterns: ["*"]
-        update-types: ["minor"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "terraform"
     directory: "/infra"
@@ -30,12 +27,9 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      terraform-patches:
+      terraform:
         patterns: ["*"]
-        update-types: ["patch"]
-      terraform-minors:
-        patterns: ["*"]
-        update-types: ["minor"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
     directory: "/02_central"
@@ -49,12 +43,9 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      02_central-patches:
+      02_central:
         patterns: ["*"]
-        update-types: ["patch"]
-      02_central-minors:
-        patterns: ["*"]
-        update-types: ["minor"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
     directory: "/04_frontend"
@@ -68,9 +59,6 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      04_frontend-patches:
+      04_frontend:
         patterns: ["*"]
-        update-types: ["patch"]
-      04_frontend-minors:
-        patterns: ["*"]
-        update-types: ["minor"]
+        update-types: ["minor", "patch"]
