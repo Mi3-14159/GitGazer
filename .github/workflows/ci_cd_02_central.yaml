@@ -1,6 +1,8 @@
 name: CI/CD 02_central
 on:
   push:
+    branches:
+      - main
     paths:
       - "02_central/**"
       - "infra/**"
