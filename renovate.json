@@ -6,5 +6,6 @@
       "automerge": true,
       "matchUpdateTypes": ["minor", "patch"]
     }
-  ]
+  ],
+  "prConcurrentLimit": 10
 }
