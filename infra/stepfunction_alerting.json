@@ -81,23 +81,72 @@
                 }
               },
               {
-                "StartAt": "Get workflow run",
+                "StartAt": "Check if workflow job event",
                 "States": {
-                  "Get workflow run": {
-                    "End": true,
+                  "Check if workflow job event": {
+                    "Choices": [
+                      {
+                        "Next": "Get parent workflow run",
+                        "StringEquals": "workflow_job",
+                        "Variable": "$.dynamodb.NewImage.event_type.S"
+                      }
+                    ],
+                    "Default": "Return default workflow run",
+                    "Type": "Choice"
+                  },
+                  "Choice": {
+                    "Choices": [
+                      {
+                        "IsNull": true,
+                        "Next": "Return default workflow run",
+                        "Variable": "$"
+                      }
+                    ],
+                    "Default": "Pass",
+                    "Type": "Choice"
+                  },
+                  "Get parent workflow run": {
+                    "Next": "Choice",
+                    "OutputPath": "$.Items[0]",
                     "Parameters": {
-                      "Key": {
-                        "id": {
-                          "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.run_id.N"
-                        },
-                        "integrationId": {
+                      "ExpressionAttributeNames": {
+                        "#id": "id",
+                        "#integrationId": "integrationId"
+                      },
+                      "ExpressionAttributeValues": {
+                        ":integrationId": {
                           "S.$": "$.dynamodb.NewImage.integrationId.S"
+                        },
+                        ":run_id": {
+                          "S.$": "$.dynamodb.NewImage.workflow_event.M.workflow_job.M.run_id.N"
                         }
                       },
+                      "KeyConditionExpression": "#integrationId = :integrationId AND #id = :run_id",
                       "TableName": "${jobs_table_name}"
                     },
-                    "Resource": "arn:aws:states:::dynamodb:getItem",
+                    "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
                     "Type": "Task"
+                  },
+                  "Pass": {
+                    "End": true,
+                    "Type": "Pass"
+                  },
+                  "Return default workflow run": {
+                    "End": true,
+                    "Result": {
+                      "workflow_event": {
+                        "M": {
+                          "workflow_run": {
+                            "M": {
+                              "event": {
+                                "S": ""
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "Type": "Pass"
                   }
                 }
               }
@@ -138,7 +187,7 @@
                     "ProcessorConfig": {
                       "Mode": "INLINE"
                     },
-                    "StartAt": "Choice",
+                    "StartAt": "Choose the notification system",
                     "States": {
                       "Call Slack": {
                         "End": true,
@@ -231,7 +280,7 @@
                         ],
                         "Type": "Task"
                       },
-                      "Choice": {
+                      "Choose the notification system": {
                         "Choices": [
                           {
                             "And": [
@@ -291,7 +340,7 @@
             },
             "ItemSelector": {
               "rule.$": "$$.Map.Item.Value",
-              "workflow_run.$": "$[1].Item"
+              "workflow_run.$": "$[1]"
             },
             "ItemsPath": "$[0].Items",
             "Type": "Map"
