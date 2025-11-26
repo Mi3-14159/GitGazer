@@ -8,11 +8,11 @@
   },
   "description": "lambda as API",
   "devDependencies": {
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.939.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.939.0",
-    "@aws-sdk/client-dynamodb": "^3.939.0",
-    "@aws-sdk/client-s3": "^3.939.0",
-    "@aws-sdk/lib-dynamodb": "^3.939.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.940.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.940.0",
+    "@aws-sdk/client-dynamodb": "^3.940.0",
+    "@aws-sdk/client-s3": "^3.940.0",
+    "@aws-sdk/lib-dynamodb": "^3.940.0",
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.159",
     "@types/node": "^24.10.1",
@@ -26,7 +26,7 @@
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.13"
+    "vitest": "^4.0.14"
   },
   "engines": {
     "node": "^22"
