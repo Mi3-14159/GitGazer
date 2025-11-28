@@ -77,9 +77,22 @@ resource "aws_pipes_pipe" "alerting" {
     filter_criteria {
       filter {
         pattern = jsonencode({
-          "dynamodb.NewImage.workflow_event.M.workflow_job.M.conclusion.S" : [{
-            "equals-ignore-case" : "failure"
-          }]
+          "$or" : [
+            {
+              "dynamodb.NewImage.workflow_event.M.workflow_job.M.conclusion.S" : [
+                {
+                  "equals-ignore-case" : "failure"
+                }
+              ]
+            },
+            {
+              "dynamodb.NewImage.workflow_event.M.workflow_run.M.conclusion.S" : [
+                {
+                  "equals-ignore-case" : "failure"
+                }
+              ]
+            }
+          ]
         })
       }
     }
