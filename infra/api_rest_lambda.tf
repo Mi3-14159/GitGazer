@@ -129,17 +129,23 @@ resource "aws_iam_role_policy" "api" {
   policy = data.aws_iam_policy_document.api.json
 }
 
+data "aws_s3_object" "api_lambda_function_archive" {
+  bucket = module.lambda_store.s3_bucket_id
+  key    = "${var.name_prefix}-jobs-processor.zip"
+}
+
 resource "aws_lambda_function" "api" {
-  description      = "GitGazers jobs processor"
-  filename         = local.artifact
-  function_name    = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
-  role             = aws_iam_role.api.arn
-  handler          = "02_central/src/index.handler"
-  runtime          = "nodejs22.x"
-  source_code_hash = filebase64sha256(local.artifact)
-  timeout          = 15
-  publish          = true
-  memory_size      = 256
+  description       = "GitGazers jobs processor"
+  function_name     = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
+  role              = aws_iam_role.api.arn
+  handler           = "02_central/src/index.handler"
+  runtime           = "nodejs22.x"
+  s3_bucket         = module.lambda_store.s3_bucket_id
+  s3_key            = "${var.name_prefix}-jobs-processor.zip"
+  s3_object_version = data.aws_s3_object.api_lambda_function_archive.version_id
+  timeout           = 15
+  publish           = true
+  memory_size       = 256
   environment {
     variables = {
       AWS_LAMBDA_EXEC_WRAPPER           = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null

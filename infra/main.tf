@@ -23,7 +23,6 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  artifact                                       = "${path.module}/../02_central/dist/lambda.zip"
   frontend_failover_sub_path                     = "fe-failover"
   github_oauth_scopes                            = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
   websocket_api_stage_name                       = "prod"
