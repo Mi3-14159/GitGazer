@@ -55,7 +55,7 @@
     "postbuild": "cp package*.json dist && cd dist && npm ci --omit=dev",
     "prebuild": "npm run clean",
     "pretty": "prettier --write src",
-    "test:unit:api": "vitest --project unit:api --run",
+    "test:unit": "vitest --project unit --run",
     "zip": "cd dist && zip lambda.zip -qr *"
   },
   "version": "1.0.0"

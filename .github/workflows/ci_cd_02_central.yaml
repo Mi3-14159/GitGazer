@@ -30,7 +30,7 @@ jobs:
       run:
         working-directory: ./02_central
     concurrency:
-      group: 02_central-${{ github.ref }}
+      group: 02_central-${{ matrix.lambda-function }}-${{ github.ref }}
       cancel-in-progress: false
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
@@ -63,7 +63,7 @@ jobs:
         run: npm run lint
 
       - name: Unit tests ${{ matrix.lambda-function }}
-        run: npm run test:unit:${{ matrix.lambda-function }}
+        run: npm run test:unit
 
       - name: Build ${{ matrix.lambda-function }}
         run: npm run buildZip:${{ matrix.lambda-function }}
