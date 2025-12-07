@@ -44,16 +44,18 @@
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.api.json && tsc-alias",
-    "buildZip": "npm run build && npm run zip",
+    "build:alerting": "npm run prebuild && tsc --project tsconfig.alerting.json && tsc-alias && npm run postbuild",
+    "build:api": "npm run prebuild && tsc --project tsconfig.api.json && tsc-alias && npm run postbuild",
+    "buildZip:alerting": "npm run build:alerting && npm run zip",
+    "buildZip:api": "npm run build:api && npm run zip",
     "clean": "rimraf ./dist ./tmp",
-    "dev": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
+    "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "postbuild": "cp package*.json dist && cd dist && npm ci --omit=dev",
     "prebuild": "npm run clean",
     "pretty": "prettier --write src",
-    "test:unit": "vitest --project unit --run",
+    "test:unit:api": "vitest --project unit:api --run",
     "zip": "cd dist && zip lambda.zip -qr *"
   },
   "version": "1.0.0"

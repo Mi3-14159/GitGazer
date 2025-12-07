@@ -13,7 +13,7 @@ export const getJobs = async (params: {
     }
 
     const jobs = await getJobsBy({
-        integrationIds,
+        keys: integrationIds.map((id) => ({integrationId: id})),
         ...(limit && {limit: Math.min(limit, 100)}),
         projection,
     });

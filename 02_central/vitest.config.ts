@@ -16,7 +16,7 @@ export default defineConfig({
             {
                 extends: true,
                 test: {
-                    name: 'unit',
+                    name: 'unit:api',
                     include: ['src/**/*.test.{ts,tsx,js}'],
                 },
             },

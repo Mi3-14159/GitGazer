@@ -82,12 +82,13 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
 };
 
 export const getJobsBy = async (params: {
-    integrationIds: string[];
+    keys: {integrationId: string; id?: string}[];
+    filters?: {event_type?: JobType};
     limit?: number;
     projection?: ProjectionType;
 }): Promise<Job<Partial<WorkflowJobEvent>>[]> => {
     const logger = getLogger();
-    logger.info({message: 'Getting jobs for integrations', integrations: params.integrationIds});
+    logger.info({message: 'Getting jobs', params});
 
     const projectionExpressionValues = [
         'integrationId',
@@ -104,14 +105,27 @@ export const getJobsBy = async (params: {
         'workflow_event.workflow_job.id',
     ];
 
-    const commands = params.integrationIds.map((integrationId) => {
+    const commands = params.keys.map((keys) => {
+        const keyConditionExpressionParts: string[] = [];
+        const expressionAttributeValues: {[key: string]: any} = {};
+        const filterExpressionParts: string[] = [];
+
+        Object.entries(keys).forEach(([key, value]) => {
+            if (value !== undefined) {
+                keyConditionExpressionParts.push(`${key} = :${key}`);
+                expressionAttributeValues[`:${key}`] = value;
+            }
+        });
+
+        Object.entries(params.filters ?? {event_type: JobType.WORKFLOW_JOB}).forEach(([key, value]) => {
+            expressionAttributeValues[`:${key}`] = value;
+            filterExpressionParts.push(`${key} = :${key}`);
+        });
+
         return new QueryCommand({
             TableName: jobsTableName,
-            KeyConditionExpression: 'integrationId = :integrationId',
-            ExpressionAttributeValues: {
-                ':integrationId': integrationId,
-                ':event_type': JobType.WORKFLOW_JOB,
-            },
+            KeyConditionExpression: keyConditionExpressionParts.join(' AND '),
+            ExpressionAttributeValues: expressionAttributeValues,
             ExpressionAttributeNames:
                 params.projection === ProjectionType.minimal
                     ? {
@@ -120,10 +134,10 @@ export const getJobsBy = async (params: {
                       }
                     : undefined,
             Limit: params.limit ?? 10,
-            IndexName: 'newest_integration_index',
+            IndexName: !keys.id ? 'newest_integration_index' : undefined,
             ScanIndexForward: false,
             ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
-            FilterExpression: 'event_type = :event_type',
+            FilterExpression: filterExpressionParts.join(' AND '),
         });
     });
 
