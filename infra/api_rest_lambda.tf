@@ -135,7 +135,7 @@ resource "aws_lambda_function" "api" {
   description       = "GitGazers jobs processor"
   function_name     = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
   role              = aws_iam_role.api.arn
-  handler           = "02_central/src/index.handler"
+  handler           = "02_central/src/index_api.handler"
   runtime           = "nodejs22.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = "${var.name_prefix}-jobs-processor.zip"
