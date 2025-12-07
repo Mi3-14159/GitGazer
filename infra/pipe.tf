@@ -1,18 +1,15 @@
 resource "aws_iam_role" "alerting" {
-  count              = var.create_gitgazer_alerting ? 1 : 0
   name               = "${var.name_prefix}-alerting-pipe-${terraform.workspace}"
-  assume_role_policy = data.aws_iam_policy_document.alerting_assume_role_policy[0].json
+  assume_role_policy = data.aws_iam_policy_document.alerting_assume_role_policy.json
 }
 
 resource "aws_iam_role_policy" "alerting" {
-  count  = var.create_gitgazer_alerting ? 1 : 0
   name   = "${var.name_prefix}-alerting-pipe-${terraform.workspace}"
-  role   = aws_iam_role.alerting[0].id
-  policy = data.aws_iam_policy_document.alerting_policy[0].json
+  role   = aws_iam_role.alerting.id
+  policy = data.aws_iam_policy_document.alerting_policy.json
 }
 
 data "aws_iam_policy_document" "alerting_assume_role_policy" {
-  count = var.create_gitgazer_alerting ? 1 : 0
   statement {
     actions = [
       "sts:AssumeRole",
@@ -30,7 +27,6 @@ data "aws_iam_policy_document" "alerting_assume_role_policy" {
 }
 
 data "aws_iam_policy_document" "alerting_policy" {
-  count = var.create_gitgazer_alerting ? 1 : 0
   statement {
     actions = [
       "dynamodb:DescribeStream",
@@ -45,7 +41,7 @@ data "aws_iam_policy_document" "alerting_policy" {
       "states:StartExecution",
       "states:StartSyncExecution",
     ]
-    resources = [module.alerting_stepfunction[0].state_machine_arn]
+    resources = [module.alerting_stepfunction.state_machine_arn]
   }
   statement {
     actions = [
@@ -56,11 +52,10 @@ data "aws_iam_policy_document" "alerting_policy" {
 }
 
 resource "aws_pipes_pipe" "alerting" {
-  count    = var.create_gitgazer_alerting ? 1 : 0
   name     = "${var.name_prefix}-alerting-pipe-${terraform.workspace}"
-  role_arn = aws_iam_role.alerting[0].arn
+  role_arn = aws_iam_role.alerting.arn
   source   = aws_dynamodb_table.jobs.stream_arn
-  target   = module.alerting_stepfunction[0].state_machine_arn
+  target   = module.alerting_stepfunction.state_machine_arn
 
   log_configuration {
     level                  = "OFF"

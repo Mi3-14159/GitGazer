@@ -1,12 +1,11 @@
 module "alerting_stepfunction" {
-  count   = var.create_gitgazer_alerting ? 1 : 0
   source  = "terraform-aws-modules/step-functions/aws"
   version = "~> 5.0"
 
   name = "${var.name_prefix}-alerting-${terraform.workspace}"
   definition = templatefile("${path.module}/stepfunction_alerting.json", {
-    aws_cloudwatch_event_connection_generic_arn = aws_cloudwatch_event_connection.generic[0].arn
-    notification_rules_table_name               = aws_dynamodb_table.notification_rules[0].name
+    aws_cloudwatch_event_connection_generic_arn = aws_cloudwatch_event_connection.generic.arn
+    notification_rules_table_name               = aws_dynamodb_table.notification_rules.name
     notification_rules_table_index_name         = local.notification_rules_table_index_name
     jobs_table_name                             = aws_dynamodb_table.jobs.name
   })
@@ -20,7 +19,7 @@ module "alerting_stepfunction" {
   }
   service_integrations = {
     dynamodb = {
-      dynamodb = [aws_dynamodb_table.notification_rules[0].arn]
+      dynamodb = [aws_dynamodb_table.notification_rules.arn]
     }
   }
   attach_policy_statements = true
@@ -38,7 +37,7 @@ module "alerting_stepfunction" {
     connections = {
       effect    = "Allow",
       actions   = ["events:RetrieveConnectionCredentials"],
-      resources = [aws_cloudwatch_event_connection.generic[0].arn]
+      resources = [aws_cloudwatch_event_connection.generic.arn]
     }
     secrets = {
       effect = "Allow",
@@ -46,7 +45,7 @@ module "alerting_stepfunction" {
         "secretsmanager:GetSecretValue",
         "secretsmanager:DescribeSecret"
       ],
-      resources = [aws_cloudwatch_event_connection.generic[0].secret_arn]
+      resources = [aws_cloudwatch_event_connection.generic.secret_arn]
     }
     dynamodb = {
       effect = "Allow",
@@ -55,8 +54,8 @@ module "alerting_stepfunction" {
         "dynamodb:GetItem",
       ],
       resources = [
-        aws_dynamodb_table.notification_rules[0].arn,
-        "${aws_dynamodb_table.notification_rules[0].arn}/index/*",
+        aws_dynamodb_table.notification_rules.arn,
+        "${aws_dynamodb_table.notification_rules.arn}/index/*",
         aws_dynamodb_table.jobs.arn,
         "${aws_dynamodb_table.jobs.arn}/index/*"
       ]
