@@ -23,8 +23,8 @@ on:
         default: false
 
 jobs:
-  build-test-deploy:
-    name: Build, Test & Deploy
+  build-test-upload:
+    name: Build, Test & upload to S3
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,6 +38,14 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    strategy:
+      matrix:
+        lambda-function: [api, alarming]
+        include:
+          - lambda-function: api
+            name: jobs-processor
+          - lambda-function: alarming
+            name: alerting
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -48,57 +56,60 @@ jobs:
           cache: "npm"
           cache-dependency-path: ./02_central/package-lock.json
 
-      - name: Configure AWS credentials
-        if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        id: aws-credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: gitgazer-deployment
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          mask-aws-account-id: true
-          output-env-credentials: false
-          output-credentials: true
-
       - name: Install dependencies
         run: npm ci
 
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests API
-        run: npm run test:unit:api
+      - name: Unit tests ${{ matrix.lambda-function }}
+        run: npm run test:unit:${{ matrix.lambda-function }}
 
-      - name: Build API
-        run: npm run buildZip:api
+      - name: Build ${{ matrix.lambda-function }}
+        run: npm run buildZip:${{ matrix.lambda-function }}
 
-      - name: Upload API Lambda function code to S3
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+
+      - name: Upload ${{ matrix.lambda-function }} Lambda function code to S3
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
           aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-jobs-processor.zip
-        env:
-          AWS_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_DEFAULT_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
 
-      - name: Unit tests Alarming
-        run: npm run test:unit:alarming
+  deploy:
+    name: Deploy to AWS
+    needs: build-test-upload
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra
+    concurrency:
+      group: infra-${{ github.ref }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-      - name: Build Alarming
-        run: npm run buildZip:alarming
-
-      - name: Upload Lambda function code to S3
+      - name: Configure AWS credentials
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        run: |
-          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-alarming.zip
-        env:
-          AWS_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_DEFAULT_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
 
       - name: Get Terraform version from .tool-versions
         id: terraform-version
@@ -135,12 +146,6 @@ jobs:
         run: |
           export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
           terraform init
-        env:
-          AWS_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_DEFAULT_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
 
       - name: Create tfvars file
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
@@ -156,20 +161,8 @@ jobs:
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         working-directory: infra
         run: terraform plan -out=tfplan
-        env:
-          AWS_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_DEFAULT_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         working-directory: infra
         run: terraform apply tfplan
-        env:
-          AWS_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_DEFAULT_REGION: ${{ steps.aws-credentials.outputs.aws-region }}
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
