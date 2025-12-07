@@ -1,7 +1,7 @@
 module "ui_bucket" {
   source        = "terraform-aws-modules/s3-bucket/aws"
   version       = "~> 5.2"
-  create_bucket = var.with_frontend_stack
+  create_bucket = true
   force_destroy = "true"
 
   bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-ui-${terraform.workspace}"
@@ -17,13 +17,11 @@ module "ui_bucket" {
 }
 
 resource "aws_s3_bucket_policy" "ui_bucket" {
-  count  = var.with_frontend_stack ? 1 : 0
   bucket = module.ui_bucket.s3_bucket_id
-  policy = data.aws_iam_policy_document.s3_policy_cf_bucket[0].json
+  policy = data.aws_iam_policy_document.s3_policy_cf_bucket.json
 }
 
 data "aws_iam_policy_document" "s3_policy_cf_bucket" {
-  count = var.with_frontend_stack ? 1 : 0
   statement {
     sid       = "AllowCloudFront"
     actions   = ["s3:GetObject"]

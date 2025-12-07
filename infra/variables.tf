@@ -22,12 +22,6 @@ variable "expire_in_sec" {
   default     = 60 * 60 * 24 * 1 # 1 days
 }
 
-variable "with_frontend_stack" {
-  type        = bool
-  description = "Deploy the frontend stack"
-  default     = true
-}
-
 variable "apigateway_logging_enabled" {
   type        = bool
   description = "Enable logging of the HTTP API Gateway"
@@ -42,12 +36,6 @@ variable "custom_domain_config" {
   })
   description = "Configuration for the custom domain"
   default     = null
-}
-
-variable "create_gitgazer_alerting" {
-  type        = bool
-  description = "Create alerting for the GitGater resources"
-  default     = true
 }
 
 variable "gh_oauth_app_client_id_encrypted" {

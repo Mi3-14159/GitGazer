@@ -81,8 +81,8 @@ data "aws_iam_policy_document" "api" {
     resources = compact([
       aws_dynamodb_table.jobs.arn,
       "${aws_dynamodb_table.jobs.arn}/index/*",
-      try(aws_dynamodb_table.notification_rules[0].arn, null),
-      try("${aws_dynamodb_table.notification_rules[0].arn}/index/*", null),
+      try(aws_dynamodb_table.notification_rules.arn, null),
+      try("${aws_dynamodb_table.notification_rules.arn}/index/*", null),
       aws_dynamodb_table.connections.arn,
       "${aws_dynamodb_table.connections.arn}/index/*",
       aws_dynamodb_table.integrations.arn,
@@ -96,20 +96,17 @@ data "aws_iam_policy_document" "api" {
     resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
   }
 
-  dynamic "statement" {
-    for_each = var.create_gitgazer_alerting ? [1] : []
-    content {
-      effect = "Allow"
-      actions = [
-        "cognito-idp:CreateGroup",
-        "cognito-idp:DeleteGroup",
-        "cognito-idp:UpdateGroup",
-        "cognito-idp:AddUserToGroup",
-        "cognito-idp:RemoveUserFromGroup",
-        "cognito-idp:AdminAddUserToGroup",
-      ]
-      resources = [aws_cognito_user_pool.this.arn]
-    }
+  statement {
+    effect = "Allow"
+    actions = [
+      "cognito-idp:CreateGroup",
+      "cognito-idp:DeleteGroup",
+      "cognito-idp:UpdateGroup",
+      "cognito-idp:AddUserToGroup",
+      "cognito-idp:RemoveUserFromGroup",
+      "cognito-idp:AdminAddUserToGroup",
+    ]
+    resources = [aws_cognito_user_pool.this.arn]
   }
 
   statement {
@@ -146,7 +143,7 @@ resource "aws_lambda_function" "api" {
       ENVIRONMENT                       = terraform.workspace
       PINO_LOG_LEVEL                    = "info"
       EXPIRE_IN_SEC                     = var.expire_in_sec
-      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN = try(aws_dynamodb_table.notification_rules[0].name, null)
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN = aws_dynamodb_table.notification_rules.name
       DYNAMO_DB_JOBS_TABLE_ARN          = aws_dynamodb_table.jobs.name
       UI_BUCKET_NAME                    = module.ui_bucket.s3_bucket_id
       KMS_KEY_ID                        = aws_kms_key.this.id
