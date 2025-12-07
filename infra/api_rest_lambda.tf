@@ -136,7 +136,7 @@ resource "aws_lambda_function" "api" {
   function_name     = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
   role              = aws_iam_role.api.arn
   handler           = "02_central/src/index_api.handler"
-  runtime           = "nodejs22.x"
+  runtime           = "nodejs24.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = "${var.name_prefix}-jobs-processor.zip"
   s3_object_version = data.aws_s3_object.api_lambda_function_archive.version_id
