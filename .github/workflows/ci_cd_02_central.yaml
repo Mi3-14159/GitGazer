@@ -80,7 +80,7 @@ jobs:
       - name: Upload ${{ matrix.lambda-function }} Lambda function code to S3
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
-          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-jobs-processor.zip
+          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-${{ matrix.name }}.zip
 
   deploy:
     name: Deploy to AWS
