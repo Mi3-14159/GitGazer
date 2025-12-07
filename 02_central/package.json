@@ -44,7 +44,7 @@
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json && tsc-alias",
+    "build": "tsc --project tsconfig.api.json && tsc-alias",
     "buildZip": "npm run build && npm run zip",
     "clean": "rimraf ./dist ./tmp",
     "dev": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
