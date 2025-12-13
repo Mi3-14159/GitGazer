@@ -67,6 +67,7 @@
     );
 
     // Dynamically generate filter state for each filterable column
+    // Empty set means all items are selected (visible)
     const columnFilters = reactive(
         Object.fromEntries(filterableColumns.map((column) => [column.key, new Set<string>()])) as Record<string, Set<string>>,
     );
@@ -103,6 +104,23 @@
         if (filterSet) {
             filterSet.clear();
         }
+    };
+
+    // Select only one value for a column (hide all others)
+    const selectOnlyFilter = (column: string, value: string) => {
+        const filterSet = columnFilters[column];
+        if (!filterSet) return;
+
+        const allValues = uniqueValuesCache.get(column);
+        if (!allValues) return;
+
+        // Clear and add all values except the selected one
+        filterSet.clear();
+        allValues.forEach((v) => {
+            if (v !== value) {
+                filterSet.add(v);
+            }
+        });
     };
 
     const getJobStatusColor = (status: string) => {
@@ -205,6 +223,7 @@
                         :hidden-values="columnFilters[column.key]"
                         @toggle-filter="toggleFilter(column.key, $event)"
                         @clear-filter="clearColumnFilter(column.key)"
+                        @select-only="selectOnlyFilter(column.key, $event)"
                     />
                 </template>
 

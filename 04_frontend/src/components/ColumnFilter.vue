@@ -24,29 +24,46 @@
             <v-card min-width="200">
                 <v-card-text>
                     <div class="d-flex justify-between align-center mb-2">
-                        <span class="font-weight-medium">{{ filterLabel ?? `Hide ${title}` }}</span>
+                        <span class="font-weight-medium">{{ filterLabel ?? `Show ${title}` }}</span>
                         <v-btn
                             v-if="hasActiveFilters"
                             size="small"
                             variant="text"
                             @click="handleClearFilter"
                         >
-                            Clear
+                            Select All
                         </v-btn>
                     </div>
-                    <v-list density="compact">
+                    <v-text-field
+                        v-model="searchQuery"
+                        density="compact"
+                        placeholder="Search..."
+                        prepend-inner-icon="mdi-magnify"
+                        variant="outlined"
+                        clearable
+                        hide-details
+                        class="mb-2"
+                    />
+                    <v-list
+                        density="compact"
+                        max-height="300"
+                        style="overflow-y: auto"
+                    >
                         <v-list-item
-                            v-for="value in availableValues"
+                            v-for="value in filteredValues"
                             :key="value"
-                            @click="handleToggleFilter(value)"
+                            @click="handleSelectOnly(value)"
                         >
                             <template v-slot:prepend>
                                 <v-checkbox-btn
-                                    :model-value="hiddenValues.has(value)"
+                                    :model-value="!hiddenValues.has(value)"
                                     @click.stop="handleToggleFilter(value)"
                                 />
                             </template>
                             <v-list-item-title class="text-body-2">{{ value }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item v-if="filteredValues.length === 0">
+                            <v-list-item-title class="text-body-2 text-disabled">No matches found</v-list-item-title>
                         </v-list-item>
                     </v-list>
                 </v-card-text>
@@ -56,27 +73,42 @@
 </template>
 
 <script setup lang="ts">
-    import {computed} from 'vue';
+    import {computed, ref} from 'vue';
 
     interface Props {
         title: string;
         filterLabel?: string;
         availableValues: string[];
-        hiddenValues: Set<string>;
+        hiddenValues: Set<string>; // Values that are NOT selected (hidden)
     }
 
     interface Emits {
         (e: 'toggle-filter', value: string): void;
         (e: 'clear-filter'): void;
+        (e: 'select-only', value: string): void;
     }
 
     const props = defineProps<Props>();
     const emit = defineEmits<Emits>();
 
+    const searchQuery = ref('');
+
     const hasActiveFilters = computed(() => props.hiddenValues.size > 0);
+
+    const filteredValues = computed(() => {
+        if (!searchQuery.value) {
+            return props.availableValues;
+        }
+        const query = searchQuery.value.toLowerCase();
+        return props.availableValues.filter((value) => value.toLowerCase().includes(query));
+    });
 
     const handleToggleFilter = (value: string) => {
         emit('toggle-filter', value);
+    };
+
+    const handleSelectOnly = (value: string) => {
+        emit('select-only', value);
     };
 
     const handleClearFilter = () => {
