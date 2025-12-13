@@ -216,6 +216,8 @@
                         :text="value"
                     ></v-chip>
                 </template>
+
+                <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
             </v-data-table>
         </div>
 
