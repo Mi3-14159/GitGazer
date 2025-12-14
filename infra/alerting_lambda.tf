@@ -112,4 +112,11 @@ resource "aws_lambda_event_source_mapping" "alerting_jobs_stream" {
   function_response_types = [
     "ReportBatchItemFailures",
   ]
+  filter_criteria {
+    filter {
+      pattern = jsonencode({
+        "eventName" : ["INSERT", "MODIFY"]
+      })
+    }
+  }
 }
