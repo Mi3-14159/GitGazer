@@ -46,7 +46,7 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
     const rejected = result.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
 
     if (rejected.length > 0) {
-        logger.error(`Failed to get notifications for integration IDs: ${rejected.map((r) => r.reason).join(', ')}`);
+        logger.error({rejected}, `query failed: ${rejected.map((r) => r.reason).join(', ')}`);
     }
 
     return fulfilled
