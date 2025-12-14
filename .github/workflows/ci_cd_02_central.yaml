@@ -23,8 +23,8 @@ on:
         default: false
 
 jobs:
-  build-test-upload:
-    name: Build, Test & upload to S3
+  build:
+    name: Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -84,7 +84,7 @@ jobs:
 
   deploy:
     name: Deploy to AWS
-    needs: build-test-upload
+    needs: build
     runs-on: ubuntu-latest
     defaults:
       run:
