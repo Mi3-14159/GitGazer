@@ -1,12 +1,28 @@
 <template>
-    <div class="d-flex align-center">
+    <div class="d-flex align-center column-header">
         <span>{{ title }}</span>
+        <v-btn
+            v-if="sortable"
+            icon
+            size="small"
+            variant="text"
+            @click="emit('toggle-sort')"
+            class="ml-1 sort-btn"
+            :class="{'sort-active': isSorted}"
+        >
+            <v-icon
+                size="16"
+                :color="isSorted ? 'default' : 'grey'"
+                >{{ sortIcon }}</v-icon
+            >
+        </v-btn>
         <v-menu
             offset-y
             :close-on-content-click="false"
         >
             <template v-slot:activator="{props}">
                 <v-btn
+                    v-if="availableValues.length > 0"
                     icon
                     size="small"
                     variant="text"
@@ -56,7 +72,7 @@
                         >
                             <template v-slot:prepend>
                                 <v-checkbox-btn
-                                    :model-value="!hiddenValues.has(value)"
+                                    :model-value="!hiddenValues?.has(value)"
                                     @click.stop="handleToggleFilter(value)"
                                 />
                             </template>
@@ -79,21 +95,27 @@
         title: string;
         filterLabel?: string;
         availableValues: string[];
-        hiddenValues: Set<string>; // Values that are NOT selected (hidden)
+        hiddenValues?: Set<string>; // Values that are NOT selected (hidden)
+        sortable?: boolean;
+        sortIcon?: any;
+        isSorted?: boolean;
     }
 
     interface Emits {
         (e: 'toggle-filter', value: string): void;
         (e: 'clear-filter'): void;
         (e: 'select-only', value: string): void;
+        (e: 'toggle-sort'): void;
     }
 
-    const props = defineProps<Props>();
+    const props = withDefaults(defineProps<Props>(), {
+        hiddenValues: () => new Set<string>(),
+    });
     const emit = defineEmits<Emits>();
 
     const searchQuery = ref('');
 
-    const hasActiveFilters = computed(() => props.hiddenValues.size > 0);
+    const hasActiveFilters = computed(() => (props.hiddenValues?.size ?? 0) > 0);
 
     const filteredValues = computed(() => {
         if (!searchQuery.value) {
@@ -124,5 +146,15 @@
 
     :deep(.v-list-item:hover) {
         background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    /* Sort button visibility - hide when not active or hovered */
+    .sort-btn:not(.sort-active) {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .column-header:hover .sort-btn:not(.sort-active) {
+        opacity: 1;
     }
 </style>

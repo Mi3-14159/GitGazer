@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import ColumnFilter from '@/components/ColumnFilter.vue';
+    import ColumnHeader from '@/components/ColumnHeader.vue';
     import WorkflowCard from '@/components/WorkflowCard.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
@@ -24,19 +24,28 @@
             key: 'full_name',
             value: (item: Job<WorkflowJobEvent>) => item.workflow_event.repository.full_name,
             filterableColumn: true,
+            sortable: true,
         },
         {
             title: 'Workflow',
             key: 'workflow_name',
             value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.workflow_name,
             filterableColumn: true,
+            sortable: true,
         },
-        {title: 'Job name', key: 'name', value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name, filterableColumn: true},
+        {
+            title: 'Job name',
+            key: 'name',
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name,
+            filterableColumn: true,
+            sortable: true,
+        },
         {
             title: 'Branch',
             key: 'head_branch',
             value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.head_branch,
             filterableColumn: true,
+            sortable: true,
         },
         {
             title: 'Status',
@@ -44,8 +53,9 @@
             value: (item: Job<WorkflowJobEvent>) =>
                 item.workflow_event?.workflow_job?.conclusion || item.workflow_event?.workflow_job?.status || 'unknown',
             filterableColumn: true,
+            sortable: true,
         },
-        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false},
+        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false, sortable: true},
     ];
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
@@ -213,17 +223,21 @@
             >
                 <!-- Dynamic header filters for filterable columns -->
                 <template
-                    v-for="column in filterableColumns"
+                    v-for="column in headers"
                     :key="`header-${column.key}`"
-                    #[`header.${column.key}`]="{column: headerColumn}"
+                    #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, sortBy, isSorted}"
                 >
-                    <ColumnFilter
+                    <ColumnHeader
                         :title="headerColumn.title || column.title"
                         :available-values="Array.from(uniqueValuesCache.get(column.key) ?? [])"
                         :hidden-values="columnFilters[column.key]"
+                        :sortable="column.sortable"
+                        :sort-icon="getSortIcon(headerColumn)"
+                        :is-sorted="isSorted(headerColumn)"
                         @toggle-filter="toggleFilter(column.key, $event)"
                         @clear-filter="clearColumnFilter(column.key)"
                         @select-only="selectOnlyFilter(column.key, $event)"
+                        @toggle-sort="toggleSort(headerColumn)"
                     />
                 </template>
 
@@ -235,8 +249,6 @@
                         :text="value"
                     ></v-chip>
                 </template>
-
-                <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
             </v-data-table>
         </div>
 
