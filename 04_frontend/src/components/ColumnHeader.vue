@@ -77,13 +77,6 @@
         >
             <v-icon :color="isSorted ? 'default' : 'grey'">{{ sortIcon }}</v-icon>
         </v-btn>
-        <!-- Transparent overlay when filter menu is open -->
-        <v-overlay
-            v-model="menuOpen"
-            class="align-center justify-center"
-            scrim="transparent"
-            persistent
-        />
     </div>
 </template>
 
