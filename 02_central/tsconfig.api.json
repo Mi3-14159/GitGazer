@@ -1,4 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src/index_api.ts"]
+  "include": ["src/handlers/api.ts"]
 }

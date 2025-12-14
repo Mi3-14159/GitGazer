@@ -81,7 +81,7 @@ resource "aws_lambda_function" "alerting" {
   description       = "GitGazer alerting processor (DynamoDB stream)"
   function_name     = "${var.name_prefix}-alerting-${terraform.workspace}"
   role              = aws_iam_role.alerting.arn
-  handler           = "02_central/src/index_alerting.handler"
+  handler           = "02_central/src/handlers/alerting.handler"
   runtime           = "nodejs24.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = "${var.name_prefix}-alerting.zip"
