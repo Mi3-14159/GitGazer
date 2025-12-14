@@ -98,7 +98,7 @@ resource "aws_lambda_function" "api_websocket" {
   filename         = data.archive_file.api_websocket.output_path
   function_name    = "${var.name_prefix}-websocket-handler-${terraform.workspace}"
   role             = aws_iam_role.api_websocket.arn
-  handler          = "handlerWebsocket.handler"
+  handler          = "websocket.handler"
   runtime          = "nodejs24.x"
   source_code_hash = data.archive_file.api_websocket.output_base64sha256
   timeout          = 10
