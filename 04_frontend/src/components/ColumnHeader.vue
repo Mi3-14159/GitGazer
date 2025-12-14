@@ -1,21 +1,6 @@
 <template>
     <div class="d-flex align-center column-header">
         <span>{{ title }}</span>
-        <v-btn
-            v-if="sortable"
-            icon
-            size="small"
-            variant="text"
-            @click="emit('toggle-sort')"
-            class="ml-1 sort-btn"
-            :class="{'sort-active': isSorted}"
-        >
-            <v-icon
-                size="16"
-                :color="isSorted ? 'default' : 'grey'"
-                >{{ sortIcon }}</v-icon
-            >
-        </v-btn>
         <v-menu
             v-model="menuOpen"
             offset-y
@@ -25,17 +10,12 @@
                 <v-btn
                     v-if="availableValues.length > 0"
                     icon
-                    size="small"
+                    size="x-small"
                     variant="text"
                     v-bind="props"
                     class="ml-1"
                 >
-                    <v-icon
-                        size="16"
-                        :color="hasActiveFilters ? 'primary' : 'default'"
-                    >
-                        mdi-filter-variant
-                    </v-icon>
+                    <v-icon :color="hasActiveFilters ? 'primary' : 'default'">mdi-filter-variant</v-icon>
                 </v-btn>
             </template>
             <v-card min-width="200">
@@ -86,6 +66,17 @@
                 </v-card-text>
             </v-card>
         </v-menu>
+        <v-btn
+            v-if="sortable"
+            icon
+            size="x-small"
+            variant="text"
+            @click="emit('toggle-sort')"
+            class="ml-1 sort-btn"
+            :class="{'sort-active': isSorted}"
+        >
+            <v-icon :color="isSorted ? 'default' : 'grey'">{{ sortIcon }}</v-icon>
+        </v-btn>
         <!-- Transparent overlay when filter menu is open -->
         <v-overlay
             v-model="menuOpen"
