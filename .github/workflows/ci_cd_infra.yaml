@@ -91,7 +91,7 @@ jobs:
 
       - name: Terraform plan
         working-directory: infra
-        run: terraform plan
+        run: terraform plan -lock=false
 
   deploy:
     name: Deploy to AWS
