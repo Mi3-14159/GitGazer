@@ -66,7 +66,6 @@ export const useJobsStore = defineStore('jobs', () => {
             const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WebhookEvent>;
             if (isWorkflowJobEvent(gitgazerEvent.payload.workflow_event)) {
                 const workflowJobEvent = gitgazerEvent.payload as Job<WorkflowJobEvent>;
-                formatJobTime(workflowJobEvent);
                 uniqueJobs.set(workflowJobEvent.id, workflowJobEvent);
             }
         };
@@ -89,11 +88,6 @@ export const useJobsStore = defineStore('jobs', () => {
         };
 
         return ws;
-    };
-
-    const formatJobTime = (job: Job<WorkflowJobEvent>) => {
-        const date = new Date(job.created_at);
-        job.created_at = date.toLocaleString();
     };
 
     const getJobs = async (params?: JobRequestParameters) => {
@@ -127,7 +121,6 @@ export const useJobsStore = defineStore('jobs', () => {
         const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
         response.forEach((job: Job<WorkflowJobEvent>) => {
-            formatJobTime(job);
             uniqueJobs.set(job.id, job);
         });
     };
