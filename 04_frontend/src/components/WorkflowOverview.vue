@@ -225,7 +225,7 @@
                 <template
                     v-for="column in headers"
                     :key="`header-${column.key}`"
-                    #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, sortBy, isSorted}"
+                    #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, isSorted}"
                 >
                     <ColumnHeader
                         :title="headerColumn.title || column.title"
