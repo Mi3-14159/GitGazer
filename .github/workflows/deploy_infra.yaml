@@ -1,0 +1,74 @@
+name: Deploy Infra
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra
+    concurrency:
+      group: infra-${{ github.ref }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+
+      - name: Get Terraform version from .tool-versions
+        id: terraform-version
+        run: echo "version=$(grep '^terraform ' ../.tool-versions | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Configure Terraform plugin cache
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v5
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('./02_central/terraform/.terraform.lock.hcl') }}
+          restore-keys: ${{ runner.os }}-terraform-
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+
+      - name: Create terraform backend file
+        working-directory: infra
+        run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
+
+      - name: Terraform init
+        working-directory: infra
+        run: |
+          export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
+          terraform init
+
+      - name: Create tfvars file
+        working-directory: infra
+        run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
+
+      - name: Terraform plan
+        working-directory: infra
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: infra
+        run: terraform apply tfplan
