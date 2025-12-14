@@ -21,8 +21,8 @@ on:
         default: false
 
 jobs:
-  build-test-deploy:
-    name: Build, Test & Deploy
+  build:
+    name: Build
     runs-on: ubuntu-latest
     defaults:
       run:
