@@ -216,8 +216,8 @@
                 item-key="id"
                 class="elevation-1"
                 density="compact"
-                :items-per-page="50"
-                :items-per-page-options="[10, 25, 50, 100]"
+                :items-per-page="-1"
+                hide-default-footer
                 v-model:sort-by="sortBy"
                 @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
             >
