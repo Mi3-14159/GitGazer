@@ -98,3 +98,6 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main' || inputs.deploy == true
     uses: ./.github/workflows/deploy_infra.yaml
+    permissions:
+      contents: read
+      id-token: write
