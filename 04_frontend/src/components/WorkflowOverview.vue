@@ -211,6 +211,8 @@
         <!-- Desktop Table View -->
         <div v-else-if="!smAndDown">
             <v-data-table
+                fixed-header
+                height="100vh"
                 :headers="headers"
                 :items="filteredJobs"
                 item-key="id"
