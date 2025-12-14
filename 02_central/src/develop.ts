@@ -2,7 +2,7 @@ import * as http from 'http';
 
 import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyStructuredResultV2, Context} from 'aws-lambda';
 
-import {handler} from '@/index_api';
+import {handler} from '@/handlers/api';
 import {getLogger} from '@/logger';
 import router from '@/router';
 
