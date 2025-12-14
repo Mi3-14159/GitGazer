@@ -17,6 +17,7 @@
             >
         </v-btn>
         <v-menu
+            v-model="menuOpen"
             offset-y
             :close-on-content-click="false"
         >
@@ -85,6 +86,13 @@
                 </v-card-text>
             </v-card>
         </v-menu>
+        <!-- Transparent overlay when filter menu is open -->
+        <v-overlay
+            v-model="menuOpen"
+            class="align-center justify-center"
+            scrim="transparent"
+            persistent
+        />
     </div>
 </template>
 
@@ -114,6 +122,7 @@
     const emit = defineEmits<Emits>();
 
     const searchQuery = ref('');
+    const menuOpen = ref(false);
 
     const hasActiveFilters = computed(() => (props.hiddenValues?.size ?? 0) > 0);
 
