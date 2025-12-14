@@ -97,4 +97,4 @@ jobs:
     name: Deploy to AWS
     needs: build
     if: github.ref == 'refs/heads/main' || inputs.deploy == true
-    uses: ./.github/workflows/deploy_infra.yaml@main
+    uses: ./.github/workflows/deploy_infra.yaml

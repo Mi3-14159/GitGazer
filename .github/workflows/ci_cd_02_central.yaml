@@ -81,5 +81,5 @@ jobs:
           aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-${{ matrix.name }}.zip
 
   deploy:
-    uses: ./.github/workflows/deploy_infra.yaml@main
+    uses: ./.github/workflows/deploy_infra.yaml
     if: github.ref == 'refs/heads/main' || inputs.deploy == true
