@@ -33,6 +33,22 @@ data "aws_iam_policy_document" "aws_kms_key_policy" {
     }
     resources = ["*"]
   }
+
+  statement {
+    actions = [
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:CreateGrant",
+      "kms:Describe*"
+    ]
+    principals {
+      type        = "Service"
+      identifiers = ["maintenance.s3tables.amazonaws.com"]
+    }
+    resources = ["*"]
+  }
 }
 
 resource "aws_kms_key_policy" "this" {
