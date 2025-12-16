@@ -39,11 +39,6 @@ jobs:
     strategy:
       matrix:
         lambda-function: [api, alerting]
-        include:
-          - lambda-function: api
-            name: jobs-processor
-          - lambda-function: alerting
-            name: alerting
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -78,7 +73,7 @@ jobs:
       - name: Upload ${{ matrix.lambda-function }} Lambda function code to S3
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
-          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-${{ matrix.name }}.zip
+          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-${{ matrix.lambda-function }}.zip
 
   deploy:
     uses: ./.github/workflows/deploy_infra.yaml

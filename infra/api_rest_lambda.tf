@@ -128,7 +128,7 @@ resource "aws_iam_role_policy" "api" {
 
 data "aws_s3_object" "api_lambda_function_archive" {
   bucket = module.lambda_store.s3_bucket_id
-  key    = "${var.name_prefix}-jobs-processor.zip"
+  key    = "${var.name_prefix}-api.zip"
 }
 
 resource "aws_lambda_function" "api" {
