@@ -138,7 +138,7 @@ resource "aws_lambda_function" "api" {
   handler           = "02_central/src/handlers/api.handler"
   runtime           = "nodejs24.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
-  s3_key            = "${var.name_prefix}-jobs-processor.zip"
+  s3_key            = data.aws_s3_object.api_lambda_function_archive.key
   s3_object_version = data.aws_s3_object.api_lambda_function_archive.version_id
   timeout           = 15
   publish           = true
