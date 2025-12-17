@@ -21,6 +21,20 @@ resource "aws_s3tables_table" "jobs" {
     sse_algorithm = "aws:kms"
     kms_key_arn   = aws_kms_key.this.arn
   }
+
+  # in order to create a table, at least one field is required
+  # everything else if managed via scripts
+  metadata {
+    iceberg {
+      schema {
+        field {
+          name     = "integration_id"
+          type     = "string"
+          required = true
+        }
+      }
+    }
+  }
 }
 
 resource "aws_s3_bucket" "firehose_backup" {
