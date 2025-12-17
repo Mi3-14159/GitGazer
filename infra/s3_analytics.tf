@@ -70,15 +70,6 @@ resource "aws_s3tables_table" "jobs" {
   }
 }
 
-resource "aws_athena_data_catalog" "this" {
-  name        = "${var.name_prefix}-analytics-${terraform.workspace}"
-  description = "${var.name_prefix} S3 Analytics Data Catalog"
-  type        = "GLUE"
-  parameters = {
-    catalog-id = "s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-  }
-}
-
 resource "aws_s3_bucket" "firehose_logs" {
   bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-firehose-logs-${terraform.workspace}"
   force_destroy = true
@@ -91,6 +82,11 @@ resource "aws_cloudwatch_log_group" "firehose_analytics" {
 
 resource "aws_cloudwatch_log_stream" "firehose_analytics" {
   name           = "DestinationDelivery"
+  log_group_name = aws_cloudwatch_log_group.firehose_analytics.name
+}
+
+resource "aws_cloudwatch_log_stream" "firehose_analytics_backup" {
+  name           = "BackupDelivery"
   log_group_name = aws_cloudwatch_log_group.firehose_analytics.name
 }
 
@@ -111,25 +107,23 @@ resource "aws_iam_role" "firehose" {
   })
 }
 
-resource "aws_iam_role_policy" "firehose" {
-  name = "${var.name_prefix}-firehose-policy-${terraform.workspace}"
-  role = aws_iam_role.firehose.id
-
-  policy = data.aws_iam_policy_document.firehose_assume_role_policy.json
-}
-
-data "aws_iam_policy_document" "firehose_assume_role_policy" {
+data "aws_iam_policy_document" "firehose_policy" {
   statement {
+    # TODO: check glue permissions and restrict if possible
     effect = "Allow"
     actions = [
-      "s3tables:GetTable",
-      "s3tables:PutTableData",
-      "s3tables:GetNamespace",
-      "s3tables:GetTableBucket"
+      "glue:GetTable",
+      "glue:GetTableVersion",
+      "glue:GetTableVersions",
+      "glue:GetDatabase",
+      "glue:UpdateTable"
     ]
     resources = [
-      aws_s3tables_table_bucket.analytics.arn,
-      "${aws_s3tables_table_bucket.analytics.arn}/*"
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/*/*"
     ]
   }
 
@@ -152,79 +146,150 @@ data "aws_iam_policy_document" "firehose_assume_role_policy" {
   statement {
     effect = "Allow"
     actions = [
-      "kms:GenerateDataKey",
-      "kms:Decrypt"
-    ]
-    resources = [
-      aws_kms_key.this.arn
-    ]
-  }
-  statement {
-    effect = "Allow"
-    actions = [
-      "glue:GetTable",
-      "glue:GetTableVersion",
-      "glue:GetTableVersions",
-      "glue:GetDatabase"
+      "lakeformation:GetDataAccess"
     ]
     resources = [
       "*"
     ]
   }
+
   statement {
     effect = "Allow"
     actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
+      "kms:Decrypt",
+      "kms:GenerateDataKey"
+    ]
+    resources = [aws_kms_key.this.arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
       "logs:PutLogEvents"
     ]
     resources = [
-      aws_cloudwatch_log_group.firehose_analytics.arn,
-      "${aws_cloudwatch_log_group.firehose_analytics.arn}:*"
+      "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics.name}",
+      "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_backup.name}"
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3tables:GetTable",
+      "s3tables:PutTableData",
+      "s3tables:GetNamespace",
+      "s3tables:GetTableBucket"
+    ]
+    resources = [
+      aws_s3tables_table_bucket.analytics.arn,
+      "${aws_s3tables_table_bucket.analytics.arn}/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "firehose" {
+  name   = "${var.name_prefix}-firehose-policy-${terraform.workspace}"
+  role   = aws_iam_role.firehose.id
+  policy = data.aws_iam_policy_document.firehose_policy.json
+}
+
+# At the time of writing, Terraform AWS Provider had a bug that prevented
+# creating Lake Formation permissions for S3Tables catalogs.
+# https://github.com/hashicorp/terraform-provider-aws/issues/40724
+# resource "aws_lakeformation_permissions" "firehose_table_access" {
+#   principal   = aws_iam_role.firehose.arn
+#   permissions = ["SUPER"]
+#   database {
+#     catalog_id = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+#     name       = aws_s3tables_namespace.gitgazer.namespace
+#   }
+# }
+
+# This is a workaround using a null_resource and local-exec provisioner
+# to run the AWS CLI command to grant Lake Formation permissions.
+resource "null_resource" "lf_grant_firehose_jobs_db" {
+  triggers = {
+    catalog_id    = local.s3tables_catalog_id
+    database_name = aws_s3tables_namespace.gitgazer.namespace
+    principal_arn = aws_iam_role.firehose.arn
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+aws lakeformation grant-permissions \
+  --region ${var.aws_region} \
+  --cli-input-json '{
+    "Principal": { "DataLakePrincipalIdentifier": "${aws_iam_role.firehose.arn}" },
+    "Resource": {
+      "Database": {
+        "CatalogId": "${local.s3tables_catalog_id}",
+        "Name": "${aws_s3tables_namespace.gitgazer.namespace}"
+      }
+    },
+    "Permissions": ["ALL"]
+  }'
+EOT
+  }
+  depends_on = [aws_iam_role_policy.firehose]
+}
+
+resource "null_resource" "lf_grant_firehose_jobs_table" {
+  triggers = {
+    catalog_id    = local.s3tables_catalog_id
+    database_name = aws_s3tables_namespace.gitgazer.namespace
+    table_name    = aws_s3tables_table.jobs.name
+    principal_arn = aws_iam_role.firehose.arn
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+aws lakeformation grant-permissions \
+  --region ${var.aws_region} \
+  --cli-input-json '{
+    "Principal": { "DataLakePrincipalIdentifier": "${aws_iam_role.firehose.arn}" },
+    "Resource": {
+      "Table": {
+        "CatalogId": "${local.s3tables_catalog_id}",
+        "DatabaseName": "${aws_s3tables_namespace.gitgazer.namespace}",
+        "Name": "${aws_s3tables_table.jobs.name}"
+      }
+    },
+    "Permissions": ["ALL"]
+  }'
+EOT
+  }
+  depends_on = [aws_iam_role_policy.firehose]
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "jobs" {
   name        = "${var.name_prefix}-jobs-stream-${terraform.workspace}"
   destination = "iceberg"
 
+  depends_on = [null_resource.lf_grant_firehose_jobs_table]
+
   iceberg_configuration {
-    append_only = false
-    # TODO: fetch ARN from a terraform resource
-    catalog_arn = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-    role_arn    = aws_iam_role.firehose.arn
+    catalog_arn        = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+    role_arn           = aws_iam_role.firehose.arn
+    buffering_interval = 60
+    buffering_size     = 1
 
     cloudwatch_logging_options {
       enabled         = true
       log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
       log_stream_name = aws_cloudwatch_log_stream.firehose_analytics.name
     }
-
-    processing_configuration {
-      enabled = true
-
-      processors {
-        type = "MetadataExtraction"
-
-        parameters {
-          parameter_name  = "JsonParsingEngine"
-          parameter_value = "JQ-1.6"
-        }
-        parameters {
-          parameter_name  = "MetadataExtractionQuery"
-          parameter_value = "{destinationDatabaseName:\"${aws_s3tables_namespace.gitgazer.namespace}\",destinationTableName:\"${aws_s3tables_table.jobs.name}\"}"
-        }
-      }
+    destination_table_configuration {
+      database_name = aws_s3tables_namespace.gitgazer.namespace
+      table_name    = aws_s3tables_table.jobs.name
     }
-
     s3_configuration {
       role_arn   = aws_iam_role.firehose.arn
       bucket_arn = aws_s3_bucket.firehose_logs.arn
       cloudwatch_logging_options {
         enabled         = true
         log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
-        log_stream_name = aws_cloudwatch_log_stream.firehose_analytics.name
+        log_stream_name = aws_cloudwatch_log_stream.firehose_analytics_backup.name
       }
     }
   }

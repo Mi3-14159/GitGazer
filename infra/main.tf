@@ -27,4 +27,5 @@ locals {
   github_oauth_scopes                            = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
   websocket_api_stage_name                       = "prod"
   dynamodb_table_connections_connection_id_index = "connectionId-index"
+  s3tables_catalog_id                            = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
 }
