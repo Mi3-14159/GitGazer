@@ -70,8 +70,8 @@ resource "aws_s3tables_table" "jobs" {
   }
 }
 
-resource "aws_s3_bucket" "firehose_logs" {
-  bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-firehose-logs-${terraform.workspace}"
+resource "aws_s3_bucket" "firehose_backup" {
+  bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-firehose-backup-${terraform.workspace}"
   force_destroy = true
 }
 
@@ -80,7 +80,7 @@ resource "aws_cloudwatch_log_group" "firehose_analytics" {
   retention_in_days = 30
 }
 
-resource "aws_cloudwatch_log_stream" "firehose_analytics" {
+resource "aws_cloudwatch_log_stream" "firehose_analytics_delivery" {
   name           = "DestinationDelivery"
   log_group_name = aws_cloudwatch_log_group.firehose_analytics.name
 }
@@ -138,8 +138,8 @@ data "aws_iam_policy_document" "firehose_policy" {
       "s3:PutObject"
     ]
     resources = [
-      aws_s3_bucket.firehose_logs.arn,
-      "${aws_s3_bucket.firehose_logs.arn}/*"
+      aws_s3_bucket.firehose_backup.arn,
+      "${aws_s3_bucket.firehose_backup.arn}/*"
     ]
   }
 
@@ -168,7 +168,7 @@ data "aws_iam_policy_document" "firehose_policy" {
       "logs:PutLogEvents"
     ]
     resources = [
-      "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics.name}",
+      "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_delivery.name}",
       "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_backup.name}"
     ]
   }
@@ -277,7 +277,7 @@ resource "aws_kinesis_firehose_delivery_stream" "jobs" {
     cloudwatch_logging_options {
       enabled         = true
       log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
-      log_stream_name = aws_cloudwatch_log_stream.firehose_analytics.name
+      log_stream_name = aws_cloudwatch_log_stream.firehose_analytics_delivery.name
     }
     destination_table_configuration {
       database_name = aws_s3tables_namespace.gitgazer.namespace
@@ -285,7 +285,7 @@ resource "aws_kinesis_firehose_delivery_stream" "jobs" {
     }
     s3_configuration {
       role_arn   = aws_iam_role.firehose.arn
-      bucket_arn = aws_s3_bucket.firehose_logs.arn
+      bucket_arn = aws_s3_bucket.firehose_backup.arn
       cloudwatch_logging_options {
         enabled         = true
         log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
