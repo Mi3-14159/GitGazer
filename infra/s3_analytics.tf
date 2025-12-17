@@ -31,7 +31,7 @@ resource "aws_s3tables_table" "jobs" {
           required = true
         }
         field {
-          name     = "completed_ad"
+          name     = "completed_at"
           type     = "timestamptz"
           required = true
         }
