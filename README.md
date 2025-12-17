@@ -16,13 +16,36 @@ Recommended use of [asdf](https://asdf-vm.com/) to manage your runtime versions.
 
 ## How to install
 
-### You need to create the core
+1. [First you need to create the S3 bucket where the Lambda artifacts are stored](#first-you-need-to-create-the-s3-bucket-where-the-lambda-artifacts-are-stored)
+2. [Now build and upload the Lambda functions](#now-build-and-upload-the-lambda-functions)
+3. [Apply the rest of the infrastructure](#apply-the-rest-of-the-infrastructure)
+4. [Build the frontend and sync it to s3](#build-the-frontend-and-sync-it-to-s3)
+
+### First you need to create the S3 bucket where the Lambda artifacts are stored
+
+```bash
+cd infra
+terraform init
+terraform apply -target module.lambda_store
+```
+
+### Now build and upload the Lambda functions
 
 ```bash
 cd 02_central
 npm ci
-npm run buildZip
-cd terraform
+
+npm run buildZip:api
+aws s3 cp ./dist/lambda.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
+
+npm run buildZip:alerting
+aws s3 cp ./dist/lambda.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-alerting.zip
+```
+
+### Apply the rest of the infrastructure
+
+```bash
+cd ../infra
 terraform apply
 ```
 
@@ -33,15 +56,15 @@ You first need to set these environment variables in `.env.local`, replace the v
 ```bash
 ➜  04_frontend git:(main) ✗ cat .env.local
 VITE_HOST_URL="http://localhost:5173"
-VITE_COGNITO_DOMAIN="gitgazer-default.auth.eu-central-1.amazoncognito.com"
-VITE_COGNITO_USER_POOL_ID="eu-central-1_BVsGhTzPa"
-VITE_COGNITO_USER_POOL_CLIENT_ID="1el0phv4ansjj4f81qik0o0m07"
-VITE_IMPORT_URL_BASE="https://app.gitgazer.com/v1/api/import/"
-VITE_REST_API_REGION="eu-central-1"
-VITE_REST_API_ENDPOINT="https://app.gitgazer.com/api"
+VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
+VITE_COGNITO_USER_POOL_ID="<USER_POOL_ID>"
+VITE_COGNITO_USER_POOL_CLIENT_ID="<USER_POOL_CLIENT_ID>"
+VITE_IMPORT_URL_BASE="https://<GITGAZER_DOMAIN>/v1/api/import/"
+VITE_REST_API_REGION="<API_REGION>"
+VITE_REST_API_ENDPOINT="https://<GITGAZER_DOMAIN>/api"
 ```
 
-Not build and publish the app.
+Now build and publish the web app.
 
 ```bash
 npm ci
@@ -52,7 +75,7 @@ aws s3 sync dist/. s3://<UIS_BUCKET_NAME>/ --cache-control max-age=60 --include 
 
 ## Setup
 
-1. Go to the application <https://your-domain/> and login
+1. Go to the application https://<GITGAZER_DOMAIN>/ and login
 2. Go to the `Integrations` page and click `Add`
 3. Create a webhook on a [repository](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-a-repository-webhook) or [organisation](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-an-organization-webhook). Use the `Webhook payload URL` and `Secret` from the created Integration and set the Content Type to `application/json`.
 4. If you want notifications about failed jobs, go to `Notifications` in your GitGazer app and click `Add`.
