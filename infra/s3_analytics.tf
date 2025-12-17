@@ -22,13 +22,46 @@ resource "aws_s3tables_table" "jobs" {
     kms_key_arn   = aws_kms_key.this.arn
   }
 
-  # in order to create a table, at least one field is required
-  # everything else if managed via scripts
   metadata {
     iceberg {
       schema {
         field {
           name     = "integration_id"
+          type     = "string"
+          required = true
+        }
+        field {
+          name     = "completed_ad"
+          type     = "timestamptz"
+          required = true
+        }
+        field {
+          name     = "owner"
+          type     = "string"
+          required = true
+        }
+        field {
+          name     = "repo"
+          type     = "string"
+          required = true
+        }
+        field {
+          name     = "workflow"
+          type     = "string"
+          required = true
+        }
+        field {
+          name     = "job"
+          type     = "string"
+          required = true
+        }
+        field {
+          name     = "status"
+          type     = "string"
+          required = true
+        }
+        field {
+          name     = "conclusion"
           type     = "string"
           required = true
         }
