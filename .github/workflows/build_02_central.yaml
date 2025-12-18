@@ -1,3 +1,4 @@
+name: Build and upload 02_central
 on:
   workflow_call:
     inputs:
@@ -5,11 +6,17 @@ on:
         description: Lambda function name
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
       upload:
         description: Upload to AWS
         required: false
         type: boolean
         default: false
+      lambda_function:
+        description: Lambda function name
+        required: true
+        type: string
 
 jobs:
   build:
