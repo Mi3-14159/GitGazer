@@ -170,7 +170,7 @@ resource "aws_lambda_function" "api" {
     log_group             = aws_cloudwatch_log_group.api.name
     log_format            = "JSON"
     application_log_level = "INFO"
-    system_log_level      = "WARN"
+    system_log_level      = "INFO"
   }
 }
 
