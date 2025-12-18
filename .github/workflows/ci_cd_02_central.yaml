@@ -24,16 +24,14 @@ jobs:
   build:
     uses: ./.github/workflows/build_02_central.yaml
     concurrency:
-      group: 02_central-${{ matrix.lambda_function }}-${{ github.ref }}
+      group: 02_central-${{ matrix.lambda-function }}-${{ github.ref }}
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
     strategy:
       matrix:
-        lambda_function: [api, alerting, analytics]
-    with:
-      lambda_function: ${{ matrix.lambda_function }}
+        lambda-function: [api, alerting, analytics]
     secrets: inherit
 
   deploy:
