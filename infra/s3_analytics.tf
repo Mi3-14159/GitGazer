@@ -273,7 +273,7 @@ resource "aws_kinesis_firehose_delivery_stream" "analytics" {
       role_arn   = aws_iam_role.firehose.arn
       bucket_arn = aws_s3_bucket.firehose_backup.arn
       error_output_prefix = join("/", [
-        "created_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}",
+        "!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}",
         "!{firehose:error-output-type}",
         ""
       ])
