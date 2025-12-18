@@ -113,10 +113,8 @@ data "aws_iam_policy_document" "firehose_policy" {
     effect = "Allow"
     actions = [
       "glue:GetTable",
-      "glue:GetTableVersion",
-      "glue:GetTableVersions",
       "glue:GetDatabase",
-      "glue:UpdateTable"
+      "glue:UpdateTable",
     ]
     resources = [
       "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/*",
@@ -135,7 +133,7 @@ data "aws_iam_policy_document" "firehose_policy" {
       "s3:GetObject",
       "s3:ListBucket",
       "s3:ListBucketMultipartUploads",
-      "s3:PutObject"
+      "s3:PutObject",
     ]
     resources = [
       aws_s3_bucket.firehose_backup.arn,
@@ -172,20 +170,6 @@ data "aws_iam_policy_document" "firehose_policy" {
       "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_backup.name}"
     ]
   }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "s3tables:GetTable",
-      "s3tables:PutTableData",
-      "s3tables:GetNamespace",
-      "s3tables:GetTableBucket"
-    ]
-    resources = [
-      aws_s3tables_table_bucket.analytics.arn,
-      "${aws_s3tables_table_bucket.analytics.arn}/*"
-    ]
-  }
 }
 
 resource "aws_iam_role_policy" "firehose" {
@@ -213,6 +197,7 @@ resource "null_resource" "lf_grant_firehose_jobs_db" {
     catalog_id    = local.s3tables_catalog_id
     database_name = aws_s3tables_namespace.gitgazer.namespace
     principal_arn = aws_iam_role.firehose.arn
+    uuid          = uuid()
   }
 
   provisioner "local-exec" {
@@ -240,6 +225,7 @@ resource "null_resource" "lf_grant_firehose_jobs_table" {
     database_name = aws_s3tables_namespace.gitgazer.namespace
     table_name    = aws_s3tables_table.jobs.name
     principal_arn = aws_iam_role.firehose.arn
+    uuid          = uuid()
   }
 
   provisioner "local-exec" {
@@ -262,8 +248,8 @@ EOT
   depends_on = [aws_iam_role_policy.firehose]
 }
 
-resource "aws_kinesis_firehose_delivery_stream" "jobs" {
-  name        = "${var.name_prefix}-jobs-stream-${terraform.workspace}"
+resource "aws_kinesis_firehose_delivery_stream" "analytics" {
+  name        = "${var.name_prefix}-analytics-stream-${terraform.workspace}"
   destination = "iceberg"
 
   depends_on = [null_resource.lf_grant_firehose_jobs_table]
@@ -286,6 +272,11 @@ resource "aws_kinesis_firehose_delivery_stream" "jobs" {
     s3_configuration {
       role_arn   = aws_iam_role.firehose.arn
       bucket_arn = aws_s3_bucket.firehose_backup.arn
+      error_output_prefix = join("/", [
+        "created_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}",
+        "!{firehose:error-output-type}",
+        ""
+      ])
       cloudwatch_logging_options {
         enabled         = true
         log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
