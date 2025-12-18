@@ -166,6 +166,11 @@ resource "aws_lambda_function" "api" {
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:60",
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:9"
   ] : []])
+  logging_config {
+    log_format            = "JSON"
+    application_log_level = "INFO"
+    system_log_level      = "WARN"
+  }
 }
 
 resource "aws_lambda_alias" "live" {
