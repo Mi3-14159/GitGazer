@@ -56,6 +56,11 @@ resource "aws_s3tables_table" "jobs" {
           required = true
         }
         field {
+          name     = "sender"
+          type     = "string"
+          required = true
+        }
+        field {
           name     = "status"
           type     = "string"
           required = true
