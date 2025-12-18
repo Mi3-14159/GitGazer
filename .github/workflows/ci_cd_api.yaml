@@ -1,0 +1,40 @@
+name: CI/CD api
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "02_central/**"
+      - ".github/workflows/ci_cd_api.yaml"
+      - "common/**"
+  pull_request:
+    paths:
+      - "02_central/**"
+      - ".github/workflows/ci_cd_api.yaml"
+      - "common/**"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build_lambda.yaml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      lambda_function: api
+    secrets: inherit
+
+  deploy:
+    uses: ./.github/workflows/deploy_infra.yaml
+    if: github.ref == 'refs/heads/main' || inputs.deploy == true
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
