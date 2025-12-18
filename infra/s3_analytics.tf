@@ -175,6 +175,20 @@ data "aws_iam_policy_document" "firehose_policy" {
       "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_backup.name}"
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3tables:GetTable",
+      "s3tables:PutTableData",
+      "s3tables:GetNamespace",
+      "s3tables:GetTableBucket"
+    ]
+    resources = [
+      aws_s3tables_table_bucket.analytics.arn,
+      "${aws_s3tables_table_bucket.analytics.arn}/*"
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "firehose" {
