@@ -113,7 +113,7 @@ resource "aws_lambda_event_source_mapping" "analytics_jobs_stream" {
   starting_position              = "TRIM_HORIZON"
   batch_size                     = 100 # 500 ist the max limit of records a PutRecordBatchCommand can handle
   maximum_retry_attempts         = 3
-  enabled                        = false
+  enabled                        = true
   bisect_batch_on_function_error = true
   function_response_types = [
     "ReportBatchItemFailures",
