@@ -292,6 +292,7 @@ resource "aws_kinesis_firehose_delivery_stream" "analytics" {
     destination_table_configuration {
       database_name = aws_s3tables_namespace.gitgazer.namespace
       table_name    = aws_s3tables_table.jobs.name
+      unique_keys   = ["integration_id", "id"]
     }
     s3_configuration {
       role_arn   = aws_iam_role.firehose.arn
