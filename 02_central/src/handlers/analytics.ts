@@ -81,6 +81,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
 const createFirehoseItem = (event: Job<WorkflowJobEvent>): string => {
     const item = {
         integration_id: event.integrationId,
+        id: event.id,
         completed_at: event.workflow_event.workflow_job.completed_at,
         owner: event.workflow_event.repository.owner.login,
         repo: event.workflow_event.repository.name,
