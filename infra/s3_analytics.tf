@@ -31,6 +31,11 @@ resource "aws_s3tables_table" "jobs" {
           required = true
         }
         field {
+          name     = "id"
+          type     = "string"
+          required = true
+        }
+        field {
           name     = "completed_at"
           type     = "timestamptz"
           required = true
