@@ -4,6 +4,7 @@ import {DynamoDBDocumentClient, ScanCommand} from '@aws-sdk/lib-dynamodb';
 
 const dynamoDBClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const firehoseClient = new FirehoseClient();
+const FIREHOSE_PUT_BATCH_SIZE = 500;
 
 const main = async () => {
     const scanCommand = new ScanCommand({
@@ -12,21 +13,34 @@ const main = async () => {
         ExpressionAttributeValues: {
             ':eventType': 'workflow_job',
         },
-        Limit: 500,
     });
 
-    while (true) {
-        const scanResponse = await dynamoDBClient.send(scanCommand);
+    const items = [];
+    let doScan = true;
+    let processItemsCounter = 0;
 
-        const items = scanResponse.Items;
-        if (!items || items.length === 0) {
+    while (true) {
+        let scanResponse;
+        if (doScan) {
+            scanResponse = await dynamoDBClient.send(scanCommand);
+            scanCommand.input.ExclusiveStartKey = scanResponse.LastEvaluatedKey;
+            items.push(...(scanResponse.Items ?? []));
+
+            if (!scanResponse.LastEvaluatedKey) {
+                doScan = false;
+            }
+        }
+
+        if (items.length === 0 && !doScan) {
             console.log('No more items to process. Exiting.');
             break;
         }
 
-        console.log(`Processing ${items.length} items...`);
+        if (items.length < FIREHOSE_PUT_BATCH_SIZE && doScan) {
+            continue;
+        }
 
-        const records = items.map((item) => {
+        const records = items.splice(0, FIREHOSE_PUT_BATCH_SIZE).map((item) => {
             const firehoseRecord = {
                 integration_id: item.integrationId,
                 id: item.id,
@@ -54,22 +68,14 @@ const main = async () => {
 
         try {
             const response = await firehoseClient.send(putRecordCommand);
+            processItemsCounter = processItemsCounter + records.length;
             console.log(
-                `successfully sent ${response.RequestResponses?.length ?? 0} records, failed ${response.FailedPutCount ?? 0} records, last evaluated key: ${scanResponse.LastEvaluatedKey?.integration_id} - ${scanResponse.LastEvaluatedKey?.id}`,
+                `successfully sent ${response.RequestResponses?.length ?? 0} records, failed ${response.FailedPutCount ?? 0} records, last evaluated key: ${scanResponse?.LastEvaluatedKey?.integrationId} - ${scanResponse?.LastEvaluatedKey?.id}, total processed items: ${processItemsCounter}`,
             );
         } catch (error) {
             console.error('Error sending record:', error);
-            console.error(`Last evaluated key: ${scanResponse.LastEvaluatedKey?.integration_id} - ${scanResponse.LastEvaluatedKey?.id}`);
+            console.error(`Last evaluated key: ${scanResponse?.LastEvaluatedKey?.integrationId} - ${scanResponse?.LastEvaluatedKey?.id}`);
         }
-
-        // If LastEvaluatedKey is not present, we have scanned all items
-        if (!scanResponse.LastEvaluatedKey) {
-            console.log('Scanned all items. Exiting.');
-            break;
-        }
-
-        // Set the ExclusiveStartKey for the next scan operation
-        scanCommand.input.ExclusiveStartKey = scanResponse.LastEvaluatedKey;
     }
 };
 
