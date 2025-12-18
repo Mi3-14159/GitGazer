@@ -56,6 +56,7 @@
     "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
+    "populateAnalytics": "node --env-file=.env.dev --watch -r ts-node/register ./scripts/populateAnalytics.ts",
     "postbuild": "cp package*.json dist && cd dist && npm ci --omit=dev",
     "prebuild": "npm run clean",
     "pretty": "prettier --write src",
