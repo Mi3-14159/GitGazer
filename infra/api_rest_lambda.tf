@@ -167,6 +167,7 @@ resource "aws_lambda_function" "api" {
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:9"
   ] : []])
   logging_config {
+    log_group             = aws_cloudwatch_log_group.api.name
     log_format            = "JSON"
     application_log_level = "INFO"
     system_log_level      = "WARN"
