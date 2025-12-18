@@ -127,4 +127,9 @@ resource "aws_lambda_event_source_mapping" "analytics_jobs_stream" {
       })
     }
   }
+  metrics_config {
+    metrics = [
+      "EventCount",
+    ]
+  }
 }
