@@ -22,17 +22,58 @@ on:
 
 jobs:
   build:
-    uses: ./.github/workflows/build_02_central.yaml
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./02_central
     concurrency:
       group: 02_central-${{ matrix.lambda-function }}-${{ github.ref }}
       cancel-in-progress: false
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
     permissions:
       contents: read
       id-token: write
     strategy:
       matrix:
         lambda-function: [api, alerting, analytics]
-    secrets: inherit
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ./02_central/package.json
+          cache: "npm"
+          cache-dependency-path: ./02_central/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests ${{ matrix.lambda-function }}
+        run: npm run test:unit
+
+      - name: Build ${{ matrix.lambda-function }}
+        run: npm run buildZip:${{ matrix.lambda-function }}
+
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+
+      - name: Upload ${{ matrix.lambda-function }} Lambda function code to S3
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        run: |
+          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-${{ matrix.lambda-function }}.zip
 
   deploy:
     uses: ./.github/workflows/deploy_infra.yaml
