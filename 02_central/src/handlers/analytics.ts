@@ -19,7 +19,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
     };
 
     const logger = set('requestId', context.awsRequestId);
-    logger.info({message: 'handle event', event});
+    logger.debug({message: 'handle event', event});
 
     const encoder = new TextEncoder();
     const batchItems: Array<{eventId?: string; data: Uint8Array}> = [];
@@ -88,6 +88,7 @@ const createFirehoseItem = (event: Job<WorkflowJobEvent>): string => {
         job: event.workflow_event.workflow_job.name,
         status: event.workflow_event.workflow_job.status,
         conclusion: event.workflow_event.workflow_job.conclusion,
+        sender: event.workflow_event.sender.login,
     };
 
     return JSON.stringify(item) + '\n';
