@@ -90,6 +90,7 @@ const createFirehoseItem = (event: Job<WorkflowJobEvent>): string => {
         status: event.workflow_event.workflow_job.status,
         conclusion: event.workflow_event.workflow_job.conclusion,
         sender: event.workflow_event.sender.login,
+        branch: event.workflow_event.workflow_job.head_branch,
     };
 
     return JSON.stringify(item) + '\n';

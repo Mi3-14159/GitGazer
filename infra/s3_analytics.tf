@@ -75,6 +75,11 @@ resource "aws_s3tables_table" "jobs" {
           type     = "string"
           required = true
         }
+        field {
+          name     = "branch"
+          type     = "string"
+          required = true
+        }
       }
     }
   }
