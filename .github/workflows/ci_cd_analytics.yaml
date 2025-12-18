@@ -1,16 +1,16 @@
-name: CI/CD 02_central
+name: CI/CD analytics
 on:
   push:
     branches:
       - main
     paths:
       - "02_central/**"
-      - ".github/workflows/ci_cd_02_central.yaml"
+      - ".github/workflows/ci_cd_analytics.yaml"
       - "common/**"
   pull_request:
     paths:
       - "02_central/**"
-      - ".github/workflows/ci_cd_02_central.yaml"
+      - ".github/workflows/ci_cd_analytics.yaml"
       - "common/**"
   workflow_dispatch:
     inputs:
@@ -22,15 +22,12 @@ on:
 
 jobs:
   build:
-    uses: ./.github/workflows/build_02_central.yaml
+    uses: ./.github/workflows/build_lambda.yaml
     permissions:
       contents: read
       id-token: write
-    strategy:
-      matrix:
-        lambda_function: [api, alerting, analytics]
     with:
-      lambda_function: ${{ matrix.lambda_function }}
+      lambda_function: analytics
     secrets: inherit
 
   deploy:
