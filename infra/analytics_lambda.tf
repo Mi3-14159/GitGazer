@@ -111,7 +111,7 @@ resource "aws_lambda_event_source_mapping" "analytics_jobs_stream" {
   event_source_arn               = aws_dynamodb_table.jobs.stream_arn
   function_name                  = aws_lambda_function.analytics.arn
   starting_position              = "TRIM_HORIZON"
-  batch_size                     = 100 # 500 ist the max limit of records a PutRecordBatchCommand can handle
+  batch_size                     = 500 # 500 ist the max limit of records a PutRecordBatchCommand can handle
   maximum_retry_attempts         = 3
   enabled                        = true
   bisect_batch_on_function_error = true
