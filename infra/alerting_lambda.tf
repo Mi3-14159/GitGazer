@@ -99,6 +99,12 @@ resource "aws_lambda_function" "alerting" {
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN  = aws_dynamodb_table.integrations.name
     }
   }
+  logging_config {
+    log_group             = aws_cloudwatch_log_group.alerting.name
+    log_format            = "JSON"
+    application_log_level = "INFO"
+    system_log_level      = "INFO"
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "alerting_jobs_stream" {

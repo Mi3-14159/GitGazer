@@ -105,6 +105,12 @@ resource "aws_lambda_function" "analytics" {
       FIREHOSE_STREAM_NAME     = aws_kinesis_firehose_delivery_stream.analytics.name
     }
   }
+  logging_config {
+    log_group             = aws_cloudwatch_log_group.analytics.name
+    log_format            = "JSON"
+    application_log_level = "INFO"
+    system_log_level      = "INFO"
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "analytics_jobs_stream" {
