@@ -11,7 +11,7 @@ import notificationsRoutes from '@/router/routes/notifications';
 
 // Setup logs - these run at module initialization before any requests
 const logger = getLogger();
-logger.info({msg: 'Setting up routes'});
+logger.info('Setting up routes');
 
 const app = new Router();
 
@@ -29,6 +29,6 @@ authRoutes.use(integrationsRoutes);
 
 app.use(authRoutes);
 
-logger.info({msg: 'Routes setup completed', routes: Array.from(app.routeKeys.keys())});
+logger.info('Routes setup completed', {routes: Array.from(app.routeKeys.keys())});
 
 export default app;

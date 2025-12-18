@@ -12,7 +12,7 @@ export const extractCognitoGroups = async (event: APIGatewayProxyEventV2WithJWTA
     }
 
     const cognitoGroups = event.requestContext?.authorizer?.jwt?.claims?.['cognito:groups'] as string | undefined;
-    logger.debug({message: 'Cognito groups', cognitoGroups});
+    logger.debug('Cognito groups', {cognitoGroups});
     if (!cognitoGroups) {
         return {
             statusCode: 401,

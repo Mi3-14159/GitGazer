@@ -167,9 +167,8 @@ function findMatchingRoute(method: string, path: string): string | null {
         });
     });
 
-    logger.info({
+    logger.info(`Development server listening on http://localhost:${PORT}`, {
         port: PORT,
-        msg: `Development server listening on http://localhost:${PORT}`,
     });
     server.listen(PORT);
 })();

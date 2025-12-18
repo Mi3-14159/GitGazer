@@ -1,18 +1,21 @@
 import {getJobsBy, getNotificationRulesBy} from '@/clients/dynamodb';
-import {resetLogger, set} from '@/logger';
+import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
 import {Job, JobType, NotificationRule, NotificationRuleChannelType} from '@common/types';
 import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
+const logger = getLogger();
+
 export const handler: DynamoDBStreamHandler = async (event, context) => {
+    logger.resetKeys();
+    logger.appendKeys({requestId: context.awsRequestId});
+    logger.logEventIfEnabled(event);
+
     const result: DynamoDBBatchResponse = {
         batchItemFailures: [],
     };
-
-    const logger = set('requestId', context.awsRequestId);
-    logger.debug({message: 'handle event', event});
 
     // Process the event
     for (const record of event.Records) {
@@ -40,7 +43,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
 
             const integrationId = item.integrationId;
             const rules: NotificationRule[] = await getNotificationRulesBy({integrationIds: [integrationId]});
-            logger.info({message: `Found ${rules.length} notification rules for integration ${integrationId}`, rules});
+            logger.info(`Found ${rules.length} notification rules for integration ${integrationId}`, {rules});
 
             const {full_name} = item.workflow_event.repository;
             const [owner, repository_name] = full_name.split('/');
@@ -71,7 +74,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
             });
 
             if (matching.length === 0) {
-                logger.info({message: `No matching notification rules for integration ${integrationId}`});
+                logger.info(`No matching notification rules for integration ${integrationId}`);
                 continue;
             }
 
@@ -150,16 +153,15 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                 }
             }
         } catch (err) {
-            logger.error({message: 'Record processing failed', error: err});
+            logger.error('Record processing failed', {error: err});
             if (record.eventID) {
                 result.batchItemFailures.push({itemIdentifier: record.eventID});
             }
         }
     }
 
-    logger.debug({message: 'result', result});
+    logger.debug('result', {result});
 
-    logger.flush();
-    resetLogger();
+    logger.flushBuffer();
     return result;
 };

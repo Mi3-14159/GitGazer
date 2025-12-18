@@ -1,35 +1,26 @@
-import pino from 'pino';
+import {Logger} from '@aws-lambda-powertools/logger';
+import {correlationPaths, search} from '@aws-lambda-powertools/logger/correlationId';
 
-export const newLogger = (): pino.Logger => {
-    return pino({
-        level: process.env.PINO_LOG_LEVEL || 'info', // Set log level from env var, default to info
-        transport:
-            process.env.ENVIRONMENT === 'dev'
-                ? {
-                      target: 'pino-pretty',
-                      options: {
-                          colorize: true,
-                      },
-                  }
-                : undefined,
-        formatters: {
-            level: (label) => {
-                return {level: label.toUpperCase()};
-            },
+export const newLogger = (): Logger => {
+    const logger = new Logger({
+        environment: process.env.ENVIRONMENT,
+        logBufferOptions: {
+            enabled: true,
+            flushOnErrorLog: true,
         },
+        correlationIdSearchFn: search,
     });
-};
-
-let logger = newLogger();
-
-export const getLogger = () => logger;
-
-export const set = (key: string, value: unknown): pino.Logger => {
-    logger = logger.child({[key]: value});
     return logger;
 };
 
-export const resetLogger = (): pino.Logger => {
+let logger = newLogger();
+logger.injectLambdaContext({
+    correlationIdPath: correlationPaths.API_GATEWAY_REST,
+});
+
+export const getLogger = (): Logger => logger;
+
+export const resetLogger = (): Logger => {
     logger = newLogger();
     return logger;
 };

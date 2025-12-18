@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 
 export const verifyGithubSign = async (event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<void | APIGatewayProxyResultV2> => {
     const logger = getLogger(); // Get logger at runtime
-    logger.debug({message: 'running verifyGithubSign middleware'});
+    logger.debug('running verifyGithubSign middleware');
     const {pathParameters} = event;
 
     if (!pathParameters?.integrationId) {

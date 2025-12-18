@@ -1,17 +1,17 @@
-import {resetLogger, set} from '@/logger';
+import {getLogger} from '@/logger';
 import app from '@/router';
 import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2, Context} from 'aws-lambda';
 
-export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer, context: Context): Promise<APIGatewayProxyResultV2> => {
-    const logger = set('requestId', context.awsRequestId);
+const logger = getLogger();
 
-    logger.debug({message: 'handle event', event});
+export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer, context: Context): Promise<APIGatewayProxyResultV2> => {
+    logger.resetKeys();
+    logger.addContext(context);
+    logger.logEventIfEnabled(event);
 
     const result = await app.handle(event);
 
     logger.debug({message: 'result', result});
-
-    logger.flush();
-    resetLogger();
+    logger.flushBuffer();
     return result;
 };

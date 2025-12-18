@@ -38,7 +38,7 @@ const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
     const logger = getLogger();
-    logger.trace({message: 'Executing DynamoDB query commands', commands});
+    logger.trace(`Executing DynamoDB query commands`, {commands});
 
     const result = await Promise.allSettled(commands.map((command) => client.send(command)));
 
@@ -46,7 +46,7 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
     const rejected = result.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
 
     if (rejected.length > 0) {
-        logger.error({rejected}, `query failed: ${rejected.map((r) => r.reason).join(', ')}`);
+        logger.error(`query failed: ${rejected.map((r) => r.reason).join(', ')}`, {rejected});
     }
 
     return fulfilled
@@ -58,7 +58,7 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
 
 export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number; id?: string}): Promise<NotificationRule[]> => {
     const logger = getLogger();
-    logger.info({message: 'Getting notification rules for integrations', integrations: params.integrationIds});
+    logger.info(`Getting notification rules for integrations`, {integrations: params.integrationIds});
 
     const keyConditionExpressionParts = ['integrationId = :integrationId'];
     if (params.id) {
@@ -88,7 +88,7 @@ export const getJobsBy = async (params: {
     projection?: ProjectionType;
 }): Promise<Job<Partial<WorkflowJobEvent>>[]> => {
     const logger = getLogger();
-    logger.info({message: 'Getting jobs', params});
+    logger.info(`Getting jobs`, {params});
 
     const projectionExpressionValues = [
         'integrationId',
@@ -146,7 +146,7 @@ export const getJobsBy = async (params: {
 
 export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
     const logger = getLogger();
-    logger.info({message: 'Updating notification rule', ruleId: rule.id});
+    logger.info(`Updating notification rule`, {ruleId: rule.id});
 
     const now = new Date().toUTCString();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
@@ -187,7 +187,7 @@ export const putNotificationRule = async (rule: NotificationRuleUpdate, createOn
 
 export const deleteNotificationRule = async (ruleId: string, integrationId: string): Promise<void> => {
     const logger = getLogger();
-    logger.info({message: 'Deleting notification rule', ruleId});
+    logger.info(`Deleting notification rule`, {ruleId});
 
     const command = new DeleteCommand({
         TableName: notificationTableName,
@@ -202,8 +202,7 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
 
 export const putJob = async <T extends WorkflowJobEvent | WorkflowRunEvent>(job: Job<T>): Promise<Job<T>> => {
     const logger = getLogger();
-    logger.info({
-        message: 'Putting job',
+    logger.info('Putting job', {
         id: job.id,
     });
 
@@ -218,7 +217,7 @@ export const putJob = async <T extends WorkflowJobEvent | WorkflowRunEvent>(job:
 
 export const getConnections = async (integrationId: string): Promise<WebsocketConnection[]> => {
     const logger = getLogger();
-    logger.info({message: 'Getting connections'});
+    logger.info('Getting connections', {integrationId});
 
     const queryCommand = new QueryCommand({
         TableName: connectionTableName,
@@ -236,7 +235,7 @@ export const getConnections = async (integrationId: string): Promise<WebsocketCo
 
 export const deleteConnection = async (params: {integrationId: string; connectionId: string}): Promise<void> => {
     const logger = getLogger();
-    logger.info({message: 'Deleting connection', params});
+    logger.info('Deleting connection', {params});
 
     const command = new DeleteCommand({
         TableName: connectionTableName,
@@ -248,7 +247,7 @@ export const deleteConnection = async (params: {integrationId: string; connectio
 
 export const getIntegrations = async (ids: string[]): Promise<Integration[]> => {
     const logger = getLogger();
-    logger.info({message: 'Getting integrations', ids});
+    logger.info('Getting integrations', {ids});
 
     if (ids.length === 0) {
         return [];
@@ -276,7 +275,7 @@ export const getIntegrations = async (ids: string[]): Promise<Integration[]> => 
 
 export const createIntegration = async (integration: Integration): Promise<Integration> => {
     const logger = getLogger();
-    logger.info({message: 'Creating integration', id: integration.id});
+    logger.info('Creating integration', {id: integration.id});
 
     const command = new PutCommand({
         TableName: integrationsTableName,
@@ -290,7 +289,7 @@ export const createIntegration = async (integration: Integration): Promise<Integ
 
 export const deleteIntegration = async (id: string): Promise<Integration> => {
     const logger = getLogger();
-    logger.info({message: 'Deleting integration', id});
+    logger.info('Deleting integration', {id});
 
     const command = new DeleteCommand({
         TableName: integrationsTableName,

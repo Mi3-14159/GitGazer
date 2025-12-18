@@ -1,4 +1,4 @@
-import {resetLogger, set} from '@/logger';
+import {getLogger} from '@/logger';
 import {FirehoseClient, PutRecordBatchCommand} from '@aws-sdk/client-firehose';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
 import {Job} from '@common/types';
@@ -10,16 +10,17 @@ if (!firehoseStreamName) {
     throw new Error('FIREHOSE_STREAM_NAME is not defined');
 }
 
+const logger = getLogger();
 const client = new FirehoseClient();
 
 export const handler: DynamoDBStreamHandler = async (event, context) => {
-    resetLogger();
+    logger.resetKeys();
+    logger.appendKeys({requestId: context.awsRequestId});
+    logger.logEventIfEnabled(event);
+
     const result: DynamoDBBatchResponse = {
         batchItemFailures: [],
     };
-
-    const logger = set('requestId', context.awsRequestId);
-    logger.debug({message: 'handle event', event});
 
     const encoder = new TextEncoder();
     const batchItems: Array<{eventId?: string; data: Uint8Array}> = [];
@@ -34,8 +35,8 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
     });
 
     if (!batchItems.length) {
-        logger.info({message: 'no items to process'});
-        logger.flush();
+        logger.info('no items to process');
+        logger.flushBuffer();
         return result;
     }
 
@@ -57,15 +58,14 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                 result.batchItemFailures.push({itemIdentifier: failedRecord.eventId});
             }
 
-            logger.error({
-                message: 'Firehose batch record failed',
+            logger.error('Firehose batch record failed', {
                 errorCode: resp.ErrorCode,
                 errorMessage: resp.ErrorMessage,
                 eventId: failedRecord?.eventId,
             });
         });
     } catch (err) {
-        logger.error({message: 'Firehose batch send failed', error: err});
+        logger.error('Firehose batch send failed', {error: err});
 
         for (const item of batchItems) {
             if (item.eventId) {
@@ -74,7 +74,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
         }
     }
 
-    logger.flush();
+    logger.flushBuffer();
     return result;
 };
 
