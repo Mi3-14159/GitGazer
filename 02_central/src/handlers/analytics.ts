@@ -15,7 +15,7 @@ const client = new FirehoseClient();
 
 export const handler: DynamoDBStreamHandler = async (event, context) => {
     logger.resetKeys();
-    logger.appendKeys({requestId: context.awsRequestId});
+    logger.addContext(context);
     logger.logEventIfEnabled(event);
 
     const result: DynamoDBBatchResponse = {

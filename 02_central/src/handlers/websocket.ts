@@ -95,14 +95,20 @@ export const handler = async (event: WebsocketEvent, context: Context): Promise<
     logger.addContext(context);
     logger.logEventIfEnabled(event);
 
+    let result = {};
     switch (event.requestContext.eventType) {
         case 'DISCONNECT':
-            return onDisconnect(event);
+            result = await onDisconnect(event);
+            break;
         case 'CONNECT':
-            return onConnect(event);
+            result = await onConnect(event);
+            break;
         default:
-            return {statusCode: 400, body: `Invalid event type: ${event.requestContext.eventType}`};
+            result = {statusCode: 400, body: `Invalid event type: ${event.requestContext.eventType}`};
     }
+
+    logger.flushBuffer();
+    return result;
 };
 
 const onDisconnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2<string>> => {
