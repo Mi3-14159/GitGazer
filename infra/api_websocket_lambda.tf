@@ -96,7 +96,7 @@ resource "aws_lambda_function" "api_websocket" {
   description       = "GitGazers websocket handler"
   function_name     = "${var.name_prefix}-websocket-handler-${terraform.workspace}"
   role              = aws_iam_role.api_websocket.arn
-  handler           = "websocket.handler"
+  handler           = "handlers/websocket.handler"
   runtime           = "nodejs24.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = data.aws_s3_object.websocket_lambda_function_archive.key
@@ -106,14 +106,15 @@ resource "aws_lambda_function" "api_websocket" {
   memory_size       = 512 # speedup jwt verification with more memory = more CPU
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS            = "none"
-      ENVIRONMENT                                    = terraform.workspace
-      POWERTOOLS_LOG_LEVEL                           = local.lambda_application_log_level
-      TABLE_NAME                                     = aws_dynamodb_table.connections.name
-      COGNITO_USER_POOL_ID                           = aws_cognito_user_pool.this.id
-      COGNITO_CLIENT_ID                              = aws_cognito_user_pool_client.this.id
-      DYNAMODB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
+      AWS_LAMBDA_EXEC_WRAPPER                         = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS             = "none"
+      ENVIRONMENT                                     = terraform.workspace
+      POWERTOOLS_LOG_LEVEL                            = local.lambda_application_log_level
+      TABLE_NAME                                      = aws_dynamodb_table.connections.name
+      COGNITO_USER_POOL_ID                            = aws_cognito_user_pool.this.id
+      COGNITO_CLIENT_ID                               = aws_cognito_user_pool_client.this.id
+      DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
+      DYNAMO_DB_CONNECTIONS_TABLE_ARN                 = aws_dynamodb_table.connections.arn
     }
   }
   layers = local.lambda_layers

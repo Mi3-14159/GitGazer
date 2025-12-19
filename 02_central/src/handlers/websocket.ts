@@ -6,7 +6,7 @@ import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 
 const logger = getLogger();
 
 const connectionsTableArn = process.env.DYNAMO_DB_CONNECTIONS_TABLE_ARN;
-const connectionIdIndex = process.env.DYNAMODB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX;
+const connectionIdIndex = process.env.DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX;
 const cognitoClientId = process.env.COGNITO_CLIENT_ID;
 const cognitoUserPoolId = process.env.COGNITO_USER_POOL_ID;
 
@@ -15,7 +15,7 @@ if (!connectionsTableArn) {
 }
 
 if (!connectionIdIndex) {
-    throw new Error('DYNAMODB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX is not defined');
+    throw new Error('DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX is not defined');
 }
 
 if (!cognitoUserPoolId) {
