@@ -72,6 +72,18 @@ resource "aws_iam_role_policy" "alerting" {
   policy = data.aws_iam_policy_document.alerting.json
 }
 
+resource "aws_iam_role_policy_attachment" "alerting_tracing_lambda_insights" {
+  count      = var.enable_lambda_tracing ? 1 : 0
+  role       = aws_iam_role.alerting.id
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "alerting_tracing_application_signals" {
+  count      = var.enable_lambda_tracing ? 1 : 0
+  role       = aws_iam_role.alerting.id
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaApplicationSignalsExecutionRolePolicy"
+}
+
 data "aws_s3_object" "alerting_lambda_function_archive" {
   bucket = module.lambda_store.s3_bucket_id
   key    = "${var.name_prefix}-alerting.zip"
@@ -91,6 +103,7 @@ resource "aws_lambda_function" "alerting" {
   memory_size       = 256
   environment {
     variables = {
+      AWS_LAMBDA_EXEC_WRAPPER           = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
       ENVIRONMENT                       = terraform.workspace
       PINO_LOG_LEVEL                    = "info"
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN = aws_dynamodb_table.notification_rules.name

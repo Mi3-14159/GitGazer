@@ -21,13 +21,13 @@ resource "aws_iam_role" "api_websocket" {
 }
 
 resource "aws_iam_role_policy_attachment" "api_websocket_tracing_lambda_insights" {
-  count      = var.enable_lambda_api_tracing ? 1 : 0
+  count      = var.enable_lambda_tracing ? 1 : 0
   role       = aws_iam_role.api_websocket.id
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
 }
 
 resource "aws_iam_role_policy_attachment" "api_websocket_tracing_application_signals" {
-  count      = var.enable_lambda_api_tracing ? 1 : 0
+  count      = var.enable_lambda_tracing ? 1 : 0
   role       = aws_iam_role.api_websocket.id
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaApplicationSignalsExecutionRolePolicy"
 }
@@ -45,7 +45,7 @@ data "aws_iam_policy_document" "api_websocket" {
   }
 
   dynamic "statement" {
-    for_each = var.enable_lambda_api_tracing ? [1] : []
+    for_each = var.enable_lambda_tracing ? [1] : []
     content {
       effect = "Allow"
       actions = [
@@ -108,7 +108,7 @@ resource "aws_lambda_function" "api_websocket" {
     variables = {
       ENVIRONMENT                                    = terraform.workspace
       PINO_LOG_LEVEL                                 = "info"
-      AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_api_tracing ? "/opt/otel-instrument" : null
+      AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
       TABLE_NAME                                     = aws_dynamodb_table.connections.name
       COGNITO_USER_POOL_ID                           = aws_cognito_user_pool.this.id
       COGNITO_CLIENT_ID                              = aws_cognito_user_pool_client.this.id
