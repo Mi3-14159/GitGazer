@@ -110,6 +110,7 @@ resource "aws_lambda_function" "api_websocket" {
       OTEL_NODE_DISABLED_INSTRUMENTATIONS             = "none"
       ENVIRONMENT                                     = terraform.workspace
       POWERTOOLS_LOG_LEVEL                            = local.lambda_application_log_level
+      POWERTOOLS_LOGGER_LOG_EVENTS                    = true
       TABLE_NAME                                      = aws_dynamodb_table.connections.name
       COGNITO_USER_POOL_ID                            = aws_cognito_user_pool.this.id
       COGNITO_CLIENT_ID                               = aws_cognito_user_pool_client.this.id
