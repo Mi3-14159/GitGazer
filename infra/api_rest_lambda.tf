@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_log_group" "api" {
-  name              = "/aws/lambda/${var.name_prefix}-jobs-processor-${terraform.workspace}"
+  name              = "/aws/lambda/${var.name_prefix}-api-${terraform.workspace}"
   retention_in_days = 30
   kms_key_id        = aws_kms_key.this.arn
 }
@@ -16,7 +16,7 @@ data "aws_iam_policy_document" "api_assume_role" {
 }
 
 resource "aws_iam_role" "api" {
-  name               = "${var.name_prefix}-jobs-processor-role-${terraform.workspace}"
+  name               = "${var.name_prefix}-api-role-${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.api_assume_role.json
 }
 
@@ -41,7 +41,7 @@ data "aws_iam_policy_document" "api" {
       "logs:PutLogEvents",
       "logs:DescribeLogStreams",
     ]
-    resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-jobs-processor-${terraform.workspace}:*"]
+    resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-api-${terraform.workspace}:*"]
   }
 
   dynamic "statement" {
@@ -121,7 +121,7 @@ data "aws_iam_policy_document" "api" {
 }
 
 resource "aws_iam_role_policy" "api" {
-  name   = "${var.name_prefix}-jobs-processor-role-${terraform.workspace}"
+  name   = "${var.name_prefix}-api-role-${terraform.workspace}"
   role   = aws_iam_role.api.id
   policy = data.aws_iam_policy_document.api.json
 }
@@ -132,8 +132,8 @@ data "aws_s3_object" "api_lambda_function_archive" {
 }
 
 resource "aws_lambda_function" "api" {
-  description       = "GitGazers jobs processor"
-  function_name     = "${var.name_prefix}-jobs-processor-${terraform.workspace}"
+  description       = "GitGazers REST API Lambda Function"
+  function_name     = "${var.name_prefix}-api-${terraform.workspace}"
   role              = aws_iam_role.api.arn
   handler           = "02_central/src/handlers/api.handler"
   runtime           = "nodejs24.x"
