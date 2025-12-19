@@ -5,8 +5,7 @@ export const newLogger = (): Logger => {
     const logger = new Logger({
         environment: process.env.ENVIRONMENT,
         logBufferOptions: {
-            enabled: true,
-            flushOnErrorLog: true,
+            enabled: false,
         },
         correlationIdSearchFn: search,
     });
