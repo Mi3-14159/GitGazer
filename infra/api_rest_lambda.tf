@@ -160,12 +160,7 @@ resource "aws_lambda_function" "api" {
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN  = aws_dynamodb_table.integrations.name
     }
   }
-  layers = flatten([
-    "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:18",
-    var.enable_lambda_api_tracing ? [
-      "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:60",
-      "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:9"
-  ] : []])
+  layers = local.lambda_layers
   logging_config {
     log_group             = aws_cloudwatch_log_group.api.name
     log_format            = "JSON"

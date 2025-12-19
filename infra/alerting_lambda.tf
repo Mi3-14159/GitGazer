@@ -99,6 +99,7 @@ resource "aws_lambda_function" "alerting" {
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN  = aws_dynamodb_table.integrations.name
     }
   }
+  layers = local.lambda_layers
   logging_config {
     log_group             = aws_cloudwatch_log_group.alerting.name
     log_format            = "JSON"

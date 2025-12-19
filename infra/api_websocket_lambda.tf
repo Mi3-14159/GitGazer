@@ -115,12 +115,13 @@ resource "aws_lambda_function" "api_websocket" {
       DYNAMODB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
     }
   }
-  layers = flatten([
-    "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:18",
-    var.enable_lambda_api_tracing ? [
-      "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:60",
-      "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:9"
-  ] : []])
+  layers = local.lambda_layers
+  logging_config {
+    log_group             = aws_cloudwatch_log_group.api_websocket.name
+    log_format            = "JSON"
+    application_log_level = "INFO"
+    system_log_level      = "INFO"
+  }
 }
 
 resource "aws_lambda_alias" "api_websocket_live" {

@@ -105,6 +105,7 @@ resource "aws_lambda_function" "analytics" {
       FIREHOSE_STREAM_NAME     = aws_kinesis_firehose_delivery_stream.analytics.name
     }
   }
+  layers = local.lambda_layers
   logging_config {
     log_group             = aws_cloudwatch_log_group.analytics.name
     log_format            = "JSON"
