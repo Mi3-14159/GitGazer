@@ -30,6 +30,7 @@ locals {
   s3tables_catalog_id                            = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
   lambda_layers = flatten([
     "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21",
+    "arn:aws:lambda:eu-central-1:094274105915:layer:AWSLambdaPowertoolsTypeScriptV2:42",
     var.enable_lambda_tracing ? [
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
