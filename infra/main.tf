@@ -35,4 +35,5 @@ locals {
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []])
   lambda_application_log_level = "INFO"
+  lambda_enable_event_logging  = true
 }
