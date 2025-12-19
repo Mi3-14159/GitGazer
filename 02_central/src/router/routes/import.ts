@@ -23,10 +23,7 @@ router.post('/api/import/{integrationId}', async (event) => {
         const githubEvent = JSON.parse(body);
         await createWorkflow(pathParameters.integrationId, githubEvent);
     } catch (error) {
-        logger.error('Error creating workflow', {
-            err: error,
-            event,
-        });
+        logger.error('Error creating workflow', error as Error);
 
         return {
             statusCode: 500,

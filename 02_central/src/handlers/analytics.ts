@@ -64,8 +64,8 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                 eventId: failedRecord?.eventId,
             });
         });
-    } catch (err) {
-        logger.error('Firehose batch send failed', {error: err});
+    } catch (error) {
+        logger.error('Firehose batch send failed', error as Error);
 
         for (const item of batchItems) {
             if (item.eventId) {

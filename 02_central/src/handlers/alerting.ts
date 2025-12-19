@@ -152,8 +152,8 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                     }
                 }
             }
-        } catch (err) {
-            logger.error('Record processing failed', {error: err});
+        } catch (error) {
+            logger.error('Record processing failed', error as Error);
             if (record.eventID) {
                 result.batchItemFailures.push({itemIdentifier: record.eventID});
             }

@@ -149,20 +149,20 @@ const onDisconnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResul
         }
 
         return {statusCode: 200, body: `Disconnected. Removed ${items.length} records.`};
-    } catch (err) {
-        logger.error('Error during disconnect', {error: err});
+    } catch (error) {
+        logger.error('Error during disconnect', error as Error);
 
-        if (err instanceof Error) {
-            if (err.name === 'ValidationException') {
-                return {statusCode: 400, body: `Invalid request: ${err.message}`};
+        if (error instanceof Error) {
+            if (error.name === 'ValidationException') {
+                return {statusCode: 400, body: `Invalid request: ${error.message}`};
             }
-            if (err.name === 'ProvisionedThroughputExceededException' || err.name === 'ThrottlingException') {
-                return {statusCode: 429, body: `Service temporarily unavailable: ${err.message}`};
+            if (error.name === 'ProvisionedThroughputExceededException' || error.name === 'ThrottlingException') {
+                return {statusCode: 429, body: `Service temporarily unavailable: ${error.message}`};
             }
-            if (err.name === 'ResourceNotFoundException') {
-                return {statusCode: 404, body: `Resource not found: ${err.message}`};
+            if (error.name === 'ResourceNotFoundException') {
+                return {statusCode: 404, body: `Resource not found: ${error.message}`};
             }
-            return {statusCode: 500, body: `Failed to disconnect: ${err.message}`};
+            return {statusCode: 500, body: `Failed to disconnect: ${error.message}`};
         }
 
         return {statusCode: 500, body: 'Failed to disconnect due to an unknown error'};
@@ -218,7 +218,7 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
         }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.error('Failed to store connections', {error});
+        logger.error('Failed to store connections', error as Error);
         return {statusCode: 500, body: `Failed to connect: ${message}`};
     }
 
