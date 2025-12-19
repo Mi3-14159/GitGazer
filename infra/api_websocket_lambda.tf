@@ -87,23 +87,23 @@ resource "aws_iam_role_policy" "api_websocket" {
   policy = data.aws_iam_policy_document.api_websocket.json
 }
 
-data "archive_file" "api_websocket" {
-  type        = "zip"
-  source_file = "${path.module}/../02_central/src/handlers/websocket.js"
-  output_path = "${path.module}/dist/handlerWebsocket.zip"
+data "aws_s3_object" "websocket_lambda_function_archive" {
+  bucket = module.lambda_store.s3_bucket_id
+  key    = "${var.name_prefix}-websocket.zip"
 }
 
 resource "aws_lambda_function" "api_websocket" {
-  description      = "GitGazers websocket handler"
-  filename         = data.archive_file.api_websocket.output_path
-  function_name    = "${var.name_prefix}-websocket-handler-${terraform.workspace}"
-  role             = aws_iam_role.api_websocket.arn
-  handler          = "websocket.handler"
-  runtime          = "nodejs24.x"
-  source_code_hash = data.archive_file.api_websocket.output_base64sha256
-  timeout          = 10
-  publish          = true
-  memory_size      = 512 # speedup jwt verification with more memory = more CPU
+  description       = "GitGazers websocket handler"
+  function_name     = "${var.name_prefix}-websocket-handler-${terraform.workspace}"
+  role              = aws_iam_role.api_websocket.arn
+  handler           = "websocket.handler"
+  runtime           = "nodejs24.x"
+  s3_bucket         = module.lambda_store.s3_bucket_id
+  s3_key            = data.aws_s3_object.websocket_lambda_function_archive.key
+  s3_object_version = data.aws_s3_object.websocket_lambda_function_archive.version_id
+  timeout           = 10
+  publish           = true
+  memory_size       = 512 # speedup jwt verification with more memory = more CPU
   environment {
     variables = {
       AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
