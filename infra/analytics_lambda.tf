@@ -114,7 +114,7 @@ resource "aws_lambda_function" "analytics" {
       AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
       OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
       ENVIRONMENT                         = terraform.workspace
-      PINO_LOG_LEVEL                      = "info"
+      POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.jobs.name
       FIREHOSE_STREAM_NAME                = aws_kinesis_firehose_delivery_stream.analytics.name
     }
@@ -123,7 +123,7 @@ resource "aws_lambda_function" "analytics" {
   logging_config {
     log_group             = aws_cloudwatch_log_group.analytics.name
     log_format            = "JSON"
-    application_log_level = "INFO"
+    application_log_level = local.lambda_application_log_level
     system_log_level      = "INFO"
   }
   tracing_config {

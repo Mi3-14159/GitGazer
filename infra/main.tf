@@ -34,4 +34,5 @@ locals {
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []])
+  lambda_application_log_level = "INFO"
 }

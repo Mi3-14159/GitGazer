@@ -148,7 +148,7 @@ resource "aws_lambda_function" "api" {
       AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
       OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
       ENVIRONMENT                         = terraform.workspace
-      PINO_LOG_LEVEL                      = "info"
+      POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       EXPIRE_IN_SEC                       = var.expire_in_sec
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN   = aws_dynamodb_table.notification_rules.name
       DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.jobs.name
@@ -165,7 +165,7 @@ resource "aws_lambda_function" "api" {
   logging_config {
     log_group             = aws_cloudwatch_log_group.api.name
     log_format            = "JSON"
-    application_log_level = "INFO"
+    application_log_level = local.lambda_application_log_level
     system_log_level      = "INFO"
   }
   tracing_config {
