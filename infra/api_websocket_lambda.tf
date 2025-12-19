@@ -106,9 +106,10 @@ resource "aws_lambda_function" "api_websocket" {
   memory_size      = 512 # speedup jwt verification with more memory = more CPU
   environment {
     variables = {
+      AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS            = "none"
       ENVIRONMENT                                    = terraform.workspace
       PINO_LOG_LEVEL                                 = "info"
-      AWS_LAMBDA_EXEC_WRAPPER                        = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
       TABLE_NAME                                     = aws_dynamodb_table.connections.name
       COGNITO_USER_POOL_ID                           = aws_cognito_user_pool.this.id
       COGNITO_CLIENT_ID                              = aws_cognito_user_pool_client.this.id
@@ -121,6 +122,9 @@ resource "aws_lambda_function" "api_websocket" {
     log_format            = "JSON"
     application_log_level = "INFO"
     system_log_level      = "INFO"
+  }
+  tracing_config {
+    mode = var.enable_lambda_tracing ? "Active" : "PassThrough"
   }
 }
 

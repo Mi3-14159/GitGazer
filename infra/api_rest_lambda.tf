@@ -145,19 +145,20 @@ resource "aws_lambda_function" "api" {
   memory_size       = 256
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER           = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      ENVIRONMENT                       = terraform.workspace
-      PINO_LOG_LEVEL                    = "info"
-      EXPIRE_IN_SEC                     = var.expire_in_sec
-      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN = aws_dynamodb_table.notification_rules.name
-      DYNAMO_DB_JOBS_TABLE_ARN          = aws_dynamodb_table.jobs.name
-      UI_BUCKET_NAME                    = module.ui_bucket.s3_bucket_id
-      KMS_KEY_ID                        = aws_kms_key.this.id
-      COGNITO_USER_POOL_ID              = aws_cognito_user_pool.this.id
-      DYNAMO_DB_CONNECTIONS_TABLE_ARN   = aws_dynamodb_table.connections.name
-      WEBSOCKET_API_DOMAIN_NAME         = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
-      WEBSOCKET_API_STAGE               = aws_apigatewayv2_stage.websocket_ws.name
-      DYNAMO_DB_INTEGRATIONS_TABLE_ARN  = aws_dynamodb_table.integrations.name
+      AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
+      ENVIRONMENT                         = terraform.workspace
+      PINO_LOG_LEVEL                      = "info"
+      EXPIRE_IN_SEC                       = var.expire_in_sec
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN   = aws_dynamodb_table.notification_rules.name
+      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.jobs.name
+      UI_BUCKET_NAME                      = module.ui_bucket.s3_bucket_id
+      KMS_KEY_ID                          = aws_kms_key.this.id
+      COGNITO_USER_POOL_ID                = aws_cognito_user_pool.this.id
+      DYNAMO_DB_CONNECTIONS_TABLE_ARN     = aws_dynamodb_table.connections.name
+      WEBSOCKET_API_DOMAIN_NAME           = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
+      WEBSOCKET_API_STAGE                 = aws_apigatewayv2_stage.websocket_ws.name
+      DYNAMO_DB_INTEGRATIONS_TABLE_ARN    = aws_dynamodb_table.integrations.name
     }
   }
   layers = local.lambda_layers
@@ -166,6 +167,9 @@ resource "aws_lambda_function" "api" {
     log_format            = "JSON"
     application_log_level = "INFO"
     system_log_level      = "INFO"
+  }
+  tracing_config {
+    mode = var.enable_lambda_tracing ? "Active" : "PassThrough"
   }
 }
 

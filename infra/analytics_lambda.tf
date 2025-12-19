@@ -111,11 +111,12 @@ resource "aws_lambda_function" "analytics" {
   memory_size       = 256
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER  = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      ENVIRONMENT              = terraform.workspace
-      PINO_LOG_LEVEL           = "info"
-      DYNAMO_DB_JOBS_TABLE_ARN = aws_dynamodb_table.jobs.name
-      FIREHOSE_STREAM_NAME     = aws_kinesis_firehose_delivery_stream.analytics.name
+      AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
+      ENVIRONMENT                         = terraform.workspace
+      PINO_LOG_LEVEL                      = "info"
+      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.jobs.name
+      FIREHOSE_STREAM_NAME                = aws_kinesis_firehose_delivery_stream.analytics.name
     }
   }
   layers = local.lambda_layers
@@ -124,6 +125,9 @@ resource "aws_lambda_function" "analytics" {
     log_format            = "JSON"
     application_log_level = "INFO"
     system_log_level      = "INFO"
+  }
+  tracing_config {
+    mode = var.enable_lambda_tracing ? "Active" : "PassThrough"
   }
 }
 

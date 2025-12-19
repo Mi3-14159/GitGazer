@@ -32,6 +32,6 @@ locals {
     "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21",
     var.enable_lambda_tracing ? [
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
-      "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10"
+      "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []])
 }
