@@ -38,7 +38,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        lambda-function: [api, alerting, analytics]
+        lambda-function: [api, alerting, analytics, websocket]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
