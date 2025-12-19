@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: ./02_central
     concurrency:
-      group: 02_central-${{ matrix.lambda-function }}-${{ github.ref }}
+      group: 02_central-${{ github.ref }}
       cancel-in-progress: false
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
@@ -36,9 +36,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    strategy:
-      matrix:
-        lambda-function: [api, alerting, analytics, websocket]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -55,11 +52,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests ${{ matrix.lambda-function }}
+      - name: Unit tests
         run: npm run test:unit
 
-      - name: Build ${{ matrix.lambda-function }}
-        run: npm run buildZip:${{ matrix.lambda-function }}
+      - name: Build Lambdas
+        run: |
+          npm run buildZip:api
+          npm run buildZip:alerting
+          npm run buildZip:analytics
+          npm run buildZip:websocket
 
       - name: Configure AWS credentials
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
@@ -70,10 +71,10 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           mask-aws-account-id: true
 
-      - name: Upload ${{ matrix.lambda-function }} Lambda function code to S3
+      - name: Upload Lambdas function code to S3
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
-          aws s3 cp ./dist/lambda.zip s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/gitgazer-${{ matrix.lambda-function }}.zip
+          aws s3 sync ./tmp/ s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/
 
   deploy:
     uses: ./.github/workflows/deploy_infra.yaml
