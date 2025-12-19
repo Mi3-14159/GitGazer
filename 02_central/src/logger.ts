@@ -14,7 +14,7 @@ export const newLogger = (): Logger => {
 
 let logger = newLogger();
 logger.injectLambdaContext({
-    correlationIdPath: correlationPaths.API_GATEWAY_REST,
+    correlationIdPath: correlationPaths.API_GATEWAY_HTTP,
 });
 
 export const getLogger = (): Logger => logger;
