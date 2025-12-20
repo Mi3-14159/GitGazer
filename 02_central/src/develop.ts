@@ -127,7 +127,9 @@ function findMatchingRoute(method: string, path: string): string | null {
                         principalId: 'mocked-principal-id',
                         integrationLatency: 0,
                         jwt: {
-                            claims: {},
+                            claims: {
+                                'cognito:groups': process.env.COGNITO_GROUPS ?? '',
+                            },
                             scopes: [],
                         },
                     },
