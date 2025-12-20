@@ -288,6 +288,7 @@ resource "aws_kinesis_firehose_delivery_stream" "analytics" {
     role_arn           = aws_iam_role.firehose.arn
     buffering_interval = 60
     buffering_size     = 1
+    append_only        = false
 
     cloudwatch_logging_options {
       enabled         = true
@@ -295,9 +296,26 @@ resource "aws_kinesis_firehose_delivery_stream" "analytics" {
       log_stream_name = aws_cloudwatch_log_stream.firehose_analytics_delivery.name
     }
     destination_table_configuration {
+      # these are the default values, which can be overridden by metadata extraction
       database_name = aws_s3tables_namespace.gitgazer.namespace
       table_name    = aws_s3tables_table.jobs.name
       unique_keys   = ["integration_id", "id"]
+    }
+    processing_configuration {
+      enabled = true
+
+      processors {
+        type = "MetadataExtraction"
+
+        parameters {
+          parameter_name  = "JsonParsingEngine"
+          parameter_value = "JQ-1.6"
+        }
+        parameters {
+          parameter_name  = "MetadataExtractionQuery"
+          parameter_value = "{destinationDatabaseName:\"${aws_s3tables_namespace.gitgazer.namespace}\",destinationTableName:\"${aws_s3tables_table.jobs.name}\",operation:\"update\"}"
+        }
+      }
     }
     s3_configuration {
       role_arn   = aws_iam_role.firehose.arn
