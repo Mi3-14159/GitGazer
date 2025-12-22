@@ -7,12 +7,12 @@
   "devDependencies": {
     "@aws-lambda-powertools/jmespath": "^2.30.0",
     "@aws-lambda-powertools/logger": "^2.30.0",
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.955.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.955.0",
-    "@aws-sdk/client-dynamodb": "^3.955.0",
-    "@aws-sdk/client-firehose": "^3.955.0",
-    "@aws-sdk/client-s3": "^3.955.0",
-    "@aws-sdk/lib-dynamodb": "^3.955.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.956.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.956.0",
+    "@aws-sdk/client-dynamodb": "^3.956.0",
+    "@aws-sdk/client-firehose": "^3.956.0",
+    "@aws-sdk/client-s3": "^3.956.0",
+    "@aws-sdk/lib-dynamodb": "^3.956.0",
     "@aws-sdk/util-dynamodb": "^3.946.0",
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.159",
@@ -36,8 +36,8 @@
   "main": "index.js",
   "name": "api-lambda",
   "optionalDependencies": {
-    "@rollup/rollup-darwin-x64": "^4.53.5",
-    "@rollup/rollup-linux-x64-gnu": "^4.53.5"
+    "@rollup/rollup-darwin-x64": "^4.54.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.54.0"
   },
   "repository": {
     "type": "git",
