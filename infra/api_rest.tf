@@ -37,6 +37,11 @@ locals {
     "auth/cognito/token" = {
       methods = ["POST"]
     },
+    "analytics/jobs/metrics" = {
+      methods            = ["POST"]
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations

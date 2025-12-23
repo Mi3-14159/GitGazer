@@ -2,6 +2,7 @@ import {getLogger} from '@/logger';
 import {extractCognitoGroups} from '@/router/middlewares/authorization';
 import {lowercaseHeaders} from '@/router/middlewares/lowercaseHeaders';
 import {Router} from '@/router/router';
+import analyticsRoutes from '@/router/routes/analytics';
 import authCongitoRoutes from '@/router/routes/authCongito';
 import feFailover from '@/router/routes/feFailover';
 import importRoutes from '@/router/routes/import';
@@ -26,6 +27,7 @@ authRoutes.middleware(extractCognitoGroups);
 authRoutes.use(notificationsRoutes);
 authRoutes.use(jobsRoutes);
 authRoutes.use(integrationsRoutes);
+authRoutes.use(analyticsRoutes);
 
 app.use(authRoutes);
 

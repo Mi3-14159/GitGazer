@@ -339,3 +339,42 @@ resource "aws_kinesis_firehose_delivery_stream" "analytics" {
     key_arn  = aws_kms_key.this.arn
   }
 }
+
+module "athena_query_results_bucket" {
+  source                   = "terraform-aws-modules/s3-bucket/aws"
+  version                  = "~> 5.9"
+  force_destroy            = true
+  bucket                   = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-athena-query-results-${terraform.workspace}"
+  attach_policy            = false
+  control_object_ownership = true
+  object_ownership         = "BucketOwnerEnforced"
+
+  versioning = {
+    enabled = false
+  }
+}
+
+resource "aws_athena_workgroup" "analytics" {
+  name = "${var.name_prefix}-analytics-${terraform.workspace}"
+
+  configuration {
+    bytes_scanned_cutoff_per_query     = 1024 * 1024 * 1024 * 1024 * 1024 # 1 PB
+    enforce_workgroup_configuration    = false
+    publish_cloudwatch_metrics_enabled = true
+    engine_version {
+      selected_engine_version = "AUTO"
+    }
+
+    result_configuration {
+      output_location = "s3://${module.athena_query_results_bucket.s3_bucket_id}/"
+      acl_configuration {
+        s3_acl_option = "BUCKET_OWNER_FULL_CONTROL"
+      }
+
+      encryption_configuration {
+        encryption_option = "SSE_KMS"
+        kms_key_arn       = aws_kms_key.this.arn
+      }
+    }
+  }
+}

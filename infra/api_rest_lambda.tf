@@ -91,6 +91,19 @@ data "aws_iam_policy_document" "api" {
   }
 
   statement {
+    effect = "Allow"
+    actions = [
+      "athena:StartQueryExecution",
+      "athena:GetQueryExecution",
+      "athena:GetQueryResults",
+      "athena:StopQueryExecution",
+      "athena:GetWorkGroup",
+      "athena:ListQueryExecutions"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
     effect    = "Allow"
     actions   = ["s3:GetObject"]
     resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
@@ -160,6 +173,11 @@ resource "aws_lambda_function" "api" {
       WEBSOCKET_API_DOMAIN_NAME           = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
       WEBSOCKET_API_STAGE                 = aws_apigatewayv2_stage.websocket_ws.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN    = aws_dynamodb_table.integrations.name
+      ATHENA_DATABASE                     = aws_s3tables_namespace.gitgazer.namespace
+      ATHENA_JOBS_TABLE                   = aws_s3tables_table.jobs.name
+      ATHENA_CATALOG                      = "awsdatacatalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+      ATHENA_QUERY_RESULT_S3_BUCKET       = module.athena_query_results_bucket.s3_bucket_id
+      ATHENA_WORKGROUP                    = aws_athena_workgroup.analytics.name
     }
   }
   layers = local.lambda_layers
