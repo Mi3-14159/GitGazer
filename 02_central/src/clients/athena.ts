@@ -60,7 +60,7 @@ export const runAthenaQuery = async <T>(params: {query: string; mapRow: (row: At
         },
     });
 
-    logger.info('Starting Athena query', {workgroup: athenaWorkgroup, database: athenaDatabase, catalog: athenaCatalog, query: params.query});
+    logger.info('Starting Athena query', {startCommand});
     const startResponse = await client.send(startCommand);
     const queryExecutionId = startResponse.QueryExecutionId;
 
