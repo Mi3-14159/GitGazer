@@ -161,13 +161,17 @@ data "aws_iam_policy_document" "api" {
     actions = [
       "glue:GetDatabase",
       "glue:GetDatabases",
-      /*"glue:GetTable",
+      "glue:GetTable",
       "glue:GetTables",
       "glue:GetPartition",
-      "glue:GetPartitions",*/
+      "glue:GetPartitions",
     ]
     resources = [
-      "*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
     ]
   }
 }
@@ -214,11 +218,10 @@ resource "aws_lambda_function" "api" {
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN    = aws_dynamodb_table.integrations.name
       ATHENA_DATABASE                     = aws_s3tables_namespace.gitgazer.namespace
       ATHENA_JOBS_TABLE                   = aws_s3tables_table.jobs.name
-      #ATHENA_CATALOG                      = "awsdatacatalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-      ATHENA_CATALOG                = aws_athena_data_catalog.analytics.name
-      ATHENA_QUERY_RESULT_S3_BUCKET = module.athena_query_results_bucket.s3_bucket_id
-      ATHENA_WORKGROUP              = aws_athena_workgroup.analytics.name
-      AAA                           = 1
+      ATHENA_CATALOG                      = aws_athena_data_catalog.analytics.name
+      ATHENA_QUERY_RESULT_S3_BUCKET       = module.athena_query_results_bucket.s3_bucket_id
+      ATHENA_WORKGROUP                    = aws_athena_workgroup.analytics.name
+      AAA                                 = uuid()
     }
   }
   layers = local.lambda_layers
