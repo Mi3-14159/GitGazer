@@ -39,6 +39,7 @@ locals {
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []])
-  lambda_application_log_level = "INFO"
-  lambda_enable_event_logging  = true
+  lambda_application_log_level       = "INFO"
+  lambda_enable_event_logging        = true
+  lakeformation_grant_permissions_to = toset([aws_iam_role.firehose.arn, aws_iam_role.api.arn])
 }

@@ -115,6 +115,7 @@ data "aws_iam_policy_document" "api" {
       "s3:PutObject",
       "s3:GetObject",
       "s3:ListBucket",
+      "s3:GetBucketLocation",
     ]
     resources = [
       module.athena_query_results_bucket.s3_bucket_arn,
@@ -142,6 +143,31 @@ data "aws_iam_policy_document" "api" {
     ]
     resources = [
       "${aws_apigatewayv2_api.websocket.execution_arn}/*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "lakeformation:GetDataAccess"
+    ]
+    resources = [
+      "*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      /*"glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartition",
+      "glue:GetPartitions",*/
+    ]
+    resources = [
+      "*",
     ]
   }
 }
@@ -188,9 +214,11 @@ resource "aws_lambda_function" "api" {
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN    = aws_dynamodb_table.integrations.name
       ATHENA_DATABASE                     = aws_s3tables_namespace.gitgazer.namespace
       ATHENA_JOBS_TABLE                   = aws_s3tables_table.jobs.name
-      ATHENA_CATALOG                      = "awsdatacatalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-      ATHENA_QUERY_RESULT_S3_BUCKET       = module.athena_query_results_bucket.s3_bucket_id
-      ATHENA_WORKGROUP                    = aws_athena_workgroup.analytics.name
+      #ATHENA_CATALOG                      = "awsdatacatalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+      ATHENA_CATALOG                = aws_athena_data_catalog.analytics.name
+      ATHENA_QUERY_RESULT_S3_BUCKET = module.athena_query_results_bucket.s3_bucket_id
+      ATHENA_WORKGROUP              = aws_athena_workgroup.analytics.name
+      AAA                           = 1
     }
   }
   layers = local.lambda_layers

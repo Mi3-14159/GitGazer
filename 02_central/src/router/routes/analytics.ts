@@ -1,8 +1,10 @@
 import {getJobMetrics} from '@/controllers/analytics';
+import {getLogger} from '@/logger';
 import {Router} from '@/router/router';
 import {isJobMetricsParameters} from '@common/types/metrics';
 
 const router = new Router();
+const logger = getLogger();
 
 router.post('/api/analytics/jobs/metrics', async (event) => {
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
@@ -74,9 +76,10 @@ router.post('/api/analytics/jobs/metrics', async (event) => {
             },
         };
     } catch (error) {
+        logger.error('Error fetching job metrics', {error});
         return {
-            statusCode: 400,
-            body: JSON.stringify({message: error instanceof Error ? error.message : 'Invalid metrics request'}),
+            statusCode: 500,
+            body: JSON.stringify({message: error instanceof Error ? error.message : 'Internal Server Error'}),
             headers: {
                 'Content-Type': 'application/json',
             },

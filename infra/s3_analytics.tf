@@ -222,11 +222,9 @@ resource "aws_iam_role_policy" "firehose" {
 # This is a workaround using a null_resource and local-exec provisioner
 # to run the AWS CLI command to grant Lake Formation permissions.
 resource "null_resource" "lf_grant_firehose_jobs_db" {
+  for_each = local.lakeformation_grant_permissions_to
   triggers = {
-    catalog_id    = local.s3tables_catalog_id
-    database_name = aws_s3tables_namespace.gitgazer.namespace
-    principal_arn = aws_iam_role.firehose.arn
-    uuid          = uuid()
+    uuid = uuid()
   }
 
   provisioner "local-exec" {
@@ -234,7 +232,7 @@ resource "null_resource" "lf_grant_firehose_jobs_db" {
 aws lakeformation grant-permissions \
   --region ${var.aws_region} \
   --cli-input-json '{
-    "Principal": { "DataLakePrincipalIdentifier": "${aws_iam_role.firehose.arn}" },
+    "Principal": { "DataLakePrincipalIdentifier": "${each.key}" },
     "Resource": {
       "Database": {
         "CatalogId": "${local.s3tables_catalog_id}",
@@ -249,12 +247,9 @@ EOT
 }
 
 resource "null_resource" "lf_grant_firehose_jobs_table" {
+  for_each = local.lakeformation_grant_permissions_to
   triggers = {
-    catalog_id    = local.s3tables_catalog_id
-    database_name = aws_s3tables_namespace.gitgazer.namespace
-    table_name    = aws_s3tables_table.jobs.name
-    principal_arn = aws_iam_role.firehose.arn
-    uuid          = uuid()
+    uuid = uuid()
   }
 
   provisioner "local-exec" {
@@ -262,7 +257,7 @@ resource "null_resource" "lf_grant_firehose_jobs_table" {
 aws lakeformation grant-permissions \
   --region ${var.aws_region} \
   --cli-input-json '{
-    "Principal": { "DataLakePrincipalIdentifier": "${aws_iam_role.firehose.arn}" },
+    "Principal": { "DataLakePrincipalIdentifier": "${each.key}" },
     "Resource": {
       "Table": {
         "CatalogId": "${local.s3tables_catalog_id}",
@@ -339,6 +334,16 @@ resource "aws_kinesis_firehose_delivery_stream" "analytics" {
     key_arn  = aws_kms_key.this.arn
   }
 }
+
+resource "aws_athena_data_catalog" "analytics" {
+  name        = "${var.name_prefix}-analytics-${terraform.workspace}"
+  description = "GitGazer S3Tables Analytics Catalog"
+  type        = "GLUE"
+  parameters = {
+    catalog-id = "s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+  }
+}
+
 
 module "athena_query_results_bucket" {
   source                   = "terraform-aws-modules/s3-bucket/aws"
