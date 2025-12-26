@@ -112,6 +112,19 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:ListBucket",
+    ]
+    resources = [
+      module.athena_query_results_bucket.s3_bucket_arn,
+      "${module.athena_query_results_bucket.s3_bucket_arn}/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
       "cognito-idp:CreateGroup",
       "cognito-idp:DeleteGroup",
       "cognito-idp:UpdateGroup",
