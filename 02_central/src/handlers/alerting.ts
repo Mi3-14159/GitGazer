@@ -161,7 +161,5 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
     }
 
     logger.debug('result', {result});
-
-    logger.flushBuffer();
     return result;
 };

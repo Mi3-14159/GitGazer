@@ -5,7 +5,9 @@ export const newLogger = (): Logger => {
     const logger = new Logger({
         environment: process.env.ENVIRONMENT,
         logBufferOptions: {
-            enabled: false,
+            enabled: true,
+            maxBytes: 1024 * 1024 * 3, // 3 MB
+            flushOnErrorLog: true,
         },
         correlationIdSearchFn: search,
     });

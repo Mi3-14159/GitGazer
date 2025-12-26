@@ -36,7 +36,6 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
 
     if (!batchItems.length) {
         logger.info('no items to process');
-        logger.flushBuffer();
         return result;
     }
 
@@ -74,7 +73,6 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
         }
     }
 
-    logger.flushBuffer();
     return result;
 };
 

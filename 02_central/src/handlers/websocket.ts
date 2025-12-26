@@ -107,7 +107,6 @@ export const handler = async (event: WebsocketEvent, context: Context): Promise<
             result = {statusCode: 400, body: `Invalid event type: ${event.requestContext.eventType}`};
     }
 
-    logger.flushBuffer();
     return result;
 };
 
