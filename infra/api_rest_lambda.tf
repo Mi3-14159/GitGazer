@@ -104,9 +104,17 @@ data "aws_iam_policy_document" "api" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["s3:GetObject"]
-    resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket",
+    ]
+    resources = [
+      module.ui_bucket.s3_bucket_arn,
+      "${module.ui_bucket.s3_bucket_arn}/*",
+      module.athena_query_results_bucket.s3_bucket_arn,
+      "${module.athena_query_results_bucket.s3_bucket_arn}/*",
+    ]
   }
 
   statement {
