@@ -100,31 +100,18 @@
     <v-main>
         <!-- Desktop Table View -->
         <div v-if="!smAndDown">
-            <v-toolbar flat>
-                <v-toolbar-title>Notifications</v-toolbar-title>
-                <v-spacer></v-spacer>
-                <v-dialog
-                    v-model="dialog"
-                    max-width="600"
-                >
-                    <template v-slot:activator="{props: activatorProps}">
-                        <v-btn
-                            prepend-icon="mdi-plus"
-                            text="Add Notification Rule"
-                            color="primary"
-                            v-bind="activatorProps"
-                            @click="onAddNew"
-                        ></v-btn>
-                    </template>
-                    <NotificationDetailsCard
-                        v-if="dialog"
-                        :onClose="onClose"
-                        :integrations="integrations"
-                        :onSave="onSave"
-                        :existingRule="editingRule"
-                    />
-                </v-dialog>
-            </v-toolbar>
+            <v-dialog
+                v-model="dialog"
+                max-width="600"
+            >
+                <NotificationDetailsCard
+                    v-if="dialog"
+                    :onClose="onClose"
+                    :integrations="integrations"
+                    :onSave="onSave"
+                    :existingRule="editingRule"
+                />
+            </v-dialog>
 
             <v-data-table
                 :headers="headers"
@@ -137,6 +124,20 @@
             >
                 <template v-slot:loading>
                     <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
+                </template>
+
+                <template v-slot:top>
+                    <v-toolbar flat>
+                        <v-toolbar-title>Notifications</v-toolbar-title>
+                        <v-spacer></v-spacer>
+                        <v-btn
+                            class="me-2"
+                            prepend-icon="mdi-plus"
+                            rounded="lg"
+                            text="Add a notification rule"
+                            @click="dialog = true"
+                        ></v-btn>
+                    </v-toolbar>
                 </template>
 
                 <template v-slot:item.integration="{item}">

@@ -75,28 +75,16 @@
     <v-main>
         <!-- Desktop Table View -->
         <div v-if="!smAndDown">
-            <v-toolbar flat>
-                <v-toolbar-title>Integrations</v-toolbar-title>
-                <v-spacer></v-spacer>
-                <v-dialog
-                    v-model="dialog"
-                    max-width="600"
-                >
-                    <template v-slot:activator="{props: activatorProps}">
-                        <v-btn
-                            prepend-icon="mdi-plus"
-                            text="Add Integration"
-                            color="primary"
-                            v-bind="activatorProps"
-                        ></v-btn>
-                    </template>
-                    <IntegrationDetailsCard
-                        v-if="dialog"
-                        :onClose="() => (dialog = false)"
-                        :onSave="onSave"
-                    />
-                </v-dialog>
-            </v-toolbar>
+            <v-dialog
+                v-model="dialog"
+                max-width="600"
+            >
+                <IntegrationDetailsCard
+                    v-if="dialog"
+                    :onClose="() => (dialog = false)"
+                    :onSave="onSave"
+                />
+            </v-dialog>
 
             <v-data-table
                 :headers="headers"
@@ -107,6 +95,20 @@
                 fixed-header
                 :loading="isLoadingIntegrations"
             >
+                <template v-slot:top>
+                    <v-toolbar flat>
+                        <v-toolbar-title>Integrations</v-toolbar-title>
+                        <v-spacer></v-spacer>
+                        <v-btn
+                            class="me-2"
+                            prepend-icon="mdi-plus"
+                            rounded="lg"
+                            text="Add a integration"
+                            @click="dialog = true"
+                        ></v-btn>
+                    </v-toolbar>
+                </template>
+
                 <template v-slot:loading>
                     <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
                 </template>
