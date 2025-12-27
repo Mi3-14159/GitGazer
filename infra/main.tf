@@ -34,7 +34,6 @@ locals {
   s3tables_catalog_id                            = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
   lambda_layers = flatten([
     "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21",
-    data.aws_ssm_parameter.powertools_typescript.value,
     var.enable_lambda_tracing ? [
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
@@ -42,4 +41,8 @@ locals {
   lambda_application_log_level       = "INFO"
   lambda_enable_event_logging        = true
   lakeformation_grant_permissions_to = toset([aws_iam_role.firehose.arn, aws_iam_role.api.arn])
+  cors_allowed_origins = compact([
+    "http://localhost:5173",
+    try("https://${var.custom_domain_config.domain_name}", null),
+  ])
 }

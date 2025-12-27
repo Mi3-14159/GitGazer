@@ -25,7 +25,7 @@ resource "aws_cloudfront_response_headers_policy" "cors_policy" {
     }
 
     access_control_allow_origins {
-      items = ["http://localhost:5173", "https://${var.custom_domain_config.domain_name}"]
+      items = local.cors_allowed_origins
     }
 
     access_control_max_age_sec = 600

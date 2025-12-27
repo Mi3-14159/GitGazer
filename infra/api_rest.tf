@@ -82,7 +82,7 @@ resource "aws_apigatewayv2_api" "this" {
     allow_credentials = var.custom_domain_config != null ? true : false
     allow_headers     = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
     allow_methods     = ["*"]
-    allow_origins     = var.custom_domain_config != null ? ["https://${var.custom_domain_config.domain_name}"] : ["*"]
+    allow_origins     = local.cors_allowed_origins
     expose_headers    = ["date", "keep-alive"]
     max_age           = 86400
   }

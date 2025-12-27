@@ -1,45 +1,45 @@
 import {getJobMetrics} from '@/controllers/analytics';
 import {getLogger} from '@/logger';
-import {Router} from '@/router/router';
+import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isJobMetricsParameters} from '@common/types/metrics';
+import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 const logger = getLogger();
 
-router.post('/api/analytics/jobs/metrics', async (event) => {
+router.post('/api/analytics/jobs/metrics', [extractCognitoGroups], async (reqCtx) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
 
     if (!event.body) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({message: 'Request body is required'}),
+        return new Response(JSON.stringify({message: 'Request body is required'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
             headers: {
                 'Content-Type': 'application/json',
             },
-        };
+        });
     }
 
     let parsedBody: unknown;
     try {
         parsedBody = JSON.parse(event.body);
     } catch (error) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({message: 'Invalid JSON body'}),
+        return new Response(JSON.stringify({message: 'Invalid JSON body'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
             headers: {
                 'Content-Type': 'application/json',
             },
-        };
+        });
     }
 
     if (!isJobMetricsParameters(parsedBody)) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({message: 'Invalid metrics request parameters'}),
+        return new Response(JSON.stringify({message: 'Invalid metrics request parameters'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
             headers: {
                 'Content-Type': 'application/json',
             },
-        };
+        });
     }
 
     // compact the filters
@@ -66,24 +66,15 @@ router.post('/api/analytics/jobs/metrics', async (event) => {
     parsedBody.dimensions = Array.from(new Set(parsedBody.dimensions));
 
     try {
-        const metrics = await getJobMetrics(groups, parsedBody);
-
-        return {
-            statusCode: 200,
-            body: JSON.stringify(metrics),
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        };
+        return await getJobMetrics(groups, parsedBody);
     } catch (error) {
         logger.error('Error fetching job metrics', {error});
-        return {
-            statusCode: 500,
-            body: JSON.stringify({message: error instanceof Error ? error.message : 'Internal Server Error'}),
+        return new Response(JSON.stringify({message: error instanceof Error ? error.message : 'Internal Server Error'}), {
+            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
             headers: {
                 'Content-Type': 'application/json',
             },
-        };
+        });
     }
 });
 

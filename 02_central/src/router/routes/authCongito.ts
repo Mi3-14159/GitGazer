@@ -1,6 +1,7 @@
 import {getLogger} from '@/logger';
-import {Router} from '@/router/router';
-import {APIGatewayProxyResult} from 'aws-lambda';
+
+import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
@@ -13,23 +14,11 @@ type Body = {
 };
 
 router.get('/api/auth/cognito/public', async () => {
-    return {
-        statusCode: 200,
-        body: 'Ok',
-        headers: {
-            'Content-Type': 'text/plain',
-        },
-    };
+    return 'Ok';
 });
 
 router.get('/api/auth/cognito/private', async () => {
-    return {
-        statusCode: 200,
-        body: 'Ok',
-        headers: {
-            'Content-Type': 'text/plain',
-        },
-    };
+    return 'Ok';
 });
 
 const parseBody = (body: string, isBase64Encoded: boolean): Body => {
@@ -47,15 +36,14 @@ const parseBody = (body: string, isBase64Encoded: boolean): Body => {
     return result as Body;
 };
 
-router.post('/api/auth/cognito/token', async (event) => {
+router.post('/api/auth/cognito/token', async (reqCtx) => {
     const logger = getLogger(); // Get logger at runtime
-    const {body, isBase64Encoded} = event;
+    const {body, isBase64Encoded} = reqCtx.event;
     if (!body) {
         logger.error('No body found');
-        return {
-            statusCode: 400,
-            body: 'Bad Request',
-        };
+        return new Response('Body is required', {
+            status: HttpStatusCodes.BAD_REQUEST,
+        });
     }
 
     const result = parseBody(body, isBase64Encoded);
@@ -71,20 +59,17 @@ router.post('/api/auth/cognito/token', async (event) => {
         )
     ).json();
 
-    const response: APIGatewayProxyResult = {
-        isBase64Encoded: false,
-        statusCode: 200,
+    reqCtx.isBase64Encoded = false;
+    return new Response(token, {
+        status: HttpStatusCodes.OK,
         headers: {
             'Cache-Control': 'no-cache, no-store, max-age=0',
-            'Content-Type': 'application/json',
         },
-        body: JSON.stringify(token),
-    };
-
-    return response;
+    });
 });
 
-router.get('/api/auth/cognito/user', async (event) => {
+router.get('/api/auth/cognito/user', async (reqCtx) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const user: any = await (
         await fetch('https://api.github.com/user', {
             method: 'GET',
@@ -95,20 +80,17 @@ router.get('/api/auth/cognito/user', async (event) => {
         })
     ).json();
 
-    const response: APIGatewayProxyResult = {
-        isBase64Encoded: false,
-        statusCode: 200,
+    reqCtx.isBase64Encoded = false;
+    const body = {
+        sub: user.id,
+        ...user,
+    };
+    return new Response(body, {
+        status: HttpStatusCodes.OK,
         headers: {
             'Cache-Control': 'no-cache, no-store, max-age=0',
-            'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            sub: user.id,
-            ...user,
-        }),
-    };
-
-    return response;
+    });
 });
 
 export default router;

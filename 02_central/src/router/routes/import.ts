@@ -1,40 +1,33 @@
 import {createWorkflow} from '@/controllers/imports';
 import {getLogger} from '@/logger';
 import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
-import {Router} from '@/router/router';
+
+import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 
 const router = new Router();
 
-// Register the auth middleware for this router
-router.middleware(verifyGithubSign);
-
-router.post('/api/import/{integrationId}', async (event) => {
+router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => {
     const logger = getLogger(); // Get logger at runtime
-    const {pathParameters, body} = event;
+    const {body} = reqCtx.event;
 
-    if (!body || !pathParameters?.integrationId) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({message: 'Bad Request'}),
-        };
+    if (!body || !reqCtx.params.integrationId) {
+        return new Response(JSON.stringify({message: 'Bad Request'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
+        });
     }
 
     try {
         const githubEvent = JSON.parse(body);
-        await createWorkflow(pathParameters.integrationId, githubEvent);
+        await createWorkflow(reqCtx.params.integrationId, githubEvent);
     } catch (error) {
         logger.error('Error creating workflow', error as Error);
 
-        return {
-            statusCode: 500,
-            body: JSON.stringify({message: 'error'}),
-        };
+        return new Response(JSON.stringify({message: 'Internal Server Error'}), {
+            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        });
     }
 
-    return {
-        statusCode: 200,
-        body: JSON.stringify({message: 'ok'}),
-    };
+    return {message: 'ok'};
 });
 
 export default router;

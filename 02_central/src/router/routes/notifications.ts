@@ -1,70 +1,56 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
-import {Router} from '@/router/router';
+import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isNotificationRuleUpdate} from '@common/types';
+import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/notifications', async (event) => {
+router.get('/api/notifications', [extractCognitoGroups], async (reqCtx) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
-    const notificationRules = await getNotificationRules({
+    return await getNotificationRules({
         integrationIds: groups,
     });
-
-    return {
-        statusCode: 200,
-        body: JSON.stringify(notificationRules),
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    };
 });
 
-router.post('/api/notifications', async (event) => {
+router.post('/api/notifications', [extractCognitoGroups], async (reqCtx) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const rule = JSON.parse(event.body ?? '{}');
 
     if (!isNotificationRuleUpdate(rule)) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({error: 'Invalid notification rule'}),
+        return new Response(JSON.stringify({error: 'Invalid notification rule'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
             headers: {
                 'Content-Type': 'application/json',
             },
-        };
+        });
     }
 
-    const notificationRule = await postNotificationRule(rule, groups);
-
-    return {
-        statusCode: 200,
-        body: JSON.stringify(notificationRule),
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    };
+    return await postNotificationRule(rule, groups);
 });
 
-router.delete('/api/notifications/{id}', async (event) => {
+router.delete('/api/notifications/:id', [extractCognitoGroups], async (reqCtx) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
-    if (!event.pathParameters?.id) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({error: 'Missing notification rule ID'}),
+    if (!reqCtx.params.id) {
+        return new Response(JSON.stringify({error: 'Missing notification rule ID'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
             headers: {
                 'Content-Type': 'application/json',
             },
-        };
+        });
     }
 
-    const deleted = await deleteNotificationRule(event.pathParameters.id, groups);
+    const deleted = await deleteNotificationRule(reqCtx.params.id, groups);
 
-    return {
-        statusCode: deleted ? 200 : 404,
-        body: JSON.stringify({success: deleted}),
+    return new Response(JSON.stringify({success: deleted}), {
+        status: deleted ? HttpStatusCodes.OK : HttpStatusCodes.NOT_FOUND,
         headers: {
             'Content-Type': 'application/json',
         },
-    };
+    });
 });
 
 export default router;
