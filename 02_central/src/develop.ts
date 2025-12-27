@@ -71,6 +71,9 @@ const context: Context = {
                 version: '2.0',
                 rawPath: url?.split('?')[0] || '',
                 rawQueryString: url?.split('?')[1] || '',
+                queryStringParameters: Object.fromEntries(
+                    (url?.includes('?') ? new URLSearchParams(url.split('?')[1]) : new URLSearchParams()).entries(),
+                ),
             };
 
             const result = await handler(event, context);
