@@ -152,39 +152,6 @@
         selectedJob.value = job;
     };
 
-    // Group jobs by workflow for mobile card view
-    const groupedJobs = computed(() => {
-        const groups = new Map<number, {repository_full_name: string; jobs: Job<WorkflowJobEvent>[]; workflow_name: string; head_branch: string}>();
-
-        for (const job of jobs.value) {
-            const key = job.workflow_event.workflow_job.run_id;
-            if (!groups.has(key))
-                groups.set(key, {
-                    repository_full_name: job.workflow_event.repository.full_name,
-                    jobs: [],
-                    workflow_name: job.workflow_event.workflow_job.workflow_name!,
-                    head_branch: job.workflow_event.workflow_job.head_branch || 'unknown',
-                });
-            groups.get(key)?.jobs.push(job);
-        }
-
-        groups.forEach(({jobs}) => {
-            jobs.sort(
-                (a, b) => new Date(b.workflow_event.workflow_job.created_at).getTime() - new Date(a.workflow_event.workflow_job.created_at).getTime(),
-            );
-        });
-
-        return Array.from(groups.entries())
-            .map(([run_id, {repository_full_name, jobs, workflow_name, head_branch}]) => ({
-                run_id,
-                repository_full_name,
-                jobs,
-                workflow_name,
-                head_branch,
-            }))
-            .reverse();
-    });
-
     onMounted(async () => {
         await initializeStore();
     });
