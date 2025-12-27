@@ -136,13 +136,12 @@ export const useJobsStore = defineStore('jobs', () => {
     };
 
     const initializeStore = async () => {
-        await handleListJobs();
-
         if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
             return;
         }
 
         await connectToIamWebSocket();
+        await handleListJobs();
     };
 
     const isWorkflowJobEvent = (event: WebhookEvent): event is WorkflowJobEvent => {
