@@ -111,6 +111,13 @@ export enum ProjectionType {
   minimal = "minimal",
 }
 
+export type JobsResponse<T> = {
+  items: T[];
+  lastEvaluatedKey?: {
+    [key: string]: any;
+  };
+}[];
+
 export type JobRequestParameters = {
   limit?: number;
   projection?: ProjectionType;

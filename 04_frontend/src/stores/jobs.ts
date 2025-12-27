@@ -1,6 +1,6 @@
 import {useAuth} from '@/composables/useAuth';
 import {Sha256} from '@aws-crypto/sha256-js';
-import {Job, JobRequestParameters, ProjectionType, StreamJobEvent} from '@common/types';
+import {Job, JobRequestParameters, JobsResponse, ProjectionType, StreamJobEvent} from '@common/types';
 import type {WebhookEvent, WorkflowJobEvent} from '@octokit/webhooks-types';
 import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
@@ -14,6 +14,7 @@ export const useJobsStore = defineStore('jobs', () => {
     const uniqueJobs = reactive(new Map<string, Job<WorkflowJobEvent>>());
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
+    const lastEvaluatedKeys = new Map<string, any>();
 
     const jobs = computed(() => {
         return Array.from(uniqueJobs.values());
@@ -100,6 +101,10 @@ export const useJobsStore = defineStore('jobs', () => {
             }
         });
 
+        if (lastEvaluatedKeys.size > 0) {
+            queryParams['exclusiveStartKeys'] = JSON.stringify(Array.from(lastEvaluatedKeys.values()));
+        }
+
         const restOperation = get({
             apiName: 'api',
             path: '/jobs',
@@ -109,12 +114,15 @@ export const useJobsStore = defineStore('jobs', () => {
         });
 
         const {body} = await restOperation.response;
-        const events = (await body.json()) as unknown as Job<WebhookEvent>[];
-        const jobs = events.filter((e): e is Job<WorkflowJobEvent> => isWorkflowJobEvent(e.workflow_event));
+        const events = (await body.json()) as unknown as JobsResponse<Job<WebhookEvent>>;
 
-        isLoading.value = false;
+        events.forEach((event) => {
+            if (event.lastEvaluatedKey) {
+                lastEvaluatedKeys.set(event.items[0].integrationId, event.lastEvaluatedKey);
+            }
+        });
 
-        return jobs;
+        return events.flatMap((event) => event.items).filter((item): item is Job<WorkflowJobEvent> => isWorkflowJobEvent(item.workflow_event));
     };
 
     const handleListJobs = async () => {
@@ -123,6 +131,8 @@ export const useJobsStore = defineStore('jobs', () => {
         response.forEach((job: Job<WorkflowJobEvent>) => {
             uniqueJobs.set(job.id, job);
         });
+
+        isLoading.value = false;
     };
 
     const initializeStore = async () => {
@@ -143,5 +153,6 @@ export const useJobsStore = defineStore('jobs', () => {
         jobs,
         isLoading,
         initializeStore,
+        handleListJobs,
     };
 });

@@ -8,7 +8,7 @@
     import {computed, onMounted, reactive, ref, watch} from 'vue';
 
     const jobsStore = useJobsStore();
-    const {initializeStore} = jobsStore;
+    const {initializeStore, handleListJobs} = jobsStore;
     const {jobs, isLoading} = storeToRefs(jobsStore);
 
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
@@ -167,14 +167,24 @@
             item-key="id"
             class="elevation-1"
             density="compact"
-            :items-per-page="-1"
             hide-default-footer
+            disable-pagination
             v-model:sort-by="sortBy"
             @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
             :loading="isLoading"
         >
-            <template v-slot:loading>
+            <template
+                v-slot:loading
+                v-if="isLoading && filteredJobs.length === 0"
+            >
                 <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
+            </template>
+
+            <template
+                v-slot:[`body.append`]
+                v-if="!isLoading && filteredJobs.length > 0"
+            >
+                <tr v-intersect.quiet="handleListJobs"></tr>
             </template>
 
             <!-- Dynamic header filters for filterable columns -->
