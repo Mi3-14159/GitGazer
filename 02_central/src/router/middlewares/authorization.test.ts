@@ -63,7 +63,7 @@ describe('extractCognitoGroups middleware', () => {
                 authorizer: {
                     jwt: {
                         claims: {
-                            'cognito:groups': '[integrationA integrationB]'
+                            'cognito:groups': '[integrationA integrationB]',
                         },
                     },
                 },
