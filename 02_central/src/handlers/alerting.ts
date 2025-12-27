@@ -85,9 +85,10 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                 filters: {event_type: JobType.WORKFLOW_RUN},
                 limit: 1,
             });
-            const parentRun = workflowRuns.find(
-                (job: Job<Partial<WorkflowJobEvent>>) => job.event_type === JobType.WORKFLOW_RUN && job.id === run_id.toString(),
-            );
+            const parentRun = workflowRuns
+                .map((queryResult) => queryResult.items)
+                .flat()
+                .find((job: Job<Partial<WorkflowJobEvent>>) => job.event_type === JobType.WORKFLOW_RUN && job.id === run_id.toString());
             if (parentRun && 'workflow_run' in parentRun.workflow_event) {
                 workflowRunEvent = (parentRun.workflow_event as WorkflowRunEvent).workflow_run.event || '';
             }
