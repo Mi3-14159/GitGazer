@@ -11,6 +11,19 @@ router.get('/api/jobs', [extractCognitoGroups], async (reqCtx) => {
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const {queryStringParameters} = event;
 
+    try {
+        if (queryStringParameters?.exclusiveStartKeys) {
+            queryStringParameters.exclusiveStartKeys = JSON.parse(queryStringParameters.exclusiveStartKeys || 'null');
+        }
+    } catch (error) {
+        return new Response(JSON.stringify({message: 'Invalid exclusiveStartKeys parameter'}), {
+            status: HttpStatusCodes.BAD_REQUEST,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
+
     if (!isJobRequestParameters(queryStringParameters)) {
         return new Response(JSON.stringify({message: 'Invalid query parameters'}), {
             status: HttpStatusCodes.BAD_REQUEST,
@@ -20,12 +33,13 @@ router.get('/api/jobs', [extractCognitoGroups], async (reqCtx) => {
         });
     }
 
-    const {limit, projection} = queryStringParameters ?? {};
+    const {limit, projection, exclusiveStartKeys} = queryStringParameters ?? {};
 
     const jobs = await getJobs({
         integrationIds: groups,
         limit,
         projection,
+        exclusiveStartKeys,
     });
 
     return new Response(JSON.stringify(jobs), {

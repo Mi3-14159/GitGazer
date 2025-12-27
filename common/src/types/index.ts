@@ -114,6 +114,7 @@ export enum ProjectionType {
 export type JobRequestParameters = {
   limit?: number;
   projection?: ProjectionType;
+  exclusiveStartKeys?: { [key: string]: any }[];
 };
 
 export const isJobRequestParameters = (
@@ -131,6 +132,10 @@ export const isJobRequestParameters = (
     params.projection &&
     !Object.values(ProjectionType).includes(params.projection)
   ) {
+    return false;
+  }
+
+  if (params.exclusiveStartKeys && !Array.isArray(params.exclusiveStartKeys)) {
     return false;
   }
 

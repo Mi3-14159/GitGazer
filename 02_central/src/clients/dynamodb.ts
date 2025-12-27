@@ -36,7 +36,9 @@ if (!integrationsTableName) {
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
+export type QueryResult<T> = {items: T[]; lastEvaluatedKey?: {[key: string]: any}};
+
+const query = async <T>(commands: QueryCommand[]): Promise<QueryResult<T>[]> => {
     const logger = getLogger();
     logger.trace(`Executing DynamoDB query commands`, {commands});
 
@@ -49,11 +51,11 @@ const query = async <T>(commands: QueryCommand[]): Promise<T[]> => {
         logger.error(`query failed: ${rejected.map((r) => r.reason).join(', ')}`, {rejected});
     }
 
-    return fulfilled
-        .map((r) => {
-            return r.value.Items as T[];
-        })
-        .flat();
+    const fulfilledResults = fulfilled.map((r) => {
+        return {items: r.value.Items as T[], lastEvaluatedKey: r.value.LastEvaluatedKey};
+    });
+
+    return fulfilledResults;
 };
 
 export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number; id?: string}): Promise<NotificationRule[]> => {
@@ -73,12 +75,11 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
                 ':integrationId': integrationId,
                 ...(params.id && {':id': params.id}),
             },
-            Limit: params.limit ?? 10,
             IndexName: !params.id ? 'integrationId-index' : undefined,
         });
     });
 
-    return query<NotificationRule>(commands);
+    return query<NotificationRule>(commands).then((results) => results.flatMap((r) => r.items));
 };
 
 export const getJobsBy = async (params: {
@@ -86,7 +87,8 @@ export const getJobsBy = async (params: {
     filters?: {event_type?: JobType};
     limit?: number;
     projection?: ProjectionType;
-}): Promise<Job<Partial<WorkflowJobEvent>>[]> => {
+    exclusiveStartKeys?: {[key: string]: any};
+}): Promise<QueryResult<Job<Partial<WorkflowJobEvent>>>[]> => {
     const logger = getLogger();
     logger.info(`Getting jobs`, {params});
 
@@ -138,6 +140,7 @@ export const getJobsBy = async (params: {
             ScanIndexForward: false,
             ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
             FilterExpression: filterExpressionParts.join(' AND '),
+            ExclusiveStartKey: params.exclusiveStartKeys?.find((k: {[key: string]: any}) => k.integrationId === keys.integrationId),
         });
     });
 
