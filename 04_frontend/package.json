@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "@aws-sdk/protocol-http": "^3.374.0",
-    "@aws-sdk/signature-v4": "^3.374.0",
     "@mdi/font": "^7.4.47",
+    "@smithy/protocol-http": "^5.3.7",
+    "@smithy/signature-v4": "^5.3.7",
     "aws-amplify": "^6.15.9",
     "pinia": "^3.0.4",
     "vue": "^3.5.26",

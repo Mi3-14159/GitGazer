@@ -1,9 +1,9 @@
 import {useAuth} from '@/composables/useAuth';
 import {Sha256} from '@aws-crypto/sha256-js';
-import {HttpRequest} from '@aws-sdk/protocol-http';
-import {SignatureV4} from '@aws-sdk/signature-v4';
 import {Job, JobRequestParameters, ProjectionType, StreamJobEvent} from '@common/types';
 import type {WebhookEvent, WorkflowJobEvent} from '@octokit/webhooks-types';
+import {HttpRequest} from '@smithy/protocol-http';
+import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
 import {computed, reactive, ref} from 'vue';
