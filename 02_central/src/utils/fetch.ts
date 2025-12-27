@@ -71,7 +71,7 @@ const shouldContinueRetrying = (
     isMethodEligible: boolean,
     shouldRetry: RetryPredicate,
 ): boolean => {
-    if (attempt > retries + 1) return false;
+    if (attempt >= retries + 1) return false;
     return isMethodEligible && shouldRetry(error, response);
 };
 
