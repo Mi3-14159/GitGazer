@@ -221,7 +221,6 @@ resource "aws_lambda_function" "api" {
       ATHENA_CATALOG                      = aws_athena_data_catalog.analytics.name
       ATHENA_QUERY_RESULT_S3_BUCKET       = module.athena_query_results_bucket.s3_bucket_id
       ATHENA_WORKGROUP                    = aws_athena_workgroup.analytics.name
-      AAA                                 = uuid()
     }
   }
   layers = local.lambda_layers
