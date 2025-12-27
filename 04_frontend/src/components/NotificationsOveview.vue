@@ -54,11 +54,6 @@
         dialog.value = true;
     };
 
-    const onAddNew = () => {
-        editingRule.value = null;
-        dialog.value = true;
-    };
-
     const parseOptional = (value: string | null | undefined): string => {
         switch (value) {
             case null:
@@ -108,7 +103,7 @@
             />
         </v-dialog>
 
-        <v-data-table
+        <v-data-table-virtual
             :headers="headers"
             :items="notificationRulesArray"
             item-value="id"
@@ -116,6 +111,8 @@
             hide-default-footer
             fixed-header
             :loading="isLoadingNotifications"
+            height="calc(100vh - 64px)"
+            :items-per-page="-1"
         >
             <template v-slot:loading>
                 <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
@@ -209,7 +206,7 @@
                     </template>
                 </v-dialog>
             </template>
-        </v-data-table>
+        </v-data-table-virtual>
     </v-main>
 </template>
 

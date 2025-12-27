@@ -83,7 +83,7 @@
             />
         </v-dialog>
 
-        <v-data-table
+        <v-data-table-virtual
             :headers="headers"
             :items="integrationsArray"
             item-value="id"
@@ -91,6 +91,8 @@
             hide-default-footer
             fixed-header
             :loading="isLoadingIntegrations"
+            height="calc(100vh - 64px)"
+            :items-per-page="-1"
         >
             <template v-slot:top>
                 <v-toolbar flat>
@@ -195,7 +197,7 @@
                     </template>
                 </v-dialog>
             </template>
-        </v-data-table>
+        </v-data-table-virtual>
     </v-main>
 </template>
 
