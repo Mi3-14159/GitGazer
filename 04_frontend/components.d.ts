@@ -12,10 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     BooleanChip: typeof import('./src/components/BooleanChip.vue')['default']
-    ColumnFilter: typeof import('./src/components/ColumnFilter.vue')['default']
     ColumnHeader: typeof import('./src/components/ColumnHeader.vue')['default']
-    Header: typeof import('./src/components/Header.vue')['default']
-    IntegrationCard: typeof import('./src/components/IntegrationCard.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']
     Navigation: typeof import('./src/components/Navigation.vue')['default']
@@ -23,7 +20,6 @@ declare module 'vue' {
     NotificationsOveview: typeof import('./src/components/NotificationsOveview.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    WorkflowCard: typeof import('./src/components/WorkflowCard.vue')['default']
     WorkflowCardDetails: typeof import('./src/components/WorkflowCardDetails.vue')['default']
     WorkflowOverview: typeof import('./src/components/WorkflowOverview.vue')['default']
   }

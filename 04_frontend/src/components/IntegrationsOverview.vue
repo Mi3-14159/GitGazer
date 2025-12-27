@@ -5,7 +5,6 @@
     import {Integration} from '@common/types';
     import {AuthUser} from 'aws-amplify/auth';
     import {computed, onMounted, reactive, ref} from 'vue';
-    import {useDisplay} from 'vuetify';
 
     const {getSession, getUser} = useAuth();
     const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
@@ -13,7 +12,6 @@
     const integrations = reactive(new Map());
     const user = ref<AuthUser>();
     const dialog = ref(false);
-    const {smAndDown} = useDisplay();
     const showSecret = reactive(new Map<string, boolean>());
 
     const handleListIntegrations = async () => {
