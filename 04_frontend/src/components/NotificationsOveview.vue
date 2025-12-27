@@ -1,12 +1,12 @@
 <script setup lang="ts">
-    import {NotificationRule} from '@common/types';
     import BooleanChip from '@/components/BooleanChip.vue';
     import NotificationCard from '@/components/NotificationCard.vue';
     import NotificationDetailsCard from '@/components/NotificationDetailsCard.vue';
-    import {computed, reactive, ref} from 'vue';
-    import {useDisplay} from 'vuetify';
     import {useIntegration} from '@/composables/useIntegration';
     import {useNotification} from '@/composables/useNotification';
+    import {NotificationRule} from '@common/types';
+    import {computed, reactive, ref} from 'vue';
+    import {useDisplay} from 'vuetify';
 
     const notificationRules = reactive(new Map<string, NotificationRule>());
     const integrations = reactive(new Array());
@@ -98,20 +98,8 @@
 
 <template>
     <v-main>
-        <!-- Loading Spinner -->
-        <div
-            v-if="isLoadingNotifications"
-            class="d-flex justify-center align-center"
-            style="min-height: 300px"
-        >
-            <v-progress-circular
-                indeterminate
-                size="30"
-                color="primary"
-            />
-        </div>
         <!-- Desktop Table View -->
-        <div v-else-if="!smAndDown">
+        <div v-if="!smAndDown">
             <v-toolbar flat>
                 <v-toolbar-title>Notifications</v-toolbar-title>
                 <v-spacer></v-spacer>
@@ -143,7 +131,14 @@
                 :items="notificationRulesArray"
                 item-value="id"
                 class="elevation-1"
+                hide-default-footer
+                fixed-header
+                :loading="isLoadingNotifications"
             >
+                <template v-slot:loading>
+                    <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
+                </template>
+
                 <template v-slot:item.integration="{item}">
                     <span class="font-weight-medium">{{ getIntegrationLabel(item.integrationId) }}</span>
                 </template>

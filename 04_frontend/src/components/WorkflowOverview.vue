@@ -195,22 +195,9 @@
 
 <template>
     <v-main>
-        <!-- Loading Spinner - Only show during initial load -->
-        <div
-            v-if="isLoading"
-            class="d-flex justify-center align-center"
-            style="min-height: 300px"
-        >
-            <v-progress-circular
-                indeterminate
-                size="30"
-                color="primary"
-            />
-        </div>
-
         <!-- Desktop Table View -->
-        <div v-else-if="!smAndDown">
-            <v-data-table
+        <div v-if="!smAndDown">
+            <v-data-table-virtual
                 fixed-header
                 height="100vh"
                 :headers="headers"
@@ -222,7 +209,12 @@
                 hide-default-footer
                 v-model:sort-by="sortBy"
                 @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
+                :loading="isLoading"
             >
+                <template v-slot:loading>
+                    <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
+                </template>
+
                 <!-- Dynamic header filters for filterable columns -->
                 <template
                     v-for="column in headers"
@@ -253,7 +245,7 @@
                 </template>
 
                 <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
-            </v-data-table>
+            </v-data-table-virtual>
         </div>
 
         <!-- Mobile Card View -->

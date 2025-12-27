@@ -73,21 +73,8 @@
 
 <template>
     <v-main>
-        <!-- Loading Spinner -->
-        <div
-            v-if="isLoadingIntegrations"
-            class="d-flex justify-center align-center"
-            style="min-height: 300px"
-        >
-            <v-progress-circular
-                indeterminate
-                size="30"
-                color="primary"
-            />
-        </div>
-
         <!-- Desktop Table View -->
-        <div v-else-if="!smAndDown">
+        <div v-if="!smAndDown">
             <v-toolbar flat>
                 <v-toolbar-title>Integrations</v-toolbar-title>
                 <v-spacer></v-spacer>
@@ -116,7 +103,14 @@
                 :items="integrationsArray"
                 item-value="id"
                 class="elevation-1"
+                hide-default-footer
+                fixed-header
+                :loading="isLoadingIntegrations"
             >
+                <template v-slot:loading>
+                    <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
+                </template>
+
                 <template v-slot:item.label="{item}">
                     <span class="font-weight-medium">{{ item.label }}</span>
                 </template>
