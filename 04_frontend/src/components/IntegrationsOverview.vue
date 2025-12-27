@@ -1,5 +1,4 @@
 <script setup lang="ts">
-    import IntegrationCard from '@/components/IntegrationCard.vue';
     import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
     import {useAuth} from '@/composables/useAuth';
     import {useIntegration} from '@/composables/useIntegration';
@@ -73,170 +72,130 @@
 
 <template>
     <v-main>
-        <!-- Desktop Table View -->
-        <div v-if="!smAndDown">
-            <v-dialog
-                v-model="dialog"
-                max-width="600"
-            >
-                <IntegrationDetailsCard
-                    v-if="dialog"
-                    :onClose="() => (dialog = false)"
-                    :onSave="onSave"
-                />
-            </v-dialog>
+        <v-dialog
+            v-model="dialog"
+            max-width="600"
+        >
+            <IntegrationDetailsCard
+                v-if="dialog"
+                :onClose="() => (dialog = false)"
+                :onSave="onSave"
+            />
+        </v-dialog>
 
-            <v-data-table
-                :headers="headers"
-                :items="integrationsArray"
-                item-value="id"
-                class="elevation-1"
-                hide-default-footer
-                fixed-header
-                :loading="isLoadingIntegrations"
-            >
-                <template v-slot:top>
-                    <v-toolbar flat>
-                        <v-toolbar-title>Integrations</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn
-                            class="me-2"
-                            prepend-icon="mdi-plus"
-                            rounded="lg"
-                            text="Add a integration"
-                            @click="dialog = true"
-                        ></v-btn>
-                    </v-toolbar>
-                </template>
+        <v-data-table
+            :headers="headers"
+            :items="integrationsArray"
+            item-value="id"
+            class="elevation-1"
+            hide-default-footer
+            fixed-header
+            :loading="isLoadingIntegrations"
+        >
+            <template v-slot:top>
+                <v-toolbar flat>
+                    <v-toolbar-title>Integrations</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn
+                        class="me-2"
+                        prepend-icon="mdi-plus"
+                        rounded="lg"
+                        text="Add a integration"
+                        @click="dialog = true"
+                    ></v-btn>
+                </v-toolbar>
+            </template>
 
-                <template v-slot:loading>
-                    <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
-                </template>
+            <template v-slot:loading>
+                <v-skeleton-loader type="table-row@5"></v-skeleton-loader>
+            </template>
 
-                <template v-slot:item.label="{item}">
-                    <span class="font-weight-medium">{{ item.label }}</span>
-                </template>
+            <template v-slot:item.label="{item}">
+                <span class="font-weight-medium">{{ item.label }}</span>
+            </template>
 
-                <template v-slot:item.webhookUrl="{item}">
-                    <a
-                        :href="getIntegrationUrl(item.id)"
-                        target="_blank"
-                        class="text-decoration-none"
-                    >
-                        {{ getIntegrationUrl(item.id) }}
-                    </a>
-                </template>
-
-                <template v-slot:item.secret="{item}">
-                    <div class="d-flex align-center">
-                        <span class="secret-container">
-                            <Transition
-                                name="fade"
-                                mode="out-in"
-                            >
-                                <span
-                                    v-if="showSecret.get(item.id)"
-                                    key="visible"
-                                >
-                                    {{ item.secret }}
-                                </span>
-                                <span
-                                    v-else
-                                    key="hidden"
-                                >
-                                    ••••••••••••••••
-                                </span>
-                            </Transition>
-                        </span>
-                        <v-btn
-                            variant="text"
-                            density="compact"
-                            @click="toggleSecret(item.id)"
-                            class="ml-2"
-                            :color="showSecret.get(item.id) ? 'warning' : undefined"
-                            :icon="showSecret.get(item.id) ? 'mdi-eye-off' : 'mdi-eye'"
-                        ></v-btn>
-                    </div>
-                </template>
-
-                <template v-slot:item.owner="{item}">{{ getOwnerAnnotation(item.owner) }}</template>
-
-                <template v-slot:item.actions="{item}">
-                    <v-dialog max-width="500">
-                        <template v-slot:activator="{props: activatorProps}">
-                            <v-btn
-                                v-bind="activatorProps"
-                                color="error"
-                                variant="text"
-                                icon="mdi-delete"
-                                density="compact"
-                            ></v-btn>
-                        </template>
-
-                        <template v-slot:default="{isActive}">
-                            <v-card>
-                                <v-card-title>Delete Integration</v-card-title>
-                                <v-card-text>
-                                    Do you really want to delete this integration? This is irreversible and will break your current import jobs!
-                                </v-card-text>
-                                <v-card-actions>
-                                    <v-spacer></v-spacer>
-                                    <v-btn
-                                        text="Cancel"
-                                        @click="isActive.value = false"
-                                    ></v-btn>
-                                    <v-btn
-                                        text="Yes, delete"
-                                        color="error"
-                                        @click="
-                                            handleDeleteIntegration(item.id);
-                                            isActive.value = false;
-                                        "
-                                    ></v-btn>
-                                </v-card-actions>
-                            </v-card>
-                        </template>
-                    </v-dialog>
-                </template>
-            </v-data-table>
-        </div>
-
-        <!-- Mobile Card View -->
-        <div v-else>
-            <v-row
-                align="start"
-                v-for="[key, integration] in integrations"
-                :key="key"
-                no-gutters
-            >
-                <IntegrationCard
-                    :integration="integration"
-                    :currentUserSub="user?.userId || ''"
-                    :onDelete="handleDeleteIntegration"
-                />
-            </v-row>
-
-            <v-bottom-navigation :elevation="0">
-                <v-dialog
-                    v-model="dialog"
-                    max-width="600"
+            <template v-slot:item.webhookUrl="{item}">
+                <a
+                    :href="getIntegrationUrl(item.id)"
+                    target="_blank"
+                    class="text-decoration-none"
                 >
+                    {{ getIntegrationUrl(item.id) }}
+                </a>
+            </template>
+
+            <template v-slot:item.secret="{item}">
+                <div class="d-flex align-center">
+                    <span class="secret-container">
+                        <Transition
+                            name="fade"
+                            mode="out-in"
+                        >
+                            <span
+                                v-if="showSecret.get(item.id)"
+                                key="visible"
+                            >
+                                {{ item.secret }}
+                            </span>
+                            <span
+                                v-else
+                                key="hidden"
+                            >
+                                ••••••••••••••••
+                            </span>
+                        </Transition>
+                    </span>
+                    <v-btn
+                        variant="text"
+                        density="compact"
+                        @click="toggleSecret(item.id)"
+                        class="ml-2"
+                        :color="showSecret.get(item.id) ? 'warning' : undefined"
+                        :icon="showSecret.get(item.id) ? 'mdi-eye-off' : 'mdi-eye'"
+                    ></v-btn>
+                </div>
+            </template>
+
+            <template v-slot:item.owner="{item}">{{ getOwnerAnnotation(item.owner) }}</template>
+
+            <template v-slot:item.actions="{item}">
+                <v-dialog max-width="500">
                     <template v-slot:activator="{props: activatorProps}">
                         <v-btn
-                            prepend-icon="mdi-plus"
-                            text="Add Integration"
-                            color="primary"
                             v-bind="activatorProps"
+                            color="error"
+                            variant="text"
+                            icon="mdi-delete"
+                            density="compact"
                         ></v-btn>
                     </template>
-                    <IntegrationDetailsCard
-                        v-if="dialog"
-                        :onClose="() => (dialog = false)"
-                        :onSave="onSave"
-                    />
+
+                    <template v-slot:default="{isActive}">
+                        <v-card>
+                            <v-card-title>Delete Integration</v-card-title>
+                            <v-card-text>
+                                Do you really want to delete this integration? This is irreversible and will break your current import jobs!
+                            </v-card-text>
+                            <v-card-actions>
+                                <v-spacer></v-spacer>
+                                <v-btn
+                                    text="Cancel"
+                                    @click="isActive.value = false"
+                                ></v-btn>
+                                <v-btn
+                                    text="Yes, delete"
+                                    color="error"
+                                    @click="
+                                        handleDeleteIntegration(item.id);
+                                        isActive.value = false;
+                                    "
+                                ></v-btn>
+                            </v-card-actions>
+                        </v-card>
+                    </template>
                 </v-dialog>
-            </v-bottom-navigation>
-        </div>
+            </template>
+        </v-data-table>
     </v-main>
 </template>
 

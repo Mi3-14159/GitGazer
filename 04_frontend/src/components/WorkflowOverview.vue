@@ -1,19 +1,16 @@
 <script setup lang="ts">
     import ColumnHeader from '@/components/ColumnHeader.vue';
-    import WorkflowCard from '@/components/WorkflowCard.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
     import {Job} from '@common/types';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, reactive, ref, watch} from 'vue';
-    import {useDisplay} from 'vuetify';
 
     const jobsStore = useJobsStore();
     const {initializeStore} = jobsStore;
     const {jobs, isLoading} = storeToRefs(jobsStore);
 
-    const {smAndDown} = useDisplay();
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
     const uniqueValuesCache = reactive(new Map<string, Set<string>>());
 
@@ -195,75 +192,55 @@
 
 <template>
     <v-main>
-        <!-- Desktop Table View -->
-        <div v-if="!smAndDown">
-            <v-data-table-virtual
-                fixed-header
-                height="100vh"
-                :headers="headers"
-                :items="filteredJobs"
-                item-key="id"
-                class="elevation-1"
-                density="compact"
-                :items-per-page="-1"
-                hide-default-footer
-                v-model:sort-by="sortBy"
-                @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
-                :loading="isLoading"
+        <v-data-table-virtual
+            fixed-header
+            height="100vh"
+            :headers="headers"
+            :items="filteredJobs"
+            item-key="id"
+            class="elevation-1"
+            density="compact"
+            :items-per-page="-1"
+            hide-default-footer
+            v-model:sort-by="sortBy"
+            @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
+            :loading="isLoading"
+        >
+            <template v-slot:loading>
+                <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
+            </template>
+
+            <!-- Dynamic header filters for filterable columns -->
+            <template
+                v-for="column in headers"
+                :key="`header-${column.key}`"
+                #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, isSorted}"
             >
-                <template v-slot:loading>
-                    <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
-                </template>
-
-                <!-- Dynamic header filters for filterable columns -->
-                <template
-                    v-for="column in headers"
-                    :key="`header-${column.key}`"
-                    #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, isSorted}"
-                >
-                    <ColumnHeader
-                        :title="headerColumn.title || column.title"
-                        :available-values="Array.from(uniqueValuesCache.get(column.key) ?? [])"
-                        :hidden-values="columnFilters[column.key]"
-                        :sortable="column.sortable"
-                        :sort-icon="getSortIcon(headerColumn)"
-                        :is-sorted="isSorted(headerColumn)"
-                        @toggle-filter="toggleFilter(column.key, $event)"
-                        @clear-filter="clearColumnFilter(column.key)"
-                        @select-only="selectOnlyFilter(column.key, $event)"
-                        @toggle-sort="toggleSort(headerColumn)"
-                    />
-                </template>
-
-                <template v-slot:item.status="{value}">
-                    <v-chip
-                        :color="getJobStatusColor(value)"
-                        size="small"
-                        variant="flat"
-                        :text="value"
-                    ></v-chip>
-                </template>
-
-                <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
-            </v-data-table-virtual>
-        </div>
-
-        <!-- Mobile Card View -->
-        <div v-else>
-            <v-row
-                align="start"
-                v-for="job in groupedJobs"
-                :key="job.run_id"
-                no-gutters
-            >
-                <WorkflowCard
-                    :run_id="job.run_id"
-                    :repository_full_name="job.repository_full_name"
-                    :workflow_name="job.workflow_name"
-                    :jobs="job.jobs"
+                <ColumnHeader
+                    :title="headerColumn.title || column.title"
+                    :available-values="Array.from(uniqueValuesCache.get(column.key) ?? [])"
+                    :hidden-values="columnFilters[column.key]"
+                    :sortable="column.sortable"
+                    :sort-icon="getSortIcon(headerColumn)"
+                    :is-sorted="isSorted(headerColumn)"
+                    @toggle-filter="toggleFilter(column.key, $event)"
+                    @clear-filter="clearColumnFilter(column.key)"
+                    @select-only="selectOnlyFilter(column.key, $event)"
+                    @toggle-sort="toggleSort(headerColumn)"
                 />
-            </v-row>
-        </div>
+            </template>
+
+            <template v-slot:item.status="{value}">
+                <v-chip
+                    :color="getJobStatusColor(value)"
+                    size="small"
+                    variant="flat"
+                    :text="value"
+                ></v-chip>
+            </template>
+
+            <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
+        </v-data-table-virtual>
 
         <!-- Job Details Dialog -->
         <WorkflowCardDetails

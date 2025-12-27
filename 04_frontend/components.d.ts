@@ -19,7 +19,6 @@ declare module 'vue' {
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']
     Navigation: typeof import('./src/components/Navigation.vue')['default']
-    NotificationCard: typeof import('./src/components/NotificationCard.vue')['default']
     NotificationDetailsCard: typeof import('./src/components/NotificationDetailsCard.vue')['default']
     NotificationsOveview: typeof import('./src/components/NotificationsOveview.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
