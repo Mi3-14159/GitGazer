@@ -139,7 +139,7 @@ export const getJobsBy = async (params: {
             IndexName: !keys.id ? 'newest_integration_index' : undefined,
             ScanIndexForward: false,
             ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
-            FilterExpression: filterExpressionParts.join(' AND '),
+            FilterExpression: filterExpressionParts.length ? filterExpressionParts.join(' AND ') : undefined,
             ExclusiveStartKey: params.exclusiveStartKeys?.find((k: {[key: string]: any}) => k.integrationId === keys.integrationId),
         });
     });
