@@ -169,7 +169,7 @@
             density="compact"
             hide-default-footer
             disable-pagination
-            v-model:sort-by="sortBy"
+            :sort-by="sortBy"
             @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
             :loading="isLoading"
         >
