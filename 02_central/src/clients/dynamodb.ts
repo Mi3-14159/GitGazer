@@ -119,7 +119,7 @@ export const getJobsBy = async (params: {
             }
         });
 
-        Object.entries(params.filters ?? {event_type: JobType.WORKFLOW_JOB}).forEach(([key, value]) => {
+        Object.entries(params.filters ?? {}).forEach(([key, value]) => {
             expressionAttributeValues[`:${key}`] = value;
             filterExpressionParts.push(`${key} = :${key}`);
         });
