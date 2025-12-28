@@ -5,7 +5,7 @@
     import {Job} from '@common/types';
     import type {WorkflowJobEvent} from '@octokit/webhooks-types';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, reactive, ref, watch} from 'vue';
+    import {computed, defineComponent, inject, onMounted, reactive, ref, watch, type InjectionKey, type Ref} from 'vue';
 
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs} = jobsStore;
@@ -14,58 +14,90 @@
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
     const uniqueValuesCache = reactive(new Map<string, Set<string>>());
 
+    type WorkflowRow = Job<WorkflowJobEvent> & {
+        full_name: string;
+        run_id: number;
+        workflow_name: string;
+        name: string;
+        head_branch: string;
+        status: string;
+        created_at: string;
+    };
+
+    const toRow = (job: Job<WorkflowJobEvent>): WorkflowRow => {
+        const status = job.workflow_event?.workflow_job?.conclusion || job.workflow_event?.workflow_job?.status || 'unknown';
+
+        return {
+            ...job,
+            full_name: job.workflow_event.repository.full_name || 'unknown',
+            run_id: job.workflow_event.workflow_job.run_id ?? -1,
+            workflow_name: job.workflow_event.workflow_job.workflow_name || 'unknown',
+            name: job.workflow_event.workflow_job.name || 'unknown',
+            head_branch: job.workflow_event.workflow_job.head_branch || 'unknown',
+            status,
+            created_at: job.created_at,
+        };
+    };
+
+    const allRows = computed(() => jobs.value.map(toRow));
+
     // Table headers for desktop view
     const headers = [
+        // Override default title of the grouping control column
+        {title: '', key: 'data-table-group', sortable: false},
         {
             title: 'Repository',
             key: 'full_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.repository.full_name,
+            value: (item: WorkflowRow) => item.full_name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Workflow',
             key: 'workflow_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.workflow_name,
+            value: (item: WorkflowRow) => item.workflow_name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Job name',
             key: 'name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name,
+            value: (item: WorkflowRow) => item.name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Branch',
             key: 'head_branch',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.head_branch,
+            value: (item: WorkflowRow) => item.head_branch,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Status',
             key: 'status',
-            value: (item: Job<WorkflowJobEvent>) =>
-                item.workflow_event?.workflow_job?.conclusion || item.workflow_event?.workflow_job?.status || 'unknown',
+            value: (item: WorkflowRow) => item.status,
             filterableColumn: true,
             sortable: true,
         },
-        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false, sortable: true},
+        {title: 'Created', key: 'created_at', value: (item: WorkflowRow) => item.created_at, filterableColumn: false, sortable: true},
     ];
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
+    const groupBy = ref([{key: 'run_id', order: 'desc' as const}]);
 
-    const filterableColumns = headers.filter((header) => header.filterableColumn);
+    const filterableColumns = headers.filter(
+        (header): header is (typeof headers)[number] & {value: (item: WorkflowRow) => string} =>
+            !!header.filterableColumn && typeof header.value === 'function',
+    );
 
     watch(
-        jobs,
-        (newJobs) => {
+        allRows,
+        (newRows) => {
             filterableColumns.forEach((column) => {
                 const values = new Set<string>();
-                for (const job of newJobs) {
-                    values.add((column.value(job) as string) || 'unknown');
+                for (const row of newRows) {
+                    values.add((column.value(row) as string) || 'unknown');
                 }
                 uniqueValuesCache.set(column.key, values);
             });
@@ -80,17 +112,77 @@
     );
 
     // Filter jobs based on column filters
-    const filteredJobs = computed(() => {
-        return jobs.value.filter((job) => {
+    const filteredRows = computed(() => {
+        return allRows.value.filter((row) => {
             // Check each filterable column
             return filterableColumns.every((column) => {
                 const filterSet = columnFilters[column.key];
                 if (!filterSet) return true;
 
-                const value = (column.value(job) as string) || 'unknown';
+                const value = (column.value(row) as string) || 'unknown';
                 return !filterSet.has(value);
             });
         });
+    });
+
+    const findFirstGroupRow = (group: any): any | null => {
+        const items: any[] = Array.isArray(group?.items) ? group.items : [];
+        for (const item of items) {
+            if (!item) continue;
+            if (item.type === 'group') {
+                const nested = findFirstGroupRow(item);
+                if (nested) return nested;
+                continue;
+            }
+            if (item.type === 'group-summary') continue;
+            return item;
+        }
+        return null;
+    };
+
+    const getGroupRepoWorkflow = (group: any): {repository: string; workflow: string} => {
+        const first = findFirstGroupRow(group);
+        const raw = (first?.raw ?? first?.item?.raw ?? first) as Partial<WorkflowRow> | undefined;
+
+        return {
+            repository: (raw?.full_name as string) || 'unknown',
+            workflow: (raw?.workflow_name as string) || 'unknown',
+        };
+    };
+
+    type VDataTableGroupContext = {
+        opened: Ref<Set<string>>;
+    };
+
+    const VDataTableGroupSymbol = Symbol.for('vuetify:data-table-group') as InjectionKey<VDataTableGroupContext>;
+
+    const AutoExpandGroups = defineComponent({
+        name: 'AutoExpandGroups',
+        props: {
+            groupIds: {
+                type: Array as unknown as () => string[],
+                required: true,
+            },
+        },
+        setup(props) {
+            const group = inject(VDataTableGroupSymbol, null);
+
+            const maybeOpenAll = () => {
+                if (!group) return;
+                if (group.opened.value.size > 0) return;
+                if (props.groupIds.length === 0) return;
+                group.opened.value = new Set(props.groupIds);
+            };
+
+            onMounted(maybeOpenAll);
+            watch(
+                () => props.groupIds,
+                () => maybeOpenAll(),
+                {immediate: true},
+            );
+
+            return () => null;
+        },
     });
 
     // Toggle filter for a column value
@@ -152,6 +244,11 @@
         selectedJob.value = job;
     };
 
+    const onRowClick = (_: any, row: any) => {
+        const item = (row?.item?.raw ?? row?.item) as WorkflowRow | undefined;
+        if (item) viewJob(item);
+    };
+
     onMounted(async () => {
         await initializeStore();
     });
@@ -163,26 +260,50 @@
             fixed-header
             height="100vh"
             :headers="headers"
-            :items="filteredJobs"
-            item-key="id"
+            :items="filteredRows"
+            item-value="id"
             class="elevation-1"
             density="compact"
             hide-default-footer
             disable-pagination
             :sort-by="sortBy"
-            @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
+            :group-by="groupBy"
+            @click:row="onRowClick"
             :loading="isLoading"
         >
+            <template v-slot:group-header="{item, columns, toggleGroup, isGroupOpen}">
+                <tr
+                    class="group-header"
+                    @click="toggleGroup(item)"
+                >
+                    <td :colspan="columns.length">
+                        <span class="mr-2">
+                            <v-icon
+                                size="small"
+                                :icon="isGroupOpen(item) ? '$tableGroupCollapse' : '$tableGroupExpand'"
+                            />
+                        </span>
+                        <span class="font-weight-medium">{{ getGroupRepoWorkflow(item).repository }}</span>
+                        <span class="mx-2">/</span>
+                        <span>{{ getGroupRepoWorkflow(item).workflow }}</span>
+                    </td>
+                </tr>
+            </template>
+
+            <template v-slot:top>
+                <AutoExpandGroups :group-ids="filteredRows.map((row) => `root_run_id_${row.run_id}`)" />
+            </template>
+
             <template
                 v-slot:loading
-                v-if="isLoading && filteredJobs.length === 0"
+                v-if="isLoading && filteredRows.length === 0"
             >
                 <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
             </template>
 
             <template
                 v-slot:[`body.append`]
-                v-if="!isLoading && filteredJobs.length > 0"
+                v-if="!isLoading && filteredRows.length > 0"
             >
                 <tr v-intersect.quiet="handleListJobs"></tr>
             </template>
