@@ -1,13 +1,12 @@
 import {getJobsBy, QueryResult} from '@/clients/dynamodb';
-import {Job, ProjectionType} from '@common/types';
-import {WorkflowJobEvent} from '@octokit/webhooks-types';
+import {Job, ProjectionType, WorkflowEvent} from '@common/types';
 
 export const getJobs = async (params: {
     integrationIds: string[];
     limit?: number;
     projection?: ProjectionType;
     exclusiveStartKeys?: {[key: string]: any}[];
-}): Promise<QueryResult<Job<Partial<WorkflowJobEvent>>>[]> => {
+}): Promise<QueryResult<Job<Partial<WorkflowEvent<any>>>>[]> => {
     const {integrationIds, limit, projection, exclusiveStartKeys} = params;
     if (integrationIds.length === 0) {
         return [];

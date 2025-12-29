@@ -11,8 +11,7 @@ import {
 
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
-import {Integration, Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType} from '@common/types';
-import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import {Integration, Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType, WorkflowEvent} from '@common/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
@@ -82,13 +81,13 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
     return query<NotificationRule>(commands).then((results) => results.flatMap((r) => r.items));
 };
 
-export const getJobsBy = async (params: {
+export const getJobsBy = async <T extends JobType>(params: {
     keys: {integrationId: string; id?: string}[];
-    filters?: {event_type?: JobType};
+    filters?: {event_type?: T};
     limit?: number;
     projection?: ProjectionType;
     exclusiveStartKeys?: {[key: string]: any};
-}): Promise<QueryResult<Job<Partial<WorkflowJobEvent>>>[]> => {
+}): Promise<QueryResult<Job<Partial<WorkflowEvent<T>>>>[]> => {
     const logger = getLogger();
     logger.info(`Getting jobs`, {params});
 
@@ -105,6 +104,11 @@ export const getJobsBy = async (params: {
         'workflow_event.workflow_job.conclusion',
         'workflow_event.workflow_job.run_id',
         'workflow_event.workflow_job.id',
+        'workflow_event.workflow_run.#name',
+        'workflow_event.workflow_run.head_branch',
+        'workflow_event.workflow_run.#status',
+        'workflow_event.workflow_run.conclusion',
+        'workflow_event.workflow_run.id',
     ];
 
     const commands = params.keys.map((keys) => {
@@ -144,7 +148,7 @@ export const getJobsBy = async (params: {
         });
     });
 
-    return query<Job<Partial<WorkflowJobEvent>>>(commands);
+    return query<Job<Partial<WorkflowEvent<T>>>>(commands);
 };
 
 export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
@@ -203,7 +207,7 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
     await client.send(command);
 };
 
-export const putJob = async <T extends WorkflowJobEvent | WorkflowRunEvent>(job: Job<T>): Promise<Job<T>> => {
+export const putJob = async <T extends WorkflowEvent<any>>(job: Job<T>): Promise<Job<T>> => {
     const logger = getLogger();
     logger.info('Putting job', {
         id: job.id,

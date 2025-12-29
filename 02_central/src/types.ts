@@ -1,4 +1,4 @@
-import {WebhookEvent, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import {WebhookEvent, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
 import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
 
 export const isWorkflowJobEvent = (event: WebhookEvent): event is WorkflowJobEvent => {

@@ -1,8 +1,7 @@
 import {getLogger} from '@/logger';
 import {FirehoseClient, PutRecordBatchCommand} from '@aws-sdk/client-firehose';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
-import {Job} from '@common/types';
-import {WorkflowJobEvent} from '@octokit/webhooks-types';
+import {Job, WorkflowJobEvent} from '@common/types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
 const firehoseStreamName = process.env.FIREHOSE_STREAM_NAME;

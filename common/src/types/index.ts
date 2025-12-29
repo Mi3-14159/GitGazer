@@ -1,3 +1,10 @@
+import type {
+  WorkflowJobEvent,
+  WorkflowRunEvent,
+} from "@octokit/webhooks-types";
+
+export type * from "@octokit/webhooks-types";
+
 export type NotificationRule = {
   integrationId: string;
   id?: string;
@@ -97,6 +104,12 @@ export enum JobType {
   WORKFLOW_JOB = "workflow_job",
   WORKFLOW_RUN = "workflow_run",
 }
+
+export type WorkflowEvent<T extends JobType> = T extends JobType.WORKFLOW_JOB
+  ? WorkflowJobEvent
+  : T extends JobType.WORKFLOW_RUN
+  ? WorkflowRunEvent
+  : never;
 
 export type Job<Subtype> = {
   integrationId: string;

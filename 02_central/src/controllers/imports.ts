@@ -7,8 +7,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {Job, JobType, StreamJobEvent, StreamJobEventType} from '@common/types';
-import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import {Job, JobType, StreamJobEvent, StreamJobEventType, WorkflowEvent} from '@common/types';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;
 const expireInSec = parseInt(expireInSecString ?? '') || undefined;
@@ -28,7 +27,7 @@ const apiClient = new ApiGatewayManagementApiClient({
     endpoint: `https://${websocketApiDomain}/${stage}`,
 });
 
-export async function createWorkflow<T extends WorkflowJobEvent | WorkflowRunEvent>(integrationId: string, event: T): Promise<Job<T>> {
+export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId: string, event: T): Promise<Job<T>> {
     let job: Job<T>;
     if (isWorkflowJobEvent(event)) {
         job = {
@@ -59,7 +58,7 @@ export async function createWorkflow<T extends WorkflowJobEvent | WorkflowRunEve
     return response;
 }
 
-const postToConnections = async <T extends WorkflowJobEvent | WorkflowRunEvent>(params: StreamJobEvent<T>) => {
+const postToConnections = async <T extends WorkflowEvent<any>>(params: StreamJobEvent<T>) => {
     const logger = getLogger();
     const connections = await getConnections(params.payload.integrationId);
 

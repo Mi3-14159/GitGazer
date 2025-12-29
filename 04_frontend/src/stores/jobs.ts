@@ -1,7 +1,15 @@
 import {useAuth} from '@/composables/useAuth';
 import {Sha256} from '@aws-crypto/sha256-js';
-import {Job, JobRequestParameters, JobsResponse, ProjectionType, StreamJobEvent} from '@common/types';
-import type {WebhookEvent, WorkflowJobEvent} from '@octokit/webhooks-types';
+import {
+    Job,
+    JobRequestParameters,
+    JobsResponse,
+    ProjectionType,
+    StreamJobEvent,
+    WebhookEvent,
+    WorkflowJobEvent,
+    WorkflowRunEvent,
+} from '@common/types';
 import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
@@ -12,6 +20,7 @@ export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
     const uniqueJobs = reactive(new Map<string, Job<WorkflowJobEvent>>());
+    const workflowRunsById = reactive(new Map<string, Job<WorkflowRunEvent>>());
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
@@ -19,6 +28,10 @@ export const useJobsStore = defineStore('jobs', () => {
     const jobs = computed(() => {
         return Array.from(uniqueJobs.values());
     });
+
+    const getWorkflowRun = (runId: string | number): Job<WorkflowRunEvent> | undefined => {
+        return workflowRunsById.get(String(runId));
+    };
 
     const connectToIamWebSocket = async () => {
         // Get AWS credentials from Cognito Identity Pool
@@ -68,6 +81,11 @@ export const useJobsStore = defineStore('jobs', () => {
             if (isWorkflowJobEvent(gitgazerEvent.payload.workflow_event)) {
                 const workflowJobEvent = gitgazerEvent.payload as Job<WorkflowJobEvent>;
                 uniqueJobs.set(workflowJobEvent.id, workflowJobEvent);
+                return;
+            }
+            if (isWorkflowRunEvent(gitgazerEvent.payload.workflow_event)) {
+                const workflowRunEvent = gitgazerEvent.payload as Job<WorkflowRunEvent>;
+                workflowRunsById.set(String(workflowRunEvent.id), workflowRunEvent);
             }
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
@@ -122,14 +140,20 @@ export const useJobsStore = defineStore('jobs', () => {
             }
         });
 
-        return events.flatMap((event) => event.items).filter((item): item is Job<WorkflowJobEvent> => isWorkflowJobEvent(item.workflow_event));
+        return events.flatMap((event) => event.items);
     };
 
     const handleListJobs = async () => {
         const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
-        response.forEach((job: Job<WorkflowJobEvent>) => {
-            uniqueJobs.set(job.id, job);
+        response.forEach((job) => {
+            if (isWorkflowJobEvent(job.workflow_event)) {
+                uniqueJobs.set(job.id, job as Job<WorkflowJobEvent>);
+                return;
+            }
+            if (isWorkflowRunEvent(job.workflow_event)) {
+                workflowRunsById.set(String(job.id), job as Job<WorkflowRunEvent>);
+            }
         });
 
         isLoading.value = false;
@@ -148,9 +172,14 @@ export const useJobsStore = defineStore('jobs', () => {
         return (event as WorkflowJobEvent).workflow_job !== undefined && (event as WorkflowJobEvent).workflow_job.id !== undefined;
     };
 
+    const isWorkflowRunEvent = (event: WebhookEvent): event is WorkflowRunEvent => {
+        return (event as WorkflowRunEvent).workflow_run !== undefined && (event as WorkflowRunEvent).workflow_run.id !== undefined;
+    };
+
     return {
         jobs,
         isLoading,
+        getWorkflowRun,
         initializeStore,
         handleListJobs,
     };

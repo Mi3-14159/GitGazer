@@ -1,0 +1,15 @@
+{
+  "author": "",
+  "description": "",
+  "devDependencies": {
+    "@octokit/webhooks-types": "^7.6.1"
+  },
+  "keywords": [],
+  "main": "index.js",
+  "name": "common",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "commonjs",
+  "version": "1.0.0"
+}

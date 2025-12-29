@@ -2,13 +2,12 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
-    import {Job} from '@common/types';
-    import type {WorkflowJobEvent} from '@octokit/webhooks-types';
+    import {Job, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {computed, defineComponent, inject, onMounted, reactive, ref, watch, type InjectionKey, type Ref} from 'vue';
 
     const jobsStore = useJobsStore();
-    const {initializeStore, handleListJobs} = jobsStore;
+    const {initializeStore, handleListJobs, getWorkflowRun} = jobsStore;
     const {jobs, isLoading} = storeToRefs(jobsStore);
 
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
@@ -125,28 +124,49 @@
         });
     });
 
-    const findFirstGroupRow = (group: any): any | null => {
-        const items: any[] = Array.isArray(group?.items) ? group.items : [];
-        for (const item of items) {
-            if (!item) continue;
-            if (item.type === 'group') {
-                const nested = findFirstGroupRow(item);
-                if (nested) return nested;
-                continue;
-            }
-            if (item.type === 'group-summary') continue;
-            return item;
-        }
-        return null;
-    };
+    const getGroupRepoWorkflow = (
+        group: any,
+    ): {repository: string; workflow: string; run_status: string; head_branch: string; created_at: string} => {
+        const runId = (group?.value ?? group?.key) as number | string | undefined;
 
-    const getGroupRepoWorkflow = (group: any): {repository: string; workflow: string} => {
-        const first = findFirstGroupRow(group);
-        const raw = (first?.raw ?? first?.item?.raw ?? first) as Partial<WorkflowRow> | undefined;
+        if (runId !== undefined) {
+            const runJob = getWorkflowRun(runId) as Job<Partial<WorkflowRunEvent>> | undefined;
+            const repoFromRun = runJob?.workflow_event?.repository?.full_name as string | undefined;
+            const workflowFromRun = (runJob?.workflow_event as any)?.workflow_run?.name as string | undefined;
+            const runStatusFromRun =
+                ((runJob?.workflow_event as any)?.workflow_run?.conclusion as string | undefined) ||
+                ((runJob?.workflow_event as any)?.workflow_run?.status as string | undefined);
+            const branchFromRun = (runJob?.workflow_event as any)?.workflow_run?.head_branch as string | undefined;
+            const createdAtFromRun = (runJob?.workflow_event as any)?.workflow_run?.created_at as string | undefined;
+
+            if (repoFromRun || workflowFromRun || runStatusFromRun || branchFromRun || createdAtFromRun) {
+                return {
+                    repository: repoFromRun || 'unknown',
+                    workflow: workflowFromRun || 'unknown',
+                    run_status: runStatusFromRun || 'unknown',
+                    head_branch: branchFromRun || 'unknown',
+                    created_at: createdAtFromRun || 'unknown',
+                };
+            }
+
+            const fallbackRow = allRows.value.find((row) => String(row.run_id) === String(runId));
+            if (fallbackRow) {
+                return {
+                    repository: fallbackRow.full_name || 'unknown',
+                    workflow: fallbackRow.workflow_name || 'unknown',
+                    run_status: fallbackRow.status || 'unknown',
+                    head_branch: fallbackRow.head_branch || 'unknown',
+                    created_at: fallbackRow.created_at || 'unknown',
+                };
+            }
+        }
 
         return {
-            repository: (raw?.full_name as string) || 'unknown',
-            workflow: (raw?.workflow_name as string) || 'unknown',
+            repository: 'unknown',
+            workflow: 'unknown',
+            run_status: 'unknown',
+            head_branch: 'unknown',
+            created_at: 'unknown',
         };
     };
 
@@ -276,16 +296,45 @@
                     class="group-header"
                     @click="toggleGroup(item)"
                 >
-                    <td :colspan="columns.length">
-                        <span class="mr-2">
-                            <v-icon
-                                size="small"
-                                :icon="isGroupOpen(item) ? '$tableGroupCollapse' : '$tableGroupExpand'"
+                    <td
+                        v-for="(column, idx) in columns"
+                        :key="column.key ?? idx"
+                    >
+                        <template v-if="column.key === 'data-table-group'">
+                            <span class="mr-2">
+                                <v-icon
+                                    size="small"
+                                    :icon="isGroupOpen(item) ? '$tableGroupCollapse' : '$tableGroupExpand'"
+                                />
+                            </span>
+                        </template>
+
+                        <template v-else-if="column.key === 'full_name'">
+                            <span class="font-weight-medium">{{ getGroupRepoWorkflow(item).repository }}</span>
+                        </template>
+
+                        <template v-else-if="column.key === 'workflow_name'">
+                            <span>{{ getGroupRepoWorkflow(item).workflow }}</span>
+                        </template>
+
+                        <template v-else-if="column.key === 'head_branch'">
+                            <span>{{ getGroupRepoWorkflow(item).head_branch }}</span>
+                        </template>
+
+                        <template v-else-if="column.key === 'status'">
+                            <v-chip
+                                :color="getJobStatusColor(getGroupRepoWorkflow(item).run_status)"
+                                size="x-small"
+                                variant="flat"
+                                :text="getGroupRepoWorkflow(item).run_status"
                             />
-                        </span>
-                        <span class="font-weight-medium">{{ getGroupRepoWorkflow(item).repository }}</span>
-                        <span class="mx-2">/</span>
-                        <span>{{ getGroupRepoWorkflow(item).workflow }}</span>
+                        </template>
+
+                        <template v-else-if="column.key === 'created_at'">
+                            <span v-if="getGroupRepoWorkflow(item).created_at !== 'unknown'">
+                                {{ new Date(getGroupRepoWorkflow(item).created_at).toLocaleString() }}
+                            </span>
+                        </template>
                     </td>
                 </tr>
             </template>
@@ -350,8 +399,8 @@
 
 <style scoped>
     .group-header {
-        background-color: #f5f5f5;
-        border-bottom: 2px solid #e0e0e0;
+        background-color: transparent;
+        border-bottom: none;
     }
 
     .group-header td {
@@ -374,7 +423,7 @@
         transition: background-color 0.2s ease;
     }
 
-    :deep(.v-data-table tbody tr:hover) {
+    :deep(.v-data-table tbody tr:not(.group-header):hover) {
         background-color: rgba(0, 0, 0, 0.08) !important;
     }
 
