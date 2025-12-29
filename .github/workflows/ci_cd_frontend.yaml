@@ -46,6 +46,10 @@ jobs:
           cache: "npm"
           cache-dependency-path: ./04_frontend/package-lock.json
 
+      - name: Install common package dependencies
+        working-directory: common
+        run: npm ci
+
       - name: Install dependencies
         run: npm ci
 
