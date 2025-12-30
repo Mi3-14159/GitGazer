@@ -292,10 +292,7 @@
             :loading="isLoading"
         >
             <template v-slot:group-header="{item, columns, toggleGroup, isGroupOpen}">
-                <tr
-                    class="group-header"
-                    @click="toggleGroup(item)"
-                >
+                <tr @click="toggleGroup(item)">
                     <td
                         v-for="(column, idx) in columns"
                         :key="column.key ?? idx"
@@ -398,16 +395,6 @@
 </template>
 
 <style scoped>
-    .group-header {
-        background-color: transparent;
-        border-bottom: none;
-    }
-
-    .group-header td {
-        font-weight: 600;
-        color: #424242;
-    }
-
     .clickable-row {
         cursor: pointer;
         transition: background-color 0.2s ease;
@@ -423,7 +410,7 @@
         transition: background-color 0.2s ease;
     }
 
-    :deep(.v-data-table tbody tr:not(.group-header):hover) {
+    :deep(.v-data-table tbody tr:hover) {
         background-color: rgba(0, 0, 0, 0.08) !important;
     }
 
