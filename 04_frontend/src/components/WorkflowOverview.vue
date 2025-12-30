@@ -126,7 +126,7 @@
 
     const getGroupRepoWorkflow = (
         group: any,
-    ): {repository: string; workflow: string; run_status: string; head_branch: string; created_at: string} => {
+    ): {repository: string; workflow: string; run_status: string; head_branch: string; created_at: string; conclusion: string} => {
         const runId = (group?.value ?? group?.key) as number | string | undefined;
 
         if (runId !== undefined) {
@@ -137,7 +137,8 @@
                 ((runJob?.workflow_event as any)?.workflow_run?.conclusion as string | undefined) ||
                 ((runJob?.workflow_event as any)?.workflow_run?.status as string | undefined);
             const branchFromRun = (runJob?.workflow_event as any)?.workflow_run?.head_branch as string | undefined;
-            const createdAtFromRun = (runJob?.workflow_event as any)?.workflow_run?.created_at as string | undefined;
+            const createdAtFromRun = runJob?.created_at;
+            const conclusionFromRun = (runJob?.workflow_event as any)?.workflow_run?.conclusion as string | undefined;
 
             if (repoFromRun || workflowFromRun || runStatusFromRun || branchFromRun || createdAtFromRun) {
                 return {
@@ -146,6 +147,7 @@
                     run_status: runStatusFromRun || 'unknown',
                     head_branch: branchFromRun || 'unknown',
                     created_at: createdAtFromRun || 'unknown',
+                    conclusion: conclusionFromRun || 'unknown',
                 };
             }
 
@@ -157,6 +159,7 @@
                     run_status: fallbackRow.status || 'unknown',
                     head_branch: fallbackRow.head_branch || 'unknown',
                     created_at: fallbackRow.created_at || 'unknown',
+                    conclusion: 'unknown',
                 };
             }
         }
@@ -167,6 +170,7 @@
             run_status: 'unknown',
             head_branch: 'unknown',
             created_at: 'unknown',
+            conclusion: 'unknown',
         };
     };
 
