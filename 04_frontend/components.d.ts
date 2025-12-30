@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AutoExpandGroups: typeof import('./src/components/AutoExpandGroups.vue')['default']
     BooleanChip: typeof import('./src/components/BooleanChip.vue')['default']
     ColumnHeader: typeof import('./src/components/ColumnHeader.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']

@@ -1,17 +1,19 @@
 <script setup lang="ts">
+    import AutoExpandGroups from '@/components/AutoExpandGroups.vue';
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
     import {Job, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
-    import {computed, defineComponent, inject, onMounted, reactive, ref, watch, type InjectionKey, type Ref} from 'vue';
+    import {computed, onMounted, reactive, ref} from 'vue';
 
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs, getWorkflowRun} = jobsStore;
     const {jobs, isLoading} = storeToRefs(jobsStore);
 
+    const UNKNOWN = 'unknown';
+
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
-    const uniqueValuesCache = reactive(new Map<string, Set<string>>());
 
     type WorkflowRow = Job<WorkflowJobEvent> & {
         full_name: string;
@@ -24,15 +26,15 @@
     };
 
     const toRow = (job: Job<WorkflowJobEvent>): WorkflowRow => {
-        const status = job.workflow_event?.workflow_job?.conclusion || job.workflow_event?.workflow_job?.status || 'unknown';
+        const status = job.workflow_event?.workflow_job?.conclusion || job.workflow_event?.workflow_job?.status || UNKNOWN;
 
         return {
             ...job,
-            full_name: job.workflow_event.repository.full_name || 'unknown',
+            full_name: job.workflow_event.repository.full_name || UNKNOWN,
             run_id: job.workflow_event.workflow_job.run_id ?? -1,
-            workflow_name: job.workflow_event.workflow_job.workflow_name || 'unknown',
-            name: job.workflow_event.workflow_job.name || 'unknown',
-            head_branch: job.workflow_event.workflow_job.head_branch || 'unknown',
+            workflow_name: job.workflow_event.workflow_job.workflow_name || UNKNOWN,
+            name: job.workflow_event.workflow_job.name || UNKNOWN,
+            head_branch: job.workflow_event.workflow_job.head_branch || UNKNOWN,
             status,
             created_at: job.created_at,
         };
@@ -85,23 +87,16 @@
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
     const groupBy = ref([{key: 'run_id', order: 'desc' as const}]);
 
-    const filterableColumns = headers.filter(
-        (header): header is (typeof headers)[number] & {value: (item: WorkflowRow) => string} =>
-            !!header.filterableColumn && typeof header.value === 'function',
-    );
+    const filterableColumns = headers.filter((h: any) => h?.filterableColumn && typeof h.value === 'function') as any[];
 
-    watch(
-        allRows,
-        (newRows) => {
-            filterableColumns.forEach((column) => {
-                const values = new Set<string>();
-                for (const row of newRows) {
-                    values.add((column.value(row) as string) || 'unknown');
-                }
-                uniqueValuesCache.set(column.key, values);
-            });
-        },
-        {immediate: true},
+    const uniqueValuesByColumn = computed(
+        () =>
+            Object.fromEntries(
+                filterableColumns.map((column) => {
+                    const values = new Set<string>(allRows.value.map((row) => String(column.value(row) ?? UNKNOWN)));
+                    return [column.key, Array.from(values).sort()];
+                }),
+            ) as Record<string, string[]>,
     );
 
     // Dynamically generate filter state for each filterable column
@@ -112,102 +107,25 @@
 
     // Filter jobs based on column filters
     const filteredRows = computed(() => {
-        return allRows.value.filter((row) => {
-            // Check each filterable column
-            return filterableColumns.every((column) => {
+        return allRows.value.filter((row) =>
+            filterableColumns.every((column) => {
                 const filterSet = columnFilters[column.key];
                 if (!filterSet) return true;
-
-                const value = (column.value(row) as string) || 'unknown';
-                return !filterSet.has(value);
-            });
-        });
+                return !filterSet.has(String(column.value(row) ?? UNKNOWN));
+            }),
+        );
     });
 
-    const getGroupRepoWorkflow = (
-        group: any,
-    ): {repository: string; workflow: string; run_status: string; head_branch: string; created_at: string; conclusion: string} => {
-        const runId = (group?.value ?? group?.key) as number | string | undefined;
-
-        if (runId !== undefined) {
-            const runJob = getWorkflowRun(runId) as Job<Partial<WorkflowRunEvent>> | undefined;
-            const repoFromRun = runJob?.workflow_event?.repository?.full_name as string | undefined;
-            const workflowFromRun = (runJob?.workflow_event as any)?.workflow_run?.name as string | undefined;
-            const runStatusFromRun =
-                ((runJob?.workflow_event as any)?.workflow_run?.conclusion as string | undefined) ||
-                ((runJob?.workflow_event as any)?.workflow_run?.status as string | undefined);
-            const branchFromRun = (runJob?.workflow_event as any)?.workflow_run?.head_branch as string | undefined;
-            const createdAtFromRun = runJob?.created_at;
-            const conclusionFromRun = (runJob?.workflow_event as any)?.workflow_run?.conclusion as string | undefined;
-
-            if (repoFromRun || workflowFromRun || runStatusFromRun || branchFromRun || createdAtFromRun) {
-                return {
-                    repository: repoFromRun || 'unknown',
-                    workflow: workflowFromRun || 'unknown',
-                    run_status: runStatusFromRun || 'unknown',
-                    head_branch: branchFromRun || 'unknown',
-                    created_at: createdAtFromRun || 'unknown',
-                    conclusion: conclusionFromRun || 'unknown',
-                };
-            }
-
-            const fallbackRow = allRows.value.find((row) => String(row.run_id) === String(runId));
-            if (fallbackRow) {
-                return {
-                    repository: fallbackRow.full_name || 'unknown',
-                    workflow: fallbackRow.workflow_name || 'unknown',
-                    run_status: fallbackRow.status || 'unknown',
-                    head_branch: fallbackRow.head_branch || 'unknown',
-                    created_at: fallbackRow.created_at || 'unknown',
-                    conclusion: 'unknown',
-                };
-            }
-        }
-
-        return {
-            repository: 'unknown',
-            workflow: 'unknown',
-            run_status: 'unknown',
-            head_branch: 'unknown',
-            created_at: 'unknown',
-            conclusion: 'unknown',
-        };
+    const getGroupRunJob = (group: any): Job<WorkflowRunEvent> | undefined => {
+        const runId = group?.value ?? group?.key;
+        if (runId === undefined || runId === null) return undefined;
+        return getWorkflowRun(runId);
     };
 
-    type VDataTableGroupContext = {
-        opened: Ref<Set<string>>;
+    const getGroupRunStatus = (group: any) => {
+        const run = getGroupRunJob(group)?.workflow_event.workflow_run;
+        return run?.conclusion || run?.status || UNKNOWN;
     };
-
-    const VDataTableGroupSymbol = Symbol.for('vuetify:data-table-group') as InjectionKey<VDataTableGroupContext>;
-
-    const AutoExpandGroups = defineComponent({
-        name: 'AutoExpandGroups',
-        props: {
-            groupIds: {
-                type: Array as unknown as () => string[],
-                required: true,
-            },
-        },
-        setup(props) {
-            const group = inject(VDataTableGroupSymbol, null);
-
-            const maybeOpenAll = () => {
-                if (!group) return;
-                if (group.opened.value.size > 0) return;
-                if (props.groupIds.length === 0) return;
-                group.opened.value = new Set(props.groupIds);
-            };
-
-            onMounted(maybeOpenAll);
-            watch(
-                () => props.groupIds,
-                () => maybeOpenAll(),
-                {immediate: true},
-            );
-
-            return () => null;
-        },
-    });
 
     // Toggle filter for a column value
     const toggleFilter = (column: string, value: string) => {
@@ -234,7 +152,7 @@
         const filterSet = columnFilters[column];
         if (!filterSet) return;
 
-        const allValues = uniqueValuesCache.get(column);
+        const allValues = uniqueValuesByColumn.value[column];
         if (!allValues) return;
 
         // Clear and add all values except the selected one
@@ -264,13 +182,9 @@
         }
     };
 
-    const viewJob = (job: Job<WorkflowJobEvent>) => {
-        selectedJob.value = job;
-    };
-
     const onRowClick = (_: any, row: any) => {
         const item = (row?.item?.raw ?? row?.item) as WorkflowRow | undefined;
-        if (item) viewJob(item);
+        if (item) selectedJob.value = item;
     };
 
     onMounted(async () => {
@@ -302,7 +216,7 @@
                         :key="column.key ?? idx"
                     >
                         <template v-if="column.key === 'data-table-group'">
-                            <span class="mr-2">
+                            <span>
                                 <v-icon
                                     size="small"
                                     :icon="isGroupOpen(item) ? '$tableGroupCollapse' : '$tableGroupExpand'"
@@ -311,29 +225,29 @@
                         </template>
 
                         <template v-else-if="column.key === 'full_name'">
-                            <span class="font-weight-medium">{{ getGroupRepoWorkflow(item).repository }}</span>
+                            <span>{{ getGroupRunJob(item)?.workflow_event.repository.full_name }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'workflow_name'">
-                            <span>{{ getGroupRepoWorkflow(item).workflow }}</span>
+                            <span>{{ getGroupRunJob(item)?.workflow_event.workflow_run.name }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'head_branch'">
-                            <span>{{ getGroupRepoWorkflow(item).head_branch }}</span>
+                            <span>{{ getGroupRunJob(item)?.workflow_event.workflow_run.head_branch }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'status'">
                             <v-chip
-                                :color="getJobStatusColor(getGroupRepoWorkflow(item).run_status)"
+                                :color="getJobStatusColor(getGroupRunStatus(item))"
                                 size="x-small"
                                 variant="flat"
-                                :text="getGroupRepoWorkflow(item).run_status"
+                                :text="getGroupRunStatus(item)"
                             />
                         </template>
 
                         <template v-else-if="column.key === 'created_at'">
-                            <span v-if="getGroupRepoWorkflow(item).created_at !== 'unknown'">
-                                {{ new Date(getGroupRepoWorkflow(item).created_at).toLocaleString() }}
+                            <span v-if="getGroupRunJob(item)?.created_at">
+                                {{ new Date(getGroupRunJob(item)?.created_at as string).toLocaleString() }}
                             </span>
                         </template>
                     </td>
@@ -366,7 +280,7 @@
             >
                 <ColumnHeader
                     :title="headerColumn.title || column.title"
-                    :available-values="Array.from(uniqueValuesCache.get(column.key) ?? [])"
+                    :available-values="uniqueValuesByColumn[column.key] ?? []"
                     :hidden-values="columnFilters[column.key]"
                     :sortable="column.sortable"
                     :sort-icon="getSortIcon(headerColumn)"
@@ -399,15 +313,6 @@
 </template>
 
 <style scoped>
-    .clickable-row {
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .clickable-row:hover {
-        background-color: rgba(0, 0, 0, 0.08);
-    }
-
     /* Make data table rows clickable */
     :deep(.v-data-table tbody tr) {
         cursor: pointer;
