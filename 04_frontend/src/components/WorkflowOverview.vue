@@ -3,7 +3,7 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
-    import {Job, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
+    import {Job, WorkflowJobEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, reactive, ref} from 'vue';
 
@@ -11,36 +11,14 @@
     const {initializeStore, handleListJobs, getWorkflowRun} = jobsStore;
     const {jobs, isLoading} = storeToRefs(jobsStore);
 
-    const UNKNOWN = 'unknown';
-
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
 
-    type WorkflowRow = Job<WorkflowJobEvent> & {
-        full_name: string;
-        run_id: number;
-        workflow_name: string;
-        name: string;
-        head_branch: string;
-        status: string;
-        created_at: string;
-    };
-
-    const toRow = (job: Job<WorkflowJobEvent>): WorkflowRow => {
-        const status = job.workflow_event?.workflow_job?.conclusion || job.workflow_event?.workflow_job?.status || UNKNOWN;
-
-        return {
+    const rows = computed(() =>
+        jobs.value.map((job) => ({
             ...job,
-            full_name: job.workflow_event.repository.full_name || UNKNOWN,
             run_id: job.workflow_event.workflow_job.run_id ?? -1,
-            workflow_name: job.workflow_event.workflow_job.workflow_name || UNKNOWN,
-            name: job.workflow_event.workflow_job.name || UNKNOWN,
-            head_branch: job.workflow_event.workflow_job.head_branch || UNKNOWN,
-            status,
-            created_at: job.created_at,
-        };
-    };
-
-    const allRows = computed(() => jobs.value.map(toRow));
+        })),
+    );
 
     // Table headers for desktop view
     const headers = [
@@ -49,39 +27,39 @@
         {
             title: 'Repository',
             key: 'full_name',
-            value: (item: WorkflowRow) => item.full_name,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.repository.full_name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Workflow',
             key: 'workflow_name',
-            value: (item: WorkflowRow) => item.workflow_name,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.workflow_name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Job name',
             key: 'name',
-            value: (item: WorkflowRow) => item.name,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Branch',
             key: 'head_branch',
-            value: (item: WorkflowRow) => item.head_branch,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.head_branch,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Status',
             key: 'status',
-            value: (item: WorkflowRow) => item.status,
+            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.conclusion || item.workflow_event.workflow_job.status,
             filterableColumn: true,
             sortable: true,
         },
-        {title: 'Created', key: 'created_at', value: (item: WorkflowRow) => item.created_at, filterableColumn: false, sortable: true},
+        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false, sortable: true},
     ];
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
@@ -93,7 +71,7 @@
         () =>
             Object.fromEntries(
                 filterableColumns.map((column) => {
-                    const values = new Set<string>(allRows.value.map((row) => String(column.value(row) ?? UNKNOWN)));
+                    const values = new Set<string>(rows.value.map((row) => String(column.value(row))));
                     return [column.key, Array.from(values).sort()];
                 }),
             ) as Record<string, string[]>,
@@ -107,24 +85,18 @@
 
     // Filter jobs based on column filters
     const filteredRows = computed(() => {
-        return allRows.value.filter((row) =>
+        return rows.value.filter((row) =>
             filterableColumns.every((column) => {
                 const filterSet = columnFilters[column.key];
                 if (!filterSet) return true;
-                return !filterSet.has(String(column.value(row) ?? UNKNOWN));
+                return !filterSet.has(String(column.value(row)));
             }),
         );
     });
 
-    const getGroupRunJob = (group: any): Job<WorkflowRunEvent> | undefined => {
-        const runId = group?.value ?? group?.key;
-        if (runId === undefined || runId === null) return undefined;
-        return getWorkflowRun(runId);
-    };
-
     const getGroupRunStatus = (group: any) => {
-        const run = getGroupRunJob(group)?.workflow_event.workflow_run;
-        return run?.conclusion || run?.status || UNKNOWN;
+        const run = getWorkflowRun(group.value)?.workflow_event.workflow_run;
+        return run.conclusion || run.status;
     };
 
     // Toggle filter for a column value
@@ -183,7 +155,7 @@
     };
 
     const onRowClick = (_: any, row: any) => {
-        const item = (row?.item?.raw ?? row?.item) as WorkflowRow | undefined;
+        const item = (row?.item?.raw ?? row?.item) as Job<WorkflowJobEvent> | undefined;
         if (item) selectedJob.value = item;
     };
 
@@ -225,15 +197,15 @@
                         </template>
 
                         <template v-else-if="column.key === 'full_name'">
-                            <span>{{ getGroupRunJob(item)?.workflow_event.repository.full_name }}</span>
+                            <span>{{ getWorkflowRun(item.value).workflow_event.repository.full_name }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'workflow_name'">
-                            <span>{{ getGroupRunJob(item)?.workflow_event.workflow_run.name }}</span>
+                            <span>{{ getWorkflowRun(item.value).workflow_event.workflow_run.name }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'head_branch'">
-                            <span>{{ getGroupRunJob(item)?.workflow_event.workflow_run.head_branch }}</span>
+                            <span>{{ getWorkflowRun(item.value).workflow_event.workflow_run.head_branch }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'status'">
@@ -246,8 +218,8 @@
                         </template>
 
                         <template v-else-if="column.key === 'created_at'">
-                            <span v-if="getGroupRunJob(item)?.created_at">
-                                {{ new Date(getGroupRunJob(item)?.created_at as string).toLocaleString() }}
+                            <span v-if="getWorkflowRun(item.value).created_at">
+                                {{ new Date(getWorkflowRun(item.value).created_at).toLocaleString() }}
                             </span>
                         </template>
                     </td>

@@ -29,8 +29,12 @@ export const useJobsStore = defineStore('jobs', () => {
         return Array.from(uniqueJobs.values());
     });
 
-    const getWorkflowRun = (runId: string | number): Job<WorkflowRunEvent> | undefined => {
-        return workflowRunsById.get(String(runId));
+    const getWorkflowRun = (runId: string | number): Job<WorkflowRunEvent> => {
+        const run = workflowRunsById.get(String(runId));
+        if (!run) {
+            throw new Error(`Workflow run with ID ${runId} not found`);
+        }
+        return run;
     };
 
     const connectToIamWebSocket = async () => {
