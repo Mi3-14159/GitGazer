@@ -79,6 +79,7 @@ const createFirehoseItem = (event: Job<WorkflowJobEvent>): string => {
     const item = {
         integration_id: event.integrationId,
         id: event.id,
+        created_at: event.created_at,
         completed_at: event.workflow_event.workflow_job.completed_at,
         owner: event.workflow_event.repository.owner.login,
         repo: event.workflow_event.repository.name,
@@ -88,6 +89,7 @@ const createFirehoseItem = (event: Job<WorkflowJobEvent>): string => {
         conclusion: event.workflow_event.workflow_job.conclusion,
         sender: event.workflow_event.sender.login,
         branch: event.workflow_event.workflow_job.head_branch,
+        event_type: event.event_type,
     };
 
     return JSON.stringify(item) + '\n';
