@@ -3,22 +3,30 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
-    import {Job, WorkflowJobEvent} from '@common/types';
+    import {Job, WorkflowEvent, WorkflowJobEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, reactive, ref} from 'vue';
 
     const jobsStore = useJobsStore();
-    const {initializeStore, handleListJobs, getWorkflowRun} = jobsStore;
-    const {jobs, isLoading} = storeToRefs(jobsStore);
+    const {initializeStore, handleListJobs} = jobsStore;
+    const {workflows, isLoading} = storeToRefs(jobsStore);
 
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
 
-    const rows = computed(() =>
-        jobs.value.map((job) => ({
-            ...job,
-            run_id: job.workflow_event.workflow_job.run_id ?? -1,
-        })),
-    );
+    const rows = computed(() => {
+        const flattenedJobs: (Job<WorkflowJobEvent> & {run_id: string})[] = [];
+        for (const group of workflows.value.values()) {
+            for (const job of group.jobs.values()) {
+                flattenedJobs.push({
+                    ...job,
+                    run_id: group.run.id,
+                });
+            }
+        }
+        return flattenedJobs;
+    });
+
+    const getWorkflowRun = (runId: any) => workflows.value.get(String(runId))!.run;
 
     // Table headers for desktop view
     const headers = [
@@ -27,39 +35,58 @@
         {
             title: 'Repository',
             key: 'full_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.repository.full_name,
+            value: (workflow: Job<WorkflowEvent<any>>) => workflow.workflow_event.repository.full_name,
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Workflow',
             key: 'workflow_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.workflow_name,
+            value: (workflow: Job<WorkflowEvent<any>>) => {
+                const event = workflow.workflow_event;
+                return 'workflow_job' in event ? event.workflow_job.workflow_name : event.workflow_run.name;
+            },
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Job name',
             key: 'name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name,
+            value: (workflow: Job<WorkflowEvent<any>>) => {
+                const event = workflow.workflow_event;
+                return 'workflow_job' in event ? event.workflow_job.name : '';
+            },
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Branch',
             key: 'head_branch',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.head_branch,
+            value: (workflow: Job<WorkflowEvent<any>>) => {
+                const event = workflow.workflow_event;
+                return 'workflow_job' in event ? event.workflow_job.head_branch : event.workflow_run.head_branch;
+            },
             filterableColumn: true,
             sortable: true,
         },
         {
             title: 'Status',
             key: 'status',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.conclusion || item.workflow_event.workflow_job.status,
+            value: (workflow: Job<WorkflowEvent<any>>) => {
+                const event = workflow.workflow_event;
+                const run = 'workflow_job' in event ? event.workflow_job : event.workflow_run;
+                return run.conclusion || run.status;
+            },
             filterableColumn: true,
             sortable: true,
         },
-        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false, sortable: true},
+        {
+            title: 'Created',
+            key: 'created_at',
+            value: (workflow: Job<WorkflowEvent<any>>) => workflow.created_at,
+            filterableColumn: false,
+            sortable: true,
+        },
     ];
 
     const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
@@ -190,7 +217,7 @@
                         <template v-if="column.key === 'data-table-group'">
                             <span>
                                 <v-icon
-                                    size="small"
+                                    size="x-small"
                                     :icon="isGroupOpen(item) ? '$tableGroupCollapse' : '$tableGroupExpand'"
                                 />
                             </span>

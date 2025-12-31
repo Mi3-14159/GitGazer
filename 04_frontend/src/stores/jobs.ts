@@ -4,6 +4,7 @@ import {
     Job,
     JobRequestParameters,
     JobsResponse,
+    JobType,
     ProjectionType,
     StreamJobEvent,
     WebhookEvent,
@@ -14,28 +15,20 @@ import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
-import {computed, reactive, ref} from 'vue';
+import {reactive, ref} from 'vue';
+
+type WorkflowGroup = {
+    run: Job<WorkflowRunEvent>;
+    jobs: Map<string, Job<WorkflowJobEvent>>;
+};
 
 export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
-    const uniqueJobs = reactive(new Map<string, Job<WorkflowJobEvent>>());
-    const workflowRunsById = reactive(new Map<string, Job<WorkflowRunEvent>>());
+    const workflows = reactive(new Map<string, WorkflowGroup>());
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
-
-    const jobs = computed(() => {
-        return Array.from(uniqueJobs.values());
-    });
-
-    const getWorkflowRun = (runId: string | number): Job<WorkflowRunEvent> => {
-        const run = workflowRunsById.get(String(runId));
-        if (!run) {
-            throw new Error(`Workflow run with ID ${runId} not found`);
-        }
-        return run;
-    };
 
     const connectToIamWebSocket = async () => {
         // Get AWS credentials from Cognito Identity Pool
@@ -82,15 +75,7 @@ export const useJobsStore = defineStore('jobs', () => {
         ws.onopen = () => console.info('WebSocket connected');
         ws.onmessage = (event) => {
             const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WebhookEvent>;
-            if (isWorkflowJobEvent(gitgazerEvent.payload.workflow_event)) {
-                const workflowJobEvent = gitgazerEvent.payload as Job<WorkflowJobEvent>;
-                uniqueJobs.set(workflowJobEvent.id, workflowJobEvent);
-                return;
-            }
-            if (isWorkflowRunEvent(gitgazerEvent.payload.workflow_event)) {
-                const workflowRunEvent = gitgazerEvent.payload as Job<WorkflowRunEvent>;
-                workflowRunsById.set(String(workflowRunEvent.id), workflowRunEvent);
-            }
+            handleWorkflow(gitgazerEvent.payload);
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
         ws.onclose = (event) => {
@@ -150,17 +135,43 @@ export const useJobsStore = defineStore('jobs', () => {
     const handleListJobs = async () => {
         const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
-        response.forEach((job) => {
-            if (isWorkflowJobEvent(job.workflow_event)) {
-                uniqueJobs.set(job.id, job as Job<WorkflowJobEvent>);
-                return;
-            }
-            if (isWorkflowRunEvent(job.workflow_event)) {
-                workflowRunsById.set(String(job.id), job as Job<WorkflowRunEvent>);
-            }
+        response.forEach((workflow) => {
+            handleWorkflow(workflow);
         });
 
         isLoading.value = false;
+    };
+
+    const handleWorkflow = (workflow: Job<WebhookEvent>) => {
+        if (isWorkflowJobEvent(workflow.workflow_event)) {
+            if (!workflows.has(String(workflow.workflow_event.workflow_job.run_id))) {
+                workflows.set(String(workflow.workflow_event.workflow_job.run_id), {
+                    run: {
+                        id: String(workflow.workflow_event.workflow_job.run_id),
+                        integrationId: workflow.integrationId,
+                        event_type: JobType.WORKFLOW_RUN,
+                    } as Job<WorkflowRunEvent>,
+                    jobs: new Map<string, Job<WorkflowJobEvent>>([[workflow.id, workflow as Job<WorkflowJobEvent>]]),
+                });
+            } else {
+                const existingGroup = workflows.get(String(workflow.workflow_event.workflow_job.run_id));
+                if (existingGroup) {
+                    existingGroup.jobs.set(workflow.id, workflow as Job<WorkflowJobEvent>);
+                }
+            }
+        } else if (isWorkflowRunEvent(workflow.workflow_event)) {
+            if (!workflows.has(String(workflow.id))) {
+                workflows.set(String(workflow.id), {
+                    run: workflow as Job<WorkflowRunEvent>,
+                    jobs: new Map<string, Job<WorkflowJobEvent>>(),
+                });
+            } else {
+                const existingGroup = workflows.get(String(workflow.id));
+                if (existingGroup) {
+                    existingGroup.run = workflow as Job<WorkflowRunEvent>;
+                }
+            }
+        }
     };
 
     const initializeStore = async () => {
@@ -181,9 +192,8 @@ export const useJobsStore = defineStore('jobs', () => {
     };
 
     return {
-        jobs,
+        workflows,
         isLoading,
-        getWorkflowRun,
         initializeStore,
         handleListJobs,
     };
