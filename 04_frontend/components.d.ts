@@ -24,7 +24,5 @@ declare module 'vue' {
     VirtualTable: typeof import('./src/components/VirtualTable.vue')['default']
     WorkflowCardDetails: typeof import('./src/components/WorkflowCardDetails.vue')['default']
     WorkflowOverview: typeof import('./src/components/WorkflowOverview.vue')['default']
-    WorkflowOverview_new: typeof import('./src/components/WorkflowOverview_new.vue')['default']
-    WorkflowTable: typeof import('./src/components/WorkflowTable.vue')['default']
   }
 }
