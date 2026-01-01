@@ -7,7 +7,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {Job, JobType, StreamJobEvent, StreamJobEventType, WorkflowEvent} from '@common/types';
+import {Job, JobType, StreamJobEvent, WorkflowEvent} from '@common/types';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;
 const expireInSec = parseInt(expireInSecString ?? '') || undefined;
@@ -52,9 +52,7 @@ export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId
     }
 
     const response = await putJob(job);
-    if (isWorkflowJobEvent(event)) {
-        await postToConnections({eventType: StreamJobEventType.JOB, payload: job});
-    }
+    await postToConnections({eventType: job.event_type, payload: job});
     return response;
 }
 
