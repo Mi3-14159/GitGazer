@@ -17,24 +17,28 @@
             scope: 'group',
             width: '2fr',
             value: (item: any) => item.run?.workflow_event?.repository.full_name,
+            filterable: true,
         },
         {
             name: 'Workflow',
             scope: 'group',
             width: '2fr',
             value: (item: any) => item.run?.workflow_event?.workflow_run.name,
+            filterable: true,
         },
         {
             name: 'Job Name',
             scope: 'row',
             width: '2fr',
             value: (item: any) => item.workflow_event?.workflow_job.name,
+            filterable: false,
         },
         {
             name: 'Branch',
             scope: 'group',
             width: '1.5fr',
             value: (item: any) => item.run?.workflow_event?.workflow_run.head_branch,
+            filterable: true,
         },
         {
             name: 'Status',
@@ -44,6 +48,7 @@
                 item.run
                     ? item.run.workflow_event?.workflow_run.conclusion || item.run.workflow_event?.workflow_run.status
                     : item.workflow_event?.workflow_job.conclusion || item.workflow_event?.workflow_job.status,
+            filterable: true,
         },
         {
             name: 'Created',

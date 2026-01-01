@@ -1,13 +1,15 @@
 <script setup lang="ts" generic="T">
+    import ColumnHeader from '@/components/ColumnHeader.vue';
     import {WorkflowGroup} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
-    import {computed, ref} from 'vue';
+    import {computed, ref, watch} from 'vue';
 
     export interface HeaderColumn<T = any> {
         name: string;
         scope: 'group' | 'row' | 'both';
         width?: string;
         value: (item: T) => any;
+        filterable?: boolean;
     }
 
     const props = withDefaults(
@@ -34,6 +36,7 @@
             scope: 'both',
             width: '0.1fr',
             value: () => '',
+            filterable: false,
         };
         return [firstCol, ...props.headerConfig];
     });
@@ -83,6 +86,78 @@
             return expandedGroups.value.has(id);
         }
     };
+
+    /*  Filtering Logic */
+    const filterableColumns = columns.value.filter((column) => column.filterable);
+    const uniqueValuesCache = ref(new Map<string, Set<any>>());
+
+    // Dynamically generate filter state for each filterable column
+    // Empty set means all items are selected (visible)
+    const columnFilters = ref(Object.fromEntries(filterableColumns.map((column) => [column.name, new Set<string>()])) as Record<string, Set<string>>);
+
+    watch(
+        () => props.items,
+        (newItems) => {
+            filterableColumns.forEach((column) => {
+                const values = new Set<any>();
+                for (const item of newItems) {
+                    values.add(column.value(item));
+                }
+                uniqueValuesCache.value.set(column.name, values);
+            });
+        },
+        {immediate: true},
+    );
+
+    // Filter jobs based on column filters
+    const filteredItems = computed(() => {
+        return props.items.filter((item) => {
+            return filterableColumns.every((column) => {
+                const filterSet = columnFilters.value[column.name];
+                if (!filterSet) return true;
+
+                const value = column.value(item);
+                return !filterSet.has(value);
+            });
+        });
+    });
+
+    // Toggle filter for a column value
+    const toggleFilter = (column: string, value: string) => {
+        const filterSet = columnFilters.value[column];
+        if (!filterSet) return;
+
+        if (filterSet.has(value)) {
+            filterSet.delete(value);
+        } else {
+            filterSet.add(value);
+        }
+    };
+
+    // Clear all filters for a column
+    const clearColumnFilter = (column: string) => {
+        const filterSet = columnFilters.value[column];
+        if (filterSet) {
+            filterSet.clear();
+        }
+    };
+
+    // Select only one value for a column (hide all others)
+    const selectOnlyFilter = (column: string, value: string) => {
+        const filterSet = columnFilters.value[column];
+        if (!filterSet) return;
+
+        const allValues = uniqueValuesCache.value.get(column);
+        if (!allValues) return;
+
+        // Clear and add all values except the selected one
+        filterSet.clear();
+        allValues.forEach((v) => {
+            if (v !== value) {
+                filterSet.add(v);
+            }
+        });
+    };
 </script>
 
 <template>
@@ -93,14 +168,18 @@
             :style="gridStyle"
         >
             <slot name="header">
-                <template v-if="columns.length">
-                    <div
-                        v-for="(col, index) in columns"
-                        :key="index"
-                        class="header-cell"
-                    >
-                        {{ col.name }}
-                    </div>
+                <template
+                    v-for="column in columns"
+                    :key="`header-${column.name}`"
+                >
+                    <ColumnHeader
+                        :title="column.name"
+                        :available-values="Array.from(uniqueValuesCache.get(column.name) ?? [])"
+                        :hidden-values="columnFilters[column.name]"
+                        @toggle-filter="toggleFilter(column.name, $event)"
+                        @clear-filter="clearColumnFilter(column.name)"
+                        @select-only="selectOnlyFilter(column.name, $event)"
+                    />
                 </template>
             </slot>
             <v-progress-linear
@@ -115,7 +194,7 @@
 
         <!-- Virtual Scroller -->
         <v-virtual-scroll
-            :items="items"
+            :items="filteredItems"
             :height="height"
             class="virtual-table__scroller"
             @scroll="onScroll"
