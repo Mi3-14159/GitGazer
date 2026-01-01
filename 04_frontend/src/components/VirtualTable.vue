@@ -61,6 +61,7 @@
         }
     };
 
+    /* Group Expand/Collapse Logic */
     const expandedGroups = ref<Set<string>>(new Set());
     const collapsedGroups = ref<Set<string>>(new Set());
     const useCollapsedInsteadOfExpanded = false;
@@ -122,7 +123,6 @@
         });
     });
 
-    // Toggle filter for a column value
     const toggleFilter = (column: string, value: string) => {
         const filterSet = columnFilters.value[column];
         if (!filterSet) return;
@@ -134,7 +134,6 @@
         }
     };
 
-    // Clear all filters for a column
     const clearColumnFilter = (column: string) => {
         const filterSet = columnFilters.value[column];
         if (filterSet) {
@@ -142,7 +141,6 @@
         }
     };
 
-    // Select only one value for a column (hide all others)
     const selectOnlyFilter = (column: string, value: string) => {
         const filterSet = columnFilters.value[column];
         if (!filterSet) return;
