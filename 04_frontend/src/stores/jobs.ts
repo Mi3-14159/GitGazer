@@ -158,45 +158,33 @@ export const useJobsStore = defineStore('jobs', () => {
         isLoading.value = false;
     };
 
+    const ensureWorkflowGroup = (runId: string, integrationId: string, addToArray: boolean) => {
+        if (!workflows.has(runId)) {
+            const group: WorkflowGroup = {
+                run: {
+                    id: runId,
+                    integrationId,
+                    event_type: JobType.WORKFLOW_RUN,
+                } as Job<WorkflowRunEvent>,
+                jobs: new Map(),
+            };
+            workflows.set(runId, group);
+            if (addToArray) {
+                workflowsArray.value.push(group);
+            }
+        }
+        return workflows.get(runId)!;
+    };
+
     const handleWorkflow = (workflow: Job<WebhookEvent>, addToArray = true) => {
         if (isWorkflowJobEvent(workflow.workflow_event)) {
             const runId = String(workflow.workflow_event.workflow_job.run_id);
-            if (!workflows.has(runId)) {
-                const group: WorkflowGroup = {
-                    run: {
-                        id: runId,
-                        integrationId: workflow.integrationId,
-                        event_type: JobType.WORKFLOW_RUN,
-                    } as Job<WorkflowRunEvent>,
-                    jobs: new Map<string, Job<WorkflowJobEvent>>([[workflow.id, workflow as Job<WorkflowJobEvent>]]),
-                };
-                workflows.set(runId, group);
-                if (addToArray) {
-                    workflowsArray.value.push(group);
-                }
-            } else {
-                const existingGroup = workflows.get(runId);
-                if (existingGroup) {
-                    existingGroup.jobs.set(workflow.id, workflow as Job<WorkflowJobEvent>);
-                }
-            }
+            const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
+            group.jobs.set(workflow.id, workflow as Job<WorkflowJobEvent>);
         } else if (isWorkflowRunEvent(workflow.workflow_event)) {
             const runId = workflow.id;
-            if (!workflows.has(runId)) {
-                const group: WorkflowGroup = {
-                    run: workflow as Job<WorkflowRunEvent>,
-                    jobs: new Map<string, Job<WorkflowJobEvent>>(),
-                };
-                workflows.set(runId, group);
-                if (addToArray) {
-                    workflowsArray.value.push(group);
-                }
-            } else {
-                const existingGroup = workflows.get(runId);
-                if (existingGroup) {
-                    existingGroup.run = workflow as Job<WorkflowRunEvent>;
-                }
-            }
+            const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
+            group.run = workflow as Job<WorkflowRunEvent>;
         }
     };
 
