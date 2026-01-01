@@ -51,14 +51,26 @@
         };
     });
 
+    // Debounce state for scroll handler
+    let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+    const SCROLL_DEBOUNCE_MS = 150;
+
     const onScroll = (e: Event) => {
         const target = e.target as HTMLElement;
         if (!target) return;
 
-        // Check if we are near the bottom
-        if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
-            props.loadMore?.();
+        // Debounce scroll events to prevent rapid-fire load-more calls
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
         }
+
+        scrollTimeout = setTimeout(() => {
+            // Check if we are near the bottom
+            if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
+                props.loadMore?.();
+            }
+            scrollTimeout = null;
+        }, SCROLL_DEBOUNCE_MS);
     };
 
     /* Group Expand/Collapse Logic */

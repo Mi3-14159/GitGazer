@@ -148,14 +148,23 @@ export const useJobsStore = defineStore('jobs', () => {
     };
 
     const handleListJobs = async () => {
-        const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
+        // Prevent concurrent API calls
+        if (isLoading.value) {
+            return;
+        }
 
-        response.forEach((workflow) => {
-            handleWorkflow(workflow, false);
-        });
+        isLoading.value = true;
+        try {
+            const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
-        workflowsArray.value = Array.from(workflows.values()).sort(compareWorkflows);
-        isLoading.value = false;
+            response.forEach((workflow) => {
+                handleWorkflow(workflow, false);
+            });
+
+            workflowsArray.value = Array.from(workflows.values()).sort(compareWorkflows);
+        } finally {
+            isLoading.value = false;
+        }
     };
 
     const ensureWorkflowGroup = (runId: string, integrationId: string, addToArray: boolean) => {
