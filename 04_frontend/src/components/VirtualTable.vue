@@ -340,6 +340,7 @@
         background-color: rgb(var(--v-theme-surface));
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
         transition: background-color 0.2s;
+        font-size: 0.875rem;
     }
 
     .group-row:hover {
