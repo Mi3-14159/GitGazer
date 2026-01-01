@@ -2,7 +2,7 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import {WorkflowGroup} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
-    import {computed, ref} from 'vue';
+    import {computed, ref, watch} from 'vue';
 
     export interface HeaderColumn<T = any> {
         name: string;
@@ -135,6 +135,23 @@
             }
         }
         return cache;
+    });
+
+    watch(uniqueValuesCache, (newCache, oldCache) => {
+        if (!oldCache) return;
+
+        for (const [columnName, newValues] of newCache.entries()) {
+            const oldValues = oldCache.get(columnName);
+            const filterSet = columnFilters.value[columnName];
+
+            if (filterSet && filterSet.size > 0 && oldValues) {
+                for (const val of newValues) {
+                    if (!oldValues.has(val)) {
+                        filterSet.add(val);
+                    }
+                }
+            }
+        }
     });
 
     // Filter jobs based on column filters
