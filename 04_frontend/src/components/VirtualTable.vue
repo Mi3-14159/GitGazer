@@ -121,11 +121,17 @@
 
             if (failingColumns.length === 0) {
                 filterableColumns.forEach((column) => {
-                    cache.get(column.name)?.add(itemValues.get(column.name));
+                    const val = itemValues.get(column.name);
+                    if (!!val) {
+                        cache.get(column.name)?.add(val);
+                    }
                 });
             } else if (failingColumns.length === 1) {
                 const colName = failingColumns[0];
-                cache.get(colName)?.add(itemValues.get(colName));
+                const val = itemValues.get(colName);
+                if (!!val) {
+                    cache.get(colName)?.add(val);
+                }
             }
         }
         return cache;
