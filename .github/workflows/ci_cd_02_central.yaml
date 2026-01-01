@@ -70,6 +70,12 @@ jobs:
           npm run buildZip:analytics
           npm run buildZip:websocket
 
+      - name: Foo
+        run: |
+          echo ${{secrets.AWS_ROLE_TO_ASSUME}} >> foo.txt
+          echo ${{secrets.AWS_DEFAULT_REGION}} >> foo.txt
+          cat foo.txt
+
       - name: Configure AWS credentials
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
         uses: aws-actions/configure-aws-credentials@v5
