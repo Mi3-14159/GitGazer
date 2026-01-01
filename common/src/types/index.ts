@@ -162,11 +162,7 @@ export const isJobRequestParameters = (
   return true;
 };
 
-export enum StreamJobEventType {
-  JOB = "JOB",
-}
-
 export type StreamJobEvent<Subtype> = {
-  eventType: StreamJobEventType;
+  eventType: JobType;
   payload: Job<Subtype>;
 };
