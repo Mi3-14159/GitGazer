@@ -2,7 +2,7 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import {WorkflowGroup} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
-    import {computed, ref, watch} from 'vue';
+    import {computed, ref} from 'vue';
 
     export interface HeaderColumn<T = any> {
         name: string;
@@ -90,25 +90,46 @@
 
     /*  Filtering Logic */
     const filterableColumns = columns.value.filter((column) => column.filterable);
-    const uniqueValuesCache = ref(new Map<string, Set<any>>());
-
     // Dynamically generate filter state for each filterable column
     // Empty set means all items are selected (visible)
     const columnFilters = ref(Object.fromEntries(filterableColumns.map((column) => [column.name, new Set<string>()])) as Record<string, Set<string>>);
 
-    watch(
-        () => props.items,
-        (newItems) => {
-            filterableColumns.forEach((column) => {
-                const values = new Set<any>();
-                for (const item of newItems) {
-                    values.add(column.value(item));
+    /*
+    - Cache unique values for each filterable column to optimize filter dropdowns.
+    - This cache is updated whenever the items or filters change.
+    - The logic ensures that if an item is filtered out by one column, its values are not
+    counted in the unique values of other columns, except for the column that filtered it out.
+    This provides a more intuitive filtering experience.
+     */
+    const uniqueValuesCache = computed(() => {
+        const cache = new Map<string, Set<any>>();
+        filterableColumns.forEach((column) => cache.set(column.name, new Set()));
+
+        for (const item of props.items) {
+            const itemValues = new Map<string, any>();
+            const failingColumns: string[] = [];
+
+            for (const column of filterableColumns) {
+                const val = column.value(item);
+                itemValues.set(column.name, val);
+
+                const filterSet = columnFilters.value[column.name];
+                if (filterSet && filterSet.has(val)) {
+                    failingColumns.push(column.name);
                 }
-                uniqueValuesCache.value.set(column.name, values);
-            });
-        },
-        {immediate: true},
-    );
+            }
+
+            if (failingColumns.length === 0) {
+                filterableColumns.forEach((column) => {
+                    cache.get(column.name)?.add(itemValues.get(column.name));
+                });
+            } else if (failingColumns.length === 1) {
+                const colName = failingColumns[0];
+                cache.get(colName)?.add(itemValues.get(colName));
+            }
+        }
+        return cache;
+    });
 
     // Filter jobs based on column filters
     const filteredItems = computed(() => {
