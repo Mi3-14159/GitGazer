@@ -2,7 +2,7 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import {WorkflowGroup} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
-    import {computed, ref, watch} from 'vue';
+    import {computed, onUnmounted, ref, watch} from 'vue';
 
     export interface HeaderColumn<T = any> {
         name: string;
@@ -55,9 +55,22 @@
     let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
     const SCROLL_DEBOUNCE_MS = 150;
 
+    // Cleanup timeout on unmount to prevent memory leaks
+    onUnmounted(() => {
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = null;
+        }
+    });
+
     const onScroll = (e: Event) => {
         const target = e.target as HTMLElement;
         if (!target) return;
+
+        // Store scroll metrics to avoid stale references in setTimeout callback
+        const scrollTop = target.scrollTop;
+        const clientHeight = target.clientHeight;
+        const scrollHeight = target.scrollHeight;
 
         // Debounce scroll events to prevent rapid-fire load-more calls
         if (scrollTimeout) {
@@ -66,7 +79,7 @@
 
         scrollTimeout = setTimeout(() => {
             // Check if we are near the bottom
-            if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
+            if (scrollTop + clientHeight >= scrollHeight - props.threshold && !props.loading) {
                 props.loadMore?.();
             }
             scrollTimeout = null;
