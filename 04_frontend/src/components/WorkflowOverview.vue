@@ -17,10 +17,16 @@
 
     // Convert Map to Array for the virtual scroller
     const groups = computed(() => {
-        return Array.from(workflows.value.values()).map((group) => ({
-            ...group,
-            id: group.run.id,
-        }));
+        return Array.from(workflows.value.values())
+            .map((group) => ({
+                ...group,
+                id: group.run.id,
+            }))
+            .sort((a, b) => {
+                const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
+                const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
+                return timeB - timeA;
+            });
     });
 
     const toggleGroup = (id: string) => {
