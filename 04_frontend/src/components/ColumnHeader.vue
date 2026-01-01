@@ -18,7 +18,10 @@
                     <v-icon :color="hasActiveFilters ? 'primary' : 'default'">mdi-filter-variant</v-icon>
                 </v-btn>
             </template>
-            <v-card min-width="200">
+            <v-card
+                min-width="200"
+                max-width="500"
+            >
                 <v-card-text>
                     <div class="d-flex justify-between align-center mb-2">
                         <span class="font-weight-medium">{{ filterLabel ?? `Show ${title}` }}</span>
