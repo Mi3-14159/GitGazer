@@ -128,7 +128,7 @@ export type WorkflowEvent<T extends JobType> = T extends JobType.WORKFLOW_JOB
   ? WorkflowJobEvent
   : T extends JobType.WORKFLOW_RUN
   ? WorkflowRunEvent
-  : never;
+  : WorkflowJobEvent | WorkflowRunEvent;
 
 export type Job<Subtype> = {
   integrationId: string;
