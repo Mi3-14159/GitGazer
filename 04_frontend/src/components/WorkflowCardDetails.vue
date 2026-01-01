@@ -1,6 +1,5 @@
 <script setup lang="ts">
-    import {Job} from '@common/types';
-    import type {WorkflowJobEvent} from '@octokit/webhooks-types';
+    import {Job, WorkflowJobEvent} from '@common/types';
     import {computed} from 'vue';
 
     const props = defineProps<{

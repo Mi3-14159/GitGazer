@@ -36,6 +36,11 @@ resource "aws_s3tables_table" "jobs" {
           required = true
         }
         field {
+          name     = "created_at"
+          type     = "timestamptz"
+          required = false
+        }
+        field {
           name     = "completed_at"
           type     = "timestamptz"
           required = true
@@ -79,6 +84,11 @@ resource "aws_s3tables_table" "jobs" {
           name     = "branch"
           type     = "string"
           required = true
+        }
+        field {
+          name     = "event_type"
+          type     = "string"
+          required = false
         }
       }
     }

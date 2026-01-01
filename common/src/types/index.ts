@@ -1,3 +1,11 @@
+import type {
+  WebhookEvent,
+  WorkflowJobEvent,
+  WorkflowRunEvent,
+} from "@octokit/webhooks-types";
+
+export type * from "@octokit/webhooks-types";
+
 export type NotificationRule = {
   integrationId: string;
   id?: string;
@@ -98,6 +106,30 @@ export enum JobType {
   WORKFLOW_RUN = "workflow_run",
 }
 
+export const isWorkflowJobEvent = (
+  event: WebhookEvent
+): event is WorkflowJobEvent => {
+  return (
+    (event as WorkflowJobEvent).workflow_job !== undefined &&
+    (event as WorkflowJobEvent).workflow_job.id !== undefined
+  );
+};
+
+export const isWorkflowRunEvent = (
+  event: WebhookEvent
+): event is WorkflowRunEvent => {
+  return (
+    (event as WorkflowRunEvent).workflow_run !== undefined &&
+    (event as WorkflowRunEvent).workflow_run.id !== undefined
+  );
+};
+
+export type WorkflowEvent<T extends JobType> = T extends JobType.WORKFLOW_JOB
+  ? WorkflowJobEvent
+  : T extends JobType.WORKFLOW_RUN
+  ? WorkflowRunEvent
+  : WorkflowJobEvent | WorkflowRunEvent;
+
 export type Job<Subtype> = {
   integrationId: string;
   id: string;
@@ -149,11 +181,7 @@ export const isJobRequestParameters = (
   return true;
 };
 
-export enum StreamJobEventType {
-  JOB = "JOB",
-}
-
 export type StreamJobEvent<Subtype> = {
-  eventType: StreamJobEventType;
+  eventType: JobType;
   payload: Job<Subtype>;
 };

@@ -2,8 +2,7 @@ import {getJobsBy, getNotificationRulesBy} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
-import {Job, JobType, NotificationRule, NotificationRuleChannelType} from '@common/types';
-import {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import {Job, JobType, NotificationRule, NotificationRuleChannelType, WorkflowJobEvent} from '@common/types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
 const logger = getLogger();
@@ -79,7 +78,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
             }
 
             // Fetch parent workflow_run to get event field (matches Step Functions branch 2)
-            let workflowRunEvent = '';
+            let workflowRunEvent;
             const workflowRuns = await getJobsBy({
                 keys: [{integrationId, id: run_id.toString()}],
                 filters: {event_type: JobType.WORKFLOW_RUN},
@@ -88,9 +87,10 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
             const parentRun = workflowRuns
                 .map((queryResult) => queryResult.items)
                 .flat()
-                .find((job: Job<Partial<WorkflowJobEvent>>) => job.event_type === JobType.WORKFLOW_RUN && job.id === run_id.toString());
-            if (parentRun && 'workflow_run' in parentRun.workflow_event) {
-                workflowRunEvent = (parentRun.workflow_event as WorkflowRunEvent).workflow_run.event || '';
+                .find((job) => job.id === run_id.toString());
+
+            if (parentRun) {
+                workflowRunEvent = parentRun.workflow_event.workflow_run?.event;
             }
 
             const body = {

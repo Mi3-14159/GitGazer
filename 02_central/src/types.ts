@@ -1,13 +1,4 @@
-import {WebhookEvent, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
-
-export const isWorkflowJobEvent = (event: WebhookEvent): event is WorkflowJobEvent => {
-    return (event as WorkflowJobEvent).workflow_job !== undefined && (event as WorkflowJobEvent).workflow_job.id !== undefined;
-};
-
-export const isWorkflowRunEvent = (event: WebhookEvent): event is WorkflowRunEvent => {
-    return (event as WorkflowRunEvent).workflow_run !== undefined && (event as WorkflowRunEvent).workflow_run.id !== undefined;
-};
 
 // Define custom authorizer context type with groups property
 export interface CustomAuthorizerContext {

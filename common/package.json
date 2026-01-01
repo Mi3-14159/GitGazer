@@ -1,0 +1,15 @@
+{
+  "author": "",
+  "dependencies": {
+    "@octokit/webhooks-types": "^7.6.1"
+  },
+  "description": "",
+  "keywords": [],
+  "main": "src/types/index.ts",
+  "name": "common",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "version": "1.0.0"
+}

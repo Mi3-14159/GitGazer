@@ -18,7 +18,6 @@
     "@aws-sdk/client-s3": "^3.958.0",
     "@aws-sdk/lib-dynamodb": "^3.958.0",
     "@aws-sdk/util-dynamodb": "^3.946.0",
-    "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.159",
     "@types/node": "^24.10.4",
     "@typescript-eslint/eslint-plugin": "^8.51.0",
@@ -37,7 +36,6 @@
   },
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
-  "main": "index.js",
   "name": "api-lambda",
   "optionalDependencies": {
     "@rollup/rollup-darwin-x64": "^4.54.0",

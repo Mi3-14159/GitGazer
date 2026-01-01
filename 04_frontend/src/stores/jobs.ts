@@ -1,24 +1,48 @@
 import {useAuth} from '@/composables/useAuth';
 import {Sha256} from '@aws-crypto/sha256-js';
-import {Job, JobRequestParameters, JobsResponse, ProjectionType, StreamJobEvent} from '@common/types';
-import type {WebhookEvent, WorkflowJobEvent} from '@octokit/webhooks-types';
+import {
+    isWorkflowJobEvent,
+    isWorkflowRunEvent,
+    Job,
+    JobRequestParameters,
+    JobsResponse,
+    JobType,
+    ProjectionType,
+    StreamJobEvent,
+    WebhookEvent,
+    WorkflowJobEvent,
+    WorkflowRunEvent,
+} from '@common/types';
 import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
-import {computed, reactive, ref} from 'vue';
+import {ref} from 'vue';
+
+export type WorkflowGroup = {
+    run: Job<WorkflowRunEvent>;
+    jobs: Map<string, Job<WorkflowJobEvent>>;
+};
 
 export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
-    const uniqueJobs = reactive(new Map<string, Job<WorkflowJobEvent>>());
+    const workflows = new Map<string, WorkflowGroup>();
+    const workflowsArray = ref<WorkflowGroup[]>([]);
+
+    const compareWorkflows = (a: WorkflowGroup, b: WorkflowGroup) => {
+        const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
+        const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
+        return timeB - timeA;
+    };
+
+    const sortWorkflows = () => {
+        workflowsArray.value.sort(compareWorkflows);
+    };
+
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
-
-    const jobs = computed(() => {
-        return Array.from(uniqueJobs.values());
-    });
 
     const connectToIamWebSocket = async () => {
         // Get AWS credentials from Cognito Identity Pool
@@ -65,10 +89,8 @@ export const useJobsStore = defineStore('jobs', () => {
         ws.onopen = () => console.info('WebSocket connected');
         ws.onmessage = (event) => {
             const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WebhookEvent>;
-            if (isWorkflowJobEvent(gitgazerEvent.payload.workflow_event)) {
-                const workflowJobEvent = gitgazerEvent.payload as Job<WorkflowJobEvent>;
-                uniqueJobs.set(workflowJobEvent.id, workflowJobEvent);
-            }
+            handleWorkflow(gitgazerEvent.payload);
+            sortWorkflows();
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
         ws.onclose = (event) => {
@@ -122,17 +144,48 @@ export const useJobsStore = defineStore('jobs', () => {
             }
         });
 
-        return events.flatMap((event) => event.items).filter((item): item is Job<WorkflowJobEvent> => isWorkflowJobEvent(item.workflow_event));
+        return events.flatMap((event) => event.items);
     };
 
     const handleListJobs = async () => {
         const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
-        response.forEach((job: Job<WorkflowJobEvent>) => {
-            uniqueJobs.set(job.id, job);
+        response.forEach((workflow) => {
+            handleWorkflow(workflow, false);
         });
 
+        workflowsArray.value = Array.from(workflows.values()).sort(compareWorkflows);
         isLoading.value = false;
+    };
+
+    const ensureWorkflowGroup = (runId: string, integrationId: string, addToArray: boolean) => {
+        if (!workflows.has(runId)) {
+            const group: WorkflowGroup = {
+                run: {
+                    id: runId,
+                    integrationId,
+                    event_type: JobType.WORKFLOW_RUN,
+                } as Job<WorkflowRunEvent>,
+                jobs: new Map(),
+            };
+            workflows.set(runId, group);
+            if (addToArray) {
+                workflowsArray.value.push(group);
+            }
+        }
+        return workflows.get(runId)!;
+    };
+
+    const handleWorkflow = (workflow: Job<WebhookEvent>, addToArray = true) => {
+        if (isWorkflowJobEvent(workflow.workflow_event)) {
+            const runId = String(workflow.workflow_event.workflow_job.run_id);
+            const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
+            group.jobs.set(workflow.id, workflow as Job<WorkflowJobEvent>);
+        } else if (isWorkflowRunEvent(workflow.workflow_event)) {
+            const runId = workflow.id;
+            const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
+            group.run = workflow as Job<WorkflowRunEvent>;
+        }
     };
 
     const initializeStore = async () => {
@@ -144,12 +197,8 @@ export const useJobsStore = defineStore('jobs', () => {
         await handleListJobs();
     };
 
-    const isWorkflowJobEvent = (event: WebhookEvent): event is WorkflowJobEvent => {
-        return (event as WorkflowJobEvent).workflow_job !== undefined && (event as WorkflowJobEvent).workflow_job.id !== undefined;
-    };
-
     return {
-        jobs,
+        workflows: workflowsArray,
         isLoading,
         initializeStore,
         handleListJobs,

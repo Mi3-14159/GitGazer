@@ -1,134 +1,70 @@
 <script setup lang="ts">
-    import ColumnHeader from '@/components/ColumnHeader.vue';
+    import VirtualTable, {type HeaderColumn} from '@/components/VirtualTable.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
-    import {Job} from '@common/types';
-    import type {WorkflowJobEvent} from '@octokit/webhooks-types';
+    import {Job, WorkflowJobEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, reactive, ref, watch} from 'vue';
+    import {onMounted, ref} from 'vue';
 
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs} = jobsStore;
-    const {jobs, isLoading} = storeToRefs(jobsStore);
-
+    const {workflows, isLoading} = storeToRefs(jobsStore);
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
-    const uniqueValuesCache = reactive(new Map<string, Set<string>>());
 
-    // Table headers for desktop view
-    const headers = [
+    const headerConfig: HeaderColumn[] = [
         {
-            title: 'Repository',
-            key: 'full_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.repository.full_name,
-            filterableColumn: true,
-            sortable: true,
+            name: 'Repository',
+            scope: 'group',
+            width: '2fr',
+            value: (item: any) => item.run?.workflow_event?.repository.full_name,
+            filterable: true,
         },
         {
-            title: 'Workflow',
-            key: 'workflow_name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.workflow_name,
-            filterableColumn: true,
-            sortable: true,
+            name: 'Workflow',
+            scope: 'group',
+            width: '2fr',
+            value: (item: any) => item.run?.workflow_event?.workflow_run.name,
+            filterable: true,
         },
         {
-            title: 'Job name',
-            key: 'name',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.name,
-            filterableColumn: true,
-            sortable: true,
+            name: 'Job Name',
+            scope: 'row',
+            width: '2fr',
+            value: (item: any) => item.workflow_event?.workflow_job.name,
+            filterable: false,
         },
         {
-            title: 'Branch',
-            key: 'head_branch',
-            value: (item: Job<WorkflowJobEvent>) => item.workflow_event.workflow_job.head_branch,
-            filterableColumn: true,
-            sortable: true,
+            name: 'Branch',
+            scope: 'group',
+            width: '1.5fr',
+            value: (item: any) => item.run?.workflow_event?.workflow_run.head_branch,
+            filterable: true,
         },
         {
-            title: 'Status',
-            key: 'status',
-            value: (item: Job<WorkflowJobEvent>) =>
-                item.workflow_event?.workflow_job?.conclusion || item.workflow_event?.workflow_job?.status || 'unknown',
-            filterableColumn: true,
-            sortable: true,
+            name: 'Status',
+            scope: 'both',
+            width: '1fr',
+            value: (item: any) =>
+                item.run
+                    ? item.run.workflow_event?.workflow_run.conclusion || item.run.workflow_event?.workflow_run.status
+                    : item.workflow_event?.workflow_job.conclusion || item.workflow_event?.workflow_job.status,
+            filterable: true,
         },
-        {title: 'Created', key: 'created_at', value: (item: Job<WorkflowJobEvent>) => item.created_at, filterableColumn: false, sortable: true},
+        {
+            name: 'Created',
+            scope: 'both',
+            width: '1.5fr',
+            value: (item: any) => new Date(item.run ? item.run.created_at : item.created_at).toLocaleString(),
+        },
     ];
 
-    const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
+    const onJobClick = (job: Job<WorkflowJobEvent>) => {
+        selectedJob.value = job;
+    };
 
-    const filterableColumns = headers.filter((header) => header.filterableColumn);
-
-    watch(
-        jobs,
-        (newJobs) => {
-            filterableColumns.forEach((column) => {
-                const values = new Set<string>();
-                for (const job of newJobs) {
-                    values.add((column.value(job) as string) || 'unknown');
-                }
-                uniqueValuesCache.set(column.key, values);
-            });
-        },
-        {immediate: true},
-    );
-
-    // Dynamically generate filter state for each filterable column
-    // Empty set means all items are selected (visible)
-    const columnFilters = reactive(
-        Object.fromEntries(filterableColumns.map((column) => [column.key, new Set<string>()])) as Record<string, Set<string>>,
-    );
-
-    // Filter jobs based on column filters
-    const filteredJobs = computed(() => {
-        return jobs.value.filter((job) => {
-            // Check each filterable column
-            return filterableColumns.every((column) => {
-                const filterSet = columnFilters[column.key];
-                if (!filterSet) return true;
-
-                const value = (column.value(job) as string) || 'unknown';
-                return !filterSet.has(value);
-            });
-        });
+    onMounted(async () => {
+        await initializeStore();
     });
-
-    // Toggle filter for a column value
-    const toggleFilter = (column: string, value: string) => {
-        const filterSet = columnFilters[column];
-        if (!filterSet) return;
-
-        if (filterSet.has(value)) {
-            filterSet.delete(value);
-        } else {
-            filterSet.add(value);
-        }
-    };
-
-    // Clear all filters for a column
-    const clearColumnFilter = (column: string) => {
-        const filterSet = columnFilters[column];
-        if (filterSet) {
-            filterSet.clear();
-        }
-    };
-
-    // Select only one value for a column (hide all others)
-    const selectOnlyFilter = (column: string, value: string) => {
-        const filterSet = columnFilters[column];
-        if (!filterSet) return;
-
-        const allValues = uniqueValuesCache.get(column);
-        if (!allValues) return;
-
-        // Clear and add all values except the selected one
-        filterSet.clear();
-        allValues.forEach((v) => {
-            if (v !== value) {
-                filterSet.add(v);
-            }
-        });
-    };
 
     const getJobStatusColor = (status: string) => {
         switch (status) {
@@ -147,79 +83,29 @@
                 return 'default';
         }
     };
-
-    const viewJob = (job: Job<WorkflowJobEvent>) => {
-        selectedJob.value = job;
-    };
-
-    onMounted(async () => {
-        await initializeStore();
-    });
 </script>
 
 <template>
-    <v-main>
-        <v-data-table-virtual
-            fixed-header
-            height="100vh"
-            :headers="headers"
-            :items="filteredJobs"
-            item-key="id"
-            class="elevation-1"
-            density="compact"
-            hide-default-footer
-            disable-pagination
-            :sort-by="sortBy"
-            @click:row="(_: any, {item}: {item: Job<WorkflowJobEvent>}) => viewJob(item)"
+    <v-main class="fill-height">
+        <VirtualTable
+            :items="workflows"
             :loading="isLoading"
+            :header-config="headerConfig"
+            :onJobClick="onJobClick"
+            :loadMore="handleListJobs"
+            class="workflow-table"
         >
-            <template
-                v-slot:loading
-                v-if="isLoading && filteredJobs.length === 0"
-            >
-                <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
-            </template>
-
-            <template
-                v-slot:[`body.append`]
-                v-if="!isLoading && filteredJobs.length > 0"
-            >
-                <tr v-intersect.quiet="handleListJobs"></tr>
-            </template>
-
-            <!-- Dynamic header filters for filterable columns -->
-            <template
-                v-for="column in headers"
-                :key="`header-${column.key}`"
-                #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, isSorted}"
-            >
-                <ColumnHeader
-                    :title="headerColumn.title || column.title"
-                    :available-values="Array.from(uniqueValuesCache.get(column.key) ?? [])"
-                    :hidden-values="columnFilters[column.key]"
-                    :sortable="column.sortable"
-                    :sort-icon="getSortIcon(headerColumn)"
-                    :is-sorted="isSorted(headerColumn)"
-                    @toggle-filter="toggleFilter(column.key, $event)"
-                    @clear-filter="clearColumnFilter(column.key)"
-                    @select-only="selectOnlyFilter(column.key, $event)"
-                    @toggle-sort="toggleSort(headerColumn)"
-                />
-            </template>
-
-            <template v-slot:item.status="{value}">
+            <template #item.Status="{value}">
                 <v-chip
                     :color="getJobStatusColor(value)"
                     size="small"
-                    variant="flat"
-                    :text="value"
-                ></v-chip>
+                    label
+                >
+                    {{ value }}
+                </v-chip>
             </template>
+        </VirtualTable>
 
-            <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
-        </v-data-table-virtual>
-
-        <!-- Job Details Dialog -->
         <WorkflowCardDetails
             :job="selectedJob"
             @update:job="selectedJob = $event"
@@ -228,44 +114,7 @@
 </template>
 
 <style scoped>
-    .group-header {
-        background-color: #f5f5f5;
-        border-bottom: 2px solid #e0e0e0;
-    }
-
-    .group-header td {
-        font-weight: 600;
-        color: #424242;
-    }
-
-    .clickable-row {
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .clickable-row:hover {
-        background-color: rgba(0, 0, 0, 0.08);
-    }
-
-    /* Make data table rows clickable */
-    :deep(.v-data-table tbody tr) {
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    :deep(.v-data-table tbody tr:hover) {
-        background-color: rgba(0, 0, 0, 0.08) !important;
-    }
-
-    /* Prevent text wrapping in table cells */
-    :deep(.v-data-table td) {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 0;
-    }
-
-    :deep(.v-data-table th) {
-        white-space: nowrap;
+    .workflow-table {
+        height: 100vh;
     }
 </style>
