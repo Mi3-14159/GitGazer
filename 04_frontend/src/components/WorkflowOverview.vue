@@ -1,166 +1,48 @@
 <script setup lang="ts">
-    import AutoExpandGroups from '@/components/AutoExpandGroups.vue';
-    import ColumnHeader from '@/components/ColumnHeader.vue';
+    import VirtualTable from '@/components/VirtualTable.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
-    import {Job, WorkflowEvent, WorkflowJobEvent} from '@common/types';
+    import {Job, WorkflowJobEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, reactive, ref} from 'vue';
+    import {computed, onMounted, ref} from 'vue';
 
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs} = jobsStore;
-    const {workflows, isLoading} = storeToRefs(jobsStore);
+    const {workflows} = storeToRefs(jobsStore);
+    const useCollapsedInsteadOfExpanded = false;
 
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
+    const expandedGroups = ref<Set<string>>(new Set());
+    const collapsedGroups = ref<Set<string>>(new Set());
 
-    const rows = computed(() => {
-        const flattenedJobs: (Job<WorkflowJobEvent> & {run_id: string})[] = [];
-        for (const group of workflows.value.values()) {
-            for (const job of group.jobs.values()) {
-                flattenedJobs.push({
-                    ...job,
-                    run_id: group.run.id,
-                });
-            }
-        }
-        return flattenedJobs;
+    // Convert Map to Array for the virtual scroller
+    const groups = computed(() => {
+        return Array.from(workflows.value.values()).map((group) => ({
+            ...group,
+            id: group.run.id,
+        }));
     });
 
-    const getWorkflowRun = (runId: any) => workflows.value.get(String(runId))!.run;
-
-    // Table headers for desktop view
-    const headers = [
-        // Override default title of the grouping control column
-        {title: '', key: 'data-table-group', sortable: false},
-        {
-            title: 'Repository',
-            key: 'full_name',
-            value: (workflow: Job<WorkflowEvent<any>>) => workflow.workflow_event.repository.full_name,
-            filterableColumn: true,
-            sortable: true,
-        },
-        {
-            title: 'Workflow',
-            key: 'workflow_name',
-            value: (workflow: Job<WorkflowEvent<any>>) => {
-                const event = workflow.workflow_event;
-                return 'workflow_job' in event ? event.workflow_job.workflow_name : event.workflow_run.name;
-            },
-            filterableColumn: true,
-            sortable: true,
-        },
-        {
-            title: 'Job name',
-            key: 'name',
-            value: (workflow: Job<WorkflowEvent<any>>) => {
-                const event = workflow.workflow_event;
-                return 'workflow_job' in event ? event.workflow_job.name : '';
-            },
-            filterableColumn: true,
-            sortable: true,
-        },
-        {
-            title: 'Branch',
-            key: 'head_branch',
-            value: (workflow: Job<WorkflowEvent<any>>) => {
-                const event = workflow.workflow_event;
-                return 'workflow_job' in event ? event.workflow_job.head_branch : event.workflow_run.head_branch;
-            },
-            filterableColumn: true,
-            sortable: true,
-        },
-        {
-            title: 'Status',
-            key: 'status',
-            value: (workflow: Job<WorkflowEvent<any>>) => {
-                const event = workflow.workflow_event;
-                const run = 'workflow_job' in event ? event.workflow_job : event.workflow_run;
-                return run.conclusion || run.status;
-            },
-            filterableColumn: true,
-            sortable: true,
-        },
-        {
-            title: 'Created',
-            key: 'created_at',
-            value: (workflow: Job<WorkflowEvent<any>>) => workflow.created_at,
-            filterableColumn: false,
-            sortable: true,
-        },
-    ];
-
-    const sortBy = ref([{key: 'created_at', order: 'desc' as const}]);
-    const groupBy = ref([{key: 'run_id', order: 'desc' as const}]);
-
-    const filterableColumns = headers.filter((h: any) => h?.filterableColumn && typeof h.value === 'function') as any[];
-
-    const uniqueValuesByColumn = computed(
-        () =>
-            Object.fromEntries(
-                filterableColumns.map((column) => {
-                    const values = new Set<string>(rows.value.map((row) => String(column.value(row))));
-                    return [column.key, Array.from(values).sort()];
-                }),
-            ) as Record<string, string[]>,
-    );
-
-    // Dynamically generate filter state for each filterable column
-    // Empty set means all items are selected (visible)
-    const columnFilters = reactive(
-        Object.fromEntries(filterableColumns.map((column) => [column.key, new Set<string>()])) as Record<string, Set<string>>,
-    );
-
-    // Filter jobs based on column filters
-    const filteredRows = computed(() => {
-        return rows.value.filter((row) =>
-            filterableColumns.every((column) => {
-                const filterSet = columnFilters[column.key];
-                if (!filterSet) return true;
-                return !filterSet.has(String(column.value(row)));
-            }),
-        );
-    });
-
-    const getGroupRunStatus = (group: any) => {
-        const run = getWorkflowRun(group.value)?.workflow_event.workflow_run;
-        return run.conclusion || run.status;
-    };
-
-    // Toggle filter for a column value
-    const toggleFilter = (column: string, value: string) => {
-        const filterSet = columnFilters[column];
-        if (!filterSet) return;
-
-        if (filterSet.has(value)) {
-            filterSet.delete(value);
+    const toggleGroup = (id: string) => {
+        if (expandedGroups.value.has(id)) {
+            expandedGroups.value.delete(id);
         } else {
-            filterSet.add(value);
+            expandedGroups.value.add(id);
+        }
+
+        if (collapsedGroups.value.has(id)) {
+            collapsedGroups.value.delete(id);
+        } else {
+            collapsedGroups.value.add(id);
         }
     };
 
-    // Clear all filters for a column
-    const clearColumnFilter = (column: string) => {
-        const filterSet = columnFilters[column];
-        if (filterSet) {
-            filterSet.clear();
+    const isExpanded = (id: string) => {
+        if (useCollapsedInsteadOfExpanded) {
+            return !collapsedGroups.value.has(id);
+        } else {
+            return expandedGroups.value.has(id);
         }
-    };
-
-    // Select only one value for a column (hide all others)
-    const selectOnlyFilter = (column: string, value: string) => {
-        const filterSet = columnFilters[column];
-        if (!filterSet) return;
-
-        const allValues = uniqueValuesByColumn.value[column];
-        if (!allValues) return;
-
-        // Clear and add all values except the selected one
-        filterSet.clear();
-        allValues.forEach((v) => {
-            if (v !== value) {
-                filterSet.add(v);
-            }
-        });
     };
 
     const getJobStatusColor = (status: string) => {
@@ -181,9 +63,8 @@
         }
     };
 
-    const onRowClick = (_: any, row: any) => {
-        const item = (row?.item?.raw ?? row?.item) as Job<WorkflowJobEvent> | undefined;
-        if (item) selectedJob.value = item;
+    const onJobClick = (job: Job<WorkflowJobEvent>) => {
+        selectedJob.value = job;
     };
 
     onMounted(async () => {
@@ -192,118 +73,94 @@
 </script>
 
 <template>
-    <v-main>
-        <v-data-table-virtual
-            fixed-header
-            height="100vh"
-            :headers="headers"
-            :items="filteredRows"
-            item-value="id"
-            class="elevation-1"
-            density="compact"
-            hide-default-footer
-            disable-pagination
-            :sort-by="sortBy"
-            :group-by="groupBy"
-            @click:row="onRowClick"
-            :loading="isLoading"
+    <v-main class="fill-height">
+        <VirtualTable
+            :items="groups"
+            @load-more="handleListJobs"
+            class="workflow-table"
         >
-            <template v-slot:group-header="{item, columns, toggleGroup, isGroupOpen}">
-                <tr @click="toggleGroup(item)">
-                    <td
-                        v-for="(column, idx) in columns"
-                        :key="column.key ?? idx"
+            <template #header>
+                <div class="workflow-grid header-row">
+                    <div class="col-expand"></div>
+                    <div class="col-repo">Repository</div>
+                    <div class="col-workflow">Workflow</div>
+                    <div class="col-job">Job Name</div>
+                    <div class="col-branch">Branch</div>
+                    <div class="col-status">Status</div>
+                    <div class="col-created">Created</div>
+                </div>
+            </template>
+
+            <template #row="{item: group}">
+                <div class="group-wrapper">
+                    <!-- Group Header Row -->
+                    <div
+                        class="workflow-grid group-row"
+                        @click="toggleGroup(group.id)"
+                        :class="{expanded: isExpanded(group.id)}"
                     >
-                        <template v-if="column.key === 'data-table-group'">
-                            <span>
-                                <v-icon
-                                    size="x-small"
-                                    :icon="isGroupOpen(item) ? '$tableGroupCollapse' : '$tableGroupExpand'"
-                                />
-                            </span>
-                        </template>
-
-                        <template v-else-if="column.key === 'full_name'">
-                            <span>{{ getWorkflowRun(item.value).workflow_event.repository.full_name }}</span>
-                        </template>
-
-                        <template v-else-if="column.key === 'workflow_name'">
-                            <span>{{ getWorkflowRun(item.value).workflow_event.workflow_run.name }}</span>
-                        </template>
-
-                        <template v-else-if="column.key === 'head_branch'">
-                            <span>{{ getWorkflowRun(item.value).workflow_event.workflow_run.head_branch }}</span>
-                        </template>
-
-                        <template v-else-if="column.key === 'status'">
+                        <div class="col-expand">
+                            <v-icon
+                                :icon="isExpanded(group.id) ? '$expand' : '$next'"
+                                size="x-small"
+                            />
+                        </div>
+                        <div class="col-repo text-truncate">{{ group.run.workflow_event?.repository.full_name }}</div>
+                        <div class="col-workflow text-truncate">{{ group.run.workflow_event?.workflow_run.name }}</div>
+                        <div class="col-job text-disabled">-</div>
+                        <div class="col-branch text-truncate">{{ group.run.workflow_event?.workflow_run.head_branch }}</div>
+                        <div class="col-status">
                             <v-chip
-                                :color="getJobStatusColor(getGroupRunStatus(item))"
+                                :color="
+                                    getJobStatusColor(
+                                        group.run.workflow_event?.workflow_run.conclusion || group.run.workflow_event?.workflow_run.status,
+                                    )
+                                "
                                 size="x-small"
                                 variant="flat"
-                                :text="getGroupRunStatus(item)"
-                            />
-                        </template>
+                            >
+                                {{ group.run.workflow_event?.workflow_run.conclusion || group.run.workflow_event?.workflow_run.status }}
+                            </v-chip>
+                        </div>
+                        <div class="col-created">
+                            {{ new Date(group.run.created_at).toLocaleString() }}
+                        </div>
+                    </div>
 
-                        <template v-else-if="column.key === 'created_at'">
-                            <span v-if="getWorkflowRun(item.value).created_at">
-                                {{ new Date(getWorkflowRun(item.value).created_at).toLocaleString() }}
-                            </span>
-                        </template>
-                    </td>
-                </tr>
+                    <!-- Job Rows (Rendered only if expanded) -->
+                    <div
+                        v-if="isExpanded(group.id)"
+                        class="jobs-container"
+                    >
+                        <div
+                            v-for="job in group.jobs.values()"
+                            :key="job.id"
+                            class="workflow-grid job-row"
+                            @click.stop="onJobClick(job)"
+                        >
+                            <div class="col-expand"></div>
+                            <div class="col-repo"></div>
+                            <div class="col-workflow"></div>
+                            <div class="col-job text-truncate">{{ job.workflow_event.workflow_job.name }}</div>
+                            <div class="col-branch"></div>
+                            <div class="col-status">
+                                <v-chip
+                                    :color="getJobStatusColor(job.workflow_event.workflow_job.conclusion || job.workflow_event.workflow_job.status)"
+                                    size="x-small"
+                                    variant="flat"
+                                >
+                                    {{ job.workflow_event.workflow_job.conclusion || job.workflow_event.workflow_job.status }}
+                                </v-chip>
+                            </div>
+                            <div class="col-created">
+                                {{ new Date(job.created_at).toLocaleString() }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </template>
+        </VirtualTable>
 
-            <template v-slot:top>
-                <AutoExpandGroups :group-ids="filteredRows.map((row) => `root_run_id_${row.run_id}`)" />
-            </template>
-
-            <template
-                v-slot:loading
-                v-if="isLoading && filteredRows.length === 0"
-            >
-                <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
-            </template>
-
-            <template
-                v-slot:[`body.append`]
-                v-if="!isLoading && filteredRows.length > 0"
-            >
-                <tr v-intersect.quiet="handleListJobs"></tr>
-            </template>
-
-            <!-- Dynamic header filters for filterable columns -->
-            <template
-                v-for="column in headers"
-                :key="`header-${column.key}`"
-                #[`header.${column.key}`]="{column: headerColumn, getSortIcon, toggleSort, isSorted}"
-            >
-                <ColumnHeader
-                    :title="headerColumn.title || column.title"
-                    :available-values="uniqueValuesByColumn[column.key] ?? []"
-                    :hidden-values="columnFilters[column.key]"
-                    :sortable="column.sortable"
-                    :sort-icon="getSortIcon(headerColumn)"
-                    :is-sorted="isSorted(headerColumn)"
-                    @toggle-filter="toggleFilter(column.key, $event)"
-                    @clear-filter="clearColumnFilter(column.key)"
-                    @select-only="selectOnlyFilter(column.key, $event)"
-                    @toggle-sort="toggleSort(headerColumn)"
-                />
-            </template>
-
-            <template v-slot:item.status="{value}">
-                <v-chip
-                    :color="getJobStatusColor(value)"
-                    size="small"
-                    variant="flat"
-                    :text="value"
-                ></v-chip>
-            </template>
-
-            <template v-slot:item.created_at="{item}">{{ new Date(item.created_at).toLocaleString() }} </template>
-        </v-data-table-virtual>
-
-        <!-- Job Details Dialog -->
         <WorkflowCardDetails
             :job="selectedJob"
             @update:job="selectedJob = $event"
@@ -312,25 +169,61 @@
 </template>
 
 <style scoped>
-    /* Make data table rows clickable */
-    :deep(.v-data-table tbody tr) {
+    .workflow-table {
+        height: 100vh;
+    }
+
+    .workflow-grid {
+        display: grid;
+        grid-template-columns: 40px 2fr 2fr 2fr 1.5fr 1fr 1.5fr;
+        gap: 8px;
+        align-items: center;
+        padding: 0 16px;
+    }
+
+    .header-row {
+        font-weight: bold;
+        font-size: 0.875rem;
+        color: rgba(var(--v-theme-on-surface), 0.6);
+        height: 48px;
+        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+
+    .group-row {
+        height: 48px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        background-color: rgb(var(--v-theme-surface));
+        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+        transition: background-color 0.2s;
     }
 
-    :deep(.v-data-table tbody tr:hover) {
-        background-color: rgba(0, 0, 0, 0.08) !important;
+    .group-row:hover {
+        background-color: rgba(var(--v-theme-on-surface), 0.05);
     }
 
-    /* Prevent text wrapping in table cells */
-    :deep(.v-data-table td) {
+    .job-row {
+        height: 40px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+
+    .job-row:hover {
+        background-color: rgba(var(--v-theme-on-surface), 0.05);
+    }
+
+    .jobs-container {
+        background-color: rgba(var(--v-theme-on-surface), 0.02);
+    }
+
+    /* Column specific styles */
+    .col-expand {
+        display: flex;
+        justify-content: center;
+    }
+    .text-truncate {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 0;
-    }
-
-    :deep(.v-data-table th) {
-        white-space: nowrap;
     }
 </style>
