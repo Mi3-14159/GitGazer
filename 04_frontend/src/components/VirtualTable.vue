@@ -127,7 +127,7 @@
                 <div class="group-wrapper">
                     <!-- Group Header Row -->
                     <div
-                        class="workflow-grid group-row"
+                        class="grid group-row"
                         :style="gridStyle"
                         @click="toggleGroup(item.run.id)"
                         :class="{expanded: isExpanded(item.run.id)}"
@@ -156,12 +156,12 @@
                     <!-- Job Rows (Rendered only if expanded) -->
                     <div
                         v-if="isExpanded(item.run.id)"
-                        class="jobs-container"
+                        class="rows-container"
                     >
                         <div
                             v-for="job in item.jobs.values()"
                             :key="job.id"
-                            class="workflow-grid job-row"
+                            class="grid item-row"
                             :style="gridStyle"
                             @click.stop="onJobClick ? onJobClick(job) : null"
                         >
@@ -208,7 +208,7 @@
         flex-grow: 1;
     }
 
-    .workflow-grid {
+    .grid {
         display: grid;
         grid-template-columns: 40px 2fr 2fr 2fr 1.5fr 1fr 1.5fr;
         gap: 8px;
@@ -234,18 +234,18 @@
         color: rgba(var(--v-theme-on-surface), 0.6);
     }
 
-    .job-row {
+    .item-row {
         height: 40px;
         cursor: pointer;
         font-size: 0.875rem;
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     }
 
-    .job-row:hover {
+    .item-row:hover {
         background-color: rgba(var(--v-theme-on-surface), 0.05);
     }
 
-    .jobs-container {
+    .rows-container {
         background-color: rgba(var(--v-theme-on-surface), 0.02);
     }
 
