@@ -31,9 +31,11 @@ In order to run the backend locally, you need to have AWS credentials configured
 
 ```bash
 cd 02_central
-npm run dev  # Local development server on port 8080 with hot reload
-npm run buildZip  # Build and package for Lambda deployment
-npm run test  # Run Vitest unit tests
+npm run dev:api  # Local development server on port 8080 with hot reload
+npm run buildZip:api  # Build and package API Lambda for deployment
+npm run test:unit  # Run Vitest unit tests
+npm run lint  # Check code style with ESLint
+npm run pretty  # Format code with Prettier
 ```
 
 #### Frontend Development
@@ -42,6 +44,8 @@ npm run test  # Run Vitest unit tests
 cd 04_frontend
 npm run dev  # Vite dev server with HMR
 npm run build  # Production build for S3 deployment
+npm run lint  # Check code style with ESLint
+npm run pretty  # Format code with Prettier
 ```
 
 #### Environment Setup
@@ -79,6 +83,25 @@ npm run build  # Production build for S3 deployment
 - Test runner: Vitest with custom configuration for path aliases
 - Mock AWS services in tests, don't call real AWS APIs
 
+### Linting and Formatting
+
+#### Backend and Frontend
+- **ESLint**: TypeScript linting with strict rules
+  - Backend: `npm run lint` (check), `npm run lint:fix` (auto-fix)
+  - Frontend: `npm run lint` (check), `npm run lint:fix` (auto-fix)
+- **Prettier**: Code formatting with consistent style
+  - Backend: `npm run pretty`
+  - Frontend: `npm run pretty`
+  - Config highlights: single quotes, 4-space tabs (2 for JSON), 150 char line width, trailing commas
+
+#### Style Preferences
+- Use single quotes for strings
+- Semicolons required
+- Arrow function parentheses always included
+- 4 spaces for indentation (TypeScript/JavaScript)
+- 2 spaces for JSON files
+- Prefer `const` over `let`
+
 ### Code Organization
 
 - **Controllers**: Business logic (`src/controllers/`)
@@ -93,11 +116,38 @@ npm run build  # Production build for S3 deployment
 - Frontend: `04_frontend/**` changes trigger S3 sync
 - Use `aws-vault` for local AWS credential management
 
+### Error Handling and Logging
+
+- Use structured logging with `pino` logger (AWS Lambda Powertools)
+- Log levels: debug, info, warn, error
+- Include context in error logs (user IDs, request IDs, etc.)
+- Catch and handle AWS service errors appropriately
+- Return proper HTTP status codes in API responses
+
+### Security Practices
+
+- Never commit secrets or credentials to the repository
+- Use AWS Secrets Manager for sensitive configuration
+- Validate and sanitize all user inputs
+- Use GitHub signature verification for webhooks (`verifyGithubSign` middleware)
+- Implement proper CORS policies in API Gateway
+- Use AWS Cognito for authentication and authorization
+- Check user group membership before allowing privileged operations
+
 ## Common Tasks
 
 **Add new API endpoint**: Create route in `src/router/routes/`, add to router in `src/router/index.ts`
 **Add new notification channel**: Extend `NotificationRuleChannelType` enum in `common/types/`
 **Debug webhook issues**: Check `verifyGithubSign.ts` middleware and integration secrets in DynamoDB
 **Local testing**: Use `src/develop.ts` to simulate API Gateway events locally
+
+## Dependency Management
+
+- Use `npm ci` for clean installs in CI/CD and local setup
+- Always update `package-lock.json` when adding/updating dependencies
+- Backend uses Node.js 22, ensure compatibility
+- Frontend uses Vue 3 and Vuetify 3
+- Keep AWS SDK dependencies in sync across the project
+- Review security advisories before adding new packages
 
 Focus on serverless patterns, proper error handling with structured logging (`pino`), and maintaining type safety across the shared type system.
