@@ -36,7 +36,6 @@
   },
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
-  "main": "index.js",
   "name": "api-lambda",
   "optionalDependencies": {
     "@rollup/rollup-darwin-x64": "^4.54.0",
