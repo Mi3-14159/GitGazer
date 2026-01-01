@@ -22,7 +22,7 @@
         if (!target) return;
 
         // Check if we are near the bottom
-        if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold) {
+        if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
             emit('load-more');
         }
     };
