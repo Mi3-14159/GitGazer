@@ -4,10 +4,12 @@
             items: T[];
             height?: string | number;
             threshold?: number;
+            loading?: boolean;
         }>(),
         {
             height: '100%',
             threshold: 200,
+            loading: false,
         },
     );
 
@@ -29,11 +31,16 @@
 <template>
     <div class="virtual-table">
         <!-- Fixed Header Area -->
-        <div
-            v-if="$slots.header"
-            class="virtual-table__header"
-        >
+        <div class="virtual-table__header">
             <slot name="header"></slot>
+            <v-progress-linear
+                :active="loading"
+                indeterminate
+                color="primary"
+                height="2"
+                absolute
+                location="bottom"
+            />
         </div>
 
         <!-- Virtual Scroller -->
@@ -68,6 +75,7 @@
         background: rgb(var(--v-theme-surface));
         z-index: 1;
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+        position: relative;
     }
 
     .virtual-table__scroller {

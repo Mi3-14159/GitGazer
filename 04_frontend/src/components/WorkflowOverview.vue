@@ -8,7 +8,7 @@
 
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs} = jobsStore;
-    const {workflows} = storeToRefs(jobsStore);
+    const {workflows, isLoading} = storeToRefs(jobsStore);
     const useCollapsedInsteadOfExpanded = false;
 
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
@@ -76,6 +76,7 @@
     <v-main class="fill-height">
         <VirtualTable
             :items="groups"
+            :loading="isLoading"
             @load-more="handleListJobs"
             class="workflow-table"
         >
