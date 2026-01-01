@@ -19,7 +19,7 @@ import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
 import {ref} from 'vue';
 
-type WorkflowGroup = {
+export type WorkflowGroup = {
     run: Job<WorkflowRunEvent>;
     jobs: Map<string, Job<WorkflowJobEvent>>;
 };

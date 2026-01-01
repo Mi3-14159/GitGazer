@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import VirtualTable from '@/components/VirtualTable.vue';
+    import VirtualTable, {type HeaderColumn} from '@/components/VirtualTable.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useJobsStore} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
@@ -9,33 +9,57 @@
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs} = jobsStore;
     const {workflows, isLoading} = storeToRefs(jobsStore);
-    const useCollapsedInsteadOfExpanded = false;
-
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
-    const expandedGroups = ref<Set<string>>(new Set());
-    const collapsedGroups = ref<Set<string>>(new Set());
 
-    const toggleGroup = (id: string) => {
-        if (expandedGroups.value.has(id)) {
-            expandedGroups.value.delete(id);
-        } else {
-            expandedGroups.value.add(id);
-        }
+    const headerConfig: HeaderColumn[] = [
+        {
+            name: 'Repository',
+            scope: 'group',
+            width: '2fr',
+            value: (item: any) => item.run?.workflow_event?.repository.full_name,
+        },
+        {
+            name: 'Workflow',
+            scope: 'group',
+            width: '2fr',
+            value: (item: any) => item.run?.workflow_event?.workflow_run.name,
+        },
+        {
+            name: 'Job Name',
+            scope: 'row',
+            width: '2fr',
+            value: (item: any) => item.workflow_event?.workflow_job.name,
+        },
+        {
+            name: 'Branch',
+            scope: 'group',
+            width: '1.5fr',
+            value: (item: any) => item.run?.workflow_event?.workflow_run.head_branch,
+        },
+        {
+            name: 'Status',
+            scope: 'both',
+            width: '1fr',
+            value: (item: any) =>
+                item.run
+                    ? item.run.workflow_event?.workflow_run.conclusion || item.run.workflow_event?.workflow_run.status
+                    : item.workflow_event?.workflow_job.conclusion || item.workflow_event?.workflow_job.status,
+        },
+        {
+            name: 'Created',
+            scope: 'both',
+            width: '1.5fr',
+            value: (item: any) => new Date(item.run ? item.run.created_at : item.created_at).toLocaleString(),
+        },
+    ];
 
-        if (collapsedGroups.value.has(id)) {
-            collapsedGroups.value.delete(id);
-        } else {
-            collapsedGroups.value.add(id);
-        }
+    const onJobClick = (job: Job<WorkflowJobEvent>) => {
+        selectedJob.value = job;
     };
 
-    const isExpanded = (id: string) => {
-        if (useCollapsedInsteadOfExpanded) {
-            return !collapsedGroups.value.has(id);
-        } else {
-            return expandedGroups.value.has(id);
-        }
-    };
+    onMounted(async () => {
+        await initializeStore();
+    });
 
     const getJobStatusColor = (status: string) => {
         switch (status) {
@@ -54,14 +78,6 @@
                 return 'default';
         }
     };
-
-    const onJobClick = (job: Job<WorkflowJobEvent>) => {
-        selectedJob.value = job;
-    };
-
-    onMounted(async () => {
-        await initializeStore();
-    });
 </script>
 
 <template>
@@ -69,88 +85,19 @@
         <VirtualTable
             :items="workflows"
             :loading="isLoading"
+            :header-config="headerConfig"
+            :onJobClick="onJobClick"
             @load-more="handleListJobs"
             class="workflow-table"
         >
-            <template #header>
-                <div class="workflow-grid header-row">
-                    <div class="col-expand"></div>
-                    <div class="col-repo">Repository</div>
-                    <div class="col-workflow">Workflow</div>
-                    <div class="col-job">Job Name</div>
-                    <div class="col-branch">Branch</div>
-                    <div class="col-status">Status</div>
-                    <div class="col-created">Created</div>
-                </div>
-            </template>
-
-            <template #row="{item: group}">
-                <div class="group-wrapper">
-                    <!-- Group Header Row -->
-                    <div
-                        class="workflow-grid group-row"
-                        @click="toggleGroup(group.run.id)"
-                        :class="{expanded: isExpanded(group.run.id)}"
-                    >
-                        <div class="col-expand">
-                            <v-icon
-                                :icon="isExpanded(group.run.id) ? '$expand' : '$next'"
-                                size="x-small"
-                            />
-                        </div>
-                        <div class="col-repo text-truncate">{{ group.run.workflow_event?.repository.full_name }}</div>
-                        <div class="col-workflow text-truncate">{{ group.run.workflow_event?.workflow_run.name }}</div>
-                        <div class="col-job text-disabled">-</div>
-                        <div class="col-branch text-truncate">{{ group.run.workflow_event?.workflow_run.head_branch }}</div>
-                        <div class="col-status">
-                            <v-chip
-                                :color="
-                                    getJobStatusColor(
-                                        group.run.workflow_event?.workflow_run.conclusion || group.run.workflow_event?.workflow_run.status,
-                                    )
-                                "
-                                size="x-small"
-                                variant="flat"
-                            >
-                                {{ group.run.workflow_event?.workflow_run.conclusion || group.run.workflow_event?.workflow_run.status }}
-                            </v-chip>
-                        </div>
-                        <div class="col-created">
-                            {{ new Date(group.run.created_at).toLocaleString() }}
-                        </div>
-                    </div>
-
-                    <!-- Job Rows (Rendered only if expanded) -->
-                    <div
-                        v-if="isExpanded(group.run.id)"
-                        class="jobs-container"
-                    >
-                        <div
-                            v-for="job in group.jobs.values()"
-                            :key="job.id"
-                            class="workflow-grid job-row"
-                            @click.stop="onJobClick(job)"
-                        >
-                            <div class="col-expand"></div>
-                            <div class="col-repo"></div>
-                            <div class="col-workflow"></div>
-                            <div class="col-job text-truncate">{{ job.workflow_event.workflow_job.name }}</div>
-                            <div class="col-branch"></div>
-                            <div class="col-status">
-                                <v-chip
-                                    :color="getJobStatusColor(job.workflow_event.workflow_job.conclusion || job.workflow_event.workflow_job.status)"
-                                    size="x-small"
-                                    variant="flat"
-                                >
-                                    {{ job.workflow_event.workflow_job.conclusion || job.workflow_event.workflow_job.status }}
-                                </v-chip>
-                            </div>
-                            <div class="col-created">
-                                {{ new Date(job.created_at).toLocaleString() }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <template #item.Status="{value}">
+                <v-chip
+                    :color="getJobStatusColor(value)"
+                    size="small"
+                    label
+                >
+                    {{ value }}
+                </v-chip>
             </template>
         </VirtualTable>
 
@@ -164,59 +111,5 @@
 <style scoped>
     .workflow-table {
         height: 100vh;
-    }
-
-    .workflow-grid {
-        display: grid;
-        grid-template-columns: 40px 2fr 2fr 2fr 1.5fr 1fr 1.5fr;
-        gap: 8px;
-        align-items: center;
-        padding: 0 16px;
-    }
-
-    .header-row {
-        font-weight: bold;
-        font-size: 0.875rem;
-        color: rgba(var(--v-theme-on-surface), 0.6);
-        height: 48px;
-        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    }
-
-    .group-row {
-        height: 48px;
-        cursor: pointer;
-        background-color: rgb(var(--v-theme-surface));
-        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-        transition: background-color 0.2s;
-    }
-
-    .group-row:hover {
-        background-color: rgba(var(--v-theme-on-surface), 0.05);
-    }
-
-    .job-row {
-        height: 40px;
-        cursor: pointer;
-        font-size: 0.875rem;
-        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    }
-
-    .job-row:hover {
-        background-color: rgba(var(--v-theme-on-surface), 0.05);
-    }
-
-    .jobs-container {
-        background-color: rgba(var(--v-theme-on-surface), 0.02);
-    }
-
-    /* Column specific styles */
-    .col-expand {
-        display: flex;
-        justify-content: center;
-    }
-    .text-truncate {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 </style>
