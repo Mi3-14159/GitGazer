@@ -1,4 +1,5 @@
 import type {
+  WebhookEvent,
   WorkflowJobEvent,
   WorkflowRunEvent,
 } from "@octokit/webhooks-types";
@@ -104,6 +105,24 @@ export enum JobType {
   WORKFLOW_JOB = "workflow_job",
   WORKFLOW_RUN = "workflow_run",
 }
+
+export const isWorkflowJobEvent = (
+  event: WebhookEvent
+): event is WorkflowJobEvent => {
+  return (
+    (event as WorkflowJobEvent).workflow_job !== undefined &&
+    (event as WorkflowJobEvent).workflow_job.id !== undefined
+  );
+};
+
+export const isWorkflowRunEvent = (
+  event: WebhookEvent
+): event is WorkflowRunEvent => {
+  return (
+    (event as WorkflowRunEvent).workflow_run !== undefined &&
+    (event as WorkflowRunEvent).workflow_run.id !== undefined
+  );
+};
 
 export type WorkflowEvent<T extends JobType> = T extends JobType.WORKFLOW_JOB
   ? WorkflowJobEvent

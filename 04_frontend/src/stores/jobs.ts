@@ -1,6 +1,8 @@
 import {useAuth} from '@/composables/useAuth';
 import {Sha256} from '@aws-crypto/sha256-js';
 import {
+    isWorkflowJobEvent,
+    isWorkflowRunEvent,
     Job,
     JobRequestParameters,
     JobsResponse,
@@ -190,14 +192,6 @@ export const useJobsStore = defineStore('jobs', () => {
 
         await connectToIamWebSocket();
         await handleListJobs();
-    };
-
-    const isWorkflowJobEvent = (event: WebhookEvent): event is WorkflowJobEvent => {
-        return (event as WorkflowJobEvent).workflow_job !== undefined && (event as WorkflowJobEvent).workflow_job.id !== undefined;
-    };
-
-    const isWorkflowRunEvent = (event: WebhookEvent): event is WorkflowRunEvent => {
-        return (event as WorkflowRunEvent).workflow_run !== undefined && (event as WorkflowRunEvent).workflow_run.id !== undefined;
     };
 
     return {

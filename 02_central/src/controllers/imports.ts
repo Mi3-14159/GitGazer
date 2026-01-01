@@ -1,13 +1,12 @@
 import {deleteConnection, getConnections, putJob} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
-import {isWorkflowJobEvent, isWorkflowRunEvent} from '@/types';
 import {
     ApiGatewayManagementApiClient,
     ApiGatewayManagementApiServiceException,
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {Job, JobType, StreamJobEvent, WorkflowEvent} from '@common/types';
+import {isWorkflowJobEvent, isWorkflowRunEvent, Job, JobType, StreamJobEvent, WorkflowEvent} from '@common/types';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;
 const expireInSec = parseInt(expireInSecString ?? '') || undefined;
