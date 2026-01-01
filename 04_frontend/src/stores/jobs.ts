@@ -17,7 +17,7 @@ import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
-import {computed, reactive, ref} from 'vue';
+import {reactive, ref} from 'vue';
 
 type WorkflowGroup = {
     run: Job<WorkflowRunEvent>;
@@ -28,13 +28,16 @@ export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
     const workflows = reactive(new Map<string, WorkflowGroup>());
-    const workflowsArray = computed(() => {
-        return Array.from(workflows.values()).sort((a, b) => {
+    const workflowsArray = reactive<WorkflowGroup[]>([]);
+
+    const sortWorkflows = () => {
+        workflowsArray.sort((a, b) => {
             const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
             const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
             return timeB - timeA;
         });
-    });
+    };
+
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
@@ -85,6 +88,7 @@ export const useJobsStore = defineStore('jobs', () => {
         ws.onmessage = (event) => {
             const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WebhookEvent>;
             handleWorkflow(gitgazerEvent.payload);
+            sortWorkflows();
         };
         ws.onerror = (error) => console.error('WebSocket error:', error);
         ws.onclose = (event) => {
@@ -148,6 +152,7 @@ export const useJobsStore = defineStore('jobs', () => {
             handleWorkflow(workflow);
         });
 
+        sortWorkflows();
         isLoading.value = false;
     };
 
@@ -155,14 +160,16 @@ export const useJobsStore = defineStore('jobs', () => {
         if (isWorkflowJobEvent(workflow.workflow_event)) {
             const runId = String(workflow.workflow_event.workflow_job.run_id);
             if (!workflows.has(runId)) {
-                workflows.set(runId, {
+                const group: WorkflowGroup = {
                     run: {
                         id: runId,
                         integrationId: workflow.integrationId,
                         event_type: JobType.WORKFLOW_RUN,
                     } as Job<WorkflowRunEvent>,
                     jobs: new Map<string, Job<WorkflowJobEvent>>([[workflow.id, workflow as Job<WorkflowJobEvent>]]),
-                });
+                };
+                workflows.set(runId, group);
+                workflowsArray.push(group);
             } else {
                 const existingGroup = workflows.get(runId);
                 if (existingGroup) {
@@ -172,10 +179,12 @@ export const useJobsStore = defineStore('jobs', () => {
         } else if (isWorkflowRunEvent(workflow.workflow_event)) {
             const runId = workflow.id;
             if (!workflows.has(runId)) {
-                workflows.set(runId, {
+                const group: WorkflowGroup = {
                     run: workflow as Job<WorkflowRunEvent>,
                     jobs: new Map<string, Job<WorkflowJobEvent>>(),
-                });
+                };
+                workflows.set(runId, group);
+                workflowsArray.push(group);
             } else {
                 const existingGroup = workflows.get(runId);
                 if (existingGroup) {
