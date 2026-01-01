@@ -45,8 +45,8 @@
         return {
             display: 'grid',
             gridTemplateColumns: columns.value.map((c) => c.width || '1fr').join(' '),
-            gap: '4px',
-            padding: '0 8px',
+            gap: '8px',
+            padding: '0 16px',
             alignItems: 'center',
         };
     });
@@ -319,7 +319,7 @@
         z-index: 1;
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
         position: relative;
-        min-height: 36px;
+        min-height: 48px;
     }
 
     .virtual-table__scroller {
@@ -329,18 +329,17 @@
     .grid {
         display: grid;
         grid-template-columns: 40px 2fr 2fr 2fr 1.5fr 1fr 1.5fr;
-        gap: 4px;
+        gap: 8px;
         align-items: center;
-        padding: 0 8px;
+        padding: 0 16px;
     }
 
     .group-row {
-        height: 36px;
+        height: 48px;
         cursor: pointer;
         background-color: rgb(var(--v-theme-surface));
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
         transition: background-color 0.2s;
-        font-size: 0.875rem;
     }
 
     .group-row:hover {
@@ -354,7 +353,7 @@
     }
 
     .item-row {
-        height: 28px;
+        height: 40px;
         cursor: pointer;
         font-size: 0.875rem;
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
