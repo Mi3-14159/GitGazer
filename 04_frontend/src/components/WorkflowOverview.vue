@@ -87,7 +87,7 @@
             :loading="isLoading"
             :header-config="headerConfig"
             :onJobClick="onJobClick"
-            @load-more="handleListJobs"
+            :loadMore="handleListJobs"
             class="workflow-table"
         >
             <template #item.Status="{value}">

@@ -18,6 +18,7 @@
             loading?: boolean;
             headerConfig?: HeaderColumn[];
             onJobClick?: (job: Job<WorkflowJobEvent>) => void;
+            loadMore?: () => void;
         }>(),
         {
             height: '100%',
@@ -26,10 +27,6 @@
             headerConfig: () => [],
         },
     );
-
-    const emit = defineEmits<{
-        (e: 'load-more'): void;
-    }>();
 
     const columns = computed(() => {
         const firstCol: HeaderColumn = {
@@ -57,7 +54,7 @@
 
         // Check if we are near the bottom
         if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
-            emit('load-more');
+            props.loadMore?.();
         }
     };
 
