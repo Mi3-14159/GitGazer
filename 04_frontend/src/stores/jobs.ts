@@ -17,7 +17,7 @@ import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
-import {reactive, ref} from 'vue';
+import {ref} from 'vue';
 
 type WorkflowGroup = {
     run: Job<WorkflowRunEvent>;
@@ -27,15 +27,17 @@ type WorkflowGroup = {
 export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
-    const workflows = reactive(new Map<string, WorkflowGroup>());
-    const workflowsArray = reactive<WorkflowGroup[]>([]);
+    const workflows = new Map<string, WorkflowGroup>();
+    const workflowsArray = ref<WorkflowGroup[]>([]);
+
+    const compareWorkflows = (a: WorkflowGroup, b: WorkflowGroup) => {
+        const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
+        const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
+        return timeB - timeA;
+    };
 
     const sortWorkflows = () => {
-        workflowsArray.sort((a, b) => {
-            const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
-            const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
-            return timeB - timeA;
-        });
+        workflowsArray.value.sort(compareWorkflows);
     };
 
     const isLoading = ref(false);
@@ -149,14 +151,14 @@ export const useJobsStore = defineStore('jobs', () => {
         const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
         response.forEach((workflow) => {
-            handleWorkflow(workflow);
+            handleWorkflow(workflow, false);
         });
 
-        sortWorkflows();
+        workflowsArray.value = Array.from(workflows.values()).sort(compareWorkflows);
         isLoading.value = false;
     };
 
-    const handleWorkflow = (workflow: Job<WebhookEvent>) => {
+    const handleWorkflow = (workflow: Job<WebhookEvent>, addToArray = true) => {
         if (isWorkflowJobEvent(workflow.workflow_event)) {
             const runId = String(workflow.workflow_event.workflow_job.run_id);
             if (!workflows.has(runId)) {
@@ -169,7 +171,9 @@ export const useJobsStore = defineStore('jobs', () => {
                     jobs: new Map<string, Job<WorkflowJobEvent>>([[workflow.id, workflow as Job<WorkflowJobEvent>]]),
                 };
                 workflows.set(runId, group);
-                workflowsArray.push(group);
+                if (addToArray) {
+                    workflowsArray.value.push(group);
+                }
             } else {
                 const existingGroup = workflows.get(runId);
                 if (existingGroup) {
@@ -184,7 +188,9 @@ export const useJobsStore = defineStore('jobs', () => {
                     jobs: new Map<string, Job<WorkflowJobEvent>>(),
                 };
                 workflows.set(runId, group);
-                workflowsArray.push(group);
+                if (addToArray) {
+                    workflowsArray.value.push(group);
+                }
             } else {
                 const existingGroup = workflows.get(runId);
                 if (existingGroup) {
