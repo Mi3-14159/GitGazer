@@ -4,7 +4,7 @@
     import {useJobsStore} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, ref} from 'vue';
+    import {onMounted, ref} from 'vue';
 
     const jobsStore = useJobsStore();
     const {initializeStore, handleListJobs} = jobsStore;
@@ -14,20 +14,6 @@
     const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
     const expandedGroups = ref<Set<string>>(new Set());
     const collapsedGroups = ref<Set<string>>(new Set());
-
-    // Convert Map to Array for the virtual scroller
-    const groups = computed(() => {
-        return Array.from(workflows.value.values())
-            .map((group) => ({
-                ...group,
-                id: group.run.id,
-            }))
-            .sort((a, b) => {
-                const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
-                const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
-                return timeB - timeA;
-            });
-    });
 
     const toggleGroup = (id: string) => {
         if (expandedGroups.value.has(id)) {
@@ -81,7 +67,7 @@
 <template>
     <v-main class="fill-height">
         <VirtualTable
-            :items="groups"
+            :items="workflows"
             :loading="isLoading"
             @load-more="handleListJobs"
             class="workflow-table"

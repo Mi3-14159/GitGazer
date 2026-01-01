@@ -15,7 +15,7 @@ import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
-import {reactive, ref} from 'vue';
+import {computed, reactive, ref} from 'vue';
 
 type WorkflowGroup = {
     run: Job<WorkflowRunEvent>;
@@ -26,6 +26,18 @@ export const useJobsStore = defineStore('jobs', () => {
     const {getSession} = useAuth();
 
     const workflows = reactive(new Map<string, WorkflowGroup>());
+    const workflowsArray = computed(() => {
+        return Array.from(workflows.values())
+            .map((workflow) => ({
+                ...workflow,
+                id: workflow.run.id,
+            }))
+            .sort((a, b) => {
+                const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
+                const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
+                return timeB - timeA;
+            });
+    });
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
@@ -192,7 +204,7 @@ export const useJobsStore = defineStore('jobs', () => {
     };
 
     return {
-        workflows,
+        workflows: workflowsArray,
         isLoading,
         initializeStore,
         handleListJobs,
