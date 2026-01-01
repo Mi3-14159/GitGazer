@@ -89,12 +89,12 @@
                     <!-- Group Header Row -->
                     <div
                         class="workflow-grid group-row"
-                        @click="toggleGroup(group.id)"
-                        :class="{expanded: isExpanded(group.id)}"
+                        @click="toggleGroup(group.run.id)"
+                        :class="{expanded: isExpanded(group.run.id)}"
                     >
                         <div class="col-expand">
                             <v-icon
-                                :icon="isExpanded(group.id) ? '$expand' : '$next'"
+                                :icon="isExpanded(group.run.id) ? '$expand' : '$next'"
                                 size="x-small"
                             />
                         </div>
@@ -122,7 +122,7 @@
 
                     <!-- Job Rows (Rendered only if expanded) -->
                     <div
-                        v-if="isExpanded(group.id)"
+                        v-if="isExpanded(group.run.id)"
                         class="jobs-container"
                     >
                         <div

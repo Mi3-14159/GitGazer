@@ -27,16 +27,11 @@ export const useJobsStore = defineStore('jobs', () => {
 
     const workflows = reactive(new Map<string, WorkflowGroup>());
     const workflowsArray = computed(() => {
-        return Array.from(workflows.values())
-            .map((workflow) => ({
-                ...workflow,
-                id: workflow.run.id,
-            }))
-            .sort((a, b) => {
-                const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
-                const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
-                return timeB - timeA;
-            });
+        return Array.from(workflows.values()).sort((a, b) => {
+            const timeA = a.run.created_at ? new Date(a.run.created_at).getTime() : 0;
+            const timeB = b.run.created_at ? new Date(b.run.created_at).getTime() : 0;
+            return timeB - timeA;
+        });
     });
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
@@ -156,29 +151,31 @@ export const useJobsStore = defineStore('jobs', () => {
 
     const handleWorkflow = (workflow: Job<WebhookEvent>) => {
         if (isWorkflowJobEvent(workflow.workflow_event)) {
-            if (!workflows.has(String(workflow.workflow_event.workflow_job.run_id))) {
-                workflows.set(String(workflow.workflow_event.workflow_job.run_id), {
+            const runId = String(workflow.workflow_event.workflow_job.run_id);
+            if (!workflows.has(runId)) {
+                workflows.set(runId, {
                     run: {
-                        id: String(workflow.workflow_event.workflow_job.run_id),
+                        id: runId,
                         integrationId: workflow.integrationId,
                         event_type: JobType.WORKFLOW_RUN,
                     } as Job<WorkflowRunEvent>,
                     jobs: new Map<string, Job<WorkflowJobEvent>>([[workflow.id, workflow as Job<WorkflowJobEvent>]]),
                 });
             } else {
-                const existingGroup = workflows.get(String(workflow.workflow_event.workflow_job.run_id));
+                const existingGroup = workflows.get(runId);
                 if (existingGroup) {
                     existingGroup.jobs.set(workflow.id, workflow as Job<WorkflowJobEvent>);
                 }
             }
         } else if (isWorkflowRunEvent(workflow.workflow_event)) {
-            if (!workflows.has(String(workflow.id))) {
-                workflows.set(String(workflow.id), {
+            const runId = workflow.id;
+            if (!workflows.has(runId)) {
+                workflows.set(runId, {
                     run: workflow as Job<WorkflowRunEvent>,
                     jobs: new Map<string, Job<WorkflowJobEvent>>(),
                 });
             } else {
-                const existingGroup = workflows.get(String(workflow.id));
+                const existingGroup = workflows.get(runId);
                 if (existingGroup) {
                     existingGroup.run = workflow as Job<WorkflowRunEvent>;
                 }
