@@ -92,7 +92,7 @@ npm run pretty  # Format code with Prettier
 - **Prettier**: Code formatting with consistent style
   - Backend: `npm run pretty`
   - Frontend: `npm run pretty`
-  - Config highlights: single quotes, 4-space tabs (2 for JSON), 150 char line width, trailing commas
+  - Config highlights: single quotes, 4-space indentation (2 for JSON), 150 character line width, trailing commas
 
 #### Style Preferences
 - Use single quotes for strings
