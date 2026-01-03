@@ -17,7 +17,7 @@ These files provide detailed build commands, testing procedures, and module-spec
 
 ### Multi-Module Structure
 
-- **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 22)
+- **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 24)
 - **`04_frontend/`**: Vue 3 + Vuetify SPA frontend
 - **`common/`**: Shared TypeScript types and utilities
 - **`infra/`**: AWS infrastructure as code (Terraform)
