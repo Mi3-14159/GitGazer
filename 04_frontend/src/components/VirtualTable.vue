@@ -301,6 +301,20 @@
                 </div>
             </template>
         </v-virtual-scroll>
+
+        <div
+            v-if="loadMore"
+            class="virtual-table__footer pa-2"
+        >
+            <v-btn
+                block
+                variant="text"
+                :loading="loading"
+                @click="loadMore"
+            >
+                Load More
+            </v-btn>
+        </div>
     </div>
 </template>
 
@@ -320,6 +334,12 @@
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
         position: relative;
         min-height: 48px;
+    }
+
+    .virtual-table__footer {
+        flex-shrink: 0;
+        background: rgb(var(--v-theme-surface));
+        border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     }
 
     .virtual-table__scroller {
