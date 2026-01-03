@@ -24,11 +24,8 @@ cd common
 # Install dependencies
 npm ci
 
-# Build TypeScript
-npm run build
-
-# Watch mode for development
-npm run build:watch
+# Note: This module is consumed as TypeScript source files
+# No build step is required - it's imported directly by other modules
 ```
 
 ## Module Structure
