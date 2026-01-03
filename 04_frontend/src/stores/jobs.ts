@@ -17,7 +17,7 @@ import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
 import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
-import {ref} from 'vue';
+import {reactive, ref} from 'vue';
 
 export type WorkflowGroup = {
     run: Job<WorkflowRunEvent>;
@@ -160,14 +160,14 @@ export const useJobsStore = defineStore('jobs', () => {
 
     const ensureWorkflowGroup = (runId: string, integrationId: string, addToArray: boolean) => {
         if (!workflows.has(runId)) {
-            const group: WorkflowGroup = {
+            const group: WorkflowGroup = reactive({
                 run: {
                     id: runId,
                     integrationId,
                     event_type: JobType.WORKFLOW_RUN,
                 } as Job<WorkflowRunEvent>,
                 jobs: new Map(),
-            };
+            });
             workflows.set(runId, group);
             if (addToArray) {
                 workflowsArray.value.push(group);
