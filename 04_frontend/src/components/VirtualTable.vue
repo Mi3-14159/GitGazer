@@ -2,7 +2,7 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import {WorkflowGroup} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
-    import {computed, ref, watch} from 'vue';
+    import {computed, onMounted, onUnmounted, ref, watch, type ComponentPublicInstance} from 'vue';
 
     export interface HeaderColumn<T = any> {
         name: string;
@@ -51,15 +51,52 @@
         };
     });
 
+    /* Infinite Scroll Logic */
     const onScroll = (e: Event) => {
         const target = e.target as HTMLElement;
         if (!target) return;
 
-        // Check if we are near the bottom
         if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
             props.loadMore?.();
         }
     };
+
+    const scrollerRef = ref<ComponentPublicInstance | null>(null);
+    const hasScrollbar = ref(false);
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+
+    const checkScrollbar = () => {
+        const el = scrollerRef.value?.$el;
+        if (el) {
+            // Use a small buffer for float precision issues if any
+            hasScrollbar.value = el.scrollHeight > el.clientHeight + 1;
+        }
+    };
+
+    onMounted(() => {
+        const el = scrollerRef.value?.$el;
+        if (el) {
+            checkScrollbar();
+            // Double check after a short delay to allow virtual scroller to calculate layout
+            setTimeout(checkScrollbar, 100);
+
+            resizeObserver = new ResizeObserver(() => {
+                checkScrollbar();
+            });
+            resizeObserver.observe(el);
+
+            mutationObserver = new MutationObserver(() => {
+                checkScrollbar();
+            });
+            mutationObserver.observe(el, {childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class']});
+        }
+    });
+
+    onUnmounted(() => {
+        if (resizeObserver) resizeObserver.disconnect();
+        if (mutationObserver) mutationObserver.disconnect();
+    });
 
     /* Group Expand/Collapse Logic */
     const expandedGroups = ref<Set<string>>(new Set());
@@ -236,6 +273,7 @@
 
         <!-- Virtual Scroller -->
         <v-virtual-scroll
+            ref="scrollerRef"
             :items="filteredItems"
             :height="height"
             class="virtual-table__scroller"
@@ -303,7 +341,7 @@
         </v-virtual-scroll>
 
         <div
-            v-if="loadMore"
+            v-if="loadMore && !hasScrollbar"
             class="virtual-table__footer pa-2"
         >
             <v-btn
