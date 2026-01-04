@@ -154,7 +154,9 @@ export const useJobsStore = defineStore('jobs', () => {
             handleWorkflow(workflow, false);
         });
 
-        workflowsArray.value = Array.from(workflows.values()).sort(compareWorkflows);
+        workflowsArray.value = Array.from(workflows.values())
+            .filter((group) => group.run.workflow_event)
+            .sort(compareWorkflows);
         isLoading.value = false;
     };
 
