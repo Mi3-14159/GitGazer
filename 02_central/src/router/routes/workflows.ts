@@ -1,12 +1,12 @@
-import {getJobs} from '@/controllers/jobs';
+import {getWorkflows} from '@/controllers/workflows';
 import {extractCognitoGroups} from '@/router/middlewares/authorization';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {isJobRequestParameters} from '@common/types';
+import {isWorkflowsRequestParameters} from '@common/types';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/jobs', [extractCognitoGroups], async (reqCtx) => {
+router.get('/api/workflows', [extractCognitoGroups], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const {queryStringParameters} = event;
@@ -24,7 +24,7 @@ router.get('/api/jobs', [extractCognitoGroups], async (reqCtx) => {
         });
     }
 
-    if (!isJobRequestParameters(queryStringParameters)) {
+    if (!isWorkflowsRequestParameters(queryStringParameters)) {
         return new Response(JSON.stringify({message: 'Invalid query parameters'}), {
             status: HttpStatusCodes.BAD_REQUEST,
             headers: {
@@ -35,14 +35,14 @@ router.get('/api/jobs', [extractCognitoGroups], async (reqCtx) => {
 
     const {limit, projection, exclusiveStartKeys} = queryStringParameters ?? {};
 
-    const jobs = await getJobs({
+    const workflows = await getWorkflows({
         integrationIds: groups,
         limit,
         projection,
         exclusiveStartKeys,
     });
 
-    return new Response(JSON.stringify(jobs), {
+    return new Response(JSON.stringify(workflows), {
         status: HttpStatusCodes.OK,
         headers: {
             'Content-Type': 'application/json',

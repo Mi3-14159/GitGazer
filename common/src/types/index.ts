@@ -101,9 +101,9 @@ export const isIntegration = (integration: any): integration is Integration => {
   );
 };
 
-export enum JobType {
-  WORKFLOW_JOB = "workflow_job",
-  WORKFLOW_RUN = "workflow_run",
+export enum WorkflowType {
+  JOB = "workflow_job",
+  RUN = "workflow_run",
 }
 
 export const isWorkflowJobEvent = (
@@ -124,18 +124,18 @@ export const isWorkflowRunEvent = (
   );
 };
 
-export type WorkflowEvent<T extends JobType> = T extends JobType.WORKFLOW_JOB
+export type WorkflowEvent<T extends WorkflowType> = T extends WorkflowType.JOB
   ? WorkflowJobEvent
-  : T extends JobType.WORKFLOW_RUN
+  : T extends WorkflowType.RUN
   ? WorkflowRunEvent
   : WorkflowJobEvent | WorkflowRunEvent;
 
-export type Job<Subtype> = {
+export type Workflow<Subtype> = {
   integrationId: string;
   id: string;
   created_at: string;
   expire_at?: number;
-  event_type: JobType;
+  event_type: WorkflowType;
   workflow_event: Subtype;
 };
 
@@ -143,22 +143,22 @@ export enum ProjectionType {
   minimal = "minimal",
 }
 
-export type JobsResponse<T> = {
+export type WorkflowsResponse<T> = {
   items: T[];
   lastEvaluatedKey?: {
     [key: string]: any;
   };
 }[];
 
-export type JobRequestParameters = {
+export type WorkflowsRequestParameters = {
   limit?: number;
   projection?: ProjectionType;
   exclusiveStartKeys?: { [key: string]: any }[];
 };
 
-export const isJobRequestParameters = (
+export const isWorkflowsRequestParameters = (
   params: any
-): params is JobRequestParameters => {
+): params is WorkflowsRequestParameters => {
   if (!params) {
     return true;
   }
@@ -181,7 +181,7 @@ export const isJobRequestParameters = (
   return true;
 };
 
-export type StreamJobEvent<Subtype> = {
-  eventType: JobType;
-  payload: Job<Subtype>;
+export type StreamWorkflowEvent<Subtype> = {
+  eventType: WorkflowType;
+  payload: Workflow<Subtype>;
 };

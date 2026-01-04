@@ -4,8 +4,8 @@ import authCongitoRoutes from '@/router/routes/authCongito';
 import feFailover from '@/router/routes/feFailover';
 import importRoutes from '@/router/routes/import';
 import integrationsRoutes from '@/router/routes/integrations';
-import jobsRoutes from '@/router/routes/jobs';
 import notificationsRoutes from '@/router/routes/notifications';
+import jobsRoutes from '@/router/routes/workflows';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {compress, cors} from '@aws-lambda-powertools/event-handler/http/middleware';
 

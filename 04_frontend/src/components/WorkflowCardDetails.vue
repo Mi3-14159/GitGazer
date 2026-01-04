@@ -1,12 +1,12 @@
 <script setup lang="ts">
-    import {Job, WorkflowJobEvent} from '@common/types';
+    import {Workflow, WorkflowJobEvent} from '@common/types';
     import {computed} from 'vue';
 
     const props = defineProps<{
-        job: Job<WorkflowJobEvent> | null;
+        job: Workflow<WorkflowJobEvent> | null;
     }>();
 
-    const emit = defineEmits<{(e: 'update:job', value: Job<WorkflowJobEvent> | null): void}>();
+    const emit = defineEmits<{(e: 'update:job', value: Workflow<WorkflowJobEvent> | null): void}>();
 
     // Use a computed property to control the dialog visibility.
     const dialog = computed({
@@ -17,16 +17,16 @@
     });
 
     // Helper functions
-    const getJobStatus = (job: Job<WorkflowJobEvent>) => {
+    const getJobStatus = (job: Workflow<WorkflowJobEvent>) => {
         return job.workflow_event.workflow_job.conclusion || job.workflow_event.workflow_job.status || 'In Progress';
     };
 
-    const formatJobTime = (job: Job<WorkflowJobEvent>) => {
+    const formatJobTime = (job: Workflow<WorkflowJobEvent>) => {
         const date = new Date(job.workflow_event.workflow_job.created_at);
         return date.toLocaleString();
     };
 
-    const getGitHubWebUrl = (job: Job<WorkflowJobEvent>) => {
+    const getGitHubWebUrl = (job: Workflow<WorkflowJobEvent>) => {
         const repoFullName = job.workflow_event.repository.full_name;
         const runId = job.workflow_event.workflow_job.run_id;
         return `https://github.com/${repoFullName}/actions/runs/${runId}`;

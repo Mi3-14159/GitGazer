@@ -1,15 +1,15 @@
 <script setup lang="ts">
     import VirtualTable, {type HeaderColumn} from '@/components/VirtualTable.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
-    import {useJobsStore} from '@/stores/jobs';
-    import {Job, WorkflowJobEvent} from '@common/types';
+    import {useWorkflowsStore} from '@/stores/workflows';
+    import {Workflow, WorkflowJobEvent} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {onMounted, ref} from 'vue';
 
-    const jobsStore = useJobsStore();
-    const {initializeStore, handleListJobs} = jobsStore;
-    const {workflows, isLoading} = storeToRefs(jobsStore);
-    const selectedJob = ref<Job<WorkflowJobEvent> | null>(null);
+    const workflowsStore = useWorkflowsStore();
+    const {initializeStore, handleListWorkflows} = workflowsStore;
+    const {workflows, isLoading} = storeToRefs(workflowsStore);
+    const selectedJob = ref<Workflow<WorkflowJobEvent> | null>(null);
 
     const headerConfig: HeaderColumn[] = [
         {
@@ -58,7 +58,7 @@
         },
     ];
 
-    const onJobClick = (job: Job<WorkflowJobEvent>) => {
+    const onJobClick = (job: Workflow<WorkflowJobEvent>) => {
         selectedJob.value = job;
     };
 
@@ -92,7 +92,7 @@
             :loading="isLoading"
             :header-config="headerConfig"
             :onJobClick="onJobClick"
-            :loadMore="handleListJobs"
+            :loadMore="handleListWorkflows"
             class="workflow-table"
         >
             <template #item.Status="{value}">

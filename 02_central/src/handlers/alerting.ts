@@ -1,8 +1,8 @@
-import {getJobsBy, getNotificationRulesBy} from '@/clients/dynamodb';
+import {getNotificationRulesBy, getWorkflowsBy} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
-import {Job, JobType, NotificationRule, NotificationRuleChannelType, WorkflowJobEvent} from '@common/types';
+import {NotificationRule, NotificationRuleChannelType, Workflow, WorkflowJobEvent, WorkflowType} from '@common/types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
 const logger = getLogger();
@@ -27,11 +27,11 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                 continue;
             }
 
-            if (record.dynamodb?.NewImage?.event_type?.S !== JobType.WORKFLOW_JOB) {
+            if (record.dynamodb?.NewImage?.event_type?.S !== WorkflowType.JOB) {
                 continue;
             }
 
-            const item = unmarshall(record.dynamodb.NewImage as unknown as Record<string, any>) as Job<WorkflowJobEvent>;
+            const item = unmarshall(record.dynamodb.NewImage as unknown as Record<string, any>) as Workflow<WorkflowJobEvent>;
 
             // Only alert for completed failures
             const {status} = item.workflow_event.workflow_job;
@@ -79,9 +79,9 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
 
             // Fetch parent workflow_run to get event field (matches Step Functions branch 2)
             let workflowRunEvent;
-            const workflowRuns = await getJobsBy({
+            const workflowRuns = await getWorkflowsBy({
                 keys: [{integrationId, id: run_id.toString()}],
-                filters: {event_type: JobType.WORKFLOW_RUN},
+                filters: {event_type: WorkflowType.RUN},
                 limit: 1,
             });
             const parentRun = workflowRuns

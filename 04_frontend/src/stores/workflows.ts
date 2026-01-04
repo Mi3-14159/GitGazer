@@ -3,15 +3,15 @@ import {Sha256} from '@aws-crypto/sha256-js';
 import {
     isWorkflowJobEvent,
     isWorkflowRunEvent,
-    Job,
-    JobRequestParameters,
-    JobsResponse,
-    JobType,
     ProjectionType,
-    StreamJobEvent,
+    StreamWorkflowEvent,
     WebhookEvent,
+    Workflow,
     WorkflowJobEvent,
     WorkflowRunEvent,
+    WorkflowsRequestParameters,
+    WorkflowsResponse,
+    WorkflowType,
 } from '@common/types';
 import {HttpRequest} from '@smithy/protocol-http';
 import {SignatureV4} from '@smithy/signature-v4';
@@ -20,11 +20,11 @@ import {defineStore} from 'pinia';
 import {reactive, ref} from 'vue';
 
 export type WorkflowGroup = {
-    run: Job<WorkflowRunEvent>;
-    jobs: Map<string, Job<WorkflowJobEvent>>;
+    run: Workflow<WorkflowRunEvent>;
+    jobs: Map<string, Workflow<WorkflowJobEvent>>;
 };
 
-export const useJobsStore = defineStore('jobs', () => {
+export const useWorkflowsStore = defineStore('workflows', () => {
     const {getSession} = useAuth();
 
     const workflows = new Map<string, WorkflowGroup>();
@@ -88,7 +88,7 @@ export const useJobsStore = defineStore('jobs', () => {
 
         ws.onopen = () => console.info('WebSocket connected');
         ws.onmessage = (event) => {
-            const gitgazerEvent = JSON.parse(event.data) as StreamJobEvent<WebhookEvent>;
+            const gitgazerEvent = JSON.parse(event.data) as StreamWorkflowEvent<WebhookEvent>;
             handleWorkflow(gitgazerEvent.payload);
             sortWorkflows();
         };
@@ -113,7 +113,7 @@ export const useJobsStore = defineStore('jobs', () => {
         return ws;
     };
 
-    const getJobs = async (params?: JobRequestParameters) => {
+    const getJobs = async (params?: WorkflowsRequestParameters) => {
         isLoading.value = true;
 
         const queryParams: Record<string, string> = {};
@@ -129,14 +129,14 @@ export const useJobsStore = defineStore('jobs', () => {
 
         const restOperation = get({
             apiName: 'api',
-            path: '/jobs',
+            path: '/workflows',
             options: {
                 queryParams,
             },
         });
 
         const {body} = await restOperation.response;
-        const events = (await body.json()) as unknown as JobsResponse<Job<WebhookEvent>>;
+        const events = (await body.json()) as unknown as WorkflowsResponse<Workflow<WebhookEvent>>;
 
         events.forEach((event) => {
             if (event.lastEvaluatedKey) {
@@ -147,7 +147,7 @@ export const useJobsStore = defineStore('jobs', () => {
         return events.flatMap((event) => event.items);
     };
 
-    const handleListJobs = async () => {
+    const handleListWorkflows = async () => {
         const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
 
         response.forEach((workflow) => {
@@ -166,8 +166,8 @@ export const useJobsStore = defineStore('jobs', () => {
                 run: {
                     id: runId,
                     integrationId,
-                    event_type: JobType.WORKFLOW_RUN,
-                } as Job<WorkflowRunEvent>,
+                    event_type: WorkflowType.RUN,
+                } as Workflow<WorkflowRunEvent>,
                 jobs: new Map(),
             });
             workflows.set(runId, group);
@@ -178,15 +178,15 @@ export const useJobsStore = defineStore('jobs', () => {
         return workflows.get(runId)!;
     };
 
-    const handleWorkflow = (workflow: Job<WebhookEvent>, addToArray = true) => {
+    const handleWorkflow = (workflow: Workflow<WebhookEvent>, addToArray = true) => {
         if (isWorkflowJobEvent(workflow.workflow_event)) {
             const runId = String(workflow.workflow_event.workflow_job.run_id);
             const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
-            group.jobs.set(workflow.id, workflow as Job<WorkflowJobEvent>);
+            group.jobs.set(workflow.id, workflow as Workflow<WorkflowJobEvent>);
         } else if (isWorkflowRunEvent(workflow.workflow_event)) {
             const runId = workflow.id;
             const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
-            group.run = workflow as Job<WorkflowRunEvent>;
+            group.run = workflow as Workflow<WorkflowRunEvent>;
         }
     };
 
@@ -196,13 +196,13 @@ export const useJobsStore = defineStore('jobs', () => {
         }
 
         await connectToIamWebSocket();
-        await handleListJobs();
+        await handleListWorkflows();
     };
 
     return {
         workflows: workflowsArray,
         isLoading,
         initializeStore,
-        handleListJobs,
+        handleListWorkflows,
     };
 });

@@ -1,6 +1,6 @@
 locals {
   api_resources = {
-    "jobs" = {
+    "workflows" = {
       methods            = ["GET"]
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.cognito.id

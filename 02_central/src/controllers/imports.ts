@@ -1,4 +1,4 @@
-import {deleteConnection, getConnections, putJob} from '@/clients/dynamodb';
+import {deleteConnection, getConnections, putWorkflow} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {
     ApiGatewayManagementApiClient,
@@ -6,7 +6,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {isWorkflowJobEvent, isWorkflowRunEvent, Job, JobType, StreamJobEvent, WorkflowEvent} from '@common/types';
+import {isWorkflowJobEvent, isWorkflowRunEvent, StreamWorkflowEvent, Workflow, WorkflowEvent, WorkflowType} from '@common/types';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;
 const expireInSec = parseInt(expireInSecString ?? '') || undefined;
@@ -26,15 +26,15 @@ const apiClient = new ApiGatewayManagementApiClient({
     endpoint: `https://${websocketApiDomain}/${stage}`,
 });
 
-export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId: string, event: T): Promise<Job<T>> {
-    let job: Job<T>;
+export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId: string, event: T): Promise<Workflow<T>> {
+    let job: Workflow<T>;
     if (isWorkflowJobEvent(event)) {
         job = {
             integrationId,
             id: [event.workflow_job.run_id, event.workflow_job.id].join('/'),
             created_at: event.workflow_job.created_at,
             expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
-            event_type: JobType.WORKFLOW_JOB,
+            event_type: WorkflowType.JOB,
             workflow_event: event,
         };
     } else if (isWorkflowRunEvent(event)) {
@@ -43,19 +43,19 @@ export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId
             id: `${event.workflow_run.id}`,
             created_at: event.workflow_run.created_at,
             expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
-            event_type: JobType.WORKFLOW_RUN,
+            event_type: WorkflowType.RUN,
             workflow_event: event,
         };
     } else {
         throw new Error('Unsupported event type');
     }
 
-    const response = await putJob(job);
+    const response = await putWorkflow(job);
     await postToConnections({eventType: job.event_type, payload: job});
     return response;
 }
 
-const postToConnections = async <T extends WorkflowEvent<any>>(params: StreamJobEvent<T>) => {
+const postToConnections = async <T extends WorkflowEvent<any>>(params: StreamWorkflowEvent<T>) => {
     const logger = getLogger();
     const connections = await getConnections(params.payload.integrationId);
 

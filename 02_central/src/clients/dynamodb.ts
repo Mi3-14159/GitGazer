@@ -11,7 +11,7 @@ import {
 
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
-import {Integration, Job, JobType, NotificationRule, NotificationRuleUpdate, ProjectionType, WorkflowEvent} from '@common/types';
+import {Integration, NotificationRule, NotificationRuleUpdate, ProjectionType, Workflow, WorkflowEvent, WorkflowType} from '@common/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
@@ -23,9 +23,9 @@ if (!connectionTableName) {
     throw new Error('DYNAMO_DB_CONNECTIONS_TABLE_ARN is not defined');
 }
 
-const jobsTableName = process.env.DYNAMO_DB_JOBS_TABLE_ARN;
-if (!jobsTableName) {
-    throw new Error('DYNAMO_DB_JOBS_TABLE_ARN is not defined');
+const workflowsTableName = process.env.DYNAMO_DB_WORKFLOWS_TABLE_ARN;
+if (!workflowsTableName) {
+    throw new Error('DYNAMO_DB_WORKFLOWS_TABLE_ARN is not defined');
 }
 
 const integrationsTableName = process.env.DYNAMO_DB_INTEGRATIONS_TABLE_ARN;
@@ -81,15 +81,15 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
     return query<NotificationRule>(commands).then((results) => results.flatMap((r) => r.items));
 };
 
-export const getJobsBy = async <T extends JobType>(params: {
+export const getWorkflowsBy = async <T extends WorkflowType>(params: {
     keys: {integrationId: string; id?: string}[];
     filters?: {event_type?: T};
     limit?: number;
     projection?: ProjectionType;
     exclusiveStartKeys?: {[key: string]: any};
-}): Promise<QueryResult<Job<Partial<WorkflowEvent<T>>>>[]> => {
+}): Promise<QueryResult<Workflow<Partial<WorkflowEvent<T>>>>[]> => {
     const logger = getLogger();
-    logger.info(`Getting jobs`, {params});
+    logger.info(`Getting workflows`, {params});
 
     const projectionExpressionValues = [
         'integrationId',
@@ -129,7 +129,7 @@ export const getJobsBy = async <T extends JobType>(params: {
         });
 
         return new QueryCommand({
-            TableName: jobsTableName,
+            TableName: workflowsTableName,
             KeyConditionExpression: keyConditionExpressionParts.join(' AND '),
             ExpressionAttributeValues: expressionAttributeValues,
             ExpressionAttributeNames:
@@ -148,7 +148,7 @@ export const getJobsBy = async <T extends JobType>(params: {
         });
     });
 
-    return query<Job<Partial<WorkflowEvent<T>>>>(commands);
+    return query<Workflow<Partial<WorkflowEvent<T>>>>(commands);
 };
 
 export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
@@ -207,14 +207,14 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
     await client.send(command);
 };
 
-export const putJob = async <T extends WorkflowEvent<any>>(job: Job<T>): Promise<Job<T>> => {
+export const putWorkflow = async <T extends WorkflowEvent<any>>(job: Workflow<T>): Promise<Workflow<T>> => {
     const logger = getLogger();
-    logger.info('Putting job', {
+    logger.info('Putting workflow', {
         id: job.id,
     });
 
     const command = new PutCommand({
-        TableName: jobsTableName,
+        TableName: workflowsTableName,
         Item: job,
     });
 

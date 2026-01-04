@@ -1,7 +1,7 @@
 import {getLogger} from '@/logger';
 import {FirehoseClient, PutRecordBatchCommand} from '@aws-sdk/client-firehose';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
-import {Job, WorkflowJobEvent} from '@common/types';
+import {Workflow, WorkflowJobEvent} from '@common/types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
 const firehoseStreamName = process.env.FIREHOSE_STREAM_NAME;
@@ -25,7 +25,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
     const batchItems: Array<{eventId?: string; data: Uint8Array}> = [];
 
     event.Records.forEach((record) => {
-        const item = unmarshall(record.dynamodb?.NewImage as unknown as Record<string, any>) as Job<WorkflowJobEvent>;
+        const item = unmarshall(record.dynamodb?.NewImage as unknown as Record<string, any>) as Workflow<WorkflowJobEvent>;
         const firehoseItem = createFirehoseItem(item);
         batchItems.push({
             eventId: record.eventID,
@@ -75,7 +75,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
     return result;
 };
 
-const createFirehoseItem = (event: Job<WorkflowJobEvent>): string => {
+const createFirehoseItem = (event: Workflow<WorkflowJobEvent>): string => {
     const item = {
         integration_id: event.integrationId,
         id: event.id,
