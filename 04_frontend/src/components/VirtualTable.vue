@@ -1,15 +1,14 @@
 <script setup lang="ts" generic="T">
     import ColumnHeader from '@/components/ColumnHeader.vue';
+    import {useScrollbarObserver} from '@/composables/useScrollbarObserver';
+    import {useTableFiltering, type FilterableColumn} from '@/composables/useTableFiltering';
     import {WorkflowGroup} from '@/stores/jobs';
     import {Job, WorkflowJobEvent} from '@common/types';
-    import {computed, onMounted, onUnmounted, ref, watch, type ComponentPublicInstance} from 'vue';
+    import {computed, ref, toRef, type ComponentPublicInstance} from 'vue';
 
-    export interface HeaderColumn<T = any> {
-        name: string;
+    export interface HeaderColumn<T = any> extends FilterableColumn<T> {
         scope: 'group' | 'row' | 'both';
         width?: string;
-        value: (item: T) => any;
-        filterable?: boolean;
     }
 
     const props = withDefaults(
@@ -51,6 +50,12 @@
         };
     });
 
+    /* Filtering Logic */
+    const {columnFilters, uniqueValuesCache, filteredItems, toggleFilter, clearColumnFilter, selectOnlyFilter} = useTableFiltering(
+        toRef(props, 'items'),
+        columns,
+    );
+
     /* Infinite Scroll Logic */
     const onScroll = (e: Event) => {
         const target = e.target as HTMLElement;
@@ -61,42 +66,9 @@
         }
     };
 
+    /* Scrollbar Observer */
     const scrollerRef = ref<ComponentPublicInstance | null>(null);
-    const hasScrollbar = ref(false);
-    let resizeObserver: ResizeObserver | null = null;
-    let mutationObserver: MutationObserver | null = null;
-
-    const checkScrollbar = () => {
-        const el = scrollerRef.value?.$el;
-        if (el) {
-            // Use a small buffer for float precision issues if any
-            hasScrollbar.value = el.scrollHeight > el.clientHeight + 1;
-        }
-    };
-
-    onMounted(() => {
-        const el = scrollerRef.value?.$el;
-        if (el) {
-            checkScrollbar();
-            // Double check after a short delay to allow virtual scroller to calculate layout
-            setTimeout(checkScrollbar, 100);
-
-            resizeObserver = new ResizeObserver(() => {
-                checkScrollbar();
-            });
-            resizeObserver.observe(el);
-
-            mutationObserver = new MutationObserver(() => {
-                checkScrollbar();
-            });
-            mutationObserver.observe(el, {childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class']});
-        }
-    });
-
-    onUnmounted(() => {
-        if (resizeObserver) resizeObserver.disconnect();
-        if (mutationObserver) mutationObserver.disconnect();
-    });
+    const {hasScrollbar} = useScrollbarObserver(scrollerRef);
 
     /* Group Expand/Collapse Logic */
     const expandedGroups = ref<Set<string>>(new Set());
@@ -123,119 +95,6 @@
         } else {
             return expandedGroups.value.has(id);
         }
-    };
-
-    /*  Filtering Logic */
-    const filterableColumns = columns.value.filter((column) => column.filterable);
-    // Dynamically generate filter state for each filterable column
-    // Empty set means all items are selected (visible)
-    const columnFilters = ref(Object.fromEntries(filterableColumns.map((column) => [column.name, new Set<string>()])) as Record<string, Set<string>>);
-
-    /*
-    - Cache unique values for each filterable column to optimize filter dropdowns.
-    - This cache is updated whenever the items or filters change.
-    - The logic ensures that if an item is filtered out by one column, its values are not
-    counted in the unique values of other columns, except for the column that filtered it out.
-    This provides a more intuitive filtering experience.
-     */
-    const uniqueValuesCache = computed(() => {
-        const cache = new Map<string, Set<any>>();
-        filterableColumns.forEach((column) => cache.set(column.name, new Set()));
-
-        for (const item of props.items) {
-            const itemValues = new Map<string, any>();
-            const failingColumns: string[] = [];
-
-            for (const column of filterableColumns) {
-                const val = column.value(item);
-                itemValues.set(column.name, val);
-
-                const filterSet = columnFilters.value[column.name];
-                if (filterSet && filterSet.has(val)) {
-                    failingColumns.push(column.name);
-                }
-            }
-
-            if (failingColumns.length === 0) {
-                filterableColumns.forEach((column) => {
-                    const val = itemValues.get(column.name);
-                    if (!!val) {
-                        cache.get(column.name)?.add(val);
-                    }
-                });
-            } else if (failingColumns.length === 1) {
-                const colName = failingColumns[0];
-                const val = itemValues.get(colName);
-                if (!!val) {
-                    cache.get(colName)?.add(val);
-                }
-            }
-        }
-        return cache;
-    });
-
-    watch(uniqueValuesCache, (newCache, oldCache) => {
-        if (!oldCache) return;
-
-        for (const [columnName, newValues] of newCache.entries()) {
-            const oldValues = oldCache.get(columnName);
-            const filterSet = columnFilters.value[columnName];
-
-            if (filterSet && filterSet.size > 0 && oldValues) {
-                for (const val of newValues) {
-                    if (!oldValues.has(val)) {
-                        filterSet.add(val);
-                    }
-                }
-            }
-        }
-    });
-
-    // Filter jobs based on column filters
-    const filteredItems = computed(() => {
-        return props.items.filter((item) => {
-            return filterableColumns.every((column) => {
-                const filterSet = columnFilters.value[column.name];
-                if (!filterSet) return true;
-
-                const value = column.value(item);
-                return !filterSet.has(value);
-            });
-        });
-    });
-
-    const toggleFilter = (column: string, value: string) => {
-        const filterSet = columnFilters.value[column];
-        if (!filterSet) return;
-
-        if (filterSet.has(value)) {
-            filterSet.delete(value);
-        } else {
-            filterSet.add(value);
-        }
-    };
-
-    const clearColumnFilter = (column: string) => {
-        const filterSet = columnFilters.value[column];
-        if (filterSet) {
-            filterSet.clear();
-        }
-    };
-
-    const selectOnlyFilter = (column: string, value: string) => {
-        const filterSet = columnFilters.value[column];
-        if (!filterSet) return;
-
-        const allValues = uniqueValuesCache.value.get(column);
-        if (!allValues) return;
-
-        // Clear and add all values except the selected one
-        filterSet.clear();
-        allValues.forEach((v) => {
-            if (v !== value) {
-                filterSet.add(v);
-            }
-        });
     };
 </script>
 
@@ -386,7 +245,7 @@
 
     .grid {
         display: grid;
-        grid-template-columns: 40px 2fr 2fr 2fr 1.5fr 1fr 1.5fr;
+        /* grid-template-columns: 40px 2fr 2fr 2fr 1.5fr 1fr 1.5fr; */
         gap: 8px;
         align-items: center;
         padding: 0 16px;
