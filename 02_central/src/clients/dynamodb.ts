@@ -207,19 +207,19 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
     await client.send(command);
 };
 
-export const putWorkflow = async <T extends WorkflowEvent<any>>(job: Workflow<T>): Promise<Workflow<T>> => {
+export const putWorkflow = async <T extends WorkflowEvent<any>>(workflow: Workflow<T>): Promise<Workflow<T>> => {
     const logger = getLogger();
     logger.info('Putting workflow', {
-        id: job.id,
+        id: workflow.id,
     });
 
     const command = new PutCommand({
         TableName: workflowsTableName,
-        Item: job,
+        Item: workflow,
     });
 
     await client.send(command);
-    return job;
+    return workflow;
 };
 
 export const getConnections = async (integrationId: string): Promise<WebsocketConnection[]> => {

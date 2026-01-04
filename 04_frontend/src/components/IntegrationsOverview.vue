@@ -174,7 +174,7 @@
                         <v-card>
                             <v-card-title>Delete Integration</v-card-title>
                             <v-card-text>
-                                Do you really want to delete this integration? This is irreversible and will break your current import jobs!
+                                Do you really want to delete this integration? This is irreversible and will break your current import workflows!
                             </v-card-text>
                             <v-card-actions>
                                 <v-spacer></v-spacer>

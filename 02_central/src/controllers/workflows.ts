@@ -12,12 +12,12 @@ export const getWorkflows = async (params: {
         return [];
     }
 
-    const jobs = await getWorkflowsBy({
+    const workflows = await getWorkflowsBy({
         keys: integrationIds.map((id) => ({integrationId: id})),
         ...(limit && {limit: Math.min(limit, 100)}),
         projection,
         exclusiveStartKeys,
     });
 
-    return jobs;
+    return workflows;
 };

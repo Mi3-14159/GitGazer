@@ -5,7 +5,7 @@ import feFailover from '@/router/routes/feFailover';
 import importRoutes from '@/router/routes/import';
 import integrationsRoutes from '@/router/routes/integrations';
 import notificationsRoutes from '@/router/routes/notifications';
-import jobsRoutes from '@/router/routes/workflows';
+import workflowsRoutes from '@/router/routes/workflows';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {compress, cors} from '@aws-lambda-powertools/event-handler/http/middleware';
 
@@ -31,7 +31,7 @@ app.includeRouter(authCongitoRoutes);
 app.includeRouter(importRoutes);
 app.includeRouter(feFailover);
 app.includeRouter(notificationsRoutes);
-app.includeRouter(jobsRoutes);
+app.includeRouter(workflowsRoutes);
 app.includeRouter(integrationsRoutes);
 app.includeRouter(analyticsRoutes);
 

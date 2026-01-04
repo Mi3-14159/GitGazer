@@ -8,7 +8,7 @@ const FIREHOSE_PUT_BATCH_SIZE = 500;
 
 const main = async () => {
     const scanCommand = new ScanCommand({
-        TableName: process.env.DYNAMO_DB_JOBS_TABLE_ARN,
+        TableName: process.env.DYNAMO_DB_WORKFLOWS_TABLE_ARN,
         FilterExpression: 'event_type = :eventType',
         ExpressionAttributeValues: {
             ':eventType': 'workflow_job',

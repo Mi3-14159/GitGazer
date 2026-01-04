@@ -27,9 +27,9 @@ const apiClient = new ApiGatewayManagementApiClient({
 });
 
 export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId: string, event: T): Promise<Workflow<T>> {
-    let job: Workflow<T>;
+    let workflow: Workflow<T>;
     if (isWorkflowJobEvent(event)) {
-        job = {
+        workflow = {
             integrationId,
             id: [event.workflow_job.run_id, event.workflow_job.id].join('/'),
             created_at: event.workflow_job.created_at,
@@ -38,7 +38,7 @@ export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId
             workflow_event: event,
         };
     } else if (isWorkflowRunEvent(event)) {
-        job = {
+        workflow = {
             integrationId,
             id: `${event.workflow_run.id}`,
             created_at: event.workflow_run.created_at,
@@ -50,8 +50,8 @@ export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId
         throw new Error('Unsupported event type');
     }
 
-    const response = await putWorkflow(job);
-    await postToConnections({eventType: job.event_type, payload: job});
+    const response = await putWorkflow(workflow);
+    await postToConnections({eventType: workflow.event_type, payload: workflow});
     return response;
 }
 
