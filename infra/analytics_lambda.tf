@@ -116,7 +116,7 @@ resource "aws_lambda_function" "analytics" {
       ENVIRONMENT                         = terraform.workspace
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.workflows.name
+      DYNAMO_DB_WORKFLOWS_TABLE_ARN       = aws_dynamodb_table.workflows.name
       FIREHOSE_STREAM_NAME                = aws_kinesis_firehose_delivery_stream.analytics.name
     }
   }
