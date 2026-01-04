@@ -57,9 +57,9 @@ data "aws_iam_policy_document" "alerting" {
       "dynamodb:ListStreams",
     ]
     resources = compact([
-      aws_dynamodb_table.jobs.arn,
-      "${aws_dynamodb_table.jobs.arn}/stream/*",
-      "${aws_dynamodb_table.jobs.arn}/index/*",
+      aws_dynamodb_table.workflows.arn,
+      "${aws_dynamodb_table.workflows.arn}/stream/*",
+      "${aws_dynamodb_table.workflows.arn}/index/*",
       aws_dynamodb_table.notification_rules.arn,
       "${aws_dynamodb_table.notification_rules.arn}/index/*",
     ])
@@ -109,7 +109,7 @@ resource "aws_lambda_function" "alerting" {
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN   = aws_dynamodb_table.notification_rules.name
-      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.jobs.name
+      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.workflows.name
       DYNAMO_DB_CONNECTIONS_TABLE_ARN     = aws_dynamodb_table.connections.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN    = aws_dynamodb_table.integrations.name
     }
@@ -127,7 +127,7 @@ resource "aws_lambda_function" "alerting" {
 }
 
 resource "aws_lambda_event_source_mapping" "alerting_jobs_stream" {
-  event_source_arn               = aws_dynamodb_table.jobs.stream_arn
+  event_source_arn               = aws_dynamodb_table.workflows.stream_arn
   function_name                  = aws_lambda_function.alerting.arn
   starting_position              = "LATEST"
   batch_size                     = 10

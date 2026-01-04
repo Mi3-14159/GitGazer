@@ -2,8 +2,8 @@ locals {
   notification_rules_table_index_name = "integrationId-index"
 }
 
-resource "aws_dynamodb_table" "jobs" {
-  name                        = "${var.name_prefix}-jobs-${terraform.workspace}"
+resource "aws_dynamodb_table" "workflows" {
+  name                        = "${var.name_prefix}-workflows-${terraform.workspace}"
   billing_mode                = "PAY_PER_REQUEST"
   hash_key                    = "integrationId"
   range_key                   = "id"

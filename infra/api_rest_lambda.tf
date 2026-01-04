@@ -79,8 +79,8 @@ data "aws_iam_policy_document" "api" {
       "dynamodb:Scan",
     ]
     resources = compact([
-      aws_dynamodb_table.jobs.arn,
-      "${aws_dynamodb_table.jobs.arn}/index/*",
+      aws_dynamodb_table.workflows.arn,
+      "${aws_dynamodb_table.workflows.arn}/index/*",
       try(aws_dynamodb_table.notification_rules.arn, null),
       try("${aws_dynamodb_table.notification_rules.arn}/index/*", null),
       aws_dynamodb_table.connections.arn,
@@ -208,7 +208,7 @@ resource "aws_lambda_function" "api" {
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
       EXPIRE_IN_SEC                       = var.expire_in_sec
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN   = aws_dynamodb_table.notification_rules.name
-      DYNAMO_DB_WORKFLOWS_TABLE_ARN       = aws_dynamodb_table.jobs.name
+      DYNAMO_DB_WORKFLOWS_TABLE_ARN       = aws_dynamodb_table.workflows.name
       UI_BUCKET_NAME                      = module.ui_bucket.s3_bucket_id
       KMS_KEY_ID                          = aws_kms_key.this.id
       COGNITO_USER_POOL_ID                = aws_cognito_user_pool.this.id

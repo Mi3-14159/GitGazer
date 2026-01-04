@@ -56,9 +56,9 @@ data "aws_iam_policy_document" "analytics" {
       "dynamodb:ListStreams",
     ]
     resources = compact([
-      aws_dynamodb_table.jobs.arn,
-      "${aws_dynamodb_table.jobs.arn}/stream/*",
-      "${aws_dynamodb_table.jobs.arn}/index/*",
+      aws_dynamodb_table.workflows.arn,
+      "${aws_dynamodb_table.workflows.arn}/stream/*",
+      "${aws_dynamodb_table.workflows.arn}/index/*",
     ])
   }
 
@@ -116,7 +116,7 @@ resource "aws_lambda_function" "analytics" {
       ENVIRONMENT                         = terraform.workspace
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.jobs.name
+      DYNAMO_DB_JOBS_TABLE_ARN            = aws_dynamodb_table.workflows.name
       FIREHOSE_STREAM_NAME                = aws_kinesis_firehose_delivery_stream.analytics.name
     }
   }
@@ -133,7 +133,7 @@ resource "aws_lambda_function" "analytics" {
 }
 
 resource "aws_lambda_event_source_mapping" "analytics_jobs_stream" {
-  event_source_arn               = aws_dynamodb_table.jobs.stream_arn
+  event_source_arn               = aws_dynamodb_table.workflows.stream_arn
   function_name                  = aws_lambda_function.analytics.arn
   starting_position              = "TRIM_HORIZON"
   batch_size                     = 500 # 500 ist the max limit of records a PutRecordBatchCommand can handle
