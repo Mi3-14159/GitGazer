@@ -1,6 +1,6 @@
 import {getLogger} from '@/logger';
 import analyticsRoutes from '@/router/routes/analytics';
-import authCongitoRoutes from '@/router/routes/authCongito';
+import authCognitoRoutes from '@/router/routes/authCognito';
 import feFailover from '@/router/routes/feFailover';
 import importRoutes from '@/router/routes/import';
 import integrationsRoutes from '@/router/routes/integrations';
@@ -27,7 +27,7 @@ app.use(
     }),
 );
 
-app.includeRouter(authCongitoRoutes);
+app.includeRouter(authCognitoRoutes);
 app.includeRouter(importRoutes);
 app.includeRouter(feFailover);
 app.includeRouter(notificationsRoutes);
