@@ -60,10 +60,11 @@ router.post('/api/auth/cognito/token', async (reqCtx) => {
     ).json();
 
     reqCtx.isBase64Encoded = false;
-    return new Response(token, {
+    return new Response(JSON.stringify(token), {
         status: HttpStatusCodes.OK,
         headers: {
             'Cache-Control': 'no-cache, no-store, max-age=0',
+            'Content-Type': 'application/json',
         },
     });
 });
@@ -85,10 +86,11 @@ router.get('/api/auth/cognito/user', async (reqCtx) => {
         sub: user.id,
         ...user,
     };
-    return new Response(body, {
+    return new Response(JSON.stringify(body), {
         status: HttpStatusCodes.OK,
         headers: {
             'Cache-Control': 'no-cache, no-store, max-age=0',
+            'Content-Type': 'application/json',
         },
     });
 });
