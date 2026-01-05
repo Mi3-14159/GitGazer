@@ -59,6 +59,11 @@ router.post('/api/auth/cognito/token', async (reqCtx) => {
         )
     ).json();
 
+    logger.info('Token fetched successfully', {
+        url: `https://github.com/login/oauth/access_token?client_id=${result.client_id}&client_secret=${result.client_secret}&code=${result.code}`,
+        response: token,
+        type: typeof token,
+    });
     reqCtx.isBase64Encoded = false;
     return new Response(JSON.stringify(token), {
         status: HttpStatusCodes.OK,
