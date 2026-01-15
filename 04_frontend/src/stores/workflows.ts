@@ -1,21 +1,14 @@
-import {useAuth} from '@/composables/useAuth';
-import {Sha256} from '@aws-crypto/sha256-js';
 import {
     isWorkflowJobEvent,
     isWorkflowRunEvent,
     ProjectionType,
-    StreamWorkflowEvent,
-    WebhookEvent,
     Workflow,
-    WorkflowJobEvent,
-    WorkflowRunEvent,
     WorkflowsRequestParameters,
     WorkflowsResponse,
     WorkflowType,
 } from '@common/types';
-import {HttpRequest} from '@smithy/protocol-http';
-import {SignatureV4} from '@smithy/signature-v4';
-import {get} from 'aws-amplify/api';
+import type {WorkflowJobEvent, WorkflowRunEvent, WebhookEvent} from '@common/types';
+import * as api from '@/api/client';
 import {defineStore} from 'pinia';
 import {reactive, ref} from 'vue';
 
@@ -25,8 +18,6 @@ export type WorkflowGroup = {
 };
 
 export const useWorkflowsStore = defineStore('workflows', () => {
-    const {getSession} = useAuth();
-
     const workflows = new Map<string, WorkflowGroup>();
     const workflowsArray = ref<WorkflowGroup[]>([]);
 
@@ -36,81 +27,15 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         return timeB - timeA;
     };
 
-    const sortWorkflows = () => {
-        workflowsArray.value.sort(compareWorkflows);
-    };
-
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
 
     const connectToIamWebSocket = async () => {
-        // Get AWS credentials from Cognito Identity Pool
-        const session = await getSession();
-        const creds = session.credentials;
-        if (!creds?.accessKeyId) {
-            throw new Error('No AWS credentials. Please sign in.');
-        }
-
-        const websocketUrl = new URL(import.meta.env.VITE_WEBSOCKET_API_ENDPOINT);
-
-        // Create HTTP request for signing
-        const request = new HttpRequest({
-            protocol: 'https:',
-            hostname: websocketUrl.hostname,
-            method: 'GET',
-            path: websocketUrl.pathname,
-            query: {
-                idToken: session.tokens?.idToken?.toString() ?? '',
-            },
-            headers: {host: websocketUrl.hostname},
-        });
-
-        // Sign the request
-        const signer = new SignatureV4({
-            service: 'execute-api',
-            region: import.meta.env.VITE_WEBSOCKET_API_REGION,
-            credentials: creds,
-            sha256: Sha256,
-        });
-
-        const signedRequest = await signer.presign(request);
-
-        // Build final WebSocket URL with signed parameters
-        if (signedRequest.query) {
-            Object.entries(signedRequest.query).forEach(([key, value]) => {
-                const values = Array.isArray(value) ? value : [value];
-                values.forEach((v) => websocketUrl.searchParams.append(key, String(v)));
-            });
-        }
-
-        ws = new WebSocket(websocketUrl.toString());
-
-        ws.onopen = () => console.info('WebSocket connected');
-        ws.onmessage = (event) => {
-            const gitgazerEvent = JSON.parse(event.data) as StreamWorkflowEvent<WebhookEvent>;
-            handleWorkflow(gitgazerEvent.payload);
-            sortWorkflows();
-        };
-        ws.onerror = (error) => console.error('WebSocket error:', error);
-        ws.onclose = (event) => {
-            console.info(`WebSocket closed: ${event.code} ${event.reason}`);
-            switch (event.code) {
-                // Try to reconnect
-                case 1000: // Normal Closure
-                case 1001: // Going Away
-                case 1006: // Abnormal Closure
-                case 1011: // Internal Error
-                case 1012: // Service Restart
-                case 1013: // Try Again Later
-                    initializeStore();
-                    break;
-                default:
-                    break;
-            }
-        };
-
-        return ws;
+        // WebSocket temporarily disabled during Amplify removal
+        // TODO: Implement cookie-based WebSocket authentication
+        console.warn('WebSocket connection temporarily disabled');
+        return null;
     };
 
     const getJobs = async (params?: WorkflowsRequestParameters) => {
@@ -127,16 +52,12 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             queryParams['exclusiveStartKeys'] = JSON.stringify(Array.from(lastEvaluatedKeys.values()));
         }
 
-        const restOperation = get({
-            apiName: 'api',
-            path: '/workflows',
-            options: {
-                queryParams,
-            },
-        });
+        // Build query string
+        const queryString = new URLSearchParams(queryParams).toString();
+        const path = `/workflows${queryString ? `?${queryString}` : ''}`;
 
-        const {body} = await restOperation.response;
-        const events = (await body.json()) as unknown as WorkflowsResponse<Workflow<WebhookEvent>>;
+        const response = await api.get<WorkflowsResponse<Workflow<WebhookEvent>>>(path);
+        const events = response.data;
 
         events.forEach((event) => {
             if (event.lastEvaluatedKey) {
@@ -191,10 +112,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const initializeStore = async () => {
-        if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
-            return;
-        }
-
+        // Skip WebSocket connection check for now
         await connectToIamWebSocket();
         await handleListWorkflows();
     };

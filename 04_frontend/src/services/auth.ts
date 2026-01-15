@@ -1,68 +1,60 @@
 /**
- * Cookie-based authentication service
- * Wraps AWS Amplify authentication and manages httpOnly cookies
+ * Cookie-based authentication service without AWS Amplify
+ * Direct Cognito OAuth integration
  */
 
-import {fetchAuthSession, signInWithRedirect, signOut as amplifySignOut, getCurrentUser} from 'aws-amplify/auth';
-import type {AuthUser} from 'aws-amplify/auth';
-
 const API_BASE_URL = import.meta.env.VITE_REST_API_ENDPOINT;
+const COGNITO_DOMAIN = import.meta.env.VITE_COGNITO_DOMAIN;
+const COGNITO_CLIENT_ID = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
+const HOST_URL = import.meta.env.VITE_HOST_URL;
 
-interface SessionTokens {
-    accessToken: string;
-    idToken: string;
-    refreshToken?: string;
-    expiresIn?: number;
+/**
+ * Sign in with GitHub via Cognito OAuth
+ */
+export async function signIn(): Promise<void> {
+    const authUrl = new URL(`https://${COGNITO_DOMAIN}/oauth2/authorize`);
+    authUrl.searchParams.set('client_id', COGNITO_CLIENT_ID);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('redirect_uri', `${HOST_URL}/auth/callback`);
+    authUrl.searchParams.set('identity_provider', 'Github');
+    authUrl.searchParams.set('scope', 'email profile openid aws.cognito.signin.user.admin');
+
+    window.location.href = authUrl.toString();
 }
 
 /**
- * Exchange Amplify tokens for httpOnly cookies
- * This should be called after successful Amplify authentication
+ * Handle OAuth callback and exchange code for tokens
  */
-export async function exchangeTokensForCookies(): Promise<void> {
+export async function handleCallback(code: string): Promise<boolean> {
     try {
-        const session = await fetchAuthSession({forceRefresh: false});
-
-        if (!session.tokens?.idToken || !session.tokens?.accessToken) {
-            throw new Error('No tokens available in session');
-        }
-
-        const tokens: SessionTokens = {
-            accessToken: session.tokens.accessToken.toString(),
-            idToken: session.tokens.idToken.toString(),
-            expiresIn: session.tokens.accessToken.payload.exp
-                ? session.tokens.accessToken.payload.exp - Math.floor(Date.now() / 1000)
-                : 3600,
-        };
-
-        // Include refresh token if available
-        // Note: Cognito doesn't expose refresh token via Amplify API in browser
-        // It's managed internally by Amplify
-
-        const response = await fetch(`${API_BASE_URL}/auth/session`, {
+        const response = await fetch(`${API_BASE_URL}/auth/callback`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            credentials: 'include', // Important: include cookies in request
-            body: JSON.stringify(tokens),
+            credentials: 'include',
+            body: JSON.stringify({
+                code,
+                redirect_uri: `${HOST_URL}/auth/callback`,
+            }),
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to set session cookies: ${response.statusText}`);
+            console.error('OAuth callback failed:', response.statusText);
+            return false;
         }
 
-        console.info('Session cookies set successfully');
+        return true;
     } catch (error) {
-        console.error('Error exchanging tokens for cookies:', error);
-        throw error;
+        console.error('Error handling OAuth callback:', error);
+        return false;
     }
 }
 
 /**
  * Check if user has valid session cookies
  */
-export async function checkCookieSession(): Promise<boolean> {
+export async function checkAuth(): Promise<boolean> {
     try {
         const response = await fetch(`${API_BASE_URL}/auth/session`, {
             method: 'GET',
@@ -76,16 +68,9 @@ export async function checkCookieSession(): Promise<boolean> {
 
         return false;
     } catch (error) {
-        console.error('Error checking cookie session:', error);
+        console.error('Auth check failed:', error);
         return false;
     }
-}
-
-/**
- * Sign in with redirect (uses AWS Amplify)
- */
-export async function signIn(): Promise<void> {
-    return signInWithRedirect({provider: {custom: 'Github'}});
 }
 
 /**
@@ -99,26 +84,23 @@ export async function signOut(): Promise<void> {
             credentials: 'include',
         });
 
-        // Sign out from Amplify/Cognito
-        await amplifySignOut();
+        // Redirect to Cognito logout
+        const logoutUrl = new URL(`https://${COGNITO_DOMAIN}/logout`);
+        logoutUrl.searchParams.set('client_id', COGNITO_CLIENT_ID);
+        logoutUrl.searchParams.set('logout_uri', `${HOST_URL}/login`);
+
+        window.location.href = logoutUrl.toString();
     } catch (error) {
         console.error('Error during sign out:', error);
-        throw error;
+        // Still redirect to login even if backend call fails
+        window.location.href = '/login';
     }
 }
 
 /**
- * Get current user from Amplify
- * This still uses Amplify to get user info, but API calls will use cookies
+ * Get current user info (placeholder for now)
+ * In pure cookie implementation, user info comes from backend
  */
-export async function getUser(): Promise<AuthUser> {
-    return getCurrentUser();
-}
-
-/**
- * Get authentication session
- * This returns the Amplify session, but API calls will use cookies
- */
-export async function getSession(forceRefresh = false) {
-    return fetchAuthSession({forceRefresh});
+export async function getUser(): Promise<{authenticated: boolean}> {
+    return {authenticated: await checkAuth()};
 }

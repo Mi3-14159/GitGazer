@@ -99,6 +99,98 @@ router.get('/api/auth/cognito/user', async (reqCtx) => {
  * POST /api/auth/session
  * Body: { accessToken, idToken, refreshToken, expiresIn }
  */
+/**
+ * OAuth callback handler
+ * POST /api/auth/callback
+ * Exchanges authorization code for tokens and sets httpOnly cookies
+ */
+router.post('/api/auth/callback', async (reqCtx) => {
+    const logger = getLogger();
+    const {body} = reqCtx.event;
+
+    if (!body) {
+        logger.error('No body found in callback request');
+        return new Response('Body is required', {
+            status: HttpStatusCodes.BAD_REQUEST,
+        });
+    }
+
+    try {
+        const {code, redirect_uri} = JSON.parse(body) as {
+            code: string;
+            redirect_uri: string;
+        };
+
+        if (!code || !redirect_uri) {
+            return new Response('Missing code or redirect_uri', {
+                status: HttpStatusCodes.BAD_REQUEST,
+            });
+        }
+
+        // Exchange code for tokens with Cognito
+        const tokenEndpoint = `https://${process.env.COGNITO_DOMAIN}/oauth2/token`;
+        const clientId = process.env.COGNITO_CLIENT_ID;
+
+        if (!tokenEndpoint || !clientId) {
+            throw new Error('Cognito configuration missing');
+        }
+
+        const tokenResponse = await fetch(tokenEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: clientId,
+                code: code,
+                redirect_uri: redirect_uri,
+            }),
+        });
+
+        if (!tokenResponse.ok) {
+            logger.error('Token exchange failed', {status: tokenResponse.status});
+            return new Response('Token exchange failed', {
+                status: HttpStatusCodes.UNAUTHORIZED,
+            });
+        }
+
+        const tokens = (await tokenResponse.json()) as {
+            access_token: string;
+            id_token: string;
+            refresh_token?: string;
+            token_type: string;
+            expires_in: number;
+        };
+
+        // Set tokens as httpOnly cookies
+        const cookieHeaders = createTokenCookies({
+            accessToken: tokens.access_token,
+            idToken: tokens.id_token,
+            refreshToken: tokens.refresh_token,
+            expiresIn: tokens.expires_in,
+        });
+
+        return {
+            statusCode: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+            },
+            cookies: cookieHeaders,
+            body: JSON.stringify({
+                success: true,
+                message: 'Authentication successful',
+            }),
+        };
+    } catch (error) {
+        logger.error('Error handling OAuth callback', {error});
+        return new Response('OAuth callback error', {
+            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        });
+    }
+});
+
 router.post('/api/auth/session', async (reqCtx) => {
     const logger = getLogger();
     const {body} = reqCtx.event;
@@ -206,6 +298,109 @@ router.get('/api/auth/session', async (reqCtx) => {
             },
         },
     );
+});
+
+/**
+ * Refresh tokens using refresh token cookie
+ * POST /api/auth/refresh
+ */
+router.post('/api/auth/refresh', async (reqCtx) => {
+    const logger = getLogger();
+    const cookieHeader = reqCtx.event.headers?.['cookie'];
+    const refreshToken = getCookie(cookieHeader, 'refreshToken');
+
+    if (!refreshToken) {
+        logger.debug('No refresh token found');
+        return new Response(
+            JSON.stringify({
+                error: 'No refresh token',
+            }),
+            {
+                status: HttpStatusCodes.UNAUTHORIZED,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    }
+
+    try {
+        // Call Cognito to refresh tokens
+        const tokenEndpoint = `https://${process.env.COGNITO_DOMAIN}/oauth2/token`;
+        const clientId = process.env.COGNITO_CLIENT_ID;
+
+        if (!tokenEndpoint || !clientId) {
+            throw new Error('Cognito configuration missing');
+        }
+
+        const response = await fetch(tokenEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                client_id: clientId,
+                refresh_token: refreshToken,
+            }),
+        });
+
+        if (!response.ok) {
+            logger.error('Token refresh failed', {status: response.status});
+            return new Response(
+                JSON.stringify({
+                    error: 'Token refresh failed',
+                }),
+                {
+                    status: HttpStatusCodes.UNAUTHORIZED,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+        }
+
+        const tokens = (await response.json()) as {
+            access_token: string;
+            id_token: string;
+            token_type: string;
+            expires_in: number;
+        };
+
+        // Set new tokens as cookies
+        const cookieHeaders = createTokenCookies({
+            accessToken: tokens.access_token,
+            idToken: tokens.id_token,
+            refreshToken: refreshToken, // Keep existing refresh token
+            expiresIn: tokens.expires_in,
+        });
+
+        return {
+            statusCode: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+            },
+            cookies: cookieHeaders,
+            body: JSON.stringify({
+                success: true,
+                message: 'Tokens refreshed',
+            }),
+        };
+    } catch (error) {
+        logger.error('Error refreshing tokens', {error});
+        return new Response(
+            JSON.stringify({
+                error: 'Token refresh error',
+            }),
+            {
+                status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    }
 });
 
 export default router;

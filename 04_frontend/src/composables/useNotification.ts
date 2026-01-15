@@ -1,5 +1,5 @@
 import {NotificationRule} from '@common/types';
-import {del, get, post} from 'aws-amplify/api';
+import * as api from '@/api/client';
 import {ref} from 'vue';
 
 export const useNotification = () => {
@@ -7,38 +7,19 @@ export const useNotification = () => {
 
     const getNotifications = async () => {
         isLoadingNotifications.value = true;
-        const restOperation = get({
-            apiName: 'api',
-            path: '/notifications',
-        });
-
-        const {body} = await restOperation.response;
-        const notifications = (await body.json()) as NotificationRule[];
+        const response = await api.get<NotificationRule[]>('/notifications');
         isLoadingNotifications.value = false;
-
-        return notifications;
+        return response.data;
     };
 
     const postNotification = async (notificationRule: NotificationRule) => {
-        const restOperation = post({
-            apiName: 'api',
-            path: '/notifications',
-            options: {
-                body: notificationRule,
-            },
-        });
-
-        const {body} = await restOperation.response;
-        return (await body.json()) as NotificationRule;
+        const response = await api.post<NotificationRule>('/notifications', notificationRule);
+        return response.data;
     };
 
     const deleteNotification = async (id: string) => {
-        const restOperation = del({
-            apiName: 'api',
-            path: `/notifications/${id}`,
-        });
-
-        return (await restOperation.response).statusCode === 204;
+        const response = await api.del(`/notifications/${id}`);
+        return response.status === 204;
     };
 
     return {

@@ -3,18 +3,20 @@
     import Navigation from '@/components/Navigation.vue';
     import NotificationsOveview from '@/components/NotificationsOveview.vue';
     import WorkflowOverview from '@/components/WorkflowOverview.vue';
-    import {useAuth} from '@/composables/useAuth';
-    import {type FetchUserAttributesOutput} from 'aws-amplify/auth';
     import {onMounted, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
-    const {getUserAttributes} = useAuth();
     const router = useRouter();
-
-    const user = ref<FetchUserAttributesOutput>();
+    
+    // User info - for now just placeholder
+    const user = ref<{nickname?: string; picture?: string}>();
 
     onMounted(async () => {
-        user.value = await getUserAttributes();
+        // TODO: Fetch user attributes from backend
+        user.value = {
+            nickname: 'User',
+            picture: undefined,
+        };
     });
 </script>
 

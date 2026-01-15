@@ -1,6 +1,7 @@
 import {createRouter, createWebHistory} from 'vue-router';
 import Default from '@/views/Default.vue';
 import Login from '@/views/Login.vue';
+import Callback from '@/views/Callback.vue';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,6 +25,11 @@ const router = createRouter({
             path: '/login',
             name: 'login',
             component: Login,
+        },
+        {
+            path: '/auth/callback',
+            name: 'callback',
+            component: Callback,
         },
         {
             path: '/:pathMatch(.*)*',

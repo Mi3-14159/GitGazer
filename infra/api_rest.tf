@@ -37,10 +37,16 @@ locals {
     "auth/cognito/token" = {
       methods = ["POST"]
     },
+    "auth/callback" = {
+      methods = ["POST"]
+    },
     "auth/session" = {
       methods = ["GET", "POST"]
     },
     "auth/logout" = {
+      methods = ["POST"]
+    },
+    "auth/refresh" = {
       methods = ["POST"]
     },
     "analytics/jobs/metrics" = {

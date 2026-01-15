@@ -1,16 +1,13 @@
 <script setup lang="ts">
     import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
-    import {useAuth} from '@/composables/useAuth';
     import {useIntegration} from '@/composables/useIntegration';
     import {Integration} from '@common/types';
-    import {AuthUser} from 'aws-amplify/auth';
     import {computed, onMounted, reactive, ref} from 'vue';
 
-    const {getSession, getUser} = useAuth();
     const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
 
     const integrations = reactive(new Map());
-    const user = ref<AuthUser>();
+    const userId = ref<string>('current-user'); // TODO: Get from backend
     const dialog = ref(false);
     const showSecret = reactive(new Map<string, boolean>());
 
@@ -24,13 +21,11 @@
     const handlePutIntegration = async (label: string) => {
         const integration = await createIntegration(label);
         integrations.set(integration.id, integration);
-        await getSession({forceRefresh: true});
     };
 
     const handleDeleteIntegration = async (id: string) => {
         await deleteIntegration(id);
         integrations.delete(id);
-        await getSession({forceRefresh: true});
     };
 
     const onSave = async (label: string) => {
@@ -47,7 +42,7 @@
     };
 
     const getOwnerAnnotation = (owner: string) => {
-        return owner === user.value?.userId ? 'you' : 'not you';
+        return owner === userId.value ? 'you' : 'not you';
     };
 
     const headers = [
@@ -63,7 +58,6 @@
     });
 
     onMounted(async () => {
-        user.value = await getUser();
         handleListIntegrations();
     });
 </script>
