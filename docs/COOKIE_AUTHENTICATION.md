@@ -4,26 +4,43 @@ This document describes the httpOnly cookie-based authentication implementation 
 
 ## Overview
 
-GitGazer uses a hybrid authentication approach that combines AWS Cognito/Amplify with httpOnly cookies for enhanced security:
+GitGazer uses a **hybrid authentication approach** that combines AWS Cognito/Amplify with httpOnly cookies for enhanced security:
 
 1. **OAuth Flow**: AWS Amplify handles the OAuth flow with Cognito (GitHub provider)
 2. **Token Exchange**: After successful authentication, tokens are exchanged for httpOnly cookies
 3. **API Authorization**: API Gateway accepts tokens from BOTH cookies and Authorization headers
-4. **Cookie-First**: Cookies provide XSS protection while maintaining backward compatibility
+4. **Dual Storage**: Tokens stored in BOTH httpOnly cookies AND Amplify storage for compatibility
+
+> **Note on Security Trade-offs**: This hybrid approach provides defense-in-depth security by storing tokens in httpOnly cookies (protecting the API layer from XSS) while maintaining Amplify integration. For full XSS protection following the pure AWS blog pattern, see [AWS_BLOG_COMPLIANCE.md](./AWS_BLOG_COMPLIANCE.md) for migration options.
 
 ## Security Benefits
 
-### HttpOnly Cookies
-- **XSS Protection**: Cookies are not accessible to JavaScript, preventing token theft via XSS attacks
+### HttpOnly Cookies (API Layer Protection)
+- **API Protection**: API Gateway validates tokens from httpOnly cookies, preventing XSS-stolen tokens from accessing APIs
 - **CSRF Protection**: SameSite=Strict attribute prevents CSRF attacks
 - **Secure Transport**: Secure flag ensures cookies are only sent over HTTPS in production
 - **Automatic Expiration**: Cookies expire with token lifetime (1 hour for access, 30 days for refresh)
 
-### Defense in Depth
-Even though Amplify maintains tokens for its own use, the httpOnly cookies provide an additional security layer by:
-- Preventing direct JavaScript access to token values
-- Reducing the attack surface for XSS vulnerabilities
-- Providing a migration path to fully cookie-based auth
+### Defense in Depth (Hybrid Approach)
+This implementation uses a hybrid approach where tokens exist in BOTH httpOnly cookies AND Amplify storage:
+
+**Amplify Storage (localStorage/sessionStorage):**
+- Used by Amplify for OAuth flow and token management
+- Vulnerable to XSS attacks (JavaScript can access)
+- Required for Amplify API client functionality
+
+**HttpOnly Cookies:**
+- Used by API Gateway for authorization
+- NOT accessible to JavaScript (XSS-protected)
+- Primary defense against token theft at API layer
+
+**Security Model:**
+- Even if XSS compromises Amplify tokens, API Gateway validates from cookies
+- Stolen localStorage tokens cannot be used directly against API
+- Defense in depth: Multiple layers of security
+- **Trade-off**: Not the pure cookie approach from AWS blog, but maintains Amplify compatibility
+
+> **Important**: For full XSS protection (tokens ONLY in httpOnly cookies), see migration path in [AWS_BLOG_COMPLIANCE.md](./AWS_BLOG_COMPLIANCE.md).
 
 ## Architecture
 
