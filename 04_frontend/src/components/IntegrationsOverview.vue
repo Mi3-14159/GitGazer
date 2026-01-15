@@ -1,13 +1,14 @@
 <script setup lang="ts">
     import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
     import {useIntegration} from '@/composables/useIntegration';
+    import {getUserInfo} from '@/services/auth';
     import {Integration} from '@common/types';
     import {computed, onMounted, reactive, ref} from 'vue';
 
     const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
 
     const integrations = reactive(new Map());
-    const userId = ref<string>('current-user'); // TODO: Get from backend
+    const userId = ref<string>('');
     const dialog = ref(false);
     const showSecret = reactive(new Map<string, boolean>());
 
@@ -58,6 +59,11 @@
     });
 
     onMounted(async () => {
+        // Fetch user info from backend
+        const userInfo = await getUserInfo();
+        if (userInfo) {
+            userId.value = userInfo.userId;
+        }
         handleListIntegrations();
     });
 </script>

@@ -7,7 +7,7 @@ import {
     WorkflowsResponse,
     WorkflowType,
 } from '@common/types';
-import type {WorkflowJobEvent, WorkflowRunEvent, WebhookEvent} from '@common/types';
+import type {WorkflowJobEvent, WorkflowRunEvent, WebhookEvent, StreamWorkflowEvent} from '@common/types';
 import * as api from '@/api/client';
 import {defineStore} from 'pinia';
 import {reactive, ref} from 'vue';
@@ -27,15 +27,76 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         return timeB - timeA;
     };
 
+    const sortWorkflows = () => {
+        workflowsArray.value.sort(compareWorkflows);
+    };
+
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
 
-    const connectToIamWebSocket = async () => {
-        // WebSocket temporarily disabled during Amplify removal
-        // TODO: Implement cookie-based WebSocket authentication
-        console.warn('WebSocket connection temporarily disabled');
-        return null;
+    /**
+     * Connect to WebSocket with cookie-based authentication
+     * Since cookies are httpOnly, we pass them via the initial HTTP upgrade request
+     */
+    const connectToWebSocket = async () => {
+        try {
+            // Get access token from cookie-based auth check
+            // The WebSocket will validate via query parameter since we can't send cookies directly
+            const response = await fetch(`${import.meta.env.VITE_REST_API_ENDPOINT}/auth/session`, {
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                console.error('Not authenticated for WebSocket connection');
+                return null;
+            }
+
+            const websocketUrl = new URL(import.meta.env.VITE_WEBSOCKET_API_ENDPOINT);
+            
+            // For cookie-based auth, the browser will automatically send cookies with the WebSocket upgrade request
+            // However, API Gateway WebSocket doesn't support cookie-based auth directly
+            // We need to use IAM auth or custom authorizer
+            // For now, we'll keep WebSocket disabled until infrastructure is updated
+            
+            console.warn('WebSocket connection requires infrastructure update for cookie-based auth');
+            console.info('Alternative: Use polling for real-time updates');
+            
+            return null;
+
+            // TODO: Uncomment when WebSocket infrastructure supports cookie auth
+            /*
+            ws = new WebSocket(websocketUrl.toString());
+
+            ws.onopen = () => console.info('WebSocket connected');
+            ws.onmessage = (event) => {
+                const gitgazerEvent = JSON.parse(event.data) as StreamWorkflowEvent<WebhookEvent>;
+                handleWorkflow(gitgazerEvent.payload);
+                sortWorkflows();
+            };
+            ws.onerror = (error) => console.error('WebSocket error:', error);
+            ws.onclose = (event) => {
+                console.info(`WebSocket closed: ${event.code} ${event.reason}`);
+                switch (event.code) {
+                    case 1000: // Normal Closure
+                    case 1001: // Going Away
+                    case 1006: // Abnormal Closure
+                    case 1011: // Internal Error
+                    case 1012: // Service Restart
+                    case 1013: // Try Again Later
+                        initializeStore();
+                        break;
+                    default:
+                        break;
+                }
+            };
+
+            return ws;
+            */
+        } catch (error) {
+            console.error('Error connecting to WebSocket:', error);
+            return null;
+        }
     };
 
     const getJobs = async (params?: WorkflowsRequestParameters) => {
@@ -112,8 +173,8 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const initializeStore = async () => {
-        // Skip WebSocket connection check for now
-        await connectToIamWebSocket();
+        // Skip WebSocket for now - requires infrastructure update
+        await connectToWebSocket();
         await handleListWorkflows();
     };
 

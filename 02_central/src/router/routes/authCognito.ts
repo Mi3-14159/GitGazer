@@ -301,6 +301,73 @@ router.get('/api/auth/session', async (reqCtx) => {
 });
 
 /**
+ * Get current user info from ID token cookie
+ * GET /api/auth/user
+ */
+router.get('/api/auth/user', async (reqCtx) => {
+    const logger = getLogger();
+    const cookieHeader = reqCtx.event.headers?.['cookie'];
+    const idToken = getCookie(cookieHeader, 'idToken');
+
+    if (!idToken) {
+        logger.debug('No ID token found');
+        return new Response(
+            JSON.stringify({
+                error: 'Not authenticated',
+            }),
+            {
+                status: HttpStatusCodes.UNAUTHORIZED,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    }
+
+    try {
+        // Decode JWT token (without verification since API Gateway already verified it)
+        const parts = idToken.split('.');
+        if (parts.length !== 3) {
+            throw new Error('Invalid token format');
+        }
+
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+
+        // Extract user info from Cognito ID token
+        const userInfo = {
+            userId: payload.sub,
+            email: payload.email,
+            username: payload['cognito:username'] || payload.preferred_username,
+            name: payload.name,
+            nickname: payload.nickname,
+            picture: payload.picture,
+            groups: payload['cognito:groups'] || [],
+        };
+
+        return new Response(JSON.stringify(userInfo), {
+            status: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+            },
+        });
+    } catch (error) {
+        logger.error('Error decoding ID token', {error});
+        return new Response(
+            JSON.stringify({
+                error: 'Invalid token',
+            }),
+            {
+                status: HttpStatusCodes.UNAUTHORIZED,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    }
+});
+
+/**
  * Refresh tokens using refresh token cookie
  * POST /api/auth/refresh
  */

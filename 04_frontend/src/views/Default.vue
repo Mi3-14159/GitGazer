@@ -3,20 +3,22 @@
     import Navigation from '@/components/Navigation.vue';
     import NotificationsOveview from '@/components/NotificationsOveview.vue';
     import WorkflowOverview from '@/components/WorkflowOverview.vue';
+    import {getUserInfo} from '@/services/auth';
     import {onMounted, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
     const router = useRouter();
     
-    // User info - for now just placeholder
     const user = ref<{nickname?: string; picture?: string}>();
 
     onMounted(async () => {
-        // TODO: Fetch user attributes from backend
-        user.value = {
-            nickname: 'User',
-            picture: undefined,
-        };
+        const userInfo = await getUserInfo();
+        if (userInfo) {
+            user.value = {
+                nickname: userInfo.nickname || userInfo.username || userInfo.name,
+                picture: userInfo.picture,
+            };
+        }
     });
 </script>
 

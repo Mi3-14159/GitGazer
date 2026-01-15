@@ -98,6 +98,35 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Get current user info from backend
+ */
+export async function getUserInfo(): Promise<{
+    userId: string;
+    email?: string;
+    username?: string;
+    name?: string;
+    nickname?: string;
+    picture?: string;
+    groups?: string[];
+} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/user`, {
+            method: 'GET',
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error fetching user info:', error);
+        return null;
+    }
+}
+
+/**
  * Get current user info (placeholder for now)
  * In pure cookie implementation, user info comes from backend
  */

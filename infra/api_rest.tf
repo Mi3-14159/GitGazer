@@ -43,6 +43,9 @@ locals {
     "auth/session" = {
       methods = ["GET", "POST"]
     },
+    "auth/user" = {
+      methods = ["GET"]
+    },
     "auth/logout" = {
       methods = ["POST"]
     },
