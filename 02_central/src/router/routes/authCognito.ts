@@ -126,20 +126,19 @@ router.post('/api/auth/session', async (reqCtx) => {
 
         const cookieHeaders = createTokenCookies(tokens);
 
-        return new Response(
-            JSON.stringify({
+        // Use raw response format to send multiple Set-Cookie headers
+        return {
+            statusCode: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+            },
+            cookies: cookieHeaders,
+            body: JSON.stringify({
                 success: true,
                 message: 'Session cookies set successfully',
             }),
-            {
-                status: HttpStatusCodes.OK,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, max-age=0',
-                    'Set-Cookie': cookieHeaders.join(', '),
-                },
-            },
-        );
+        };
     } catch (error) {
         logger.error('Error setting session cookies', {error});
         return new Response('Invalid request body', {
@@ -155,20 +154,19 @@ router.post('/api/auth/session', async (reqCtx) => {
 router.post('/api/auth/logout', async () => {
     const cookieHeaders = clearTokenCookies();
 
-    return new Response(
-        JSON.stringify({
+    // Use raw response format to send multiple Set-Cookie headers
+    return {
+        statusCode: HttpStatusCodes.OK,
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, max-age=0',
+        },
+        cookies: cookieHeaders,
+        body: JSON.stringify({
             success: true,
             message: 'Logged out successfully',
         }),
-        {
-            status: HttpStatusCodes.OK,
-            headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache, no-store, max-age=0',
-                'Set-Cookie': cookieHeaders.join(', '),
-            },
-        },
-    );
+    };
 });
 
 /**
