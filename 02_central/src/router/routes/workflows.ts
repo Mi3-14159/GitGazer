@@ -1,12 +1,12 @@
 import {getWorkflows} from '@/controllers/workflows';
-import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {extractUserIntegrations} from '@/router/middlewares/authorization';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isWorkflowsRequestParameters} from '@common/types';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/workflows', [extractCognitoGroups], async (reqCtx) => {
+router.get('/api/workflows', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const {queryStringParameters} = event;

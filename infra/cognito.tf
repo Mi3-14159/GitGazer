@@ -45,12 +45,6 @@ resource "aws_cognito_user_pool_client" "this" {
   allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
 }
 
-resource "aws_cognito_user_group" "default" {
-  name         = "default"
-  user_pool_id = aws_cognito_user_pool.this.id
-  description  = "default user group"
-}
-
 resource "aws_cognito_identity_pool" "this" {
   identity_pool_name               = "${var.name_prefix}-${terraform.workspace}"
   allow_unauthenticated_identities = false

@@ -1,11 +1,13 @@
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {
+    BatchWriteCommand,
     DeleteCommand,
     DynamoDBDocumentClient,
     PutCommand,
     QueryCommand,
     QueryCommandOutput,
     TransactGetCommand,
+    TransactWriteCommand,
     UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 
@@ -31,6 +33,11 @@ if (!workflowsTableName) {
 const integrationsTableName = process.env.DYNAMO_DB_INTEGRATIONS_TABLE_ARN;
 if (!integrationsTableName) {
     throw new Error('DYNAMO_DB_INTEGRATIONS_TABLE_ARN is not defined');
+}
+
+const userAssignmentsTableName = process.env.DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN;
+if (!userAssignmentsTableName) {
+    throw new Error('DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN is not defined');
 }
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -280,18 +287,33 @@ export const getIntegrations = async (ids: string[]): Promise<Integration[]> => 
     return result.Responses?.map((response) => response.Item as Integration).filter(Boolean) ?? [];
 };
 
-export const createIntegration = async (integration: Integration): Promise<Integration> => {
+export const createIntegration = async (integration: Integration, userId: string): Promise<Integration> => {
     const logger = getLogger();
-    logger.info('Creating integration', {id: integration.id});
+    logger.info('Creating integration', {id: integration.id, userId});
 
-    const command = new PutCommand({
-        TableName: integrationsTableName,
-        Item: integration,
-        ConditionExpression: 'attribute_not_exists(id)',
+    const command = new TransactWriteCommand({
+        TransactItems: [
+            {
+                Put: {
+                    TableName: integrationsTableName,
+                    Item: integration,
+                    ConditionExpression: 'attribute_not_exists(id)',
+                },
+            },
+            {
+                Put: {
+                    TableName: userAssignmentsTableName,
+                    Item: {
+                        userId,
+                        integrationId: integration.id,
+                    },
+                },
+            },
+        ],
     });
 
-    const result = await client.send(command);
-    return result.Attributes as Integration;
+    await client.send(command);
+    return integration;
 };
 
 export const deleteIntegration = async (id: string): Promise<Integration> => {
@@ -306,4 +328,109 @@ export const deleteIntegration = async (id: string): Promise<Integration> => {
 
     const result = await client.send(command);
     return result.Attributes as Integration;
+};
+
+export const getUserIntegrations = async (userId: string): Promise<string[]> => {
+    const logger = getLogger();
+    logger.debug(`Getting integrations for user`, {userId});
+
+    const command = new QueryCommand({
+        TableName: userAssignmentsTableName,
+        KeyConditionExpression: 'userId = :userId',
+        ExpressionAttributeValues: {
+            ':userId': userId,
+        },
+    });
+
+    const result = await client.send(command);
+    if (!result.Items) {
+        return [];
+    }
+
+    return result.Items.map((item) => item.integrationId);
+};
+
+export const addUserToIntegration = async (userId: string, integrationId: string): Promise<void> => {
+    const logger = getLogger();
+    logger.debug(`Adding user to integration`, {userId, integrationId});
+
+    const command = new PutCommand({
+        TableName: userAssignmentsTableName,
+        Item: {
+            userId,
+            integrationId,
+        },
+    });
+
+    await client.send(command);
+};
+
+export const removeUserFromIntegration = async (userId: string, integrationId: string): Promise<void> => {
+    const logger = getLogger();
+    logger.debug(`Removing user from integration`, {userId, integrationId});
+
+    const command = new DeleteCommand({
+        TableName: userAssignmentsTableName,
+        Key: {
+            userId,
+            integrationId,
+        },
+    });
+
+    await client.send(command);
+};
+
+// TODO: extract the deletion of all members into an async process
+// maybe a dedicated lambda function execution triggered by a sqs?
+export const deleteIntegrationMembers = async (integrationId: string): Promise<void> => {
+    const logger = getLogger();
+    logger.debug(`Deleting all members of integration`, {integrationId});
+
+    let lastEvaluatedKey: Record<string, any> | undefined;
+
+    do {
+        const queryCommand = new QueryCommand({
+            TableName: userAssignmentsTableName,
+            IndexName: 'integrationId-index',
+            KeyConditionExpression: 'integrationId = :integrationId',
+            ExpressionAttributeValues: {
+                ':integrationId': integrationId,
+            },
+            ExclusiveStartKey: lastEvaluatedKey,
+        });
+
+        const result = await client.send(queryCommand);
+        lastEvaluatedKey = result.LastEvaluatedKey;
+
+        if (!result.Items || result.Items.length === 0) {
+            continue;
+        }
+
+        // Split items into chunks of 25 for BatchWriteItem
+        const chunks: any[][] = [];
+        for (let i = 0; i < result.Items.length; i += 25) {
+            chunks.push(result.Items.slice(i, i + 25));
+        }
+
+        const batchPromises = chunks.map((chunk) => {
+            const deleteRequests = chunk.map((item) => ({
+                DeleteRequest: {
+                    Key: {
+                        userId: item.userId,
+                        integrationId: integrationId,
+                    },
+                },
+            }));
+
+            return client.send(
+                new BatchWriteCommand({
+                    RequestItems: {
+                        [userAssignmentsTableName]: deleteRequests,
+                    },
+                }),
+            );
+        });
+
+        await Promise.all(batchPromises);
+    } while (lastEvaluatedKey);
 };

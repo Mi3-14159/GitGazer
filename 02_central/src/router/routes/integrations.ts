@@ -1,11 +1,11 @@
 import {createIntegration, deleteIntegration, getIntegrations} from '@/controllers/integrations';
-import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {extractUserIntegrations} from '@/router/middlewares/authorization';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/integrations', [extractCognitoGroups], async (reqCtx) => {
+router.get('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     return await getIntegrations({
@@ -13,7 +13,7 @@ router.get('/api/integrations', [extractCognitoGroups], async (reqCtx) => {
     });
 });
 
-router.post('/api/integrations', [extractCognitoGroups], async (reqCtx) => {
+router.post('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     if (!event.body) {
         return new Response(JSON.stringify({error: 'Missing request body'}), {
@@ -52,7 +52,7 @@ router.post('/api/integrations', [extractCognitoGroups], async (reqCtx) => {
     );
 });
 
-router.delete('/api/integrations/:integrationId', [extractCognitoGroups], async (reqCtx) => {
+router.delete('/api/integrations/:integrationId', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     if (!reqCtx.params.integrationId) {
         return new Response(JSON.stringify({error: 'Missing integration ID'}), {

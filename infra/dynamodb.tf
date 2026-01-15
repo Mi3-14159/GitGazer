@@ -125,3 +125,37 @@ resource "aws_dynamodb_table" "integrations" {
     enabled = var.enabled_pitr
   }
 }
+
+resource "aws_dynamodb_table" "user_assignments" {
+  name                        = "${var.name_prefix}-user-assignments-${terraform.workspace}"
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "userId"
+  range_key                   = "integrationId"
+  deletion_protection_enabled = true
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  attribute {
+    name = "integrationId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "integrationId-index"
+    hash_key        = "integrationId"
+    projection_type = "ALL"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.this.arn
+  }
+
+  point_in_time_recovery {
+    enabled = var.enabled_pitr
+  }
+}
+

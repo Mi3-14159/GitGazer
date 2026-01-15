@@ -1,7 +1,7 @@
-import {addUserToGroup, deleteGroup, newGroup} from '@/clients/cognito';
 import {
     createIntegration as createIntegrationDDB,
     deleteIntegration as deleteIntegrationDDB,
+    deleteIntegrationMembers,
     getIntegrations as getIntegrationsDDB,
 } from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
@@ -28,15 +28,12 @@ export const createIntegration = async (label: string, owner: string, userName: 
         secret: crypto.randomUUID(),
     };
 
-    const results = await Promise.allSettled([createIntegrationDDB(integration), newGroup(integration.id, integration.label)]);
+    try {
+        await createIntegrationDDB(integration, owner);
+    } catch (error) {
+        throw new Error(`Failed to create integration: ${error}`);
+    }
 
-    results.forEach((result) => {
-        if (result.status === 'rejected') {
-            throw new Error(`Failed to create integration: ${result.reason}`);
-        }
-    });
-
-    await addUserToGroup(userName, integration.id);
     return integration;
 };
 
@@ -49,7 +46,7 @@ export const deleteIntegration = async (id: string, userGroups: string[]): Promi
         throw new Error('User is not authorized to delete this integration');
     }
 
-    const results = await Promise.allSettled([await deleteIntegrationDDB(id), await deleteGroup(id)]);
+    const results = await Promise.allSettled([await deleteIntegrationDDB(id), await deleteIntegrationMembers(id)]);
 
     results.forEach((result) => {
         if (result.status === 'rejected') {

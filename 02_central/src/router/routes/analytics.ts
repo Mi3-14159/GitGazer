@@ -1,6 +1,6 @@
 import {getJobMetrics} from '@/controllers/analytics';
 import {getLogger} from '@/logger';
-import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {extractUserIntegrations} from '@/router/middlewares/authorization';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isJobMetricsParameters} from '@common/types/metrics';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
@@ -8,7 +8,7 @@ import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 const router = new Router();
 const logger = getLogger();
 
-router.post('/api/analytics/jobs/metrics', [extractCognitoGroups], async (reqCtx) => {
+router.post('/api/analytics/jobs/metrics', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
 

@@ -77,6 +77,7 @@ data "aws_iam_policy_document" "api" {
       "dynamodb:DeleteItem",
       "dynamodb:Query",
       "dynamodb:Scan",
+      "dynamodb:Batch*"
     ]
     resources = compact([
       aws_dynamodb_table.workflows.arn,
@@ -87,6 +88,8 @@ data "aws_iam_policy_document" "api" {
       "${aws_dynamodb_table.connections.arn}/index/*",
       aws_dynamodb_table.integrations.arn,
       "${aws_dynamodb_table.integrations.arn}/index/*",
+      aws_dynamodb_table.user_assignments.arn,
+      "${aws_dynamodb_table.user_assignments.arn}/index/*",
     ])
   }
 
@@ -123,18 +126,6 @@ data "aws_iam_policy_document" "api" {
     ]
   }
 
-  statement {
-    effect = "Allow"
-    actions = [
-      "cognito-idp:CreateGroup",
-      "cognito-idp:DeleteGroup",
-      "cognito-idp:UpdateGroup",
-      "cognito-idp:AddUserToGroup",
-      "cognito-idp:RemoveUserFromGroup",
-      "cognito-idp:AdminAddUserToGroup",
-    ]
-    resources = [aws_cognito_user_pool.this.arn]
-  }
 
   statement {
     effect = "Allow"
@@ -201,27 +192,28 @@ resource "aws_lambda_function" "api" {
   memory_size       = 256
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
-      ENVIRONMENT                         = terraform.workspace
-      POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
-      POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      EXPIRE_IN_SEC                       = var.expire_in_sec
-      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN   = aws_dynamodb_table.notification_rules.name
-      DYNAMO_DB_WORKFLOWS_TABLE_ARN       = aws_dynamodb_table.workflows.name
-      UI_BUCKET_NAME                      = module.ui_bucket.s3_bucket_id
-      KMS_KEY_ID                          = aws_kms_key.this.id
-      COGNITO_USER_POOL_ID                = aws_cognito_user_pool.this.id
-      DYNAMO_DB_CONNECTIONS_TABLE_ARN     = aws_dynamodb_table.connections.name
-      WEBSOCKET_API_DOMAIN_NAME           = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
-      WEBSOCKET_API_STAGE                 = aws_apigatewayv2_stage.websocket_ws.name
-      DYNAMO_DB_INTEGRATIONS_TABLE_ARN    = aws_dynamodb_table.integrations.name
-      ATHENA_DATABASE                     = aws_s3tables_namespace.gitgazer.namespace
-      ATHENA_JOBS_TABLE                   = aws_s3tables_table.jobs.name
-      ATHENA_CATALOG                      = aws_athena_data_catalog.analytics.name
-      ATHENA_QUERY_RESULT_S3_BUCKET       = module.athena_query_results_bucket.s3_bucket_id
-      ATHENA_WORKGROUP                    = aws_athena_workgroup.analytics.name
-      CORS_ORIGINS                        = jsonencode(local.cors_allowed_origins)
+      AWS_LAMBDA_EXEC_WRAPPER              = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS  = "none"
+      ENVIRONMENT                          = terraform.workspace
+      POWERTOOLS_LOG_LEVEL                 = local.lambda_application_log_level
+      POWERTOOLS_LOGGER_LOG_EVENT          = local.lambda_enable_event_logging
+      EXPIRE_IN_SEC                        = var.expire_in_sec
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN    = aws_dynamodb_table.notification_rules.name
+      DYNAMO_DB_WORKFLOWS_TABLE_ARN        = aws_dynamodb_table.workflows.name
+      UI_BUCKET_NAME                       = module.ui_bucket.s3_bucket_id
+      KMS_KEY_ID                           = aws_kms_key.this.id
+      COGNITO_USER_POOL_ID                 = aws_cognito_user_pool.this.id
+      DYNAMO_DB_CONNECTIONS_TABLE_ARN      = aws_dynamodb_table.connections.name
+      WEBSOCKET_API_DOMAIN_NAME            = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
+      WEBSOCKET_API_STAGE                  = aws_apigatewayv2_stage.websocket_ws.name
+      DYNAMO_DB_INTEGRATIONS_TABLE_ARN     = aws_dynamodb_table.integrations.name
+      DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN = aws_dynamodb_table.user_assignments.name
+      ATHENA_DATABASE                      = aws_s3tables_namespace.gitgazer.namespace
+      ATHENA_JOBS_TABLE                    = aws_s3tables_table.jobs.name
+      ATHENA_CATALOG                       = aws_athena_data_catalog.analytics.name
+      ATHENA_QUERY_RESULT_S3_BUCKET        = module.athena_query_results_bucket.s3_bucket_id
+      ATHENA_WORKGROUP                     = aws_athena_workgroup.analytics.name
+      CORS_ORIGINS                         = jsonencode(local.cors_allowed_origins)
     }
   }
   layers = local.lambda_layers

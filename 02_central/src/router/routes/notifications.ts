@@ -1,12 +1,12 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
-import {extractCognitoGroups} from '@/router/middlewares/authorization';
+import {extractUserIntegrations} from '@/router/middlewares/authorization';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isNotificationRuleUpdate} from '@common/types';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/notifications', [extractCognitoGroups], async (reqCtx) => {
+router.get('/api/notifications', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     return await getNotificationRules({
@@ -14,7 +14,7 @@ router.get('/api/notifications', [extractCognitoGroups], async (reqCtx) => {
     });
 });
 
-router.post('/api/notifications', [extractCognitoGroups], async (reqCtx) => {
+router.post('/api/notifications', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     const rule = JSON.parse(event.body ?? '{}');
@@ -31,7 +31,7 @@ router.post('/api/notifications', [extractCognitoGroups], async (reqCtx) => {
     return await postNotificationRule(rule, groups);
 });
 
-router.delete('/api/notifications/:id', [extractCognitoGroups], async (reqCtx) => {
+router.delete('/api/notifications/:id', [extractUserIntegrations], async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
     const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
     if (!reqCtx.params.id) {
