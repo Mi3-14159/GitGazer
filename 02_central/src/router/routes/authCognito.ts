@@ -1,4 +1,5 @@
 import {getLogger} from '@/logger';
+import {createTokenCookies, clearTokenCookies, getCookie} from '@/utils/cookies';
 
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
@@ -91,6 +92,122 @@ router.get('/api/auth/cognito/user', async (reqCtx) => {
             ...user,
         }),
     };
+});
+
+/**
+ * Exchange Amplify tokens for httpOnly cookies
+ * POST /api/auth/session
+ * Body: { accessToken, idToken, refreshToken, expiresIn }
+ */
+router.post('/api/auth/session', async (reqCtx) => {
+    const logger = getLogger();
+    const {body} = reqCtx.event;
+
+    if (!body) {
+        logger.error('No body found in session request');
+        return new Response('Body is required', {
+            status: HttpStatusCodes.BAD_REQUEST,
+        });
+    }
+
+    try {
+        const tokens = JSON.parse(body) as {
+            accessToken: string;
+            idToken: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+
+        if (!tokens.accessToken || !tokens.idToken) {
+            return new Response('Missing required tokens', {
+                status: HttpStatusCodes.BAD_REQUEST,
+            });
+        }
+
+        const cookieHeaders = createTokenCookies(tokens);
+
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: 'Session cookies set successfully',
+            }),
+            {
+                status: HttpStatusCodes.OK,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, max-age=0',
+                    'Set-Cookie': cookieHeaders.join(', '),
+                },
+            },
+        );
+    } catch (error) {
+        logger.error('Error setting session cookies', {error});
+        return new Response('Invalid request body', {
+            status: HttpStatusCodes.BAD_REQUEST,
+        });
+    }
+});
+
+/**
+ * Logout and clear authentication cookies
+ * POST /api/auth/logout
+ */
+router.post('/api/auth/logout', async () => {
+    const cookieHeaders = clearTokenCookies();
+
+    return new Response(
+        JSON.stringify({
+            success: true,
+            message: 'Logged out successfully',
+        }),
+        {
+            status: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+                'Set-Cookie': cookieHeaders.join(', '),
+            },
+        },
+    );
+});
+
+/**
+ * Get current session info from cookies
+ * GET /api/auth/session
+ */
+router.get('/api/auth/session', async (reqCtx) => {
+    const logger = getLogger();
+    const cookieHeader = reqCtx.event.headers['cookie'];
+    const accessToken = getCookie(cookieHeader, 'accessToken');
+    const idToken = getCookie(cookieHeader, 'idToken');
+
+    if (!accessToken || !idToken) {
+        logger.debug('No valid session cookies found');
+        return new Response(
+            JSON.stringify({
+                authenticated: false,
+            }),
+            {
+                status: HttpStatusCodes.UNAUTHORIZED,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    }
+
+    return new Response(
+        JSON.stringify({
+            authenticated: true,
+        }),
+        {
+            status: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+            },
+        },
+    );
 });
 
 export default router;

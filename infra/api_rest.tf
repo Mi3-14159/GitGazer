@@ -37,6 +37,12 @@ locals {
     "auth/cognito/token" = {
       methods = ["POST"]
     },
+    "auth/session" = {
+      methods = ["GET", "POST"]
+    },
+    "auth/logout" = {
+      methods = ["POST"]
+    },
     "analytics/jobs/metrics" = {
       methods            = ["POST"]
       authorization_type = "JWT"
@@ -79,11 +85,11 @@ resource "aws_apigatewayv2_api" "this" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_credentials = var.custom_domain_config != null ? true : false
+    allow_credentials = true
     allow_headers     = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
     allow_methods     = ["*"]
     allow_origins     = local.cors_allowed_origins
-    expose_headers    = ["date", "keep-alive"]
+    expose_headers    = ["date", "keep-alive", "set-cookie"]
     max_age           = 86400
   }
 }
@@ -158,7 +164,7 @@ data "aws_iam_policy_document" "invocation_policy" {
 resource "aws_apigatewayv2_authorizer" "cognito" {
   api_id           = aws_apigatewayv2_api.this.id
   authorizer_type  = "JWT"
-  identity_sources = ["$request.header.Authorization"]
+  identity_sources = ["$request.cookie.accessToken", "$request.header.Authorization"]
   name             = "${var.name_prefix}-cognito-authorizer-${terraform.workspace}"
 
   jwt_configuration {
