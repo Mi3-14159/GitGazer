@@ -1,7 +1,10 @@
 <script setup lang="ts">
-    import {signOut} from 'aws-amplify/auth';
+    import {useAuth} from '@/composables/useAuth';
     import {ref} from 'vue';
     import {useRouter} from 'vue-router';
+
+    const router = useRouter();
+    const {signOut} = useAuth();
 
     const router = useRouter();
 
@@ -66,7 +69,10 @@
                     prepend-icon="mdi-logout"
                     title="Logout"
                     value="logout"
-                    :onclick="signOut"
+                    @click="async () => {
+                        await signOut();
+                        await router.push('/login');
+                    }"
                 ></v-list-item>
             </v-list>
         </nav>

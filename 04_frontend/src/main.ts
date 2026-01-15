@@ -40,9 +40,15 @@ Amplify.configure(
         API: {
             REST: {
                 headers: async () => {
-                    const session = await getSession();
-                    const authToken = session?.tokens?.idToken?.toString();
-                    return {Authorization: authToken!};
+                    // Keep Authorization header as fallback during transition
+                    // Cookies will be the primary auth mechanism
+                    try {
+                        const session = await getSession();
+                        const authToken = session?.tokens?.idToken?.toString();
+                        return authToken ? {Authorization: authToken} : {};
+                    } catch {
+                        return {};
+                    }
                 },
             },
         },

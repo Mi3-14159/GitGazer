@@ -5,8 +5,8 @@ import {
     fetchUserAttributes,
     FetchUserAttributesOutput,
     getCurrentUser,
-    signInWithRedirect,
 } from 'aws-amplify/auth';
+import {signIn as authSignIn, getUser as authGetUser, signOut as authSignOut, exchangeTokensForCookies} from '@/services/auth';
 
 let promiseGetSession: Promise<AuthSession>;
 let promiseGetUserAttributes: Promise<FetchUserAttributesOutput>;
@@ -40,14 +40,27 @@ export const useAuth = () => {
 
     const getUser = async (): Promise<AuthUser> => {
         if (!promiseGetCurrentUser) {
-            promiseGetCurrentUser = getCurrentUser();
+            promiseGetCurrentUser = authGetUser();
         }
 
-        return await promiseGetCurrentUser;
+        const user = await promiseGetCurrentUser;
+
+        // After getting user, ensure tokens are exchanged for cookies
+        try {
+            await exchangeTokensForCookies();
+        } catch (error) {
+            console.warn('Failed to exchange tokens for cookies, continuing with Amplify tokens:', error);
+        }
+
+        return user;
     };
 
     const signIn = async () => {
-        return signInWithRedirect({provider: {custom: 'Github'}});
+        return authSignIn();
+    };
+
+    const signOut = async () => {
+        return authSignOut();
     };
 
     return {
@@ -55,5 +68,6 @@ export const useAuth = () => {
         getUserAttributes,
         getUser,
         signIn,
+        signOut,
     };
 };
