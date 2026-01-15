@@ -69,6 +69,6 @@ jobs:
         working-directory: infra
         run: terraform plan -out=tfplan
 
-      - name: Terraform Apply
+      - name: Terraform apply
         working-directory: infra
         run: terraform apply tfplan
