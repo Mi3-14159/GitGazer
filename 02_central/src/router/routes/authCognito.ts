@@ -177,7 +177,7 @@ router.post('/api/auth/logout', async () => {
  */
 router.get('/api/auth/session', async (reqCtx) => {
     const logger = getLogger();
-    const cookieHeader = reqCtx.event.headers['cookie'];
+    const cookieHeader = reqCtx.event.headers?.['cookie'];
     const accessToken = getCookie(cookieHeader, 'accessToken');
     const idToken = getCookie(cookieHeader, 'idToken');
 

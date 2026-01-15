@@ -4,7 +4,6 @@ import {
     fetchAuthSession,
     fetchUserAttributes,
     FetchUserAttributesOutput,
-    getCurrentUser,
 } from 'aws-amplify/auth';
 import {signIn as authSignIn, getUser as authGetUser, signOut as authSignOut, exchangeTokensForCookies} from '@/services/auth';
 

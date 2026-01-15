@@ -42,13 +42,17 @@ Amplify.configure(
                 headers: async () => {
                     // Keep Authorization header as fallback during transition
                     // Cookies will be the primary auth mechanism
+                    const headers: Record<string, string> = {};
                     try {
                         const session = await getSession();
                         const authToken = session?.tokens?.idToken?.toString();
-                        return authToken ? {Authorization: authToken} : {};
+                        if (authToken) {
+                            headers['Authorization'] = authToken;
+                        }
                     } catch {
-                        return {};
+                        // Ignore auth errors
                     }
+                    return headers;
                 },
             },
         },

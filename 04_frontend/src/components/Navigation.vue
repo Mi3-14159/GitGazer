@@ -6,8 +6,6 @@
     const router = useRouter();
     const {signOut} = useAuth();
 
-    const router = useRouter();
-
     const props = defineProps<{
         username?: string;
         pictureUrl?: string;
