@@ -1,3 +1,5 @@
+import * as api from '@/api/client';
+import type {WebhookEvent, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
 import {
     isWorkflowJobEvent,
     isWorkflowRunEvent,
@@ -7,8 +9,6 @@ import {
     WorkflowsResponse,
     WorkflowType,
 } from '@common/types';
-import type {WorkflowJobEvent, WorkflowRunEvent, WebhookEvent, StreamWorkflowEvent} from '@common/types';
-import * as api from '@/api/client';
 import {defineStore} from 'pinia';
 import {reactive, ref} from 'vue';
 
@@ -27,12 +27,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         return timeB - timeA;
     };
 
-    const sortWorkflows = () => {
-        workflowsArray.value.sort(compareWorkflows);
-    };
-
     const isLoading = ref(false);
-    let ws: WebSocket | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
 
     /**
@@ -52,16 +47,14 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 return null;
             }
 
-            const websocketUrl = new URL(import.meta.env.VITE_WEBSOCKET_API_ENDPOINT);
-            
             // For cookie-based auth, the browser will automatically send cookies with the WebSocket upgrade request
             // However, API Gateway WebSocket doesn't support cookie-based auth directly
             // We need to use IAM auth or custom authorizer
             // For now, we'll keep WebSocket disabled until infrastructure is updated
-            
+
             console.warn('WebSocket connection requires infrastructure update for cookie-based auth');
             console.info('Alternative: Use polling for real-time updates');
-            
+
             return null;
 
             // TODO: Uncomment when WebSocket infrastructure supports cookie auth
