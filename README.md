@@ -14,6 +14,18 @@ After login you will need to create an [integraton](https://app.gitgazer.com/int
 
 Recommended use of [asdf](https://asdf-vm.com/) to manage your runtime versions.
 
+## Security
+
+GitGazer implements security best practices for authentication:
+
+- **HttpOnly Cookies**: Authentication tokens are stored in httpOnly cookies, preventing JavaScript access and protecting against XSS attacks
+- **CSRF Protection**: SameSite=Strict cookie attribute prevents cross-site request forgery
+- **Secure Transport**: Cookies use the Secure flag to ensure HTTPS-only transmission in production
+- **Token Expiration**: Access tokens expire after 1 hour, refresh tokens after 30 days
+- **OAuth 2.0**: GitHub OAuth integration via AWS Cognito for secure authentication
+
+For detailed information about the authentication implementation, see [docs/COOKIE_AUTHENTICATION.md](docs/COOKIE_AUTHENTICATION.md).
+
 ## How to install
 
 1. [First you need to create the S3 bucket where the Lambda artifacts are stored](#first-you-need-to-create-the-s3-bucket-where-the-lambda-artifacts-are-stored)
