@@ -1,5 +1,6 @@
 resource "aws_cognito_user_pool" "this" {
-  name = "${var.name_prefix}-${terraform.workspace}"
+  name                = "${var.name_prefix}-${terraform.workspace}"
+  deletion_protection = "ACTIVE"
 }
 
 resource "aws_cognito_identity_provider" "github" {
