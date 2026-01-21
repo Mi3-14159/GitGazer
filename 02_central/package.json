@@ -10,13 +10,13 @@
   },
   "description": "lambda as API",
   "devDependencies": {
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.971.0",
-    "@aws-sdk/client-athena": "^3.971.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.971.0",
-    "@aws-sdk/client-dynamodb": "^3.971.0",
-    "@aws-sdk/client-firehose": "^3.971.0",
-    "@aws-sdk/client-s3": "^3.971.0",
-    "@aws-sdk/lib-dynamodb": "^3.971.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.972.0",
+    "@aws-sdk/client-athena": "^3.972.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.972.0",
+    "@aws-sdk/client-dynamodb": "^3.972.0",
+    "@aws-sdk/client-firehose": "^3.972.0",
+    "@aws-sdk/client-s3": "^3.972.0",
+    "@aws-sdk/lib-dynamodb": "^3.972.0",
     "@aws-sdk/util-dynamodb": "^3.946.0",
     "@types/aws-lambda": "^8.10.160",
     "@types/node": "^24.10.9",
@@ -38,8 +38,8 @@
   "keywords": [],
   "name": "api-lambda",
   "optionalDependencies": {
-    "@rollup/rollup-darwin-x64": "^4.55.2",
-    "@rollup/rollup-linux-x64-gnu": "^4.55.2"
+    "@rollup/rollup-darwin-x64": "^4.55.3",
+    "@rollup/rollup-linux-x64-gnu": "^4.55.3"
   },
   "repository": {
     "type": "git",
