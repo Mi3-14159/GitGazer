@@ -7,12 +7,12 @@
     "pinia": "^3.0.4",
     "vue": "^3.5.27",
     "vue-router": "^4.6.4",
-    "vuetify": "^3.11.7"
+    "vuetify": "^3.11.8"
   },
   "devDependencies": {
     "@babel/types": "^7.28.6",
     "@types/node": "^24.10.9",
-    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.46.0",
     "@vitejs/plugin-vue": "^6.0.3",
     "eslint": "^9.39.2",
