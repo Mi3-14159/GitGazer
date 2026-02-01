@@ -41,7 +41,7 @@ export type NotificationRuleChannel = {
 };
 
 export const isNotificationRuleChannel = (
-  channel: any
+  channel: any,
 ): channel is NotificationRuleChannel => {
   return (
     Object.values(NotificationRuleChannelType).includes(channel.type) &&
@@ -57,7 +57,7 @@ export type NotificationRuleRule = {
 };
 
 export const isNotificationRuleRule = (
-  rule: any
+  rule: any,
 ): rule is NotificationRuleRule => {
   return (
     typeof rule.head_branch === "string" &&
@@ -73,7 +73,7 @@ export type NotificationRuleUpdate = Omit<
 >;
 
 export const isNotificationRuleUpdate = (
-  rule: any
+  rule: any,
 ): rule is NotificationRuleUpdate => {
   return (
     typeof rule.integrationId === "string" &&
@@ -107,7 +107,7 @@ export enum WorkflowType {
 }
 
 export const isWorkflowJobEvent = (
-  event: WebhookEvent
+  event: WebhookEvent,
 ): event is WorkflowJobEvent => {
   return (
     (event as WorkflowJobEvent).workflow_job !== undefined &&
@@ -116,7 +116,7 @@ export const isWorkflowJobEvent = (
 };
 
 export const isWorkflowRunEvent = (
-  event: WebhookEvent
+  event: WebhookEvent,
 ): event is WorkflowRunEvent => {
   return (
     (event as WorkflowRunEvent).workflow_run !== undefined &&
@@ -127,8 +127,8 @@ export const isWorkflowRunEvent = (
 export type WorkflowEvent<T extends WorkflowType> = T extends WorkflowType.JOB
   ? WorkflowJobEvent
   : T extends WorkflowType.RUN
-  ? WorkflowRunEvent
-  : WorkflowJobEvent | WorkflowRunEvent;
+    ? WorkflowRunEvent
+    : WorkflowJobEvent | WorkflowRunEvent;
 
 export type Workflow<Subtype> = {
   integrationId: string;
@@ -157,7 +157,7 @@ export type WorkflowsRequestParameters = {
 };
 
 export const isWorkflowsRequestParameters = (
-  params: any
+  params: any,
 ): params is WorkflowsRequestParameters => {
   if (!params) {
     return true;
@@ -184,4 +184,26 @@ export const isWorkflowsRequestParameters = (
 export type StreamWorkflowEvent<Subtype> = {
   eventType: WorkflowType;
   payload: Workflow<Subtype>;
+};
+
+export type UserAttributes = {
+  sub?: string;
+  username?: string;
+  email?: string;
+  name?: string;
+  nickname?: string;
+  picture?: string;
+};
+
+export type WSToken = {
+  sub: string;
+  username: string;
+  email: string;
+  integrations: string[];
+  exp: number;
+  nonce: string;
+};
+
+export type State = {
+  redirect_url: string;
 };

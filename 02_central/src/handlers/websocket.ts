@@ -2,13 +2,13 @@ import {getLogger} from '@/logger';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {BatchWriteCommand, DynamoDBDocumentClient, QueryCommand} from '@aws-sdk/lib-dynamodb';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
+import {createHmac} from 'crypto';
 
 const logger = getLogger();
 
 const connectionsTableArn = process.env.DYNAMO_DB_CONNECTIONS_TABLE_ARN;
 const connectionIdIndex = process.env.DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX;
-const cognitoClientId = process.env.COGNITO_CLIENT_ID;
-const cognitoUserPoolId = process.env.COGNITO_USER_POOL_ID;
+const cognitoClientSecret = process.env.COGNITO_CLIENT_SECRET;
 
 if (!connectionsTableArn) {
     throw new Error('DYNAMO_DB_CONNECTIONS_TABLE_ARN is not defined');
@@ -18,24 +18,17 @@ if (!connectionIdIndex) {
     throw new Error('DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX is not defined');
 }
 
-if (!cognitoUserPoolId) {
-    throw new Error('COGNITO_USER_POOL_ID is not defined');
+if (!cognitoClientSecret) {
+    throw new Error('COGNITO_CLIENT_SECRET is not defined');
 }
 
-if (!cognitoClientId) {
-    throw new Error('COGNITO_CLIENT_ID is not defined');
-}
-
-type Jwks = {
-    keys: {kid: string}[];
-};
-
-type CognitoJwtPayload = {
+type WebSocketTokenPayload = {
     sub: string;
-    aud: string;
+    username: string;
+    email: string;
+    integrations: string[];
     exp: number;
-    'cognito:groups'?: string[];
-    [key: string]: unknown;
+    nonce: string;
 };
 
 type ConnectionRecord = {
@@ -50,41 +43,34 @@ type WebsocketEvent = APIGatewayProxyWebsocketEventV2 & {
 const ddbClient = new DynamoDBClient();
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
-const base64UrlDecode = (segment: string): string => {
-    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    return Buffer.from(padded, 'base64').toString('utf8');
-};
-
-const validateJwtToken = async (idToken: string): Promise<CognitoJwtPayload> => {
-    const jwksUrl = `https://cognito-idp.${process.env.AWS_REGION}.amazonaws.com/${cognitoUserPoolId}/.well-known/jwks.json`;
-    const jwksResponse = await fetch(jwksUrl);
-    if (!jwksResponse.ok) {
-        throw new Error(`Failed to fetch JWKS: ${jwksResponse.status}`);
-    }
-    const jwks = (await jwksResponse.json()) as Jwks;
-
-    const [headerSegment, payloadSegment] = idToken.split('.');
-    if (!headerSegment || !payloadSegment) {
-        throw new Error('Invalid JWT format');
+const validateWebSocketToken = (token: string): WebSocketTokenPayload => {
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+        throw new Error('Invalid token format');
     }
 
-    const header = JSON.parse(base64UrlDecode(headerSegment)) as {kid?: string};
-    const key = jwks.keys.find((k) => k.kid === header.kid);
-    if (!key) {
-        throw new Error('JWT key not found');
+    const [payloadEncoded, signatureEncoded] = parts;
+
+    // Verify signature
+    const expectedSignature = createHmac('sha256', cognitoClientSecret).update(payloadEncoded).digest('base64url');
+
+    if (signatureEncoded !== expectedSignature) {
+        throw new Error('Invalid token signature');
     }
 
-    const payload = JSON.parse(base64UrlDecode(payloadSegment)) as CognitoJwtPayload;
+    // Decode payload
+    const payloadJson = Buffer.from(payloadEncoded, 'base64url').toString('utf-8');
+    const payload = JSON.parse(payloadJson) as WebSocketTokenPayload;
 
-    // Basic validation only; signature validation should use a JWT library in production.
+    // Verify expiration
     const now = Math.floor(Date.now() / 1000);
     if (payload.exp < now) {
-        throw new Error('JWT token expired');
+        throw new Error('Token expired');
     }
 
-    if (payload.aud !== cognitoClientId) {
-        throw new Error('JWT audience mismatch');
+    // Basic validation
+    if (!payload.sub || !payload.integrations || !Array.isArray(payload.integrations)) {
+        throw new Error('Invalid token payload');
     }
 
     return payload;
@@ -175,34 +161,34 @@ const onDisconnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResul
 };
 
 const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2<string>> => {
-    const idToken = event.queryStringParameters?.idToken;
-    if (!idToken) {
-        logger.info('Connection denied: No idToken provided');
+    const token = event.queryStringParameters?.token;
+    if (!token) {
+        logger.info('Connection denied: No token provided');
         return {statusCode: 401, body: 'Unauthorized: No authentication token provided'};
     }
 
-    let userPayload: CognitoJwtPayload;
+    let tokenPayload: WebSocketTokenPayload;
     try {
-        userPayload = await validateJwtToken(idToken);
-        logger.info('JWT validation successful', {sub: userPayload.sub});
+        tokenPayload = validateWebSocketToken(token);
+        logger.info('WebSocket token validation successful', {sub: tokenPayload.sub});
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.info('Connection denied: Invalid JWT token', {message});
+        logger.info('Connection denied: Invalid token', {message});
         return {statusCode: 401, body: 'Unauthorized: Invalid authentication token'};
     }
 
-    const cognitoGroups = Array.isArray(userPayload['cognito:groups']) ? userPayload['cognito:groups'] : [];
-    if (cognitoGroups.length === 0) {
-        logger.info('No Cognito groups found for user', {sub: userPayload.sub});
-        return {statusCode: 401, body: 'Connection denied: No authorized groups found'};
+    const integrations = tokenPayload.integrations;
+    if (integrations.length === 0) {
+        logger.info('No integrations found for user', {sub: tokenPayload.sub});
+        return {statusCode: 401, body: 'Connection denied: No authorized integrations found'};
     }
 
-    const writeRequests = cognitoGroups.map((group) => ({
+    const writeRequests = integrations.map((integrationId) => ({
         PutRequest: {
             Item: {
-                integrationId: group,
+                integrationId: integrationId,
                 connectionId: event.requestContext.connectionId,
-                sub: userPayload.sub,
+                sub: tokenPayload.sub,
                 connectedAt: new Date().toISOString(),
             },
         },
@@ -216,7 +202,7 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
         });
 
         const result = await docClient.send(batchCommand);
-        logger.info('Connection stored for groups', {groups: cognitoGroups});
+        logger.info('Connection stored for integrations', {integrations});
 
         if (result.UnprocessedItems && Object.keys(result.UnprocessedItems).length > 0) {
             logger.warn('Some items were not processed during connect', {unprocessed: result.UnprocessedItems});

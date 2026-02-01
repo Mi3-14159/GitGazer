@@ -1,44 +1,53 @@
 import {NotificationRule} from '@common/types';
-import {del, get, post} from 'aws-amplify/api';
 import {ref} from 'vue';
+
+const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 export const useNotification = () => {
     const isLoadingNotifications = ref(false);
 
     const getNotifications = async () => {
         isLoadingNotifications.value = true;
-        const restOperation = get({
-            apiName: 'api',
-            path: '/notifications',
-        });
+        try {
+            const response = await fetch(`${API_ENDPOINT}/notifications`, {
+                credentials: 'include',
+            });
 
-        const {body} = await restOperation.response;
-        const notifications = (await body.json()) as NotificationRule[];
-        isLoadingNotifications.value = false;
+            if (!response.ok) {
+                throw new Error(`Failed to fetch notifications: ${response.status}`);
+            }
 
-        return notifications;
+            const notifications = (await response.json()) as NotificationRule[];
+            return notifications;
+        } finally {
+            isLoadingNotifications.value = false;
+        }
     };
 
     const postNotification = async (notificationRule: NotificationRule) => {
-        const restOperation = post({
-            apiName: 'api',
-            path: '/notifications',
-            options: {
-                body: notificationRule,
+        const response = await fetch(`${API_ENDPOINT}/notifications`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
             },
+            body: JSON.stringify(notificationRule),
         });
 
-        const {body} = await restOperation.response;
-        return (await body.json()) as NotificationRule;
+        if (!response.ok) {
+            throw new Error(`Failed to create notification: ${response.status}`);
+        }
+
+        return (await response.json()) as NotificationRule;
     };
 
     const deleteNotification = async (id: string) => {
-        const restOperation = del({
-            apiName: 'api',
-            path: `/notifications/${id}`,
+        const response = await fetch(`${API_ENDPOINT}/notifications/${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
         });
 
-        return (await restOperation.response).statusCode === 204;
+        return response.status === 204;
     };
 
     return {

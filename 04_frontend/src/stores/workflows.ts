@@ -1,5 +1,3 @@
-import {useAuth} from '@/composables/useAuth';
-import {Sha256} from '@aws-crypto/sha256-js';
 import {
     isWorkflowJobEvent,
     isWorkflowRunEvent,
@@ -12,12 +10,13 @@ import {
     WorkflowsRequestParameters,
     WorkflowsResponse,
     WorkflowType,
+    WSToken,
 } from '@common/types';
-import {HttpRequest} from '@smithy/protocol-http';
-import {SignatureV4} from '@smithy/signature-v4';
-import {get} from 'aws-amplify/api';
 import {defineStore} from 'pinia';
 import {reactive, ref} from 'vue';
+
+const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
+const WS_ENDPOINT = import.meta.env.VITE_WEBSOCKET_API_ENDPOINT;
 
 export type WorkflowGroup = {
     run: Workflow<WorkflowRunEvent>;
@@ -25,8 +24,6 @@ export type WorkflowGroup = {
 };
 
 export const useWorkflowsStore = defineStore('workflows', () => {
-    const {getSession} = useAuth();
-
     const workflows = new Map<string, WorkflowGroup>();
     const workflowsArray = ref<WorkflowGroup[]>([]);
 
@@ -42,101 +39,171 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
     const isLoading = ref(false);
     let ws: WebSocket | null = null;
+    let tokenRenewalTimer: ReturnType<typeof setTimeout> | null = null;
     const lastEvaluatedKeys = new Map<string, any>();
 
-    const connectToIamWebSocket = async () => {
-        // Get AWS credentials from Cognito Identity Pool
-        const session = await getSession();
-        const creds = session.credentials;
-        if (!creds?.accessKeyId) {
-            throw new Error('No AWS credentials. Please sign in.');
-        }
-
-        const websocketUrl = new URL(import.meta.env.VITE_WEBSOCKET_API_ENDPOINT);
-
-        // Create HTTP request for signing
-        const request = new HttpRequest({
-            protocol: 'https:',
-            hostname: websocketUrl.hostname,
-            method: 'GET',
-            path: websocketUrl.pathname,
-            query: {
-                idToken: session.tokens?.idToken?.toString() ?? '',
-            },
-            headers: {host: websocketUrl.hostname},
+    const fetchWebSocketToken = async (): Promise<string> => {
+        const response = await fetch(`${API_ENDPOINT}/auth/ws-token`, {
+            credentials: 'include',
         });
 
-        // Sign the request
-        const signer = new SignatureV4({
-            service: 'execute-api',
-            region: import.meta.env.VITE_WEBSOCKET_API_REGION,
-            credentials: creds,
-            sha256: Sha256,
-        });
-
-        const signedRequest = await signer.presign(request);
-
-        // Build final WebSocket URL with signed parameters
-        if (signedRequest.query) {
-            Object.entries(signedRequest.query).forEach(([key, value]) => {
-                const values = Array.isArray(value) ? value : [value];
-                values.forEach((v) => websocketUrl.searchParams.append(key, String(v)));
-            });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch WebSocket token: ${response.status}`);
         }
 
-        ws = new WebSocket(websocketUrl.toString());
+        const data = await response.json();
+        return data.token;
+    };
 
-        ws.onopen = () => console.info('WebSocket connected');
-        ws.onmessage = (event) => {
-            const gitgazerEvent = JSON.parse(event.data) as StreamWorkflowEvent<WebhookEvent>;
-            handleWorkflow(gitgazerEvent.payload);
-            sortWorkflows();
-        };
-        ws.onerror = (error) => console.error('WebSocket error:', error);
-        ws.onclose = (event) => {
-            console.info(`WebSocket closed: ${event.code} ${event.reason}`);
-            switch (event.code) {
-                // Try to reconnect
-                case 1000: // Normal Closure
-                case 1001: // Going Away
-                case 1006: // Abnormal Closure
-                case 1011: // Internal Error
-                case 1012: // Service Restart
-                case 1013: // Try Again Later
-                    initializeStore();
-                    break;
-                default:
-                    break;
+    const getTokenExpiry = (token: string): number => {
+        try {
+            const [payloadEncoded] = token.split('.');
+            const payloadJson = atob(payloadEncoded.replace(/-/g, '+').replace(/_/g, '/'));
+            const payload = JSON.parse(payloadJson) as WSToken;
+            return payload.exp;
+        } catch (error) {
+            console.error('Failed to parse token expiry', error);
+            return 0;
+        }
+    };
+
+    const scheduleTokenRenewal = (token: string) => {
+        // Clear any existing renewal timer
+        if (tokenRenewalTimer) {
+            clearTimeout(tokenRenewalTimer);
+            tokenRenewalTimer = null;
+        }
+
+        const expiryTime = getTokenExpiry(token);
+        if (!expiryTime) {
+            console.warn('Could not determine token expiry, skipping renewal schedule');
+            return;
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const timeUntilExpiry = expiryTime - now;
+
+        // Renew 30 seconds before expiry
+        const renewalDelay = Math.max(0, (timeUntilExpiry - 30) * 1000);
+
+        tokenRenewalTimer = setTimeout(async () => {
+            try {
+                // Store old connection to close after new one is established
+                const oldWs = ws;
+                ws = null; // Allow new connection to be created
+
+                await connectToWebSocket();
+
+                // Close old connection after new one is established
+                if (oldWs && oldWs.readyState === WebSocket.OPEN) {
+                    setTimeout(() => {
+                        oldWs.onclose = null; // Prevent old handler from interfering
+                        oldWs.close(1000, 'Token renewal');
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Failed to renew WebSocket token', error);
+                // Attempt reconnection after a delay
+                setTimeout(() => connectToWebSocket(), 5000);
             }
-        };
+        }, renewalDelay);
+    };
 
-        return ws;
+    const connectToWebSocket = async (): Promise<void> => {
+        if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
+            return;
+        }
+
+        if (!WS_ENDPOINT) {
+            console.warn('WebSocket endpoint not configured');
+            return;
+        }
+
+        try {
+            const token = await fetchWebSocketToken();
+
+            scheduleTokenRenewal(token);
+
+            // Connect with token as query parameter
+            const wsUrl = `${WS_ENDPOINT}?token=${encodeURIComponent(token)}`;
+            const newWs = new WebSocket(wsUrl);
+
+            // Wait for the connection to be established
+            await new Promise<void>((resolve, reject) => {
+                newWs.onopen = () => {
+                    resolve();
+                };
+
+                newWs.onerror = (error) => {
+                    console.error('WebSocket error', error);
+                    reject(error);
+                };
+            });
+
+            // Connection is now open, assign it and set up remaining handlers
+            ws = newWs;
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data) as StreamWorkflowEvent<WebhookEvent>;
+                    handleWorkflow(message.payload, true);
+                    sortWorkflows();
+                } catch (error) {
+                    console.error('Failed to parse WebSocket message', error);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error', error);
+            };
+
+            ws.onclose = (event) => {
+                console.log('WebSocket disconnected', event.code, event.reason);
+                ws = null;
+
+                // Clear renewal timer on disconnect
+                if (tokenRenewalTimer) {
+                    clearTimeout(tokenRenewalTimer);
+                    tokenRenewalTimer = null;
+                }
+
+                // Attempt to reconnect after a delay if not a normal or intentional closure
+                // Code 1000 is normal closure, including our token renewal closure
+                if (event.code !== 1000) {
+                    setTimeout(() => {
+                        connectToWebSocket();
+                    }, 5000);
+                }
+            };
+        } catch (error) {
+            console.error('Failed to connect to WebSocket', error);
+            throw error;
+        }
     };
 
     const getJobs = async (params?: WorkflowsRequestParameters) => {
         isLoading.value = true;
 
-        const queryParams: Record<string, string> = {};
+        const queryParams = new URLSearchParams();
         Object.entries(params ?? {}).forEach(([key, value]) => {
             if (value !== undefined) {
-                queryParams[key] = String(value);
+                queryParams.append(key, String(value));
             }
         });
 
         if (lastEvaluatedKeys.size > 0) {
-            queryParams['exclusiveStartKeys'] = JSON.stringify(Array.from(lastEvaluatedKeys.values()));
+            queryParams.append('exclusiveStartKeys', JSON.stringify(Array.from(lastEvaluatedKeys.values())));
         }
 
-        const restOperation = get({
-            apiName: 'api',
-            path: '/workflows',
-            options: {
-                queryParams,
-            },
+        const response = await fetch(`${API_ENDPOINT}/workflows?${queryParams.toString()}`, {
+            credentials: 'include',
         });
 
-        const {body} = await restOperation.response;
-        const events = (await body.json()) as unknown as WorkflowsResponse<Workflow<WebhookEvent>>;
+        if (!response.ok) {
+            throw new Error(`Failed to fetch workflows: ${response.status}`);
+        }
+
+        const events = (await response.json()) as unknown as WorkflowsResponse<Workflow<WebhookEvent>>;
 
         events.forEach((event) => {
             if (event.lastEvaluatedKey) {
@@ -191,11 +258,11 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const initializeStore = async () => {
-        if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
-            return;
+        // Connect to WebSocket for real-time updates
+        if (WS_ENDPOINT) {
+            await connectToWebSocket();
         }
 
-        await connectToIamWebSocket();
         await handleListWorkflows();
     };
 

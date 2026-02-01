@@ -2,28 +2,28 @@ locals {
   api_resources = {
     "workflows" = {
       methods            = ["GET"]
-      authorization_type = "JWT"
-      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
     },
     "notifications" = {
       methods            = ["GET", "POST"]
-      authorization_type = "JWT"
-      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
     },
     "notifications/{id}" = {
       methods            = ["DELETE"]
-      authorization_type = "JWT"
-      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
     },
     "integrations" = {
       methods            = ["GET", "POST"]
-      authorization_type = "JWT"
-      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
     },
     "integrations/{id}" = {
       methods            = ["DELETE"]
-      authorization_type = "JWT"
-      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
     },
     "auth/cognito/public" = {
       methods = ["GET"]
@@ -37,10 +37,23 @@ locals {
     "auth/cognito/token" = {
       methods = ["POST"]
     },
+    "auth/callback" = {
+      methods = ["GET"]
+    },
+    "auth/ws-token" = {
+      methods            = ["GET"]
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+    },
+    "user" = {
+      methods            = ["GET"]
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+    },
     "analytics/jobs/metrics" = {
       methods            = ["POST"]
-      authorization_type = "JWT"
-      authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+      authorization_type = "CUSTOM"
+      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
     },
   }
 
@@ -79,11 +92,11 @@ resource "aws_apigatewayv2_api" "this" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_credentials = var.custom_domain_config != null ? true : false
+    allow_credentials = true
     allow_headers     = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
     allow_methods     = ["*"]
     allow_origins     = local.cors_allowed_origins
-    expose_headers    = ["date", "keep-alive"]
+    expose_headers    = ["date", "keep-alive", "set-cookie"]
     max_age           = 86400
   }
 }

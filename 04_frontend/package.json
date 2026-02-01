@@ -3,7 +3,6 @@
     "@mdi/font": "^7.4.47",
     "@smithy/protocol-http": "^5.3.8",
     "@smithy/signature-v4": "^5.3.8",
-    "aws-amplify": "^6.16.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.27",
     "vue-router": "^4.6.4",

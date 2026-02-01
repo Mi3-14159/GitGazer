@@ -1,16 +1,25 @@
 import {getJobMetrics} from '@/controllers/analytics';
 import {getLogger} from '@/logger';
 import {extractUserIntegrations} from '@/router/middlewares/authorization';
+import {AuthorizerContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isJobMetricsParameters} from '@common/types/metrics';
-import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 const logger = getLogger();
 
 router.post('/api/analytics/jobs/metrics', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
-    const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
+    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
+    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
+    if (!integrationIds || integrationIds.length === 0) {
+        return new Response(JSON.stringify({message: 'No integrations found for user'}), {
+            status: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
 
     if (!event.body) {
         return new Response(JSON.stringify({message: 'Request body is required'}), {
@@ -66,7 +75,7 @@ router.post('/api/analytics/jobs/metrics', [extractUserIntegrations], async (req
     parsedBody.dimensions = Array.from(new Set(parsedBody.dimensions));
 
     try {
-        return await getJobMetrics(groups, parsedBody);
+        return await getJobMetrics(integrationIds, parsedBody);
     } catch (error) {
         logger.error('Error fetching job metrics', {error});
         return new Response(JSON.stringify({message: error instanceof Error ? error.message : 'Internal Server Error'}), {

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-    import {signOut} from 'aws-amplify/auth';
+    import {useAuth} from '@/composables/useAuth';
     import {ref} from 'vue';
     import {useRouter} from 'vue-router';
 
+    const {signOut} = useAuth();
     const router = useRouter();
 
     const props = defineProps<{

@@ -3,13 +3,14 @@
     import {onMounted} from 'vue';
     import {useRouter} from 'vue-router';
 
-    const {getUser, signIn} = useAuth();
+    const {isAuthenticated, signIn} = useAuth();
     const router = useRouter();
 
     const checkAuthAndRedirect = async () => {
         try {
-            await getUser();
-            await router.push('/dashboard');
+            if (await isAuthenticated()) {
+                await router.push('/dashboard');
+            }
         } catch (error) {
             // User not authenticated, stay on login page
             console.debug('User not authenticated, showing login page');

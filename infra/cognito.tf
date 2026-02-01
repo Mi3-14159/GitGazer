@@ -36,10 +36,26 @@ resource "aws_cognito_user_pool_domain" "this" {
 }
 
 resource "aws_cognito_user_pool_client" "this" {
-  name                                 = "client"
-  user_pool_id                         = aws_cognito_user_pool.this.id
-  callback_urls                        = distinct(compact(concat(["http://localhost:5173"], var.callback_uls, [try(format("https://%s", var.custom_domain_config.domain_name), null)])))
-  logout_urls                          = distinct(compact(concat(["http://localhost:5173"], var.callback_uls, [try(format("https://%s", var.custom_domain_config.domain_name), null)])))
+  name            = "client"
+  user_pool_id    = aws_cognito_user_pool.this.id
+  generate_secret = true
+  callback_urls = distinct(compact(concat(
+    [
+      "http://localhost:5173",
+      "https://${aws_cloudfront_distribution.this.domain_name}",
+      "${aws_apigatewayv2_api.this.api_endpoint}/api/auth/callback"
+    ],
+    var.callback_uls,
+    [try(format("https://%s/api/auth/callback", var.custom_domain_config.domain_name), null)]
+  )))
+  logout_urls = distinct(compact(concat(
+    [
+      "http://localhost:5173",
+      "https://${aws_cloudfront_distribution.this.domain_name}",
+    ],
+    var.callback_uls,
+    [try(format("https://%s", var.custom_domain_config.domain_name), null)]
+  )))
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]

@@ -1,20 +1,21 @@
 import {createIntegration, deleteIntegration, getIntegrations} from '@/controllers/integrations';
 import {extractUserIntegrations} from '@/router/middlewares/authorization';
+import {AuthorizerContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
 router.get('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
-    const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
+    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
+    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
     return await getIntegrations({
-        integrationIds: groups,
+        integrationIds: integrationIds,
     });
 });
 
 router.post('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
+    const event = reqCtx.event as any;
     if (!event.body) {
         return new Response(JSON.stringify({error: 'Missing request body'}), {
             status: HttpStatusCodes.BAD_REQUEST,
@@ -45,15 +46,14 @@ router.post('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
         });
     }
 
-    return await createIntegration(
-        requestBody.label,
-        event.requestContext.authorizer.jwt.claims.sub as string,
-        event.requestContext.authorizer.jwt.claims['cognito:username'] as string,
-    );
+    const userId = event.requestContext?.authorizer?.lambda?.userId;
+    const username = event.requestContext?.authorizer?.lambda?.username;
+
+    return await createIntegration(requestBody.label, userId, username);
 });
 
 router.delete('/api/integrations/:integrationId', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
+    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
     if (!reqCtx.params.integrationId) {
         return new Response(JSON.stringify({error: 'Missing integration ID'}), {
             status: HttpStatusCodes.BAD_REQUEST,
@@ -63,8 +63,8 @@ router.delete('/api/integrations/:integrationId', [extractUserIntegrations], asy
         });
     }
 
-    const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
-    await deleteIntegration(reqCtx.params.integrationId, groups);
+    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
+    await deleteIntegration(reqCtx.params.integrationId, integrationIds);
 
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,

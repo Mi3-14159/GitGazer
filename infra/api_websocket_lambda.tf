@@ -112,8 +112,8 @@ resource "aws_lambda_function" "api_websocket" {
       POWERTOOLS_LOG_LEVEL                            = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT                     = local.lambda_enable_event_logging
       TABLE_NAME                                      = aws_dynamodb_table.connections.name
-      COGNITO_USER_POOL_ID                            = aws_cognito_user_pool.this.id
       COGNITO_CLIENT_ID                               = aws_cognito_user_pool_client.this.id
+      COGNITO_CLIENT_SECRET                           = aws_cognito_user_pool_client.this.client_secret
       DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
       DYNAMO_DB_CONNECTIONS_TABLE_ARN                 = aws_dynamodb_table.connections.arn
     }

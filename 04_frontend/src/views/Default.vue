@@ -4,14 +4,14 @@
     import NotificationsOveview from '@/components/NotificationsOveview.vue';
     import WorkflowOverview from '@/components/WorkflowOverview.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {type FetchUserAttributesOutput} from 'aws-amplify/auth';
+    import {UserAttributes} from '@common/types';
     import {onMounted, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
     const {getUserAttributes} = useAuth();
     const router = useRouter();
 
-    const user = ref<FetchUserAttributesOutput>();
+    const user = ref<UserAttributes>();
 
     onMounted(async () => {
         user.value = await getUserAttributes();

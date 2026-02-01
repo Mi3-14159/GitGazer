@@ -1,59 +1,87 @@
-import {
-    AuthSession,
-    AuthUser,
-    fetchAuthSession,
-    fetchUserAttributes,
-    FetchUserAttributesOutput,
-    getCurrentUser,
-    signInWithRedirect,
-} from 'aws-amplify/auth';
+import {State, UserAttributes} from '@common/types';
 
-let promiseGetSession: Promise<AuthSession>;
-let promiseGetUserAttributes: Promise<FetchUserAttributesOutput>;
-let promiseGetCurrentUser: Promise<AuthUser>;
+const COGNITO_DOMAIN = import.meta.env.VITE_COGNITO_DOMAIN;
+const COGNITO_CLIENT_ID = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
+const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
+
+let cachedUserAttributes: UserAttributes | null = null;
+let authCheckPromise: Promise<boolean> | null = null;
 
 export const useAuth = () => {
-    const getSession = async (params?: {forceRefresh?: boolean}): Promise<AuthSession> => {
-        if (!promiseGetSession || params?.forceRefresh) {
-            promiseGetSession = fetchAuthSession({forceRefresh: params?.forceRefresh});
+    const isAuthenticated = async (): Promise<boolean> => {
+        // Avoid redundant calls by caching the promise
+        if (!authCheckPromise) {
+            authCheckPromise = (async () => {
+                try {
+                    await getUserAttributes();
+                    return cachedUserAttributes !== null && Object.keys(cachedUserAttributes).length > 0;
+                } catch {
+                    return false;
+                } finally {
+                    authCheckPromise = null;
+                }
+            })();
         }
-
-        const session = await promiseGetSession;
-        const now = Math.floor(new Date().getTime() / 1000);
-        if (!session.tokens?.idToken?.payload.exp) {
-            return await getSession({forceRefresh: true});
-        } else if (session.tokens.idToken.payload.exp < now + 60) {
-            console.warn('ID token is expired, refreshing session', session.tokens.idToken.payload.exp, now + 60);
-            return await getSession({forceRefresh: true});
-        }
-
-        return session;
+        return authCheckPromise;
     };
 
-    const getUserAttributes = async (): Promise<FetchUserAttributesOutput> => {
-        if (!promiseGetUserAttributes) {
-            promiseGetUserAttributes = fetchUserAttributes();
+    const getUserAttributes = async (): Promise<UserAttributes> => {
+        if (cachedUserAttributes) {
+            return cachedUserAttributes;
         }
 
-        return await promiseGetUserAttributes;
-    };
+        try {
+            const response = await fetch(`${API_ENDPOINT}/user`, {
+                credentials: 'include',
+            });
 
-    const getUser = async (): Promise<AuthUser> => {
-        if (!promiseGetCurrentUser) {
-            promiseGetCurrentUser = getCurrentUser();
+            if (response.ok) {
+                cachedUserAttributes = await response.json();
+                return cachedUserAttributes!;
+            }
+        } catch (error) {
+            console.error('Failed to fetch user attributes:', error);
         }
 
-        return await promiseGetCurrentUser;
+        return {};
     };
 
-    const signIn = async () => {
-        return signInWithRedirect({provider: {custom: 'Github'}});
+    const signIn = () => {
+        const authUrl = `https://${COGNITO_DOMAIN}/oauth2/authorize`;
+
+        // Encode the current origin in state parameter for dynamic redirect
+        const redirectUrl = window.location.origin;
+
+        const state: State = {redirect_url: redirectUrl};
+        const stateEncoded = btoa(JSON.stringify(state));
+
+        const params = new URLSearchParams({
+            client_id: COGNITO_CLIENT_ID,
+            response_type: 'code',
+            scope: 'email openid profile aws.cognito.signin.user.admin',
+            redirect_uri: `${API_ENDPOINT}/auth/callback`,
+            state: stateEncoded,
+        });
+
+        window.location.href = `${authUrl}?${params.toString()}`;
+    };
+
+    const signOut = () => {
+        const logoutUrl = `https://${COGNITO_DOMAIN}/logout`;
+        const params = new URLSearchParams({
+            client_id: COGNITO_CLIENT_ID,
+            logout_uri: window.location.origin,
+        });
+
+        cachedUserAttributes = null;
+
+        window.location.href = `${logoutUrl}?${params.toString()}`;
     };
 
     return {
-        getSession,
+        isAuthenticated,
         getUserAttributes,
-        getUser,
         signIn,
+        signOut,
     };
 };

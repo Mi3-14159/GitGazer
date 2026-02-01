@@ -1,9 +1,53 @@
 import {getLogger} from '@/logger';
+import {createHmac, randomBytes} from 'crypto';
 
+import {extractUserIntegrations} from '@/router/middlewares/authorization';
+import {AuthorizerContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
-
+import {State, UserAttributes, WSToken} from '@common/types';
+import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
 const router = new Router();
+
+const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN;
+if (!COGNITO_DOMAIN) {
+    throw new Error('COGNITO_DOMAIN environment variable is not set');
+}
+
+const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
+if (!COGNITO_CLIENT_ID) {
+    throw new Error('COGNITO_CLIENT_ID environment variable is not set');
+}
+
+const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
+if (!COGNITO_CLIENT_SECRET) {
+    throw new Error('COGNITO_CLIENT_SECRET environment variable is not set');
+}
+
+const COGNITO_REDIRECT_URI = process.env.COGNITO_REDIRECT_URI;
+if (!COGNITO_REDIRECT_URI) {
+    throw new Error('COGNITO_REDIRECT_URI environment variable is not set');
+}
+
+const ALLOWED_FRONTEND_ORIGINS = process.env.ALLOWED_FRONTEND_ORIGINS;
+if (!ALLOWED_FRONTEND_ORIGINS) {
+    throw new Error('ALLOWED_FRONTEND_ORIGINS environment variable is not set');
+}
+
+const ALLOWED_FRONTEND_ORIGINS_ARRAY = JSON.parse(ALLOWED_FRONTEND_ORIGINS) as string[];
+
+// Helper to validate redirect URL against allowlist
+const validateRedirectUrl = (url: string): string | null => {
+    try {
+        const parsed = new URL(url);
+        const isAllowed = ALLOWED_FRONTEND_ORIGINS_ARRAY.some((origin) => {
+            const allowedOrigin = new URL(origin);
+            return parsed.origin === allowedOrigin.origin;
+        });
+        return isAllowed ? url : null;
+    } catch {
+        return null;
+    }
+};
 
 type Body = {
     client_id: string;
@@ -11,6 +55,14 @@ type Body = {
     code: string;
     grant_type: string;
     redirect_uri: string;
+};
+
+type TokenResponse = {
+    access_token: string;
+    id_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
 };
 
 router.get('/api/auth/cognito/public', async () => {
@@ -70,18 +122,29 @@ router.post('/api/auth/cognito/token', async (reqCtx) => {
 
 router.get('/api/auth/cognito/user', async (reqCtx) => {
     const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
-    const user: any = await (
-        await fetch('https://api.github.com/user', {
-            method: 'GET',
+    const response = await fetch('https://api.github.com/user', {
+        method: 'GET',
+        headers: {
+            authorization: event.headers['authorization'] ?? '',
+            accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        return {
+            statusCode: response.status,
             headers: {
-                authorization: event.headers['authorization'] ?? '',
-                accept: 'application/json',
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+                'Content-Type': 'application/json',
             },
-        })
-    ).json();
+            body: JSON.stringify({error: 'Failed to fetch user info from GitHub'}),
+        };
+    }
+
+    const user = await response.json();
 
     return {
-        statusCode: HttpStatusCodes.OK,
+        statusCode: response.status,
         headers: {
             'Cache-Control': 'no-cache, no-store, max-age=0',
             'Content-Type': 'application/json',
@@ -91,6 +154,230 @@ router.get('/api/auth/cognito/user', async (reqCtx) => {
             ...user,
         }),
     };
+});
+
+router.get('/api/user', async (reqCtx) => {
+    const logger = getLogger();
+    const event = reqCtx.event as any;
+
+    // User context is provided by the Lambda authorizer
+    const authContext = event.requestContext?.authorizer?.lambda;
+    const {userId, username, email, name, nickname, picture} = authContext || {};
+
+    if (!userId) {
+        logger.error('No user context from authorizer');
+        return new Response(JSON.stringify({error: 'Unauthorized'}), {
+            status: HttpStatusCodes.UNAUTHORIZED,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    // Return user info from authorizer context (ID token claims)
+    const user: UserAttributes = {
+        sub: userId,
+        username: username,
+        email: email,
+        name: name,
+        nickname: nickname,
+        picture: picture,
+    };
+
+    return new Response(JSON.stringify(user), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Cache-Control': 'no-cache, no-store, max-age=0',
+            'Content-Type': 'application/json',
+        },
+    });
+});
+
+router.get('/api/auth/callback', async (reqCtx) => {
+    const logger = getLogger();
+    logger.info('OAuth callback handler invoked');
+
+    try {
+        // Extract authorization code from query parameters
+        const code = reqCtx.event.queryStringParameters?.code;
+        const state = reqCtx.event.queryStringParameters?.state;
+
+        if (!code) {
+            logger.error('Missing authorization code in callback');
+            return new Response(JSON.stringify({error: 'Missing authorization code'}), {
+                status: HttpStatusCodes.BAD_REQUEST,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        if (!state) {
+            logger.error('Missing state parameter in callback');
+            return new Response(JSON.stringify({error: 'Missing state parameter'}), {
+                status: HttpStatusCodes.BAD_REQUEST,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        logger.debug('Exchanging authorization code for tokens', {state});
+
+        // Exchange code for tokens at Cognito token endpoint
+        const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
+
+        const params = new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: COGNITO_CLIENT_ID,
+            code: code,
+            redirect_uri: COGNITO_REDIRECT_URI,
+        });
+
+        // Build headers with optional client secret for confidential client
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        };
+
+        headers['Authorization'] = `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`;
+
+        const tokenResponse = await fetch(tokenEndpoint, {
+            method: 'POST',
+            headers,
+            body: params.toString(),
+        });
+
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            logger.error('Failed to exchange code for tokens', {
+                status: tokenResponse.status,
+                error: errorText,
+            });
+            return new Response(JSON.stringify({error: 'Failed to obtain tokens'}), {
+                status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        const tokens: TokenResponse = await tokenResponse.json();
+        logger.debug('Successfully obtained tokens from Cognito');
+
+        // Calculate cookie expiration (use token expiry time)
+        const maxAge = tokens.expires_in;
+
+        // Set HttpOnly cookies with security attributes
+        const cookies = [
+            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
+            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
+            `refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 30}`, // 30 days
+        ];
+
+        // Decode and validate state parameter (mandatory)
+        let finalRedirectUrl: string;
+        try {
+            // Decode state parameter (base64-encoded JSON)
+            const decodedState = Buffer.from(state, 'base64').toString('utf-8');
+            const stateData = JSON.parse(decodedState) as State;
+
+            if (!stateData.redirect_url) {
+                logger.error('Missing redirect_url in state parameter');
+                return new Response(JSON.stringify({error: 'Invalid state parameter'}), {
+                    status: HttpStatusCodes.BAD_REQUEST,
+                    headers: {'Content-Type': 'application/json'},
+                });
+            }
+
+            const validatedUrl = validateRedirectUrl(stateData.redirect_url);
+            if (!validatedUrl) {
+                logger.error('Invalid or disallowed redirect URL in state', {
+                    attempted: stateData.redirect_url,
+                });
+                return new Response(JSON.stringify({error: 'Invalid redirect URL'}), {
+                    status: HttpStatusCodes.BAD_REQUEST,
+                    headers: {'Content-Type': 'application/json'},
+                });
+            }
+
+            finalRedirectUrl = validatedUrl;
+            logger.debug('Using dynamic redirect URL from state', {
+                redirect: finalRedirectUrl,
+            });
+        } catch (error) {
+            logger.error('Failed to parse state parameter', {error});
+            return new Response(JSON.stringify({error: 'Invalid state parameter format'}), {
+                status: HttpStatusCodes.BAD_REQUEST,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        logger.info('OAuth callback successful, redirecting to frontend', {
+            frontendUrl: finalRedirectUrl,
+        });
+
+        // Redirect to frontend with cookies set
+        return new Response(null, {
+            status: HttpStatusCodes.FOUND,
+            headers: {
+                Location: finalRedirectUrl,
+                'Set-Cookie': cookies.join(', '),
+            },
+        });
+    } catch (error) {
+        logger.error('Unexpected error in OAuth callback', {error});
+        return new Response(JSON.stringify({error: 'Internal server error'}), {
+            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+});
+
+router.get('/api/auth/ws-token', [extractUserIntegrations], async (reqCtx) => {
+    const logger = getLogger();
+    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
+
+    // User context is provided by the Lambda authorizer
+    const authContext = event.requestContext?.authorizer?.lambda;
+    const {userId, username, email} = authContext || {};
+
+    if (!userId) {
+        logger.error('No user context from authorizer for WebSocket token generation');
+        return new Response(JSON.stringify({error: 'Unauthorized'}), {
+            status: HttpStatusCodes.UNAUTHORIZED,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    // Get the user's integrations from the middleware context
+    // The extractUserIntegrations middleware should have already populated this
+    const integrations = authContext.integrations || [];
+
+    if (integrations.length === 0) {
+        logger.warn('User has no integrations for WebSocket access', {userId});
+        return new Response(JSON.stringify({error: 'No integrations available'}), {
+            status: HttpStatusCodes.FORBIDDEN,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    // Create a simple token payload
+    const tokenPayload: WSToken = {
+        sub: userId,
+        username: username,
+        email: email,
+        integrations: integrations,
+        exp: Math.floor(Date.now() / 1000) + 60 * 10, // Expires in 10 minutes
+        nonce: randomBytes(16).toString('hex'), // Add nonce for uniqueness
+    };
+
+    // Sign the token using HMAC with the Cognito client secret
+    // This prevents tampering and allows validation on the WebSocket handler
+    const payload = Buffer.from(JSON.stringify(tokenPayload)).toString('base64url');
+    const signature = createHmac('sha256', COGNITO_CLIENT_SECRET).update(payload).digest('base64url');
+    const token = `${payload}.${signature}`;
+
+    logger.info('Generated WebSocket token', {userId, integrations: integrations.length});
+
+    return new Response(JSON.stringify({token}), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Cache-Control': 'no-cache, no-store, max-age=0',
+            'Content-Type': 'application/json',
+        },
+    });
 });
 
 export default router;

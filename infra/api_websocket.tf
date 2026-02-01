@@ -59,7 +59,7 @@ resource "aws_apigatewayv2_integration" "websocket" {
 resource "aws_apigatewayv2_route" "websocket_connect" {
   api_id             = aws_apigatewayv2_api.websocket.id
   route_key          = "$connect"
-  authorization_type = "AWS_IAM"
+  authorization_type = "NONE"
   target             = "integrations/${aws_apigatewayv2_integration.websocket.id}"
   operation_name     = "ConnectRoute"
 }

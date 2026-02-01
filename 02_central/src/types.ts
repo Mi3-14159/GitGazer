@@ -27,3 +27,13 @@ export type WebsocketConnection = {
     sub: string;
     connectedAt: string;
 };
+
+export type AuthorizerContext = {
+    userId: string;
+    username: string;
+    email: string;
+    name: string;
+    nickname: string;
+    picture: string;
+    integrations?: string[];
+};

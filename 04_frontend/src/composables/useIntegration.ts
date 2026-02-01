@@ -1,48 +1,55 @@
 import {Integration} from '@common/types';
-import {del, get, post} from 'aws-amplify/api';
 import {ref} from 'vue';
+
+const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 export const useIntegration = () => {
     const isLoadingIntegrations = ref(false);
 
     const getIntegrations = async () => {
         isLoadingIntegrations.value = true;
-        const restOperation = get({
-            apiName: 'api',
-            path: '/integrations',
-        });
+        try {
+            const response = await fetch(`${API_ENDPOINT}/integrations`, {
+                credentials: 'include',
+            });
 
-        const {body} = await restOperation.response;
-        const integrations = (await body.json()) as Integration[];
-        isLoadingIntegrations.value = false;
+            if (!response.ok) {
+                throw new Error(`Failed to fetch integrations: ${response.status}`);
+            }
 
-        return integrations;
+            const integrations = (await response.json()) as Integration[];
+            return integrations;
+        } finally {
+            isLoadingIntegrations.value = false;
+        }
     };
 
     const createIntegration = async (label: string): Promise<Integration> => {
-        const restOperation = post({
-            apiName: 'api',
-            path: '/integrations',
-            options: {
-                body: {label},
+        const response = await fetch(`${API_ENDPOINT}/integrations`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
             },
+            body: JSON.stringify({label}),
         });
 
-        const {body} = await restOperation.response;
-        return (await body.json()) as Integration;
+        if (!response.ok) {
+            throw new Error(`Failed to create integration: ${response.status}`);
+        }
+
+        return (await response.json()) as Integration;
     };
 
     const deleteIntegration = async (id: string): Promise<void> => {
-        const restOperation = del({
-            apiName: 'api',
-            path: `/integrations/${id}`,
+        const response = await fetch(`${API_ENDPOINT}/integrations/${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
         });
 
-        if ((await restOperation.response).statusCode === 204) {
-            return;
+        if (response.status !== 204) {
+            throw new Error(`Failed to delete integration: ${response.status}`);
         }
-
-        throw new Error(`Failed to delete integration: ${(await restOperation.response).statusCode}`);
     };
 
     return {

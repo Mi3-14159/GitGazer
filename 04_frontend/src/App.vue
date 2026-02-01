@@ -1,19 +1,20 @@
 <script setup lang="ts">
     import {useAuth} from '@/composables/useAuth';
-    import {type AuthUser} from 'aws-amplify/auth';
-    import {onMounted, ref} from 'vue';
+    import {onMounted} from 'vue';
     import {RouterView, useRouter} from 'vue-router';
 
-    const {getUser} = useAuth();
+    const {isAuthenticated} = useAuth();
     const router = useRouter();
-    const user = ref<AuthUser>();
 
     // Set document title
     document.title = 'GitGazer';
 
     const initializeAuth = async () => {
         try {
-            user.value = await getUser();
+            const authenticated = await isAuthenticated();
+            if (!authenticated) {
+                await router.push('/login');
+            }
         } catch (error) {
             console.debug('User not authenticated, redirecting to login');
             await router.push('/login');

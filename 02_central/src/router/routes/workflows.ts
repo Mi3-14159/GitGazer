@@ -1,14 +1,24 @@
 import {getWorkflows} from '@/controllers/workflows';
 import {extractUserIntegrations} from '@/router/middlewares/authorization';
+import {AuthorizerContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isWorkflowsRequestParameters} from '@common/types';
-import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
 
 const router = new Router();
 
 router.get('/api/workflows', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
-    const groups: string[] = (event.requestContext.authorizer.jwt.claims['cognito:groups'] as string[]) ?? [];
+    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
+    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
+    if (!integrationIds || integrationIds.length === 0) {
+        return new Response(JSON.stringify({message: 'No integrations found for user'}), {
+            status: HttpStatusCodes.OK,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
+
     const {queryStringParameters} = event;
 
     try {
@@ -36,7 +46,7 @@ router.get('/api/workflows', [extractUserIntegrations], async (reqCtx) => {
     const {limit, projection, exclusiveStartKeys} = queryStringParameters ?? {};
 
     const workflows = await getWorkflows({
-        integrationIds: groups,
+        integrationIds,
         limit,
         projection,
         exclusiveStartKeys,
