@@ -25,9 +25,7 @@ describe('extractUserIntegrations middleware', () => {
             rawPath: '/api/auth/cognito/callback',
             requestContext: {
                 authorizer: {
-                    jwt: {
-                        claims: {},
-                    },
+                    lambda: {},
                 },
             },
         };
@@ -45,9 +43,7 @@ describe('extractUserIntegrations middleware', () => {
             rawPath: '/api/notifications',
             requestContext: {
                 authorizer: {
-                    jwt: {
-                        claims: {},
-                    },
+                    lambda: {},
                 },
             },
         };
@@ -58,7 +54,7 @@ describe('extractUserIntegrations middleware', () => {
         expect(out).toBeInstanceOf(Response);
         const res = out as Response;
         expect(res.status).toBe(401);
-        await expect(res.json()).resolves.toEqual({error: 'Unauthorized: missing sub claim'});
+        await expect(res.json()).resolves.toEqual({error: 'Unauthorized: missing user context'});
     });
 
     it('returns 401 when user has no integrations', async () => {
@@ -69,10 +65,8 @@ describe('extractUserIntegrations middleware', () => {
             rawPath: '/api/notifications',
             requestContext: {
                 authorizer: {
-                    jwt: {
-                        claims: {
-                            sub: 'user123',
-                        },
+                    lambda: {
+                        userId: 'user123',
                     },
                 },
             },
@@ -95,10 +89,8 @@ describe('extractUserIntegrations middleware', () => {
             rawPath: '/api/notifications',
             requestContext: {
                 authorizer: {
-                    jwt: {
-                        claims: {
-                            sub: 'user123',
-                        },
+                    lambda: {
+                        userId: 'user123',
                     },
                 },
             },
@@ -109,6 +101,6 @@ describe('extractUserIntegrations middleware', () => {
         expect(out).toBeUndefined();
         expect(next).toHaveBeenCalledTimes(1);
         expect(getUserIntegrations).toHaveBeenCalledWith('user123');
-        expect(event.requestContext.authorizer.jwt.claims['cognito:groups']).toEqual(['integrationA', 'integrationB']);
+        expect(event.requestContext.authorizer.lambda.integrations).toEqual(['integrationA', 'integrationB']);
     });
 });
