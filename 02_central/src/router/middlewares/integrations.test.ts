@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {extractUserIntegrations} from './integrations';
+import {addUserIntegrationsToCtx} from './integrations';
 
 // Mock dynamoDB client
 vi.mock('@/clients/dynamodb', () => ({
@@ -26,7 +26,7 @@ describe('extractUserIntegrations middleware', () => {
         const next = vi.fn(async () => undefined);
         vi.mocked(getUserIntegrations).mockResolvedValue(['integrationA', 'integrationB']);
 
-        const out = await extractUserIntegrations({reqCtx: makeReqCtx('user123'), next});
+        const out = await addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next});
 
         expect(out).toBeUndefined();
         expect(next).toHaveBeenCalledTimes(1);
@@ -37,7 +37,7 @@ describe('extractUserIntegrations middleware', () => {
         const next = vi.fn(async () => undefined);
         vi.mocked(getUserIntegrations).mockResolvedValue([]);
 
-        const out = await extractUserIntegrations({reqCtx: makeReqCtx('user123'), next});
+        const out = await addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next});
 
         expect(out).toBeUndefined();
         expect(next).toHaveBeenCalledTimes(1);
@@ -49,7 +49,7 @@ describe('extractUserIntegrations middleware', () => {
         const error = new Error('DynamoDB connection failed');
         vi.mocked(getUserIntegrations).mockRejectedValue(error);
 
-        const out = await extractUserIntegrations({reqCtx: makeReqCtx('user123'), next});
+        const out = await addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next});
 
         expect(next).not.toHaveBeenCalled();
         expect(out).toBeInstanceOf(Response);

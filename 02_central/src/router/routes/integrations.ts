@@ -1,19 +1,19 @@
 import {createIntegration, deleteIntegration, getIntegrations} from '@/controllers/integrations';
-import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/integrations', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.get('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     return await getIntegrations({
         integrationIds: integrationIds,
     });
 });
 
-router.post('/api/integrations', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const event = reqCtx.event as APIGatewayProxyEventV2;
     if (!event.body) {
         return new Response(JSON.stringify({error: 'Missing request body'}), {
@@ -51,7 +51,7 @@ router.post('/api/integrations', [extractUserIntegrations], async (reqCtx: AppRe
     return await createIntegration(requestBody.label, userId, username);
 });
 
-router.delete('/api/integrations/:integrationId', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     if (!reqCtx.params.integrationId) {
         return new Response(JSON.stringify({error: 'Missing integration ID'}), {
             status: HttpStatusCodes.BAD_REQUEST,

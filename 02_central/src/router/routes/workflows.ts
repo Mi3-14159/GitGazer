@@ -1,5 +1,5 @@
 import {getWorkflows} from '@/controllers/workflows';
-import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isWorkflowsRequestParameters} from '@common/types';
@@ -7,7 +7,7 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/workflows', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     if (!integrationIds || integrationIds.length === 0) {
         return new Response(JSON.stringify({message: 'No integrations found for user'}), {

@@ -1,7 +1,7 @@
 import {getLogger} from '@/logger';
 import {createHmac, randomBytes} from 'crypto';
 
-import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {State, UserAttributes, WSToken} from '@common/types';
@@ -433,7 +433,7 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
     }
 });
 
-router.get('/api/auth/ws-token', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
 
     // User context is provided by the Lambda authorizer

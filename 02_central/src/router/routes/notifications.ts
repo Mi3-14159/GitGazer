@@ -1,5 +1,5 @@
 import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
-import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isNotificationRuleUpdate} from '@common/types';
@@ -7,14 +7,14 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/notifications', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.get('/api/notifications', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     return await getNotificationRules({
         integrationIds: integrationIds,
     });
 });
 
-router.post('/api/notifications', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.post('/api/notifications', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const rule = JSON.parse(event.body ?? '{}');
 
@@ -31,7 +31,7 @@ router.post('/api/notifications', [extractUserIntegrations], async (reqCtx: AppR
     return await postNotificationRule(rule, integrationIds);
 });
 
-router.delete('/api/notifications/:id', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.delete('/api/notifications/:id', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     if (!reqCtx.params.id) {
         return new Response(JSON.stringify({error: 'Missing notification rule ID'}), {
             status: HttpStatusCodes.BAD_REQUEST,

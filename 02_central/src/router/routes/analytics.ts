@@ -1,6 +1,6 @@
 import {getJobMetrics} from '@/controllers/analytics';
 import {getLogger} from '@/logger';
-import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isJobMetricsParameters} from '@common/types/metrics';
@@ -9,7 +9,7 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
 const router = new Router();
 const logger = getLogger();
 
-router.post('/api/analytics/jobs/metrics', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+router.post('/api/analytics/jobs/metrics', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     if (!integrationIds || integrationIds.length === 0) {
