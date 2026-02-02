@@ -11,6 +11,7 @@ export const addUserIntegrationsToCtx = async ({reqCtx, next}: {reqCtx: AppReque
 
     try {
         const integrations = await getUserIntegrations(userId);
+        reqCtx.appContext!.integrations = integrations;
         logger.debug('User integrations from DynamoDB', {integrations});
 
         await next();
