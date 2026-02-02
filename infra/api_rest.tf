@@ -168,19 +168,6 @@ data "aws_iam_policy_document" "invocation_policy" {
   }
 }
 
-resource "aws_apigatewayv2_authorizer" "cognito" {
-  api_id           = aws_apigatewayv2_api.this.id
-  authorizer_type  = "JWT"
-  identity_sources = ["$request.header.Authorization"]
-  name             = "${var.name_prefix}-cognito-authorizer-${terraform.workspace}"
-
-  jwt_configuration {
-    audience = [aws_cognito_user_pool_client.this.id]
-    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.this.id}"
-  }
-}
-
-# Single integration for all lambda routes
 resource "aws_apigatewayv2_integration" "lambda" {
   api_id                 = aws_apigatewayv2_api.this.id
   integration_type       = "AWS_PROXY"
