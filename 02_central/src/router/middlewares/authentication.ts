@@ -28,9 +28,6 @@ const idTokenVerifier = CognitoJwtVerifier.create({
     tokenUse: 'id',
 });
 
-/**
- * Extract token from Cookie header
- */
 function extractTokenFromCookies(cookies: string[] | undefined, tokenName: string): string | null {
     if (!cookies || cookies.length === 0) {
         return null;
@@ -50,10 +47,6 @@ function extractTokenFromCookies(cookies: string[] | undefined, tokenName: strin
     return null;
 }
 
-/**
- * Authentication middleware that validates access and ID tokens from HttpOnly cookies
- * This replaces the Lambda authorizer, validating tokens directly in the API Lambda
- */
 export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
     const logger = getLogger();
     const event = reqCtx.event as APIGatewayProxyEventV2;
@@ -102,7 +95,6 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
         );
     }
 
-    // Verify both tokens
     try {
         const accessPayload = await accessTokenVerifier.verify(accessToken);
         const idPayload = await idTokenVerifier.verify(idToken);
@@ -113,8 +105,6 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
             rawPath,
         });
 
-        // Create authorizer context compatible with existing code
-        // This maintains backward compatibility with routes expecting Lambda authorizer context
         reqCtx.appContext = {
             userId: idPayload.sub,
             username: (idPayload.username as string) || (idPayload['cognito:username'] as string) || '',
@@ -135,8 +125,6 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
             isExpiredError,
             hasRefreshToken,
             rawPath,
-            // If tokens are expired but refresh token exists, frontend should trigger refresh
-            shouldAttemptRefresh: isExpiredError && hasRefreshToken,
         });
 
         return new Response(

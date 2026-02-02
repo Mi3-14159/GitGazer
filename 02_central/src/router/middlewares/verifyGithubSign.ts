@@ -3,13 +3,13 @@ import {getLogger} from '@/logger';
 import {HttpStatusCodes} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {RequestContext} from '@aws-lambda-powertools/event-handler/types';
-import {APIGatewayProxyEventV2WithJWTAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
 
 export const verifyGithubSign: Middleware = async ({reqCtx, next}: {reqCtx: RequestContext; next: NextFunction}) => {
     const logger = getLogger(); // Get logger at runtime
     logger.debug('running verifyGithubSign middleware');
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
+    const event = reqCtx.event as APIGatewayProxyEventV2;
     const {pathParameters} = event;
 
     if (!pathParameters?.integrationId) {

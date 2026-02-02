@@ -1,9 +1,8 @@
 import * as http from 'http';
 
-import {APIGatewayProxyEventV2WithJWTAuthorizer, Context} from 'aws-lambda';
-
 import {handler} from '@/handlers/api';
 import {getLogger} from '@/logger';
+import {APIGatewayProxyEventV2, Context} from 'aws-lambda';
 
 const logger = getLogger();
 const PORT = 8080;
@@ -33,47 +32,42 @@ const context: Context = {
         req.on('end', async () => {
             const {headers, method, url} = req;
 
-            const event: APIGatewayProxyEventV2WithJWTAuthorizer = {
-                routeKey: '',
+            // Build cookies array from Cookie header if present
+            const cookies: string[] = [];
+            if (headers.cookie) {
+                cookies.push(Array.isArray(headers.cookie) ? headers.cookie.join('; ') : headers.cookie);
+            }
+
+            const event: APIGatewayProxyEventV2 = {
+                routeKey: `${method} ${url?.split('?')[0] ?? '/'}`,
                 headers: Object.fromEntries(
                     Object.entries(headers || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value || '']),
                 ),
+                cookies,
                 requestContext: {
-                    routeKey: '',
+                    routeKey: `${method} ${url?.split('?')[0] ?? '/'}`,
                     accountId: 'mocked-account-id',
                     apiId: 'mocked-api-id',
                     stage: 'dev',
                     requestId: 'mocked-request-id',
-                    authorizer: {
-                        principalId: 'mocked-principal-id',
-                        integrationLatency: 0,
-                        jwt: {
-                            claims: {
-                                'cognito:groups': process.env.COGNITO_GROUPS ?? '',
-                            },
-                            scopes: [],
-                        },
-                    },
-                    domainName: '',
-                    domainPrefix: '',
+                    domainName: 'localhost',
+                    domainPrefix: 'localhost',
                     http: {
                         method: method || 'GET',
-                        path: url?.split('?')[0] ?? '',
-                        protocol: '',
-                        sourceIp: '',
-                        userAgent: '',
+                        path: url?.split('?')[0] ?? '/',
+                        protocol: 'HTTP/1.1',
+                        sourceIp: '127.0.0.1',
+                        userAgent: headers['user-agent'] || 'dev-server',
                     },
-                    time: '',
-                    timeEpoch: 0,
+                    time: new Date().toISOString(),
+                    timeEpoch: Date.now(),
                 },
                 body: ['GET', 'HEAD'].includes(method || '') ? undefined : body,
                 isBase64Encoded: false,
                 version: '2.0',
-                rawPath: url?.split('?')[0] || '',
+                rawPath: url?.split('?')[0] || '/',
                 rawQueryString: url?.split('?')[1] || '',
-                queryStringParameters: Object.fromEntries(
-                    (url?.includes('?') ? new URLSearchParams(url.split('?')[1]) : new URLSearchParams()).entries(),
-                ),
+                queryStringParameters: url?.includes('?') ? Object.fromEntries(new URLSearchParams(url.split('?')[1]).entries()) : undefined,
             };
 
             const result = await handler(event, context);
@@ -84,14 +78,21 @@ const context: Context = {
             }
 
             res.statusCode = result.statusCode ?? 200;
-            // Iterate headers and set them on the Node response.
-            // Avoid forwarding Content-Length because it may no longer match after decoding base64.
-            Object.entries(result.headers ?? {}).forEach(([key, value]) => {
-                if (key.toLowerCase() === 'content-length') {
-                    return;
-                }
-                res.setHeader(key, value as unknown as string);
-            });
+
+            // Set response headers
+            if (result.headers) {
+                Object.entries(result.headers).forEach(([key, value]) => {
+                    if (key.toLowerCase() === 'content-length') {
+                        return;
+                    }
+                    res.setHeader(key, value as string);
+                });
+            }
+
+            // Set cookies if present
+            if (result.cookies && result.cookies.length > 0) {
+                res.setHeader('Set-Cookie', result.cookies);
+            }
 
             const responseBody = result.body ?? '';
             if (result.isBase64Encoded) {

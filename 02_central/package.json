@@ -50,12 +50,10 @@
     "build:alerting": "npm run prebuild && tsc --project tsconfig.alerting.json && tsc-alias && npm run postbuild",
     "build:analytics": "npm run prebuild && tsc --project tsconfig.analytics.json && tsc-alias && npm run postbuild",
     "build:api": "npm run prebuild && tsc --project tsconfig.api.json && tsc-alias && npm run postbuild",
-    "build:authorizer": "npm run prebuild && tsc --project tsconfig.authorizer.json && tsc-alias && npm run postbuild",
     "build:websocket": "npm run prebuild && tsc --project tsconfig.websocket.json && tsc-alias && npm run postbuild",
     "buildZip:alerting": "npm run build:alerting && npm run zip:alerting",
     "buildZip:analytics": "npm run build:analytics && npm run zip:analytics",
     "buildZip:api": "npm run build:api && npm run zip:api",
-    "buildZip:authorizer": "npm run build:authorizer && npm run zip:authorizer",
     "buildZip:websocket": "npm run build:websocket && npm run zip:websocket",
     "clean": "rimraf ./dist",
     "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
@@ -69,7 +67,6 @@
     "zip:alerting": "cd dist && zip gitgazer-alerting.zip -qr * && mkdir -p ../tmp && mv gitgazer-alerting.zip ../tmp/",
     "zip:analytics": "cd dist && zip gitgazer-analytics.zip -qr * && mkdir -p ../tmp && mv gitgazer-analytics.zip ../tmp/",
     "zip:api": "cd dist && zip gitgazer-api.zip -qr * && mkdir -p ../tmp && mv gitgazer-api.zip ../tmp/",
-    "zip:authorizer": "cd dist && zip gitgazer-authorizer.zip -qr * && mkdir -p ../tmp && mv gitgazer-authorizer.zip ../tmp/",
     "zip:websocket": "cd dist && zip gitgazer-websocket.zip -qr * && mkdir -p ../tmp && mv gitgazer-websocket.zip ../tmp/"
   },
   "version": "1.0.0"

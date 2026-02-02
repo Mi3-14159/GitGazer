@@ -159,18 +159,16 @@ router.get('/api/auth/cognito/user', async (reqCtx: AppRequestContext) => {
 router.get('/api/user', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
 
-    // User context is provided by the Lambda authorizer
     const {userId, username, email, name, nickname, picture} = reqCtx.appContext!;
 
     if (!userId) {
-        logger.error('No user context from authorizer');
+        logger.error('No user context from appContext');
         return new Response(JSON.stringify({error: 'Unauthorized'}), {
             status: HttpStatusCodes.UNAUTHORIZED,
             headers: {'Content-Type': 'application/json'},
         });
     }
 
-    // Return user info from authorizer context (ID token claims)
     const user: UserAttributes = {
         sub: userId,
         username: username,
@@ -435,12 +433,10 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
 
 router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
-
-    // User context is provided by the Lambda authorizer
     const {userId, username, email, integrations} = reqCtx.appContext!;
 
     if (!userId) {
-        logger.error('No user context from authorizer for WebSocket token generation');
+        logger.error('No user context from appContext for WebSocket token generation');
         return new Response(JSON.stringify({error: 'Unauthorized'}), {
             status: HttpStatusCodes.UNAUTHORIZED,
             headers: {'Content-Type': 'application/json'},

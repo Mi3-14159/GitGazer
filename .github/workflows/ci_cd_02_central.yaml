@@ -65,7 +65,6 @@ jobs:
           npm run buildZip:alerting
           npm run buildZip:analytics
           npm run buildZip:websocket
-          npm run buildZip:authorizer
 
       - name: Configure AWS credentials
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
