@@ -1,7 +1,5 @@
 ---
-applies_to:
-  - "infra/**/*.tf"
-  - "infra/**/*.tfvars"
+applyTo: "infra/**/*.{tf,tfvars}"
 ---
 
 # Infrastructure Development Instructions
@@ -40,6 +38,7 @@ terraform destroy
 GitGazer uses AWS serverless architecture with the following components:
 
 ### Core Services
+
 - **API Gateway**: REST and WebSocket APIs
 - **Lambda**: Multiple functions (API, Alerting, WebSocket, Analytics)
 - **DynamoDB**: Job data storage with TTL
@@ -50,6 +49,7 @@ GitGazer uses AWS serverless architecture with the following components:
 - **Step Functions**: Notification orchestration
 
 ### Security
+
 - **KMS**: Encryption keys
 - **Secrets Manager**: Sensitive configuration
 - **IAM**: Fine-grained permissions
@@ -75,12 +75,14 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Development Patterns
 
 ### Resource Naming
+
 - Use consistent naming conventions
 - Include environment in resource names
 - Use tags for resource organization
 - Follow AWS naming restrictions
 
 ### Terraform Workspaces
+
 - Use workspaces for different environments
 - Commands:
   ```bash
@@ -90,12 +92,14 @@ GitGazer uses AWS serverless architecture with the following components:
   ```
 
 ### State Management
+
 - Remote state in S3 (configured in `main.tf`)
 - State locking with DynamoDB
 - Never commit state files to git
 - Use workspace-specific state
 
 ### Module Organization
+
 - Each AWS service in separate file
 - Related resources grouped together
 - Use locals for computed values
@@ -104,12 +108,15 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Deployment Process
 
 ### Initial Setup
+
 1. Create S3 bucket for Lambda artifacts first:
+
    ```bash
    terraform apply -target module.lambda_store
    ```
 
 2. Build and upload Lambda functions:
+
    ```bash
    cd ../02_central
    npm ci
@@ -119,6 +126,7 @@ GitGazer uses AWS serverless architecture with the following components:
    ```
 
 3. Apply remaining infrastructure:
+
    ```bash
    cd ../infra
    terraform apply
@@ -133,12 +141,14 @@ GitGazer uses AWS serverless architecture with the following components:
    ```
 
 ### Updates
+
 - Plan before apply: Always run `terraform plan`
 - Review changes carefully
 - Apply in stages for large changes
 - Test in dev environment first
 
 ### Lambda Updates
+
 - Build new Lambda zip
 - Upload to S3
 - Terraform detects S3 object change
@@ -147,6 +157,7 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Best Practices
 
 ### Security
+
 - Enable encryption at rest (S3, DynamoDB)
 - Use KMS for key management
 - Implement least-privilege IAM policies
@@ -154,12 +165,14 @@ GitGazer uses AWS serverless architecture with the following components:
 - Use VPC where appropriate
 
 ### High Availability
+
 - Multi-AZ deployments for DynamoDB
 - S3 cross-region replication if needed
 - CloudFront for global distribution
 - Lambda automatic scaling
 
 ### Cost Optimization
+
 - Use DynamoDB TTL for data cleanup
 - Implement S3 lifecycle policies
 - Right-size Lambda memory
@@ -167,6 +180,7 @@ GitGazer uses AWS serverless architecture with the following components:
 - Use reserved capacity strategically
 
 ### Monitoring
+
 - CloudWatch Logs for Lambda
 - CloudWatch Metrics for all services
 - Alarms for critical metrics
@@ -175,12 +189,14 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Variables and Configuration
 
 ### Required Variables
+
 - `aws_region`: Target AWS region
 - `environment`: Environment name (dev, staging, prod)
 - `domain_name`: Route53 domain
 - Others defined in `variables.tf`
 
 ### Sensitive Values
+
 - Store in AWS Secrets Manager
 - Reference via `data.aws_secretsmanager_secret`
 - Never hardcode credentials
@@ -189,6 +205,7 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Common Tasks
 
 ### Adding New Lambda Function
+
 1. Create Lambda resource in new `.tf` file
 2. Define IAM role and policies
 3. Configure environment variables
@@ -196,6 +213,7 @@ GitGazer uses AWS serverless architecture with the following components:
 5. Link to API Gateway if needed
 
 ### Modifying API Gateway
+
 1. Update route definitions
 2. Configure authorizers
 3. Set up CORS if needed
@@ -203,6 +221,7 @@ GitGazer uses AWS serverless architecture with the following components:
 5. Apply changes with Terraform
 
 ### Adding DynamoDB Table
+
 1. Define table resource
 2. Configure partition/sort keys
 3. Set up GSIs if needed
@@ -210,6 +229,7 @@ GitGazer uses AWS serverless architecture with the following components:
 5. Grant Lambda access
 
 ### Updating Cognito
+
 1. Modify user pool configuration
 2. Update app client settings
 3. Configure OAuth flows
@@ -219,6 +239,7 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Troubleshooting
 
 ### Terraform Errors
+
 - Check AWS credentials and permissions
 - Verify state lock is not stuck
 - Review resource dependencies
@@ -226,6 +247,7 @@ GitGazer uses AWS serverless architecture with the following components:
 - Validate syntax with `terraform validate`
 
 ### Lambda Deployment Issues
+
 - Verify zip file uploaded to S3
 - Check Lambda permissions
 - Review CloudWatch logs
@@ -233,6 +255,7 @@ GitGazer uses AWS serverless architecture with the following components:
 - Test with Lambda console
 
 ### API Gateway Issues
+
 - Check authorizer configuration
 - Verify Lambda integration
 - Test with API Gateway test feature
@@ -242,7 +265,9 @@ GitGazer uses AWS serverless architecture with the following components:
 ## Linting and Validation
 
 ### TFLint
+
 Configuration in `.tflint.hcl`:
+
 ```bash
 # Install tflint
 tflint --init
@@ -252,6 +277,7 @@ tflint
 ```
 
 ### Terraform Format
+
 ```bash
 # Format all files
 terraform fmt -recursive

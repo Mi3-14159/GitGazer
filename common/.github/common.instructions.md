@@ -1,7 +1,5 @@
 ---
-applies_to:
-  - "common/**/*.ts"
-  - "common/**/*.json"
+applyTo: "common/**/*.{ts,json}"
 ---
 
 # Common Module Instructions
@@ -11,6 +9,7 @@ This module contains shared TypeScript types and utilities used across all GitGa
 ## Overview
 
 The `common` module provides:
+
 - Shared TypeScript type definitions
 - Type guard functions
 - Common utilities
@@ -78,19 +77,19 @@ Every type has a corresponding type guard function prefixed with `is`:
 ```typescript
 // Type definition
 export interface WorkflowJobEvent {
-  action: string
-  workflow_job: object
+  action: string;
+  workflow_job: object;
   // ...
 }
 
 // Type guard
 export function isWorkflowJobEvent(obj: unknown): obj is WorkflowJobEvent {
   return (
-    typeof obj === 'object' &&
+    typeof obj === "object" &&
     obj !== null &&
-    'action' in obj &&
-    'workflow_job' in obj
-  )
+    "action" in obj &&
+    "workflow_job" in obj
+  );
 }
 ```
 
@@ -99,14 +98,14 @@ export function isWorkflowJobEvent(obj: unknown): obj is WorkflowJobEvent {
 Always use type guards when validating external data:
 
 ```typescript
-import { isWorkflowJobEvent, type WorkflowJobEvent } from 'common'
+import { isWorkflowJobEvent, type WorkflowJobEvent } from "common";
 
 function handleWebhook(data: unknown) {
   if (isWorkflowJobEvent(data)) {
     // TypeScript knows data is WorkflowJobEvent
-    processJob(data.workflow_job)
+    processJob(data.workflow_job);
   } else {
-    throw new Error('Invalid webhook payload')
+    throw new Error("Invalid webhook payload");
   }
 }
 ```
@@ -121,15 +120,16 @@ function handleWebhook(data: unknown) {
 4. Document the type with JSDoc comments
 
 Example:
+
 ```typescript
 /**
  * Represents a user profile
  */
 export interface UserProfile {
-  id: string
-  email: string
-  name: string
-  createdAt: string
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
 }
 
 /**
@@ -137,17 +137,17 @@ export interface UserProfile {
  */
 export function isUserProfile(obj: unknown): obj is UserProfile {
   return (
-    typeof obj === 'object' &&
+    typeof obj === "object" &&
     obj !== null &&
-    'id' in obj &&
-    typeof (obj as UserProfile).id === 'string' &&
-    'email' in obj &&
-    typeof (obj as UserProfile).email === 'string' &&
-    'name' in obj &&
-    typeof (obj as UserProfile).name === 'string' &&
-    'createdAt' in obj &&
-    typeof (obj as UserProfile).createdAt === 'string'
-  )
+    "id" in obj &&
+    typeof (obj as UserProfile).id === "string" &&
+    "email" in obj &&
+    typeof (obj as UserProfile).email === "string" &&
+    "name" in obj &&
+    typeof (obj as UserProfile).name === "string" &&
+    "createdAt" in obj &&
+    typeof (obj as UserProfile).createdAt === "string"
+  );
 }
 ```
 
@@ -157,9 +157,9 @@ Use TypeScript enums for fixed sets of values:
 
 ```typescript
 export enum NotificationRuleChannelType {
-  EMAIL = 'email',
-  SLACK = 'slack',
-  WEBHOOK = 'webhook',
+  EMAIL = "email",
+  SLACK = "slack",
+  WEBHOOK = "webhook",
 }
 ```
 
@@ -168,24 +168,21 @@ export enum NotificationRuleChannelType {
 Use type unions for discriminated unions:
 
 ```typescript
-export type NotificationChannel =
-  | EmailChannel
-  | SlackChannel
-  | WebhookChannel
+export type NotificationChannel = EmailChannel | SlackChannel | WebhookChannel;
 
 interface EmailChannel {
-  type: 'email'
-  address: string
+  type: "email";
+  address: string;
 }
 
 interface SlackChannel {
-  type: 'slack'
-  webhookUrl: string
+  type: "slack";
+  webhookUrl: string;
 }
 
 interface WebhookChannel {
-  type: 'webhook'
-  url: string
+  type: "webhook";
+  url: string;
 }
 ```
 
@@ -194,8 +191,8 @@ interface WebhookChannel {
 ### In Backend (02_central)
 
 ```typescript
-import type { WorkflowJobEvent, NotificationRule } from 'common'
-import { isWorkflowJobEvent, NotificationRuleChannelType } from 'common'
+import type { WorkflowJobEvent, NotificationRule } from "common";
+import { isWorkflowJobEvent, NotificationRuleChannelType } from "common";
 
 function processEvent(event: WorkflowJobEvent) {
   // Use the type
@@ -203,7 +200,7 @@ function processEvent(event: WorkflowJobEvent) {
 
 function validateEvent(data: unknown) {
   if (isWorkflowJobEvent(data)) {
-    processEvent(data)
+    processEvent(data);
   }
 }
 ```
@@ -211,22 +208,24 @@ function validateEvent(data: unknown) {
 ### In Frontend (04_frontend)
 
 ```typescript
-import type { NotificationRule, Integration } from 'common'
+import type { NotificationRule, Integration } from "common";
 
 interface Props {
-  rule: NotificationRule
-  integration: Integration
+  rule: NotificationRule;
+  integration: Integration;
 }
 ```
 
 ## Version Management
 
 The common module version should be updated when:
+
 - Breaking changes to type definitions
 - New types are added
 - Type guards are modified
 
 ### Semantic Versioning
+
 - **Major**: Breaking changes to existing types
 - **Minor**: New types or non-breaking additions
 - **Patch**: Bug fixes, documentation
@@ -247,24 +246,28 @@ After updating common types:
 ## Best Practices
 
 ### Type Safety
+
 - Use explicit types, avoid `any`
 - Prefer interfaces over type aliases for objects
 - Use readonly for immutable properties
 - Document complex types with JSDoc
 
 ### Type Guards
+
 - Keep type guards simple and maintainable
 - Test all properties that define the type
 - Use runtime validation for external data
 - Don't assume object structure
 
 ### Naming Conventions
+
 - PascalCase for types and interfaces
 - camelCase for type guard functions
 - Prefix type guards with `is`
 - Use descriptive names
 
 ### Documentation
+
 - Add JSDoc comments to all exported types
 - Explain purpose and usage
 - Document complex properties
@@ -275,26 +278,26 @@ After updating common types:
 Type guards should be tested:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { isUserProfile } from './types'
+import { describe, it, expect } from "vitest";
+import { isUserProfile } from "./types";
 
-describe('isUserProfile', () => {
-  it('returns true for valid UserProfile', () => {
+describe("isUserProfile", () => {
+  it("returns true for valid UserProfile", () => {
     const valid = {
-      id: '123',
-      email: 'user@example.com',
-      name: 'Test User',
-      createdAt: '2024-01-01T00:00:00Z'
-    }
-    expect(isUserProfile(valid)).toBe(true)
-  })
+      id: "123",
+      email: "user@example.com",
+      name: "Test User",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+    expect(isUserProfile(valid)).toBe(true);
+  });
 
-  it('returns false for invalid data', () => {
-    expect(isUserProfile(null)).toBe(false)
-    expect(isUserProfile({})).toBe(false)
-    expect(isUserProfile({ id: 123 })).toBe(false)
-  })
-})
+  it("returns false for invalid data", () => {
+    expect(isUserProfile(null)).toBe(false);
+    expect(isUserProfile({})).toBe(false);
+    expect(isUserProfile({ id: 123 })).toBe(false);
+  });
+});
 ```
 
 ## Important Notes

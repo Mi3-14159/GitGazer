@@ -4,12 +4,12 @@ GitGazer is a GitHub workflow monitoring tool with notification system built on 
 
 ## Important: Module-Specific Instructions
 
-This repository uses targeted instruction files for different modules. When working on specific areas, consult:
+This repository uses targeted instruction files for different modules. When working on specific areas, **always consult**:
 
-- **Backend**: See `02_central/.github/backend.instructions.md` for Lambda development
-- **Frontend**: See `04_frontend/.github/frontend.instructions.md` for Vue/Vuetify development
-- **Infrastructure**: See `infra/.github/infrastructure.instructions.md` for Terraform/AWS resources
-- **Common Types**: See `common/.github/common.instructions.md` for shared TypeScript types
+- **Backend**: See [02_central/.github/backend.instructions.md](../02_central/.github/backend.instructions.md) for Lambda development
+- **Frontend**: See [04_frontend/.github/frontend.instructions.md](../04_frontend/.github/frontend.instructions.md) for Vue/Vuetify development
+- **Infrastructure**: See [infra/.github/infrastructure.instructions.md](../infra/.github/infrastructure.instructions.md) for Terraform/AWS resources
+- **Common Types**: See [common/.github/common.instructions.md](../common/.github/common.instructions.md) for shared TypeScript types
 
 These files provide detailed build commands, testing procedures, and module-specific patterns.
 
@@ -18,9 +18,20 @@ These files provide detailed build commands, testing procedures, and module-spec
 ### Multi-Module Structure
 
 - **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 24)
+  - Four Lambda functions: API, Alerting, WebSocket, Analytics
+  - Custom router with middleware chain
+  - Structured logging with AWS Powertools
 - **`04_frontend/`**: Vue 3 + Vuetify SPA frontend
+  - Composition API with `<script setup>`
+  - Pinia for state management
+  - Real-time WebSocket updates
 - **`common/`**: Shared TypeScript types and utilities
+  - Type definitions with corresponding type guards
+  - Single source of truth for shared types
 - **`infra/`**: AWS infrastructure as code (Terraform)
+  - Serverless architecture (Lambda, API Gateway, DynamoDB)
+  - Authentication with Cognito
+  - CloudFront for global distribution
 
 The backend serves as both API and GitHub webhook processor, while the frontend provides the monitoring dashboard.
 
@@ -29,10 +40,13 @@ The backend serves as both API and GitHub webhook processor, while the frontend 
 ### Backend (`02_central/`)
 
 - **Router Pattern**: Custom router in `src/router/router.ts` handles API Gateway events
-- **Middleware Chain**: Sequential processing with `lowercaseHeaders` → `extractCognitoGroups` → route handlers
-- **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in `tsconfig.json` and `vitest.config.ts`
-- **AWS Client Pattern**: Centralized clients in `src/clients/` (DynamoDB, S3, Cognito)
+- **Middleware Chain**: Sequential processing with `lowercaseHeaders` → `extractCognitoGroups` → `verifyGithubSign` → route handlers
+- **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in all `tsconfig.*.json` and `vitest.config.ts`
+  - **IMPORTANT**: Never use relative imports like `../../../` - always use `@/` path aliases
+- **AWS Client Pattern**: Centralized clients in `src/clients/` (DynamoDB, S3, Cognito, Athena, Firehose)
 - **Type Guards**: All types in `common/types/index.ts` have corresponding `isType()` guards
+- **Logging**: AWS Powertools Logger for structured logging (not pino)
+- **Multiple Lambdas**: Each Lambda has separate `tsconfig.*.json` and handler in `src/handlers/`
 
 ### Development Workflows
 
@@ -44,14 +58,19 @@ In order to run the backend locally, you need to have AWS credentials configured
 cd 02_central
 npm run dev:api  # Local development server on port 8080 with hot reload
 npm run buildZip:api  # Build and package API Lambda for deployment
+npm run buildZip:alerting  # Build and package Alerting Lambda
+npm run buildZip:websocket  # Build and package WebSocket Lambda
+npm run buildZip:analytics  # Build and package Analytics Lambda
 npm run test:unit  # Run Vitest unit tests
 ```
+
+**Output**: Zip files are created in `tmp/` directory (e.g., `tmp/gitgazer-api.zip`)
 
 #### Frontend Development
 
 ```bash
 cd 04_frontend
-npm run dev  # Vite dev server with HMR
+npm run dev  # Vite dev server with HMR on port 5173
 npm run build  # Production build for S3 deployment
 ```
 
@@ -59,7 +78,7 @@ npm run build  # Production build for S3 deployment
 
 - Backend: Uses `.env.dev` file for local development (loaded via `--env-file`)
 - Frontend: Uses `.env.local` for environment variables (Vite convention)
-- Required env vars documented in main README.md
+- Required env vars documented in main README.md and module-specific instructions
 
 ### AWS Integration Patterns
 
@@ -72,9 +91,10 @@ npm run build  # Production build for S3 deployment
 #### Authentication Flow
 
 - AWS Cognito with OAuth integration
+- httpOnly cookies for secure session management
 - JWT tokens in API Gateway authorizer context
 - Group-based authorization via `extractCognitoGroups` middleware
-- Frontend uses AWS Amplify for auth state management
+- Frontend uses cookie-based authentication (no client-side token storage)
 
 #### Data Flow
 
@@ -140,6 +160,7 @@ When creating or working on issues for this repository:
 ### Suitable Tasks for Copilot Agent
 
 Copilot Agent works best on:
+
 - Adding new API endpoints or routes
 - Creating or updating Vue components
 - Writing unit tests for existing code
@@ -152,6 +173,7 @@ Copilot Agent works best on:
 ### Tasks Requiring Human Review
 
 Always have a human review tasks involving:
+
 - Security-sensitive code (authentication, authorization, encryption)
 - Infrastructure changes (Terraform resources)
 - Database schema modifications
