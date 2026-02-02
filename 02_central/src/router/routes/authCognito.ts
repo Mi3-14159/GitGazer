@@ -438,6 +438,63 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
     }
 });
 
+router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
+    const logger = getLogger();
+    logger.info('Logout handler invoked');
+
+    try {
+        const event = reqCtx.event as APIGatewayProxyEventV2;
+        const redirect_uri = event.queryStringParameters?.redirect_uri;
+        if (!redirect_uri) {
+            return new Response(JSON.stringify({error: 'Missing redirect_uri parameter'}), {
+                status: HttpStatusCodes.BAD_REQUEST,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        const validatedRedirectUrl = validateRedirectUrl(redirect_uri);
+        if (!validatedRedirectUrl) {
+            logger.info('Invalid or disallowed Origin header in logout', {attempted: redirect_uri});
+            return new Response(JSON.stringify({error: 'Invalid redirect URL'}), {
+                status: HttpStatusCodes.BAD_REQUEST,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        const clearCookies = [
+            'accessToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+            'idToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+            'refreshToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+        ];
+
+        // Build Cognito logout URL
+        const logoutUrl = `https://${COGNITO_DOMAIN}/logout`;
+        const params = new URLSearchParams({
+            client_id: COGNITO_CLIENT_ID,
+            logout_uri: validatedRedirectUrl,
+        });
+
+        logger.info('Logout successful, clearing cookies and redirecting to Cognito', {
+            redirectUrl: validatedRedirectUrl,
+        });
+
+        // Redirect to Cognito logout with cookies cleared
+        return new Response(null, {
+            status: HttpStatusCodes.FOUND,
+            headers: {
+                Location: `${logoutUrl}?${params.toString()}`,
+                'Set-Cookie': clearCookies.join(', '),
+            },
+        });
+    } catch (error) {
+        logger.error('Unexpected error in logout', {error});
+        return new Response(JSON.stringify({error: 'Internal server error'}), {
+            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+});
+
 router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     const {userId, username, email, integrations} = reqCtx.appContext!;

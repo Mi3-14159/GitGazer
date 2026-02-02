@@ -121,15 +121,8 @@ export const useAuth = () => {
     };
 
     const signOut = () => {
-        const logoutUrl = `https://${COGNITO_DOMAIN}/logout`;
-        const params = new URLSearchParams({
-            client_id: COGNITO_CLIENT_ID,
-            logout_uri: window.location.origin,
-        });
-
         cachedUserAttributes = null;
-
-        window.location.href = `${logoutUrl}?${params.toString()}`;
+        window.location.href = `${API_ENDPOINT}/auth/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
     };
 
     return {

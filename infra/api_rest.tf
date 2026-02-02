@@ -33,6 +33,9 @@ locals {
     "auth/refresh" = {
       methods = ["POST"]
     },
+    "auth/logout" = {
+      methods = ["GET"]
+    },
     "auth/ws-token" = {
       methods = ["GET"]
     },
