@@ -99,6 +99,13 @@ router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
     }
 
     const result = parseBody(body, isBase64Encoded);
+    if (!result.client_id || !result.client_secret || !result.code) {
+        logger.error('Missing required parameters', {result});
+        return new Response('Missing required parameters', {
+            status: HttpStatusCodes.BAD_REQUEST,
+        });
+    }
+
     const token = await (
         await fetch(
             `https://github.com/login/oauth/access_token?client_id=${result.client_id}&client_secret=${result.client_secret}&code=${result.code}`,
