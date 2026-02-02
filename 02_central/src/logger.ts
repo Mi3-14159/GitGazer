@@ -14,14 +14,10 @@ export const newLogger = (): Logger => {
     return logger;
 };
 
-let logger = newLogger();
+const logger = newLogger();
+
 logger.injectLambdaContext({
     correlationIdPath: correlationPaths.API_GATEWAY_HTTP,
 });
 
 export const getLogger = (): Logger => logger;
-
-export const resetLogger = (): Logger => {
-    logger = newLogger();
-    return logger;
-};

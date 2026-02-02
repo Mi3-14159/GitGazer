@@ -6,6 +6,7 @@ import tsconfig from './tsconfig.json';
 export default defineConfig({
     test: {
         environment: 'node',
+        setupFiles: ['./vitest.setup.ts'],
         alias: Object.fromEntries(
             Object.entries(tsconfig.compilerOptions.paths).map(([key, value]) => [
                 key.replace('/*', ''),
