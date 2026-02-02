@@ -1,29 +1,19 @@
 locals {
   api_resources = {
     "workflows" = {
-      methods            = ["GET"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["GET"]
     },
     "notifications" = {
-      methods            = ["GET", "POST"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["GET", "POST"]
     },
     "notifications/{id}" = {
-      methods            = ["DELETE"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["DELETE"]
     },
     "integrations" = {
-      methods            = ["GET", "POST"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["GET", "POST"]
     },
     "integrations/{id}" = {
-      methods            = ["DELETE"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["DELETE"]
     },
     "auth/cognito/public" = {
       methods = ["GET"]
@@ -40,20 +30,17 @@ locals {
     "auth/callback" = {
       methods = ["GET"]
     },
+    "auth/refresh" = {
+      methods = ["POST"]
+    },
     "auth/ws-token" = {
-      methods            = ["GET"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["GET"]
     },
     "user" = {
-      methods            = ["GET"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["GET"]
     },
     "analytics/jobs/metrics" = {
-      methods            = ["POST"]
-      authorization_type = "CUSTOM"
-      authorizer_id      = aws_apigatewayv2_authorizer.authorizer.id
+      methods = ["POST"]
     },
   }
 

@@ -1,11 +1,11 @@
 import {getLogger} from '@/logger';
 import {createHmac, randomBytes} from 'crypto';
 
-import {extractUserIntegrations} from '@/router/middlewares/authorization';
-import {AuthorizerContext} from '@/types';
+import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {State, UserAttributes, WSToken} from '@common/types';
-import {APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2} from 'aws-lambda';
 const router = new Router();
 
 const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN;
@@ -88,9 +88,9 @@ const parseBody = (body: string, isBase64Encoded: boolean): Body => {
     return result as Body;
 };
 
-router.post('/api/auth/cognito/token', async (reqCtx) => {
+router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
     const logger = getLogger(); // Get logger at runtime
-    const {body, isBase64Encoded} = reqCtx.event;
+    const {body, isBase64Encoded} = reqCtx.event as APIGatewayProxyEventV2;
     if (!body) {
         logger.error('No body found');
         return new Response('Body is required', {
@@ -120,8 +120,8 @@ router.post('/api/auth/cognito/token', async (reqCtx) => {
     });
 });
 
-router.get('/api/auth/cognito/user', async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithJWTAuthorizer;
+router.get('/api/auth/cognito/user', async (reqCtx: AppRequestContext) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2;
     const response = await fetch('https://api.github.com/user', {
         method: 'GET',
         headers: {
@@ -156,13 +156,11 @@ router.get('/api/auth/cognito/user', async (reqCtx) => {
     };
 });
 
-router.get('/api/user', async (reqCtx) => {
+router.get('/api/user', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
-    const event = reqCtx.event as any;
 
     // User context is provided by the Lambda authorizer
-    const authContext = event.requestContext?.authorizer?.lambda;
-    const {userId, username, email, name, nickname, picture} = authContext || {};
+    const {userId, username, email, name, nickname, picture} = reqCtx.appContext!;
 
     if (!userId) {
         logger.error('No user context from authorizer');
@@ -191,7 +189,7 @@ router.get('/api/user', async (reqCtx) => {
     });
 });
 
-router.get('/api/auth/callback', async (reqCtx) => {
+router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     logger.info('OAuth callback handler invoked');
 
@@ -325,13 +323,121 @@ router.get('/api/auth/callback', async (reqCtx) => {
     }
 });
 
-router.get('/api/auth/ws-token', [extractUserIntegrations], async (reqCtx) => {
+router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
-    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
+    logger.info('Token refresh handler invoked');
+
+    try {
+        // Extract refresh token from cookies
+        const event = reqCtx.event as APIGatewayProxyEventV2;
+        const cookies = event.cookies || [];
+        let refreshToken: string | null = null;
+
+        for (const cookieString of cookies) {
+            const cookiePairs = cookieString.split(';').map((c: string) => c.trim());
+            for (const pair of cookiePairs) {
+                const [name, value] = pair.split('=');
+                if (name === 'refreshToken') {
+                    refreshToken = value;
+                    break;
+                }
+            }
+            if (refreshToken) break;
+        }
+
+        if (!refreshToken) {
+            logger.error('Missing refresh token in cookies');
+            return new Response(JSON.stringify({error: 'Missing refresh token'}), {
+                status: HttpStatusCodes.UNAUTHORIZED,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        logger.debug('Refreshing tokens using refresh token');
+
+        // Exchange refresh token for new access and ID tokens
+        const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
+
+        const params = new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: COGNITO_CLIENT_ID,
+            refresh_token: refreshToken,
+        });
+
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`,
+        };
+
+        const tokenResponse = await fetch(tokenEndpoint, {
+            method: 'POST',
+            headers,
+            body: params.toString(),
+        });
+
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            logger.error('Failed to refresh tokens', {
+                status: tokenResponse.status,
+                error: errorText,
+            });
+
+            // Clear cookies on refresh failure
+            const clearCookies = [
+                'accessToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+                'idToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+                'refreshToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+            ];
+
+            return new Response(JSON.stringify({error: 'Failed to refresh tokens'}), {
+                status: HttpStatusCodes.UNAUTHORIZED,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Set-Cookie': clearCookies.join(', '),
+                },
+            });
+        }
+
+        const tokens: TokenResponse = await tokenResponse.json();
+        logger.debug('Successfully refreshed tokens');
+
+        // Calculate cookie expiration (use token expiry time)
+        const maxAge = tokens.expires_in;
+
+        // Set new HttpOnly cookies with security attributes
+        const cookies_out = [
+            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
+            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
+            // Keep existing refresh token (Cognito may or may not return a new one)
+            ...(tokens.refresh_token
+                ? [`refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 30}`]
+                : []),
+        ];
+
+        logger.info('Token refresh successful');
+
+        return new Response(JSON.stringify({success: true}), {
+            status: HttpStatusCodes.OK,
+            headers: {
+                'Cache-Control': 'no-cache, no-store, max-age=0',
+                'Content-Type': 'application/json',
+                'Set-Cookie': cookies_out.join(', '),
+            },
+        });
+    } catch (error) {
+        logger.error('Unexpected error in token refresh', {error});
+        return new Response(JSON.stringify({error: 'Internal server error'}), {
+            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+});
+
+router.get('/api/auth/ws-token', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+    const logger = getLogger();
 
     // User context is provided by the Lambda authorizer
-    const authContext = event.requestContext?.authorizer?.lambda;
-    const {userId, username, email} = authContext || {};
+    const {userId, username, email, integrations} = reqCtx.appContext!;
 
     if (!userId) {
         logger.error('No user context from authorizer for WebSocket token generation');
@@ -341,11 +447,7 @@ router.get('/api/auth/ws-token', [extractUserIntegrations], async (reqCtx) => {
         });
     }
 
-    // Get the user's integrations from the middleware context
-    // The extractUserIntegrations middleware should have already populated this
-    const integrations = authContext.integrations || [];
-
-    if (integrations.length === 0) {
+    if (!integrations || integrations.length === 0) {
         logger.warn('User has no integrations for WebSocket access', {userId});
         return new Response(JSON.stringify({error: 'No integrations available'}), {
             status: HttpStatusCodes.FORBIDDEN,
@@ -356,9 +458,9 @@ router.get('/api/auth/ws-token', [extractUserIntegrations], async (reqCtx) => {
     // Create a simple token payload
     const tokenPayload: WSToken = {
         sub: userId,
-        username: username,
-        email: email,
-        integrations: integrations,
+        username,
+        email,
+        integrations,
         exp: Math.floor(Date.now() / 1000) + 60 * 10, // Expires in 10 minutes
         nonce: randomBytes(16).toString('hex'), // Add nonce for uniqueness
     };

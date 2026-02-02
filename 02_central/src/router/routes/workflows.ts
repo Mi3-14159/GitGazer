@@ -1,15 +1,14 @@
 import {getWorkflows} from '@/controllers/workflows';
-import {extractUserIntegrations} from '@/router/middlewares/authorization';
-import {AuthorizerContext} from '@/types';
+import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isWorkflowsRequestParameters} from '@common/types';
-import {APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/workflows', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
-    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
+router.get('/api/workflows', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
     if (!integrationIds || integrationIds.length === 0) {
         return new Response(JSON.stringify({message: 'No integrations found for user'}), {
             status: HttpStatusCodes.OK,
@@ -19,6 +18,7 @@ router.get('/api/workflows', [extractUserIntegrations], async (reqCtx) => {
         });
     }
 
+    const event = reqCtx.event as APIGatewayProxyEventV2;
     const {queryStringParameters} = event;
 
     try {

@@ -6,6 +6,62 @@ const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 let cachedUserAttributes: UserAttributes | null = null;
 let authCheckPromise: Promise<boolean> | null = null;
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+const refreshSession = async (): Promise<boolean> => {
+    // If already refreshing, wait for the existing refresh operation
+    if (isRefreshing && refreshPromise) {
+        return refreshPromise;
+    }
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const response = await fetch(`${API_ENDPOINT}/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+
+            cachedUserAttributes = null;
+            if (response.ok) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (error) {
+            console.error('Failed to refresh session:', error);
+            cachedUserAttributes = null;
+            return false;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
+};
+
+const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const fetchOptions: RequestInit = {
+        ...options,
+        credentials: 'include',
+    };
+
+    let response = await fetch(url, fetchOptions);
+
+    // If we get a 401, try to refresh the session and retry once
+    if (response.status === 401 && !isRefreshing) {
+        const refreshed = await refreshSession();
+
+        if (refreshed) {
+            // Retry the original request with refreshed tokens
+            response = await fetch(url, fetchOptions);
+        }
+    }
+
+    return response;
+};
 
 export const useAuth = () => {
     const isAuthenticated = async (): Promise<boolean> => {
@@ -31,9 +87,7 @@ export const useAuth = () => {
         }
 
         try {
-            const response = await fetch(`${API_ENDPOINT}/user`, {
-                credentials: 'include',
-            });
+            const response = await fetchWithAuth(`${API_ENDPOINT}/user`);
 
             if (response.ok) {
                 cachedUserAttributes = await response.json();
@@ -83,5 +137,6 @@ export const useAuth = () => {
         getUserAttributes,
         signIn,
         signOut,
+        fetchWithAuth, // Export the fetch wrapper for use in other composables
     };
 };

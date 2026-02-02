@@ -1,4 +1,5 @@
 import {getLogger} from '@/logger';
+import {authenticate} from '@/router/middlewares/authentication';
 import analyticsRoutes from '@/router/routes/analytics';
 import authCognitoRoutes from '@/router/routes/authCognito';
 import feFailover from '@/router/routes/feFailover';
@@ -26,6 +27,9 @@ app.use(
         maxAge: 300,
     }),
 );
+
+// Add authentication middleware globally - it handles route-specific logic internally
+app.use(authenticate);
 
 app.includeRouter(authCognitoRoutes);
 app.includeRouter(importRoutes);

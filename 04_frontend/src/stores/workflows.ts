@@ -1,3 +1,4 @@
+import {useAuth} from '@/composables/useAuth';
 import {
     isWorkflowJobEvent,
     isWorkflowRunEvent,
@@ -24,6 +25,7 @@ export type WorkflowGroup = {
 };
 
 export const useWorkflowsStore = defineStore('workflows', () => {
+    const {fetchWithAuth} = useAuth();
     const workflows = new Map<string, WorkflowGroup>();
     const workflowsArray = ref<WorkflowGroup[]>([]);
 
@@ -43,9 +45,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const lastEvaluatedKeys = new Map<string, any>();
 
     const fetchWebSocketToken = async (): Promise<string> => {
-        const response = await fetch(`${API_ENDPOINT}/auth/ws-token`, {
-            credentials: 'include',
-        });
+        const response = await fetchWithAuth(`${API_ENDPOINT}/auth/ws-token`);
 
         if (!response.ok) {
             throw new Error(`Failed to fetch WebSocket token: ${response.status}`);
@@ -195,9 +195,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             queryParams.append('exclusiveStartKeys', JSON.stringify(Array.from(lastEvaluatedKeys.values())));
         }
 
-        const response = await fetch(`${API_ENDPOINT}/workflows?${queryParams.toString()}`, {
-            credentials: 'include',
-        });
+        const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?${queryParams.toString()}`);
 
         if (!response.ok) {
             throw new Error(`Failed to fetch workflows: ${response.status}`);

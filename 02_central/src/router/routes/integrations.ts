@@ -1,21 +1,20 @@
 import {createIntegration, deleteIntegration, getIntegrations} from '@/controllers/integrations';
-import {extractUserIntegrations} from '@/router/middlewares/authorization';
-import {AuthorizerContext} from '@/types';
+import {extractUserIntegrations} from '@/router/middlewares/integrations';
+import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2WithLambdaAuthorizer} from 'aws-lambda';
+import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
-    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
+router.get('/api/integrations', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
     return await getIntegrations({
         integrationIds: integrationIds,
     });
 });
 
-router.post('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as any;
+router.post('/api/integrations', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2;
     if (!event.body) {
         return new Response(JSON.stringify({error: 'Missing request body'}), {
             status: HttpStatusCodes.BAD_REQUEST,
@@ -46,14 +45,13 @@ router.post('/api/integrations', [extractUserIntegrations], async (reqCtx) => {
         });
     }
 
-    const userId = event.requestContext?.authorizer?.lambda?.userId;
-    const username = event.requestContext?.authorizer?.lambda?.username;
+    const userId = reqCtx.appContext!.userId;
+    const username = reqCtx.appContext!.username;
 
     return await createIntegration(requestBody.label, userId, username);
 });
 
-router.delete('/api/integrations/:integrationId', [extractUserIntegrations], async (reqCtx) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2WithLambdaAuthorizer<AuthorizerContext>;
+router.delete('/api/integrations/:integrationId', [extractUserIntegrations], async (reqCtx: AppRequestContext) => {
     if (!reqCtx.params.integrationId) {
         return new Response(JSON.stringify({error: 'Missing integration ID'}), {
             status: HttpStatusCodes.BAD_REQUEST,
@@ -63,7 +61,7 @@ router.delete('/api/integrations/:integrationId', [extractUserIntegrations], asy
         });
     }
 
-    const integrationIds = event.requestContext.authorizer.lambda.integrations ?? [];
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
     await deleteIntegration(reqCtx.params.integrationId, integrationIds);
 
     return new Response(null, {

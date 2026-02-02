@@ -1,25 +1,4 @@
-import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
-
-// Define custom authorizer context type with groups property
-export interface CustomAuthorizerContext {
-    groups?: string[];
-    [key: string]: any;
-}
-
-// Extend APIGatewayProxyEvent to include custom authorizer context
-export interface APIGatewayProxyEventWithCustomAuth extends Omit<APIGatewayProxyEvent, 'requestContext'> {
-    requestContext: APIGatewayProxyEvent['requestContext'] & {
-        authorizer: CustomAuthorizerContext;
-    };
-}
-
-// Custom handler type that uses the extended event
-export type CustomAPIGatewayProxyHandler = (event: APIGatewayProxyEventWithCustomAuth, context: Context) => Promise<APIGatewayProxyResult>;
-
-export type LambdaAuthorizerContext = {
-    'cognito:groups'?: string[];
-    [key: string]: any;
-};
+import {RequestContext} from '@aws-lambda-powertools/event-handler/types';
 
 export type WebsocketConnection = {
     integrationId: string;
@@ -28,7 +7,7 @@ export type WebsocketConnection = {
     connectedAt: string;
 };
 
-export type AuthorizerContext = {
+export type AppContext = {
     userId: string;
     username: string;
     email: string;
@@ -37,3 +16,7 @@ export type AuthorizerContext = {
     picture: string;
     integrations?: string[];
 };
+
+export interface AppRequestContext extends RequestContext {
+    appContext?: AppContext;
+}
