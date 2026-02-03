@@ -42,7 +42,7 @@ locals {
     "user" = {
       methods = ["GET"]
     },
-    "analytics/jobs/metrics" = {
+    "analytics/query" = {
       methods = ["POST"]
     },
   }
