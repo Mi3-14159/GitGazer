@@ -208,8 +208,8 @@ resource "aws_lambda_function" "api" {
       WEBSOCKET_API_STAGE                  = aws_apigatewayv2_stage.websocket_ws.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN     = aws_dynamodb_table.integrations.name
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN = aws_dynamodb_table.user_assignments.name
-      ATHENA_DATABASE                      = aws_s3tables_namespace.gitgazer.namespace
-      ATHENA_JOBS_TABLE                    = aws_s3tables_table.jobs.name
+      ATHENA_DATABASE                      = local.analytics_database_name
+      ATHENA_JOBS_TABLE                    = local.analytics_workflows_tablename
       ATHENA_CATALOG                       = aws_athena_data_catalog.analytics.name
       ATHENA_QUERY_RESULT_S3_BUCKET        = module.athena_query_results_bucket.s3_bucket_id
       ATHENA_WORKGROUP                     = aws_athena_workgroup.analytics.name

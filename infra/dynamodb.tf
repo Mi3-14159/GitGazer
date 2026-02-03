@@ -48,6 +48,43 @@ resource "aws_dynamodb_table" "workflows" {
   }
 }
 
+resource "aws_dynamodb_resource_policy" "workflows" {
+  resource_arn = aws_dynamodb_table.workflows.arn
+  policy       = data.aws_iam_policy_document.dynamodb_table_resource_policy.json
+}
+
+data "aws_iam_policy_document" "dynamodb_table_resource_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:ExportTableToPointInTime",
+      "dynamodb:DescribeTable",
+      "dynamodb:DescribeExport",
+    ]
+    resources = [
+      "*",
+    ]
+    principals {
+      type        = "Service"
+      identifiers = ["glue.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values = [
+        data.aws_caller_identity.current.account_id,
+      ]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "aws:SourceArn"
+      values = [
+        "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:integration:*"
+      ]
+    }
+  }
+}
+
 resource "aws_dynamodb_table" "notification_rules" {
   name                        = "${var.name_prefix}-notification-rules-${terraform.workspace}"
   billing_mode                = "PAY_PER_REQUEST"

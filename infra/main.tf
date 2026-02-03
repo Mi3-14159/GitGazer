@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.3"
     }
+    awscc = {
+      source  = "hashicorp/awscc"
+      version = "~> 1.0"
+    }
   }
   required_version = "~> 1.0"
 }
@@ -22,9 +26,7 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_ssm_parameter" "powertools_typescript" {
-  name = "/aws/service/powertools/typescript/generic/all/latest"
-}
+data "aws_ssoadmin_instances" "this" {}
 
 locals {
   frontend_failover_sub_path                     = "fe-failover"
@@ -38,11 +40,12 @@ locals {
       "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
       "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []])
-  lambda_application_log_level       = "INFO"
-  lambda_enable_event_logging        = true
-  lakeformation_grant_permissions_to = toset([aws_iam_role.firehose.arn, aws_iam_role.api.arn])
+  lambda_application_log_level = "INFO"
+  lambda_enable_event_logging  = true
   cors_allowed_origins = compact([
     "http://localhost:5173",
     try("https://${var.custom_domain_config.domain_name}", null),
   ])
+  analytics_workflows_tablename = replace(aws_dynamodb_table.workflows.name, "-", "_")
+  analytics_database_name       = format("zetl_%s", replace(element(split(":", awscc_glue_integration.analytics.integration_arn), -1), "-", "_"))
 }

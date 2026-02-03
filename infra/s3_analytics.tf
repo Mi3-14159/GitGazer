@@ -7,344 +7,6 @@ resource "aws_s3tables_table_bucket" "analytics" {
   force_destroy = true
 }
 
-resource "aws_s3tables_namespace" "gitgazer" {
-  namespace        = var.name_prefix
-  table_bucket_arn = aws_s3tables_table_bucket.analytics.arn
-}
-
-resource "aws_s3tables_table" "jobs" {
-  name             = "jobs"
-  namespace        = aws_s3tables_namespace.gitgazer.namespace
-  table_bucket_arn = aws_s3tables_table_bucket.analytics.arn
-  format           = "ICEBERG"
-  encryption_configuration = {
-    sse_algorithm = "aws:kms"
-    kms_key_arn   = aws_kms_key.this.arn
-  }
-
-  metadata {
-    iceberg {
-      schema {
-        field {
-          name     = "integration_id"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "id"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "created_at"
-          type     = "timestamptz"
-          required = false
-        }
-        field {
-          name     = "completed_at"
-          type     = "timestamptz"
-          required = true
-        }
-        field {
-          name     = "owner"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "repo"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "workflow"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "job"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "sender"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "status"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "conclusion"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "branch"
-          type     = "string"
-          required = true
-        }
-        field {
-          name     = "event_type"
-          type     = "string"
-          required = false
-        }
-      }
-    }
-  }
-}
-
-resource "aws_s3_bucket" "firehose_backup" {
-  bucket        = "${data.aws_caller_identity.current.account_id}-${var.name_prefix}-firehose-backup-${terraform.workspace}"
-  force_destroy = true
-}
-
-resource "aws_cloudwatch_log_group" "firehose_analytics" {
-  name              = "/aws/kinesisfirehose/${var.name_prefix}-jobs-stream-${terraform.workspace}"
-  retention_in_days = 30
-}
-
-resource "aws_cloudwatch_log_stream" "firehose_analytics_delivery" {
-  name           = "DestinationDelivery"
-  log_group_name = aws_cloudwatch_log_group.firehose_analytics.name
-}
-
-resource "aws_cloudwatch_log_stream" "firehose_analytics_backup" {
-  name           = "BackupDelivery"
-  log_group_name = aws_cloudwatch_log_group.firehose_analytics.name
-}
-
-resource "aws_iam_role" "firehose" {
-  name = "${var.name_prefix}-firehose-${terraform.workspace}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "firehose.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-data "aws_iam_policy_document" "firehose_policy" {
-  statement {
-    # TODO: check glue permissions and restrict if possible
-    effect = "Allow"
-    actions = [
-      "glue:GetTable",
-      "glue:GetDatabase",
-      "glue:UpdateTable",
-    ]
-    resources = [
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/*",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/*",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/*/*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "s3:AbortMultipartUpload",
-      "s3:GetBucketLocation",
-      "s3:GetObject",
-      "s3:ListBucket",
-      "s3:ListBucketMultipartUploads",
-      "s3:PutObject",
-    ]
-    resources = [
-      aws_s3_bucket.firehose_backup.arn,
-      "${aws_s3_bucket.firehose_backup.arn}/*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "lakeformation:GetDataAccess"
-    ]
-    resources = [
-      "*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "kms:Decrypt",
-      "kms:GenerateDataKey"
-    ]
-    resources = [aws_kms_key.this.arn]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:PutLogEvents"
-    ]
-    resources = [
-      "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_delivery.name}",
-      "${aws_cloudwatch_log_group.firehose_analytics.arn}:log-stream:${aws_cloudwatch_log_stream.firehose_analytics_backup.name}"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "s3tables:GetTable",
-      "s3tables:PutTableData",
-      "s3tables:GetNamespace",
-      "s3tables:GetTableBucket"
-    ]
-    resources = [
-      aws_s3tables_table_bucket.analytics.arn,
-      "${aws_s3tables_table_bucket.analytics.arn}/*"
-    ]
-  }
-}
-
-resource "aws_iam_role_policy" "firehose" {
-  name   = "${var.name_prefix}-firehose-policy-${terraform.workspace}"
-  role   = aws_iam_role.firehose.id
-  policy = data.aws_iam_policy_document.firehose_policy.json
-}
-
-# At the time of writing, Terraform AWS Provider had a bug that prevented
-# creating Lake Formation permissions for S3Tables catalogs.
-# https://github.com/hashicorp/terraform-provider-aws/issues/40724
-# resource "aws_lakeformation_permissions" "firehose_table_access" {
-#   principal   = aws_iam_role.firehose.arn
-#   permissions = ["SUPER"]
-#   database {
-#     catalog_id = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-#     name       = aws_s3tables_namespace.gitgazer.namespace
-#   }
-# }
-
-# This is a workaround using a null_resource and local-exec provisioner
-# to run the AWS CLI command to grant Lake Formation permissions.
-resource "null_resource" "lf_grant_firehose_jobs_db" {
-  for_each = local.lakeformation_grant_permissions_to
-  triggers = {
-    uuid = uuid()
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-aws lakeformation grant-permissions \
-  --region ${var.aws_region} \
-  --cli-input-json '{
-    "Principal": { "DataLakePrincipalIdentifier": "${each.key}" },
-    "Resource": {
-      "Database": {
-        "CatalogId": "${local.s3tables_catalog_id}",
-        "Name": "${aws_s3tables_namespace.gitgazer.namespace}"
-      }
-    },
-    "Permissions": ["ALL"]
-  }'
-EOT
-  }
-  depends_on = [aws_iam_role_policy.firehose]
-}
-
-resource "null_resource" "lf_grant_firehose_jobs_table" {
-  for_each = local.lakeformation_grant_permissions_to
-  triggers = {
-    uuid = uuid()
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-aws lakeformation grant-permissions \
-  --region ${var.aws_region} \
-  --cli-input-json '{
-    "Principal": { "DataLakePrincipalIdentifier": "${each.key}" },
-    "Resource": {
-      "Table": {
-        "CatalogId": "${local.s3tables_catalog_id}",
-        "DatabaseName": "${aws_s3tables_namespace.gitgazer.namespace}",
-        "Name": "${aws_s3tables_table.jobs.name}"
-      }
-    },
-    "Permissions": ["ALL"]
-  }'
-EOT
-  }
-  depends_on = [aws_iam_role_policy.firehose]
-}
-
-resource "aws_kinesis_firehose_delivery_stream" "analytics" {
-  name        = "${var.name_prefix}-analytics-stream-${terraform.workspace}"
-  destination = "iceberg"
-
-  depends_on = [null_resource.lf_grant_firehose_jobs_table]
-
-  iceberg_configuration {
-    catalog_arn        = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-    role_arn           = aws_iam_role.firehose.arn
-    buffering_interval = 60
-    buffering_size     = 1
-    append_only        = false
-
-    cloudwatch_logging_options {
-      enabled         = true
-      log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
-      log_stream_name = aws_cloudwatch_log_stream.firehose_analytics_delivery.name
-    }
-    destination_table_configuration {
-      # these are the default values, which can be overridden by metadata extraction
-      database_name = aws_s3tables_namespace.gitgazer.namespace
-      table_name    = aws_s3tables_table.jobs.name
-      unique_keys   = ["integration_id", "id"]
-    }
-    processing_configuration {
-      enabled = true
-
-      processors {
-        type = "MetadataExtraction"
-
-        parameters {
-          parameter_name  = "JsonParsingEngine"
-          parameter_value = "JQ-1.6"
-        }
-        parameters {
-          parameter_name  = "MetadataExtractionQuery"
-          parameter_value = "{destinationDatabaseName:\"${aws_s3tables_namespace.gitgazer.namespace}\",destinationTableName:\"${aws_s3tables_table.jobs.name}\",operation:\"update\"}"
-        }
-      }
-    }
-    s3_configuration {
-      role_arn   = aws_iam_role.firehose.arn
-      bucket_arn = aws_s3_bucket.firehose_backup.arn
-      error_output_prefix = join("/", [
-        "!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}",
-        "!{firehose:error-output-type}",
-        ""
-      ])
-      cloudwatch_logging_options {
-        enabled         = true
-        log_group_name  = aws_cloudwatch_log_group.firehose_analytics.name
-        log_stream_name = aws_cloudwatch_log_stream.firehose_analytics_backup.name
-      }
-    }
-  }
-
-  server_side_encryption {
-    enabled  = true
-    key_type = "CUSTOMER_MANAGED_CMK"
-    key_arn  = aws_kms_key.this.arn
-  }
-}
-
 resource "aws_athena_data_catalog" "analytics" {
   name        = "${var.name_prefix}-analytics-${terraform.workspace}"
   description = "GitGazer S3Tables Analytics Catalog"
@@ -353,7 +15,6 @@ resource "aws_athena_data_catalog" "analytics" {
     catalog-id = "s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
   }
 }
-
 
 module "athena_query_results_bucket" {
   source                   = "terraform-aws-modules/s3-bucket/aws"
@@ -391,5 +52,222 @@ resource "aws_athena_workgroup" "analytics" {
         kms_key_arn       = aws_kms_key.this.arn
       }
     }
+  }
+}
+
+data "aws_iam_policy_document" "glue_resource_policy" {
+  statement {
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root",
+      ]
+    }
+    actions = [
+      "glue:CreateInboundIntegration",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    principals {
+      type = "Service"
+      identifiers = [
+        "glue.amazonaws.com",
+      ]
+    }
+    actions = [
+      "glue:AuthorizeInboundIntegration",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
+    ]
+  }
+}
+
+resource "aws_glue_resource_policy" "this" {
+  policy = data.aws_iam_policy_document.glue_resource_policy.json
+}
+
+resource "awscc_glue_integration" "analytics" {
+  integration_name = "${var.name_prefix}-analytics-${terraform.workspace}"
+  source_arn       = aws_dynamodb_table.workflows.arn
+  target_arn       = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+
+  additional_encryption_context = {}
+  description                   = "GitGazer Glue Integration for Analytics - ${terraform.workspace}"
+  kms_key_id                    = aws_kms_key.this.arn
+  depends_on = [
+    awscc_glue_integration_resource_property.analytics,
+    null_resource.create_integration_table_properties,
+  ]
+}
+
+resource "awscc_glue_integration_resource_property" "analytics" {
+  resource_arn = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+  target_processing_properties = {
+    role_arn = aws_iam_role.analytics_zero_etl.arn
+  }
+}
+
+# TODO: replace this with a proper awscc resource once it becomes available
+resource "null_resource" "create_integration_table_properties" {
+  triggers = {
+    region                     = var.aws_region
+    account_id                 = data.aws_caller_identity.current.account_id
+    s3tables_table_bucket_name = aws_s3tables_table_bucket.analytics.name
+    table_name                 = aws_dynamodb_table.workflows.name
+    target_table_name          = local.analytics_workflows_tablename
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+aws glue create-integration-table-properties \
+  --region ${var.aws_region} \
+  --resource-arn arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name} \
+  --table-name ${aws_dynamodb_table.workflows.name} \
+  --target-table-config '${jsonencode({
+    UnnestSpec : "FULL",
+    TargetTableName : "${local.analytics_workflows_tablename}",
+})}'
+EOT
+}
+}
+
+resource "aws_iam_role" "analytics_zero_etl" {
+  name               = "${var.name_prefix}-analytics-zero-etl-role-${terraform.workspace}"
+  assume_role_policy = data.aws_iam_policy_document.analytics_zero_etl_assume_role_policy.json
+}
+
+data "aws_iam_policy_document" "analytics_zero_etl_assume_role_policy" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["glue.amazonaws.com"]
+    }
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_iam_role_policy" "analytics_zero_etl" {
+  name   = "${var.name_prefix}-analytics-zero-etl-role-policy-${terraform.workspace}"
+  role   = aws_iam_role.analytics_zero_etl.id
+  policy = data.aws_iam_policy_document.analytics_zero_etl_role_policy.json
+}
+
+data "aws_iam_policy_document" "analytics_zero_etl_role_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:CreateTable",
+      "glue:GetTable",
+      "glue:UpdateTable",
+      "glue:GetTableVersion",
+      "glue:GetTableVersions",
+      "glue:GetResourcePolicy",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/s3tablescatalog/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "cloudwatch:PutMetricData",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values = [
+        "AWS/Glue/ZeroETL",
+      ]
+    }
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = [
+      # the log group name is fixed for ZeroETL integrations
+      # i suggest you modify the paramters of the loggroup to your liking
+      "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws-glue/zeroETL-integrations/logs",
+      "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws-glue/zeroETL-integrations/logs:log-stream:*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = [
+      aws_kms_key.this.arn,
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3tables:ListTableBuckets",
+      "s3tables:GetTableBucket",
+      "s3tables:GetTableBucketEncryption",
+      "s3tables:GetNamespace",
+      "s3tables:CreateNamespace",
+      "s3tables:ListNamespaces",
+      "s3tables:CreateTable",
+      "s3tables:GetTable",
+      "s3tables:GetTableEncryption",
+      "s3tables:ListTables",
+      "s3tables:GetTableMetadataLocation",
+      "s3tables:UpdateTableMetadataLocation",
+      "s3tables:GetTableData",
+      "s3tables:PutTableData"
+    ]
+    resources = [
+      aws_s3tables_table_bucket.analytics.arn,
+      "${aws_s3tables_table_bucket.analytics.arn}/table/*",
+    ]
+  }
+}
+
+resource "aws_lakeformation_permissions" "analytics_database" {
+  permissions = ["SELECT"]
+  principal   = aws_iam_role.api.arn
+
+  table {
+    catalog_id    = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
+    database_name = local.analytics_database_name
+    name          = local.analytics_workflows_tablename
+    # this can enable all tables in the database
+    # either use name or wildcard
+    # wildcard      = true
   }
 }
