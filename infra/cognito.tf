@@ -40,21 +40,12 @@ resource "aws_cognito_user_pool_client" "this" {
   user_pool_id    = aws_cognito_user_pool.this.id
   generate_secret = true
   callback_urls = distinct(compact(concat(
-    [
-      "http://localhost:5173",
-      "https://${aws_cloudfront_distribution.this.domain_name}",
-      "${aws_apigatewayv2_api.this.api_endpoint}/api/auth/callback"
-    ],
     var.callback_uls,
-    [try(format("https://%s/api/auth/callback", var.custom_domain_config.domain_name), null)]
+    [try("https://${var.custom_domain_config.domain_name}/api/auth/callback", null)]
   )))
   logout_urls = distinct(compact(concat(
-    [
-      "http://localhost:5173",
-      "https://${aws_cloudfront_distribution.this.domain_name}",
-    ],
-    var.callback_uls,
-    [try(format("https://%s", var.custom_domain_config.domain_name), null)]
+    ["https://${aws_cloudfront_distribution.this.domain_name}"],
+    local.cors_allowed_origins,
   )))
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
