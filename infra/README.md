@@ -22,8 +22,8 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.30.0 |
-| <a name="provider_awscc"></a> [awscc](#provider\_awscc) | 1.69.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.31.0 |
+| <a name="provider_awscc"></a> [awscc](#provider\_awscc) | 1.70.0 |
 | <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
 
 ## Modules
