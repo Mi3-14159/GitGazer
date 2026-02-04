@@ -3,6 +3,7 @@
 backend.tf
 terraform.tfvars
 .terraform.lock.hcl
+tmp.tf
 
 # NodeJS
 node_modules/

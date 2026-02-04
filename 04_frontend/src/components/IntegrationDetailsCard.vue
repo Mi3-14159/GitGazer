@@ -1,25 +1,27 @@
 <script setup lang="ts">
+    import {Integration} from '@common/types';
     import {ref} from 'vue';
 
     const props = defineProps<{
+        integration?: Integration;
         onClose: () => void;
-        onSave: (label: string) => void;
+        onSave: (label: string, id?: string) => void;
     }>();
 
     const form = ref<any>(null);
-    const label = ref('');
+    const label = ref(props.integration?.label ?? '');
 
     const handleSave = async () => {
         const {valid} = await form.value.validate();
         if (valid) {
-            props.onSave(label.value);
+            props.onSave(label.value, props.integration?.id);
         }
     };
 </script>
 <template>
     <v-card
         prepend-icon="mdi-account-cog"
-        title="Integration"
+        :title="integration ? 'Edit Integration' : 'Create Integration'"
     >
         <v-form ref="form">
             <v-card-text>

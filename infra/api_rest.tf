@@ -13,7 +13,7 @@ locals {
       methods = ["GET", "POST"]
     },
     "integrations/{id}" = {
-      methods = ["DELETE"]
+      methods = ["DELETE", "PUT"]
     },
     "auth/cognito/public" = {
       methods = ["GET"]

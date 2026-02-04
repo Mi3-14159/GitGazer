@@ -40,6 +40,22 @@ export const useIntegration = () => {
         return (await response.json()) as Integration;
     };
 
+    const updateIntegration = async (id: string, label: string): Promise<Integration> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({label}),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to update integration: ${response.status}`);
+        }
+
+        return (await response.json()) as Integration;
+    };
+
     const deleteIntegration = async (id: string): Promise<void> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${id}`, {
             method: 'DELETE',
@@ -54,6 +70,7 @@ export const useIntegration = () => {
         getIntegrations,
         isLoadingIntegrations,
         createIntegration,
+        updateIntegration,
         deleteIntegration,
     };
 };

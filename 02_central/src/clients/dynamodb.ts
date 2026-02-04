@@ -316,6 +316,25 @@ export const createIntegration = async (integration: Integration, userId: string
     return integration;
 };
 
+export const updateIntegration = async (id: string, label: string): Promise<Integration> => {
+    const logger = getLogger();
+    logger.info('Updating integration', {id, label});
+
+    const command = new UpdateCommand({
+        TableName: integrationsTableName,
+        Key: {id},
+        UpdateExpression: 'SET label = :label',
+        ExpressionAttributeValues: {
+            ':label': label,
+        },
+        ConditionExpression: 'attribute_exists(id)',
+        ReturnValues: 'ALL_NEW',
+    });
+
+    const result = await client.send(command);
+    return result.Attributes as Integration;
+};
+
 export const deleteIntegration = async (id: string): Promise<Integration> => {
     const logger = getLogger();
     logger.info('Deleting integration', {id});

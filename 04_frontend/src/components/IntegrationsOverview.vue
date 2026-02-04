@@ -6,11 +6,12 @@
     import {computed, onMounted, reactive, ref} from 'vue';
 
     const {getUserAttributes} = useAuth();
-    const {getIntegrations, isLoadingIntegrations, createIntegration, deleteIntegration} = useIntegration();
+    const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration} = useIntegration();
 
     const integrations = reactive(new Map());
     const userId = ref<string>();
     const dialog = ref(false);
+    const editingIntegration = ref<Integration | undefined>(undefined);
     const showSecret = reactive(new Map<string, boolean>());
 
     const handleListIntegrations = async () => {
@@ -25,14 +26,34 @@
         integrations.set(integration.id, integration);
     };
 
+    const handleUpdateIntegration = async (id: string, label: string) => {
+        const integration = await updateIntegration(id, label);
+        integrations.set(integration.id, integration);
+    };
+
     const handleDeleteIntegration = async (id: string) => {
         await deleteIntegration(id);
         integrations.delete(id);
     };
 
-    const onSave = async (label: string) => {
-        await handlePutIntegration(label);
+    const onSave = async (label: string, id?: string) => {
+        if (id) {
+            await handleUpdateIntegration(id, label);
+        } else {
+            await handlePutIntegration(label);
+        }
         dialog.value = false;
+        editingIntegration.value = undefined;
+    };
+
+    const onEdit = (integration: Integration) => {
+        editingIntegration.value = integration;
+        dialog.value = true;
+    };
+
+    const onCloseDialog = () => {
+        dialog.value = false;
+        editingIntegration.value = undefined;
     };
 
     const toggleSecret = (id: string) => {
@@ -74,7 +95,8 @@
         >
             <IntegrationDetailsCard
                 v-if="dialog"
-                :onClose="() => (dialog = false)"
+                :integration="editingIntegration"
+                :onClose="onCloseDialog"
                 :onSave="onSave"
             />
         </v-dialog>
@@ -157,6 +179,14 @@
             <template v-slot:item.owner="{item}">{{ getOwnerAnnotation(item.owner) }}</template>
 
             <template v-slot:item.actions="{item}">
+                <v-btn
+                    color="primary"
+                    variant="text"
+                    icon="mdi-pencil"
+                    density="compact"
+                    @click="onEdit(item)"
+                    class="mr-1"
+                ></v-btn>
                 <v-dialog max-width="500">
                     <template v-slot:activator="{props: activatorProps}">
                         <v-btn
