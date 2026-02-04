@@ -264,9 +264,9 @@ router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
 
         // Set HttpOnly cookies with security attributes
         const cookies = [
-            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
-            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
-            `refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 30}`, // 30 days
+            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+            `refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${60 * 60 * 24 * 30}`, // 30 days
         ];
 
         // Decode and validate state parameter (mandatory)
@@ -389,9 +389,9 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
 
             // Clear cookies on refresh failure
             const clearCookies = [
-                'accessToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
-                'idToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
-                'refreshToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+                'accessToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+                'idToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+                'refreshToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
             ];
 
             return new Response(JSON.stringify({error: 'Failed to refresh tokens'}), {
@@ -411,11 +411,11 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
 
         // Set new HttpOnly cookies with security attributes
         const cookies_out = [
-            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
-            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`,
+            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
             // Keep existing refresh token (Cognito may or may not return a new one)
             ...(tokens.refresh_token
-                ? [`refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 30}`]
+                ? [`refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${60 * 60 * 24 * 30}`]
                 : []),
         ];
 
@@ -462,9 +462,9 @@ router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
         }
 
         const clearCookies = [
-            'accessToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
-            'idToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
-            'refreshToken=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+            'accessToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+            'idToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+            'refreshToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
         ];
 
         // Build Cognito logout URL

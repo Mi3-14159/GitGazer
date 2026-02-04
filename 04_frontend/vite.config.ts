@@ -1,4 +1,5 @@
 // Plugins
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import Vue from '@vitejs/plugin-vue';
 import ViteFonts from 'unplugin-fonts/vite';
 import Components from 'unplugin-vue-components/vite';
@@ -28,6 +29,7 @@ export default defineConfig({
                 ],
             },
         }),
+        basicSsl(),
     ],
     define: {'process.env': {}},
     resolve: {
@@ -39,5 +41,7 @@ export default defineConfig({
     },
     server: {
         port: 5173,
+        host: 'app.gitgazer.local',
+        allowedHosts: ['app.gitgazer.local'],
     },
 });

@@ -13,6 +13,7 @@
     "@types/node": "^24.10.10",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.46.0",
+    "@vitejs/plugin-basic-ssl": "^2.1.4",
     "@vitejs/plugin-vue": "^6.0.4",
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "^10.7.0",

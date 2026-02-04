@@ -221,11 +221,14 @@ resource "aws_lambda_function" "api" {
       # it needs refactoring to use a secure backend for the api config
       COGNITO_CLIENT_SECRET = aws_cognito_user_pool_client.this.client_secret
       COGNITO_REDIRECT_URI  = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
-      ALLOWED_FRONTEND_ORIGINS = jsonencode(compact([
-        "http://localhost:5173",
-        "https://${aws_cloudfront_distribution.this.domain_name}",
-        var.custom_domain_config != null ? "https://${var.custom_domain_config.domain_name}" : null,
-      ]))
+      ALLOWED_FRONTEND_ORIGINS = jsonencode(
+        compact(
+          concat(
+            ["https://${aws_cloudfront_distribution.this.domain_name}"],
+            local.cors_allowed_origins
+          )
+        )
+      )
     }
   }
   layers = local.lambda_layers
