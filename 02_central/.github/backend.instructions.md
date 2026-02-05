@@ -21,13 +21,11 @@ npm run test:unit
 npm run build:api         # API Gateway handler
 npm run build:alerting    # Alerting handler
 npm run build:websocket   # WebSocket handler
-npm run build:analytics   # Analytics handler
 
 # Build and package for deployment
 npm run buildZip:api
 npm run buildZip:alerting
 npm run buildZip:websocket
-npm run buildZip:analytics
 
 # Local development (requires AWS credentials)
 npm run dev:api

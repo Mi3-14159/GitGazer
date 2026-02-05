@@ -60,7 +60,6 @@ npm run dev:api  # Local development server on port 8080 with hot reload
 npm run buildZip:api  # Build and package API Lambda for deployment
 npm run buildZip:alerting  # Build and package Alerting Lambda
 npm run buildZip:websocket  # Build and package WebSocket Lambda
-npm run buildZip:analytics  # Build and package Analytics Lambda
 npm run test:unit  # Run Vitest unit tests
 ```
 

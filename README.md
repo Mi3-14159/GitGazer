@@ -102,10 +102,6 @@ aws s3 cp ./tmp/gitgazer-alerting.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-ale
 # Build and upload WebSocket Lambda
 npm run buildZip:websocket
 aws s3 cp ./tmp/gitgazer-websocket.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-websocket.zip
-
-# Build and upload Analytics Lambda
-npm run buildZip:analytics
-aws s3 cp ./tmp/gitgazer-analytics.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-analytics.zip
 ```
 
 > **Note**: Replace `<S3_BUCKET_LAMBDA_STORE>` with the bucket name from step 1 output.
@@ -179,7 +175,18 @@ aws s3 sync dist/. s3://<UI_BUCKET_NAME>/ --cache-control max-age=60 --include "
 
 ### Local Development Setup
 
-#### Backend Development
+GitGazer supports flexible local development workflows. You can run the frontend against a local backend for full-stack development, or point it to production for frontend-only work.
+
+**📖 [Complete Local Development Guide →](docs/local-development.md)**
+
+The guide covers:
+
+- Running frontend + backend locally (with Vite proxy)
+- Running frontend against production backend
+- Environment variable configuration for each scenario
+- Troubleshooting common issues
+
+#### Quick Start - Backend Development
 
 ```bash
 cd 02_central
@@ -190,7 +197,7 @@ npm ci
 # Configure environment (copy and edit)
 cp .env.dev.example .env.dev
 
-# Run local development server
+# Run local development server (runs on port 8080)
 aws-vault exec <profile> --no-session -- npm run dev:api
 
 # Run tests
@@ -201,7 +208,7 @@ npm run lint
 npm run pretty
 ```
 
-#### Frontend Development
+#### Quick Start - Frontend Development
 
 ```bash
 cd 04_frontend
@@ -209,7 +216,11 @@ cd 04_frontend
 # Install dependencies
 npm ci
 
-# Create .env.local (see configuration above)
+# Create .env.local with appropriate API endpoint
+# For local backend: VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"
+# For production backend: VITE_REST_API_ENDPOINT="https://<GITGAZER_DOMAIN>/api"
+# See docs/local-development.md for full configuration
+
 # Start development server
 npm run dev
 
@@ -314,7 +325,7 @@ The project uses GitHub Actions for automated deployments:
 
 - Backend changes trigger Lambda function updates
 - Frontend changes trigger S3 sync and CloudFront invalidation
-- Infrastructure changes require manual approval
+- Infrastructure changes trigger Terraform deployments
 
 ## Monitoring and Operations
 

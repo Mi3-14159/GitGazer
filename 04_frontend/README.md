@@ -83,6 +83,43 @@ npm run lint:fix
 npm run pretty
 ```
 
+## Development Scenarios
+
+### Running Against Local Backend (Full Local Development)
+
+When developing both frontend and backend, configure `.env.local` to use the Vite proxy:
+
+```bash
+VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"
+VITE_IMPORT_URL_BASE="https://app.gitgazer.local:5173/api/import"
+```
+
+The Vite dev server (configured in `vite.config.ts`) proxies `/api` requests to `http://localhost:8080` where the backend runs.
+
+**Requirements:**
+
+- Backend must be running: `cd ../02_central && aws-vault exec <profile> --no-session -- npm run dev:api`
+- Backend runs on port 8080
+- Proxy handles cookies and authentication automatically
+
+### Running Against Production Backend (Frontend-Only Development)
+
+When only developing frontend features, point directly to production:
+
+```bash
+VITE_REST_API_ENDPOINT="https://<GITGAZER_DOMAIN>/api"
+VITE_IMPORT_URL_BASE="https://<GITGAZER_DOMAIN>/v1/api/import/"
+```
+
+Requests bypass the proxy and go directly to production via CORS.
+
+**Requirements:**
+
+- Production backend must include `https://app.gitgazer.local:5173` in `ALLOWED_FRONTEND_ORIGINS`
+- Uses production data and authentication
+
+**📖 For detailed setup, see [../docs/local-development.md](../docs/local-development.md)**
+
 ## Deployment
 
 ```bash

@@ -21,12 +21,14 @@ npm ci
 cp .env.dev.example .env.dev
 # Edit .env.dev with your AWS configuration
 
-# Run local development server
+# Run local development server (runs on port 8080)
 aws-vault exec <profile> --no-session -- npm run dev:api
 
 # Run tests
 npm run test:unit
 ```
+
+**Note:** When running the frontend locally (`cd ../04_frontend && npm run dev`), it can proxy API requests to this local backend server via Vite's built-in proxy. Configure the frontend's `.env.local` with `VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"` to enable this. See [../docs/local-development.md](../docs/local-development.md) for details.
 
 ## Build Commands
 
@@ -35,13 +37,11 @@ npm run test:unit
 npm run build:api
 npm run build:alerting
 npm run build:websocket
-npm run build:analytics
 
 # Build and package for deployment
 npm run buildZip:api         # Creates tmp/gitgazer-api.zip
 npm run buildZip:alerting    # Creates tmp/gitgazer-alerting.zip
 npm run buildZip:websocket   # Creates tmp/gitgazer-websocket.zip
-npm run buildZip:analytics   # Creates tmp/gitgazer-analytics.zip
 
 # Local development
 npm run dev:api              # Runs on port 8080 with hot reload
