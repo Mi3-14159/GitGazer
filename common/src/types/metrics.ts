@@ -47,7 +47,7 @@ export type JobMetricsParameters = {
 };
 
 export const isJobMetricsParameters = (
-  params: any
+  params: any,
 ): params is JobMetricsParameters => {
   if (
     typeof params !== "object" ||
@@ -60,14 +60,14 @@ export const isJobMetricsParameters = (
     !Object.values(MetricsParameterStat).includes(params.stat) ||
     !Array.isArray(params.dimensions) ||
     !params.dimensions.every((dim: any) =>
-      Object.values(MetricsParameterDimension).includes(dim)
+      Object.values(MetricsParameterDimension).includes(dim),
     ) ||
     !Array.isArray(params.filters) ||
     !params.filters.every(
       (filter: any) =>
         typeof filter.name === "string" &&
         Array.isArray(filter.values) &&
-        filter.values.every((v: any) => typeof v === "string")
+        filter.values.every((v: any) => typeof v === "string"),
     )
   ) {
     return false;
