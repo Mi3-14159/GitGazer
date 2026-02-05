@@ -1,12 +1,13 @@
 import {
     AthenaClient,
     GetQueryExecutionCommand,
-    GetQueryResultsCommand,
+    GetQueryExecutionCommandOutput,
     QueryExecutionState,
     StartQueryExecutionCommand,
 } from '@aws-sdk/client-athena';
 
 import {getLogger} from '@/logger';
+import {InternalServerError} from '@aws-lambda-powertools/event-handler/http';
 
 const client = new AthenaClient({});
 
@@ -36,11 +37,11 @@ const MAX_QUERY_RESULTS_AGE_MINUTES = 15;
 
 export type AthenaRow = Record<string, string | null>;
 
-export const runAthenaQuery = async <T>(params: {query: string; mapRow: (row: AthenaRow) => T}): Promise<T[]> => {
+export const runAthenaQuery = async (query: string): Promise<string> => {
     const logger = getLogger();
     const now = new Date();
     const startCommand = new StartQueryExecutionCommand({
-        QueryString: params.query,
+        QueryString: query,
         WorkGroup: athenaWorkgroup,
         QueryExecutionContext: {
             Database: athenaDatabase,
@@ -60,20 +61,22 @@ export const runAthenaQuery = async <T>(params: {query: string; mapRow: (row: At
         },
     });
 
-    logger.info('Starting Athena query', {startCommand});
+    logger.debug('Starting Athena query', {startCommand});
     const startResponse = await client.send(startCommand);
     const queryExecutionId = startResponse.QueryExecutionId;
 
     if (!queryExecutionId) {
-        throw new Error('Failed to start Athena query');
+        throw new InternalServerError('Failed to start Athena query, no QueryExecutionId returned');
     }
 
-    await waitForCompletion(queryExecutionId);
-    const rows = await collectRows(queryExecutionId);
-    return rows.map(params.mapRow);
+    return queryExecutionId;
 };
 
-const waitForCompletion = async (queryExecutionId: string): Promise<void> => {
+export const getAthenaQueryExecution = async (queryExecutionId: string): Promise<GetQueryExecutionCommandOutput> => {
+    return await client.send(new GetQueryExecutionCommand({QueryExecutionId: queryExecutionId}));
+};
+
+export const waitForCompletion = async (queryExecutionId: string): Promise<GetQueryExecutionCommandOutput> => {
     const logger = getLogger();
 
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
@@ -81,49 +84,19 @@ const waitForCompletion = async (queryExecutionId: string): Promise<void> => {
         const state = execution.QueryExecution?.Status?.State;
 
         if (state === QueryExecutionState.SUCCEEDED) {
-            return;
+            return execution;
         }
 
         if (state === QueryExecutionState.FAILED || state === QueryExecutionState.CANCELLED) {
             const reason = execution.QueryExecution?.Status?.StateChangeReason;
-            throw new Error(`Athena query ${queryExecutionId} failed: ${state}${reason ? ` - ${reason}` : ''}`);
+            throw new InternalServerError(`Athena query ${queryExecutionId} failed: ${state}${reason ? ` - ${reason}` : ''}`);
         }
 
         await sleep(POLL_INTERVAL_MS);
     }
 
     logger.warn(`Athena query ${queryExecutionId} exceeded max poll attempts`);
-    throw new Error(`Athena query ${queryExecutionId} did not complete within timeout`);
-};
-
-const collectRows = async (queryExecutionId: string): Promise<AthenaRow[]> => {
-    let nextToken: string | undefined;
-    let columnNames: string[] | undefined;
-    const rows: AthenaRow[] = [];
-
-    do {
-        const result = await client.send(new GetQueryResultsCommand({QueryExecutionId: queryExecutionId, NextToken: nextToken}));
-        const currentRows = result.ResultSet?.Rows ?? [];
-
-        for (const row of currentRows) {
-            const values: Array<{VarCharValue?: string}> = row.Data ?? [];
-
-            if (!columnNames) {
-                columnNames = values.map((value) => value.VarCharValue ?? '');
-                continue;
-            }
-
-            const mapped: AthenaRow = {};
-            columnNames.forEach((name, index) => {
-                mapped[name] = values[index]?.VarCharValue ?? null;
-            });
-            rows.push(mapped);
-        }
-
-        nextToken = result.NextToken;
-    } while (nextToken);
-
-    return rows;
+    throw new InternalServerError(`Athena query ${queryExecutionId} did not complete within timeout`);
 };
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));

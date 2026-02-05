@@ -201,6 +201,7 @@ resource "aws_lambda_function" "api" {
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN                 = aws_dynamodb_table.notification_rules.name
       DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME = local.notification_rules_table_index_name
       DYNAMO_DB_WORKFLOWS_TABLE_ARN                     = aws_dynamodb_table.workflows.name
+      DYNAMO_DB_USER_QUERIES_TABLE_ARN                  = aws_dynamodb_table.user_queries.name
       UI_BUCKET_NAME                                    = module.ui_bucket.s3_bucket_id
       KMS_KEY_ID                                        = aws_kms_key.this.id
       COGNITO_USER_POOL_ID                              = aws_cognito_user_pool.this.id

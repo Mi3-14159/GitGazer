@@ -116,6 +116,7 @@ resource "aws_lambda_function" "api_websocket" {
       COGNITO_CLIENT_SECRET                           = aws_cognito_user_pool_client.this.client_secret
       DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
       DYNAMO_DB_CONNECTIONS_TABLE_ARN                 = aws_dynamodb_table.connections.arn
+      DYNAMO_DB_USER_QUERIES_TABLE_ARN                = aws_dynamodb_table.user_queries.name
     }
   }
   layers = local.lambda_layers

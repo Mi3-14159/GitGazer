@@ -45,6 +45,11 @@ if (!userAssignmentsTableName) {
     throw new Error('DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN is not defined');
 }
 
+const userQueriesTableName = process.env.DYNAMO_DB_USER_QUERIES_TABLE_ARN;
+if (!userQueriesTableName) {
+    throw new Error('DYNAMO_DB_USER_QUERIES_TABLE_ARN is not defined');
+}
+
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 export type QueryResult<T> = {items: T[]; lastEvaluatedKey?: {[key: string]: any}};
@@ -544,4 +549,41 @@ export const deleteIntegrationNotificationRules = async (integrationId: string):
             }
         });
     } while (lastEvaluatedKey);
+};
+
+export const putUserQuery = async (userId: string, queryId: string): Promise<void> => {
+    const logger = getLogger();
+    logger.info(`Associating query ${queryId} with user ${userId}`, {userId, queryId});
+
+    const command = new PutCommand({
+        TableName: userQueriesTableName,
+        Item: {
+            userId,
+            queryId,
+            expireAt: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days from now
+        },
+    });
+
+    await client.send(command);
+};
+
+export const isUserQuery = async (userId: string, queryId: string): Promise<boolean> => {
+    const logger = getLogger();
+    logger.info(`Getting queries for user ${userId}`, {userId});
+
+    const command = new QueryCommand({
+        TableName: userQueriesTableName,
+        KeyConditionExpression: 'userId = :userId AND queryId = :queryId',
+        ExpressionAttributeValues: {
+            ':userId': userId,
+            ':queryId': queryId,
+            ':now': Math.floor(Date.now() / 1000),
+        },
+        FilterExpression: 'expireAt > :now',
+    });
+
+    logger.trace('Query command for getting user query', {command});
+    const result = await client.send(command);
+
+    return (result.Items?.length ?? 0) > 0;
 };

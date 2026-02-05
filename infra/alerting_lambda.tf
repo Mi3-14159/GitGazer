@@ -117,6 +117,7 @@ resource "aws_lambda_function" "alerting" {
       DYNAMO_DB_CONNECTIONS_TABLE_ARN                   = aws_dynamodb_table.connections.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
+      DYNAMO_DB_USER_QUERIES_TABLE_ARN                  = aws_dynamodb_table.user_queries.name
     }
   }
   layers = local.lambda_layers

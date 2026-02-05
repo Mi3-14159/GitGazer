@@ -45,8 +45,11 @@ locals {
     "user" = {
       methods = ["GET"]
     },
-    "analytics/query" = {
+    "analytics/queries" = {
       methods = ["POST"]
+    },
+    "analytics/queries/{queryId}" = {
+      methods = ["GET"]
     },
   }
 
