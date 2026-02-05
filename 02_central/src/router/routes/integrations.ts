@@ -66,7 +66,7 @@ router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async
 
 router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-    await deleteIntegration(reqCtx.params.integrationId, integrationIds);
+    await deleteIntegration(reqCtx.params.integrationId, integrationIds, reqCtx.appContext?.userId!);
 
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,

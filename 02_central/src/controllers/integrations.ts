@@ -7,7 +7,7 @@ import {
     updateIntegration as updateIntegrationDDB,
 } from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Integration} from '@common/types';
 
 export const getIntegrations = async (params: {integrationIds: string[]; limit?: number}): Promise<Integration[]> => {
@@ -65,12 +65,21 @@ const createIntegration = async (label: string, owner: string): Promise<Integrat
     return await createIntegrationDDB(integration);
 };
 
-export const deleteIntegration = async (id: string, userGroups: string[]): Promise<void> => {
+export const deleteIntegration = async (id: string, userGroups: string[], userId: string): Promise<void> => {
     const logger = getLogger();
     logger.info(`Deleting integration with ID: ${id}`);
 
     if (!userGroups.includes(id)) {
         throw new UnauthorizedError('User is not authorized to delete this integration');
+    }
+
+    const integration = await getIntegrationsDDB([id]);
+    if (integration.length === 0) {
+        throw new BadRequestError('Integration not found');
+    }
+
+    if (integration[0].owner !== userId) {
+        throw new ForbiddenError('User is not the owner of this integration');
     }
 
     const results = await Promise.allSettled([deleteIntegrationDDB(id), deleteIntegrationMembers(id), deleteIntegrationNotificationRules(id)]);
