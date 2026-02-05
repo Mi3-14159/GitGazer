@@ -46,6 +46,7 @@ locals {
     "https://app.gitgazer.local:5173",
     try("https://${var.custom_domain_config.domain_name}", null),
   ])
-  analytics_workflows_tablename = replace(aws_dynamodb_table.workflows.name, "-", "_")
-  analytics_database_name       = format("zetl_%s", replace(element(split(":", awscc_glue_integration.analytics.integration_arn), -1), "-", "_"))
+  analytics_workflows_tablename       = replace(aws_dynamodb_table.workflows.name, "-", "_")
+  analytics_database_name             = format("zetl_%s", replace(element(split(":", awscc_glue_integration.analytics.integration_arn), -1), "-", "_"))
+  notification_rules_table_index_name = "integrationId-index"
 }
