@@ -3,7 +3,7 @@
     import NotificationDetailsCard from '@/components/NotificationDetailsCard.vue';
     import {useIntegration} from '@/composables/useIntegration';
     import {useNotification} from '@/composables/useNotification';
-    import {NotificationRule} from '@common/types';
+    import {NotificationRule, NotificationRuleUpdate} from '@common/types';
     import {computed, reactive, ref} from 'vue';
 
     const notificationRules = reactive(new Map<string, NotificationRule>());
@@ -11,11 +11,17 @@
     const dialog = ref(false);
     const editingRule = ref<NotificationRule | null>(null);
 
-    const {getNotifications, isLoadingNotifications, postNotification, deleteNotification} = useNotification();
+    const {getNotifications, isLoadingNotifications, upsertNotification, deleteNotification} = useNotification();
     const {getIntegrations} = useIntegration();
 
     const handlePutNotificationRule = async (notificationRule: NotificationRule) => {
-        const response = await postNotification(notificationRule);
+        const notificationRuleUpdate: NotificationRuleUpdate = {
+            rule: notificationRule.rule,
+            enabled: notificationRule.enabled,
+            channels: notificationRule.channels,
+            ignore_dependabot: notificationRule.ignore_dependabot,
+        };
+        const response = await upsertNotification(notificationRuleUpdate, notificationRule.integrationId, notificationRule.id);
         notificationRules.set(`${response.integrationId}-${response.id}`, response);
     };
 
@@ -31,7 +37,7 @@
     };
 
     const handleDeleteNotificationRule = async (integrationId: string, id: string) => {
-        await deleteNotification(id);
+        await deleteNotification(id, integrationId);
 
         notificationRules.delete(`${integrationId}-${id}`);
     };

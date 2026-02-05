@@ -1,5 +1,5 @@
 import {useAuth} from '@/composables/useAuth';
-import {NotificationRule} from '@common/types';
+import {NotificationRule, NotificationRuleUpdate} from '@common/types';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -24,14 +24,17 @@ export const useNotification = () => {
         }
     };
 
-    const postNotification = async (notificationRule: NotificationRule) => {
-        const response = await fetchWithAuth(`${API_ENDPOINT}/notifications`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+    const upsertNotification = async (notificationRule: NotificationRuleUpdate, integrationId: string, notificationId?: string) => {
+        const response = await fetchWithAuth(
+            `${API_ENDPOINT}/integrations/${integrationId}/notifications${notificationId ? `/${notificationId}` : ''}`,
+            {
+                method: notificationId ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(notificationRule),
             },
-            body: JSON.stringify(notificationRule),
-        });
+        );
 
         if (!response.ok) {
             throw new Error(`Failed to create notification: ${response.status}`);
@@ -40,8 +43,8 @@ export const useNotification = () => {
         return (await response.json()) as NotificationRule;
     };
 
-    const deleteNotification = async (id: string) => {
-        const response = await fetchWithAuth(`${API_ENDPOINT}/notifications/${id}`, {
+    const deleteNotification = async (id: string, integrationId: string) => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/notifications/${id}`, {
             method: 'DELETE',
         });
 
@@ -51,7 +54,7 @@ export const useNotification = () => {
     return {
         getNotifications,
         isLoadingNotifications,
-        postNotification,
+        upsertNotification,
         deleteNotification,
     };
 };

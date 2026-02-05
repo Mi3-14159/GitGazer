@@ -6,13 +6,16 @@ locals {
     "notifications" = {
       methods = ["GET", "POST"]
     },
-    "notifications/{id}" = {
-      methods = ["DELETE"]
-    },
     "integrations" = {
       methods = ["GET", "POST"]
     },
-    "integrations/{id}" = {
+    "integrations/{integrationId}" = {
+      methods = ["DELETE", "PUT"]
+    },
+    "integrations/{integrationId}/notifications" = {
+      methods = ["POST"]
+    },
+    "integrations/{integrationId}/notifications/{notificationId}" = {
       methods = ["DELETE", "PUT"]
     },
     "auth/cognito/public" = {

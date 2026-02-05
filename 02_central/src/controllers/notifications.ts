@@ -14,32 +14,31 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
     return rules;
 };
 
-export const postNotificationRule = async (rule: NotificationRuleUpdate, userGroups: string[]): Promise<NotificationRule> => {
-    if (!rule.integrationId || !userGroups.includes(rule.integrationId)) {
+export const upsertNotificationRule = async (params: {
+    rule: NotificationRuleUpdate;
+    integrationId: string;
+    userIntegrationIds: string[];
+    createOnly?: boolean;
+    ruleId?: string;
+}): Promise<NotificationRule> => {
+    if (!params.userIntegrationIds.includes(params.integrationId)) {
         throw new Error('Unauthorized to create notification rule for this integration');
     }
 
-    // Ensure the rule has an ID
-    if (!rule.id) {
-        rule.id = crypto.randomUUID();
-    }
-
-    const notificationRule = await putNotificationRule(rule);
-
-    return notificationRule;
+    return await putNotificationRule(
+        {
+            ...params.rule,
+            integrationId: params.integrationId,
+            id: params.createOnly ? crypto.randomUUID() : params.ruleId,
+        },
+        params.createOnly,
+    );
 };
 
-export const deleteNotificationRule = async (ruleId: string, integrationIds: string[]): Promise<boolean> => {
-    const rules = await getNotificationRulesBy({
-        integrationIds,
-        id: ruleId,
-    });
-
-    if (rules.length === 0) {
-        return false;
+export const deleteNotificationRule = async (ruleId: string, integrationId: string, userIntegrationIds: string[]): Promise<void> => {
+    if (!userIntegrationIds.includes(integrationId)) {
+        throw new Error('Unauthorized to delete notification rule for this integration');
     }
 
-    await ddeleteNotificationRule(rules[0].id!, rules[0].integrationId);
-
-    return true;
+    await ddeleteNotificationRule(ruleId, integrationId);
 };

@@ -1,4 +1,4 @@
-import {deleteNotificationRule, getNotificationRules, postNotificationRule} from '@/controllers/notifications';
+import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/controllers/notifications';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
@@ -14,7 +14,7 @@ router.get('/api/notifications', [addUserIntegrationsToCtx], async (reqCtx: AppR
     });
 });
 
-router.post('/api/notifications', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/notifications', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const rule = JSON.parse(event.body ?? '{}');
 
@@ -27,13 +27,16 @@ router.post('/api/notifications', [addUserIntegrationsToCtx], async (reqCtx: App
         });
     }
 
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    return await postNotificationRule(rule, integrationIds);
+    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+    return await upsertNotificationRule({rule, integrationId: reqCtx.params.integrationId, userIntegrationIds, createOnly: true});
 });
 
-router.delete('/api/notifications/:id', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    if (!reqCtx.params.id) {
-        return new Response(JSON.stringify({error: 'Missing notification rule ID'}), {
+router.put('/api/integrations/:integrationId/notifications/:id', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const rule = JSON.parse(event.body ?? '{}');
+
+    if (!isNotificationRuleUpdate(rule)) {
+        return new Response(JSON.stringify({error: 'Invalid notification rule update'}), {
             status: HttpStatusCodes.BAD_REQUEST,
             headers: {
                 'Content-Type': 'application/json',
@@ -41,11 +44,16 @@ router.delete('/api/notifications/:id', [addUserIntegrationsToCtx], async (reqCt
         });
     }
 
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const deleted = await deleteNotificationRule(reqCtx.params.id, integrationIds);
+    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+    return await upsertNotificationRule({rule, integrationId: reqCtx.params.integrationId, userIntegrationIds, ruleId: reqCtx.params.id});
+});
 
-    return new Response(JSON.stringify({success: deleted}), {
-        status: deleted ? HttpStatusCodes.OK : HttpStatusCodes.NOT_FOUND,
+router.delete('/api/integrations/:integrationId/notifications/:id', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+    await deleteNotificationRule(reqCtx.params.id, reqCtx.params.integrationId, userIntegrationIds);
+
+    return new Response(JSON.stringify({success: true}), {
+        status: HttpStatusCodes.OK,
         headers: {
             'Content-Type': 'application/json',
         },

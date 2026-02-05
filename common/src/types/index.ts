@@ -69,14 +69,13 @@ export const isNotificationRuleRule = (
 
 export type NotificationRuleUpdate = Omit<
   NotificationRule,
-  "createdAt" | "updatedAt"
+  "createdAt" | "updatedAt" | "integrationId" | "id"
 >;
 
 export const isNotificationRuleUpdate = (
   rule: any,
 ): rule is NotificationRuleUpdate => {
   return (
-    typeof rule.integrationId === "string" &&
     Array.isArray(rule.channels) &&
     rule.channels.every(isNotificationRuleChannel) &&
     typeof rule.enabled === "boolean" &&

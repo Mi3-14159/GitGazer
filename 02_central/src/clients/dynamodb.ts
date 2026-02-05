@@ -13,7 +13,7 @@ import {
 
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
-import {Integration, NotificationRule, NotificationRuleUpdate, ProjectionType, Workflow, WorkflowEvent, WorkflowType} from '@common/types';
+import {Integration, NotificationRule, ProjectionType, Workflow, WorkflowEvent, WorkflowType} from '@common/types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
@@ -158,9 +158,12 @@ export const getWorkflowsBy = async <T extends WorkflowType>(params: {
     return query<Workflow<Partial<WorkflowEvent<T>>>>(commands);
 };
 
-export const putNotificationRule = async (rule: NotificationRuleUpdate, createOnly?: boolean): Promise<NotificationRule> => {
+export const putNotificationRule = async (
+    rule: Omit<NotificationRule, 'createdAt' | 'updatedAt'>,
+    createOnly?: boolean,
+): Promise<NotificationRule> => {
     const logger = getLogger();
-    logger.info(`Updating notification rule`, {ruleId: rule.id});
+    logger.info(`Updating notification rule`, {rule, createOnly});
 
     const now = new Date().toUTCString();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
@@ -168,7 +171,7 @@ export const putNotificationRule = async (rule: NotificationRuleUpdate, createOn
     const command = new UpdateCommand({
         TableName: notificationTableName,
         Key: {
-            id: rule.id ?? crypto.randomUUID(),
+            id: rule.id,
             integrationId: rule.integrationId,
         },
         UpdateExpression:
@@ -195,7 +198,9 @@ export const putNotificationRule = async (rule: NotificationRuleUpdate, createOn
         ReturnValues: 'ALL_NEW',
     });
 
+    logger.trace('Update command for putting notification rule', {command});
     const result = await client.send(command);
+
     return result.Attributes as NotificationRule;
 };
 
@@ -361,6 +366,7 @@ export const getUserIntegrations = async (userId: string): Promise<string[]> => 
         },
     });
 
+    logger.trace('Query command for getting user integrations', {command});
     const result = await client.send(command);
     if (!result.Items) {
         return [];
