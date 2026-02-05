@@ -24,11 +24,9 @@ module "athena_query_results_bucket" {
   attach_policy            = false
   control_object_ownership = true
   object_ownership         = "BucketOwnerEnforced"
-
   versioning = {
     enabled = false
   }
-
   lifecycle_rule = [
     {
       id      = "expire-objects"
@@ -37,6 +35,14 @@ module "athena_query_results_bucket" {
       expiration = {
         days = 30
       }
+    }
+  ]
+  cors_rule = [
+    {
+      allowed_headers = ["*"]
+      allowed_methods = ["GET", "HEAD"]
+      allowed_origins = local.cors_allowed_origins
+      max_age_seconds = 3000
     }
   ]
 }

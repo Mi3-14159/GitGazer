@@ -1,6 +1,6 @@
-import {createRouter, createWebHistory} from 'vue-router';
 import Default from '@/views/Default.vue';
 import Login from '@/views/Login.vue';
+import {createRouter, createWebHistory} from 'vue-router';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,6 +18,11 @@ const router = createRouter({
         {
             path: '/integrations',
             name: 'integrations',
+            component: Default,
+        },
+        {
+            path: '/analytics',
+            name: 'analytics',
             component: Default,
         },
         {

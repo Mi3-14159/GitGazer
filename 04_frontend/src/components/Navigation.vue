@@ -64,6 +64,12 @@
                     @click="router.push('/integrations')"
                 ></v-list-item>
                 <v-list-item
+                    prepend-icon="mdi-chart-bar"
+                    title="Analytics"
+                    value="analytics"
+                    @click="router.push('/analytics')"
+                ></v-list-item>
+                <v-list-item
                     prepend-icon="mdi-logout"
                     title="Logout"
                     value="logout"
