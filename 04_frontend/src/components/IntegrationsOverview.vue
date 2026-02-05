@@ -64,8 +64,12 @@
         return `${import.meta.env.VITE_IMPORT_URL_BASE}/${id}`;
     };
 
+    const userIsOwner = (owner: string) => {
+        return owner === userId.value;
+    };
+
     const getOwnerAnnotation = (owner: string) => {
-        return owner === userId.value ? 'you' : 'not you';
+        return userIsOwner(owner) ? 'you' : 'not you';
     };
 
     const headers = [
@@ -179,49 +183,51 @@
             <template v-slot:item.owner="{item}">{{ getOwnerAnnotation(item.owner) }}</template>
 
             <template v-slot:item.actions="{item}">
-                <v-btn
-                    color="primary"
-                    variant="text"
-                    icon="mdi-pencil"
-                    density="compact"
-                    @click="onEdit(item)"
-                    class="mr-1"
-                ></v-btn>
-                <v-dialog max-width="500">
-                    <template v-slot:activator="{props: activatorProps}">
-                        <v-btn
-                            v-bind="activatorProps"
-                            color="error"
-                            variant="text"
-                            icon="mdi-delete"
-                            density="compact"
-                        ></v-btn>
-                    </template>
+                <div v-if="userIsOwner(item.owner)">
+                    <v-btn
+                        color="primary"
+                        variant="text"
+                        icon="mdi-pencil"
+                        density="compact"
+                        @click="onEdit(item)"
+                        class="mr-1"
+                    ></v-btn>
+                    <v-dialog max-width="500">
+                        <template v-slot:activator="{props: activatorProps}">
+                            <v-btn
+                                v-bind="activatorProps"
+                                color="error"
+                                variant="text"
+                                icon="mdi-delete"
+                                density="compact"
+                            ></v-btn>
+                        </template>
 
-                    <template v-slot:default="{isActive}">
-                        <v-card>
-                            <v-card-title>Delete Integration</v-card-title>
-                            <v-card-text>
-                                Do you really want to delete this integration? This is irreversible and will break your current import workflows!
-                            </v-card-text>
-                            <v-card-actions>
-                                <v-spacer></v-spacer>
-                                <v-btn
-                                    text="Cancel"
-                                    @click="isActive.value = false"
-                                ></v-btn>
-                                <v-btn
-                                    text="Yes, delete"
-                                    color="error"
-                                    @click="
-                                        handleDeleteIntegration(item.id);
-                                        isActive.value = false;
-                                    "
-                                ></v-btn>
-                            </v-card-actions>
-                        </v-card>
-                    </template>
-                </v-dialog>
+                        <template v-slot:default="{isActive}">
+                            <v-card>
+                                <v-card-title>Delete Integration</v-card-title>
+                                <v-card-text>
+                                    Do you really want to delete this integration? This is irreversible and will break your current import workflows!
+                                </v-card-text>
+                                <v-card-actions>
+                                    <v-spacer></v-spacer>
+                                    <v-btn
+                                        text="Cancel"
+                                        @click="isActive.value = false"
+                                    ></v-btn>
+                                    <v-btn
+                                        text="Yes, delete"
+                                        color="error"
+                                        @click="
+                                            handleDeleteIntegration(item.id);
+                                            isActive.value = false;
+                                        "
+                                    ></v-btn>
+                                </v-card-actions>
+                            </v-card>
+                        </template>
+                    </v-dialog>
+                </div>
             </template>
         </v-data-table-virtual>
     </v-main>
