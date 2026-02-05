@@ -21,25 +21,6 @@ export const getIntegrations = async (params: {integrationIds: string[]; limit?:
     return integrations as Integration[];
 };
 
-export const createIntegration = async (label: string, owner: string, userName: string): Promise<Integration> => {
-    const logger = getLogger();
-    logger.info(`Creating integration with label: ${label} for owner: ${owner} and user name: ${userName}`);
-    const integration: Integration = {
-        id: crypto.randomUUID(),
-        label,
-        owner,
-        secret: crypto.randomUUID(),
-    };
-
-    try {
-        await createIntegrationDDB(integration, owner);
-    } catch (error) {
-        throw new InternalServerError('Failed to create integration', undefined, {cause: error});
-    }
-
-    return integration;
-};
-
 export const upsertIntegration = async (params: {
     id?: string;
     label?: string;
@@ -61,11 +42,7 @@ export const upsertIntegration = async (params: {
             throw new BadRequestError('Missing label for integration update');
         }
 
-        try {
-            return await updateIntegrationDDB(id, label);
-        } catch (error) {
-            throw new InternalServerError('Failed to update integration', undefined, {cause: error});
-        }
+        return await updateIntegrationDDB(id, label);
     }
 
     if (!label || !owner || !userName) {
@@ -73,7 +50,14 @@ export const upsertIntegration = async (params: {
     }
 
     logger.info(`Creating new integration with label: ${label}`);
-    return createIntegration(label, owner, userName);
+
+    const integration: Integration = {
+        id: crypto.randomUUID(),
+        label,
+        owner,
+        secret: crypto.randomUUID(),
+    };
+    return await createIntegrationDDB(integration, userName);
 };
 
 export const deleteIntegration = async (id: string, userGroups: string[]): Promise<void> => {
