@@ -33,6 +33,8 @@
   "scripts": {
     "build": "vue-tsc --noEmit && vite build",
     "dev": "vite",
+    "dev:local": "vite",
+    "dev:prod": "vite --mode production",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "pretty": "prettier --write src"
