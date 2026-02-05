@@ -90,6 +90,8 @@ data "aws_iam_policy_document" "api" {
       "${aws_dynamodb_table.integrations.arn}/index/*",
       aws_dynamodb_table.user_assignments.arn,
       "${aws_dynamodb_table.user_assignments.arn}/index/*",
+      aws_dynamodb_table.user_queries.arn,
+      "${aws_dynamodb_table.user_queries.arn}/index/*",
     ])
   }
 

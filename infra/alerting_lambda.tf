@@ -65,6 +65,8 @@ data "aws_iam_policy_document" "alerting" {
       "${aws_dynamodb_table.notification_rules.arn}/index/*",
       aws_dynamodb_table.user_assignments.arn,
       "${aws_dynamodb_table.user_assignments.arn}/index/*",
+      aws_dynamodb_table.user_queries.arn,
+      "${aws_dynamodb_table.user_queries.arn}/index/*",
     ])
   }
 }
