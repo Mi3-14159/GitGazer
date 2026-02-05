@@ -6,6 +6,7 @@ const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 let cachedUserAttributes: UserAttributes | null = null;
 let authCheckPromise: Promise<boolean> | null = null;
+let userAttributesPromise: Promise<UserAttributes> | null = null;
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -86,18 +87,29 @@ export const useAuth = () => {
             return cachedUserAttributes;
         }
 
-        try {
-            const response = await fetchWithAuth(`${API_ENDPOINT}/user`);
-
-            if (response.ok) {
-                cachedUserAttributes = await response.json();
-                return cachedUserAttributes!;
-            }
-        } catch (error) {
-            console.error('Failed to fetch user attributes:', error);
+        // Avoid redundant calls by caching the promise
+        if (userAttributesPromise) {
+            return userAttributesPromise;
         }
 
-        return {};
+        userAttributesPromise = (async () => {
+            try {
+                const response = await fetchWithAuth(`${API_ENDPOINT}/user`);
+
+                if (response.ok) {
+                    cachedUserAttributes = await response.json();
+                    return cachedUserAttributes!;
+                }
+            } catch (error) {
+                console.error('Failed to fetch user attributes:', error);
+            } finally {
+                userAttributesPromise = null;
+            }
+
+            return {};
+        })();
+
+        return userAttributesPromise;
     };
 
     const signIn = () => {
@@ -130,6 +142,6 @@ export const useAuth = () => {
         getUserAttributes,
         signIn,
         signOut,
-        fetchWithAuth, // Export the fetch wrapper for use in other composables
+        fetchWithAuth,
     };
 };
