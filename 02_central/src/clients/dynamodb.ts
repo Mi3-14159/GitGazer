@@ -20,6 +20,11 @@ if (!notificationTableName) {
     throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
 }
 
+const notificationTableIntegrationIdIndexName = process.env.DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME;
+if (!notificationTableIntegrationIdIndexName) {
+    throw new Error('DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME is not defined');
+}
+
 const connectionTableName = process.env.DYNAMO_DB_CONNECTIONS_TABLE_ARN;
 if (!connectionTableName) {
     throw new Error('DYNAMO_DB_CONNECTIONS_TABLE_ARN is not defined');
@@ -66,7 +71,7 @@ const query = async <T>(commands: QueryCommand[]): Promise<QueryResult<T>[]> => 
 
 export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number; id?: string}): Promise<NotificationRule[]> => {
     const logger = getLogger();
-    logger.info(`Getting notification rules for integrations`, {integrations: params.integrationIds});
+    logger.info(`Getting notification rules for integrations ${params.integrationIds.join(', ')}`, {integrations: params.integrationIds});
 
     const keyConditionExpressionParts = ['integrationId = :integrationId'];
     if (params.id) {
@@ -163,7 +168,7 @@ export const putNotificationRule = async (
     createOnly?: boolean,
 ): Promise<NotificationRule> => {
     const logger = getLogger();
-    logger.info(`Updating notification rule`, {rule, createOnly});
+    logger.info(`Updating notification rule ${rule.id}`, {rule, createOnly});
 
     const now = new Date().toUTCString();
     const {owner, repository_name, workflow_name, head_branch} = rule.rule;
@@ -221,7 +226,7 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
 
 export const putWorkflow = async <T extends WorkflowEvent<any>>(workflow: Workflow<T>): Promise<Workflow<T>> => {
     const logger = getLogger();
-    logger.info('Putting workflow', {
+    logger.info(`Putting workflow ${workflow.id}`, {
         id: workflow.id,
     });
 
@@ -236,7 +241,7 @@ export const putWorkflow = async <T extends WorkflowEvent<any>>(workflow: Workfl
 
 export const getConnections = async (integrationId: string): Promise<WebsocketConnection[]> => {
     const logger = getLogger();
-    logger.info('Getting connections', {integrationId});
+    logger.info(`Getting connections for integration ${integrationId}`, {integrationId});
 
     const queryCommand = new QueryCommand({
         TableName: connectionTableName,
@@ -254,7 +259,7 @@ export const getConnections = async (integrationId: string): Promise<WebsocketCo
 
 export const deleteConnection = async (params: {integrationId: string; connectionId: string}): Promise<void> => {
     const logger = getLogger();
-    logger.info('Deleting connection', {params});
+    logger.info(`Deleting connection ${params.connectionId} for integration ${params.integrationId}`, {params});
 
     const command = new DeleteCommand({
         TableName: connectionTableName,
@@ -266,7 +271,7 @@ export const deleteConnection = async (params: {integrationId: string; connectio
 
 export const getIntegrations = async (ids: string[]): Promise<Integration[]> => {
     const logger = getLogger();
-    logger.info('Getting integrations', {ids});
+    logger.info(`Getting integrations ${ids.join(', ')}`, {ids});
 
     if (ids.length === 0) {
         return [];
@@ -294,7 +299,7 @@ export const getIntegrations = async (ids: string[]): Promise<Integration[]> => 
 
 export const createIntegration = async (integration: Integration, userId: string): Promise<Integration> => {
     const logger = getLogger();
-    logger.info('Creating integration', {id: integration.id, userId});
+    logger.info(`Creating integration ${integration.id}`, {id: integration.id, userId});
 
     const command = new TransactWriteCommand({
         TransactItems: [
@@ -323,7 +328,7 @@ export const createIntegration = async (integration: Integration, userId: string
 
 export const updateIntegration = async (id: string, label: string): Promise<Integration> => {
     const logger = getLogger();
-    logger.info('Updating integration', {id, label});
+    logger.info(`Updating integration ${id} with label: ${label}`, {id, label});
 
     const command = new UpdateCommand({
         TableName: integrationsTableName,
@@ -342,7 +347,7 @@ export const updateIntegration = async (id: string, label: string): Promise<Inte
 
 export const deleteIntegration = async (id: string): Promise<Integration> => {
     const logger = getLogger();
-    logger.info('Deleting integration', {id});
+    logger.info(`Deleting integration ${id}`, {id});
 
     const command = new DeleteCommand({
         TableName: integrationsTableName,
@@ -356,7 +361,7 @@ export const deleteIntegration = async (id: string): Promise<Integration> => {
 
 export const getUserIntegrations = async (userId: string): Promise<string[]> => {
     const logger = getLogger();
-    logger.debug(`Getting integrations for user`, {userId});
+    logger.info(`Getting integrations for user ${userId}`, {userId});
 
     const command = new QueryCommand({
         TableName: userAssignmentsTableName,
@@ -377,7 +382,7 @@ export const getUserIntegrations = async (userId: string): Promise<string[]> => 
 
 export const addUserToIntegration = async (userId: string, integrationId: string): Promise<void> => {
     const logger = getLogger();
-    logger.debug(`Adding user to integration`, {userId, integrationId});
+    logger.info(`Adding user ${userId} to integration ${integrationId}`, {userId, integrationId});
 
     const command = new PutCommand({
         TableName: userAssignmentsTableName,
@@ -392,7 +397,7 @@ export const addUserToIntegration = async (userId: string, integrationId: string
 
 export const removeUserFromIntegration = async (userId: string, integrationId: string): Promise<void> => {
     const logger = getLogger();
-    logger.debug(`Removing user from integration`, {userId, integrationId});
+    logger.info(`Removing user ${userId} from integration ${integrationId}`, {userId, integrationId});
 
     const command = new DeleteCommand({
         TableName: userAssignmentsTableName,
@@ -409,7 +414,7 @@ export const removeUserFromIntegration = async (userId: string, integrationId: s
 // maybe a dedicated lambda function execution triggered by a sqs?
 export const deleteIntegrationMembers = async (integrationId: string): Promise<void> => {
     const logger = getLogger();
-    logger.debug(`Deleting all members of integration`, {integrationId});
+    logger.info(`Deleting all members of integration ${integrationId}`, {integrationId});
 
     let lastEvaluatedKey: Record<string, any> | undefined;
 
@@ -438,24 +443,105 @@ export const deleteIntegrationMembers = async (integrationId: string): Promise<v
         }
 
         const batchPromises = chunks.map((chunk) => {
-            const deleteRequests = chunk.map((item) => ({
-                DeleteRequest: {
-                    Key: {
-                        userId: item.userId,
-                        integrationId: integrationId,
-                    },
-                },
-            }));
-
             return client.send(
                 new BatchWriteCommand({
                     RequestItems: {
-                        [userAssignmentsTableName]: deleteRequests,
+                        [userAssignmentsTableName]: chunk.map((item) => ({
+                            DeleteRequest: {
+                                Key: {
+                                    userId: item.userId,
+                                    integrationId: integrationId,
+                                },
+                            },
+                        })),
                     },
                 }),
             );
         });
 
-        await Promise.all(batchPromises);
+        const results = await Promise.allSettled(batchPromises);
+        results.forEach((batchWriteResult) => {
+            if (batchWriteResult.status === 'rejected') {
+                logger.error(`Failed to delete some members of integration ${integrationId} in batch write`, {
+                    integrationId,
+                    error: batchWriteResult.reason,
+                });
+            } else {
+                const batchWriteCommand = batchWriteResult.value;
+                if (batchWriteCommand.UnprocessedItems && Object.keys(batchWriteCommand.UnprocessedItems).length > 0) {
+                    logger.error(`Some members of integration ${integrationId} were not deleted in batch write`, {
+                        integrationId,
+                        unprocessedItems: batchWriteCommand.UnprocessedItems,
+                    });
+                }
+            }
+        });
+    } while (lastEvaluatedKey);
+};
+
+export const deleteIntegrationNotificationRules = async (integrationId: string): Promise<void> => {
+    const logger = getLogger();
+    logger.info(`Deleting all notification rules of integration ${integrationId}`, {integrationId});
+
+    let lastEvaluatedKey: Record<string, any> | undefined;
+
+    do {
+        const queryCommand = new QueryCommand({
+            TableName: notificationTableName,
+            KeyConditionExpression: 'integrationId = :integrationId',
+            ExpressionAttributeValues: {
+                ':integrationId': integrationId,
+            },
+            IndexName: notificationTableIntegrationIdIndexName,
+            ExclusiveStartKey: lastEvaluatedKey,
+        });
+
+        const result = await client.send(queryCommand);
+        lastEvaluatedKey = result.LastEvaluatedKey;
+
+        if (!result.Items || result.Items.length === 0) {
+            continue;
+        }
+
+        // Split items into chunks of 25 for BatchWriteItem
+        const chunks: any[][] = [];
+        for (let i = 0; i < result.Items.length; i += 25) {
+            chunks.push(result.Items.slice(i, i + 25));
+        }
+
+        const batchPromises = chunks.map((chunk) => {
+            return client.send(
+                new BatchWriteCommand({
+                    RequestItems: {
+                        [notificationTableName]: chunk.map((item) => ({
+                            DeleteRequest: {
+                                Key: {
+                                    id: item.id,
+                                    integrationId: integrationId,
+                                },
+                            },
+                        })),
+                    },
+                }),
+            );
+        });
+
+        const results = await Promise.allSettled(batchPromises);
+        results.forEach((batchWriteResult) => {
+            if (batchWriteResult.status === 'rejected') {
+                logger.error(`Failed to delete some notification rules of integration ${integrationId} in batch write`, {
+                    integrationId,
+                    error: batchWriteResult.reason,
+                });
+            } else {
+                const batchWriteCommand = batchWriteResult.value;
+                if (batchWriteCommand.UnprocessedItems && Object.keys(batchWriteCommand.UnprocessedItems).length > 0) {
+                    logger.error(`Some notification rules of integration ${integrationId} were not deleted in batch write`, {
+                        integrationId,
+                        unprocessedItems: batchWriteCommand.UnprocessedItems,
+                    });
+                }
+            }
+        });
     } while (lastEvaluatedKey);
 };

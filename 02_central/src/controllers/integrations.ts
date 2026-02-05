@@ -2,6 +2,7 @@ import {
     createIntegration as createIntegrationDDB,
     deleteIntegration as deleteIntegrationDDB,
     deleteIntegrationMembers,
+    deleteIntegrationNotificationRules,
     getIntegrations as getIntegrationsDDB,
     updateIntegration as updateIntegrationDDB,
 } from '@/clients/dynamodb';
@@ -79,12 +80,11 @@ export const deleteIntegration = async (id: string, userGroups: string[]): Promi
     const logger = getLogger();
     logger.info(`Deleting integration with ID: ${id}`);
 
-    // Check if the user is authorized to delete the integration
     if (!userGroups.includes(id)) {
         throw new Error('User is not authorized to delete this integration');
     }
 
-    const results = await Promise.allSettled([await deleteIntegrationDDB(id), await deleteIntegrationMembers(id)]);
+    const results = await Promise.allSettled([deleteIntegrationDDB(id), deleteIntegrationMembers(id), deleteIntegrationNotificationRules(id)]);
 
     results.forEach((result) => {
         if (result.status === 'rejected') {
