@@ -41,10 +41,12 @@ resource "aws_cognito_user_pool_client" "this" {
   generate_secret = true
   callback_urls = distinct(compact(concat(
     var.callback_uls,
-    [try("https://${var.custom_domain_config.domain_name}/api/auth/callback", null)]
+    formatlist("%s/api/auth/callback", local.cors_allowed_origins),
   )))
   logout_urls = distinct(compact(concat(
-    ["https://${aws_cloudfront_distribution.this.domain_name}"],
+    [
+      "https://${aws_cloudfront_distribution.this.domain_name}",
+    ],
     local.cors_allowed_origins,
   )))
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
