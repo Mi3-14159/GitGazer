@@ -13,10 +13,8 @@ export const addUserIntegrationsToCtx = async ({reqCtx, next}: {reqCtx: AppReque
         const integrations = await getUserIntegrations(userId);
         reqCtx.appContext!.integrations = integrations;
         logger.debug('User integrations from DynamoDB', {integrations});
-
-        await next();
     } catch (error) {
-        logger.error('Failed to get user integrations', {error});
+        logger.error('Failed to get user integrations', {error, userId});
         return new Response(
             JSON.stringify({
                 error: 'Internal Server Error',
@@ -27,4 +25,6 @@ export const addUserIntegrationsToCtx = async ({reqCtx, next}: {reqCtx: AppReque
             },
         );
     }
+
+    await next();
 };

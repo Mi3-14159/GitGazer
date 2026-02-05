@@ -113,8 +113,6 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
             nickname: (idPayload.nickname as string) || '',
             picture: (idPayload.picture as string) || '',
         };
-
-        await next();
     } catch (error: any) {
         const errorMessage = error?.message || 'Unknown error';
         const isExpiredError = errorMessage.includes('expired') || errorMessage.includes('Token expired');
@@ -137,4 +135,6 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
             },
         );
     }
+
+    await next();
 };
