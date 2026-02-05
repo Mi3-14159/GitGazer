@@ -1,4 +1,5 @@
 import {runAthenaQuery} from '@/clients/athena';
+import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
 import {JobMetricsParameters, JobMetricsResponse, MetricsParameterDimension, MetricsParameterStat} from '@common/types/metrics';
 
 const athenaJobsTable = process.env.ATHENA_JOBS_TABLE;
@@ -26,7 +27,7 @@ export const getJobMetrics = async (cognitoGroups: string[], params: JobMetricsP
     ];
 
     if (params.stat !== MetricsParameterStat.SUM) {
-        throw new Error('Unsupported stat; only sum is supported at this time');
+        throw new BadRequestError('Unsupported stat; only sum is supported at this time');
     }
 
     if (filters[0].values.length === 0) {

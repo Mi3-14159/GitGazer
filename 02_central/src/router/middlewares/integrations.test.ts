@@ -44,18 +44,14 @@ describe('extractUserIntegrations middleware', () => {
         expect(getUserIntegrations).toHaveBeenCalledWith('user123');
     });
 
-    it('returns 500 when getUserIntegrations throws an error', async () => {
+    it('throws error when getUserIntegrations throws an error', async () => {
         const next = vi.fn(async () => undefined);
         const error = new Error('DynamoDB connection failed');
         vi.mocked(getUserIntegrations).mockRejectedValue(error);
 
-        const out = await addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next});
+        await expect(addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next})).rejects.toThrow('DynamoDB connection failed');
 
         expect(next).not.toHaveBeenCalled();
-        expect(out).toBeInstanceOf(Response);
-        const res = out as Response;
-        expect(res.status).toBe(500);
-        await expect(res.json()).resolves.toEqual({error: 'Internal Server Error'});
         expect(getUserIntegrations).toHaveBeenCalledWith('user123');
     });
 });

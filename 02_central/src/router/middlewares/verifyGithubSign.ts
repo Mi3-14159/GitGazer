@@ -1,47 +1,40 @@
 import {getIntegrations} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
-import {HttpStatusCodes} from '@aws-lambda-powertools/event-handler/http';
-import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
-import {RequestContext} from '@aws-lambda-powertools/event-handler/types';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {Middleware} from '@aws-lambda-powertools/event-handler/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
 
-export const verifyGithubSign: Middleware = async ({reqCtx, next}: {reqCtx: RequestContext; next: NextFunction}) => {
+export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
     const logger = getLogger(); // Get logger at runtime
     logger.debug('running verifyGithubSign middleware');
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const {pathParameters} = event;
 
     if (!pathParameters?.integrationId) {
-        return new Response('Bad request: Missing integration ID.', {
-            status: HttpStatusCodes.BAD_REQUEST,
-        });
+        throw new BadRequestError('Missing integration ID in path parameters');
     }
 
     const integrationId = pathParameters.integrationId;
-    const parameter = await getIntegrations([integrationId]);
-    const secret = parameter?.[0]?.secret;
-    if (!secret) {
-        return new Response('Bad request: integration not found.', {
-            status: HttpStatusCodes.BAD_REQUEST,
-        });
+    const integrations = await getIntegrations([integrationId]);
+    if (!integrations || integrations.length === 0) {
+        throw new BadRequestError('Integration not found');
+    }
+
+    if (!integrations[0].secret) {
+        throw new InternalServerError('Integration secret not configured');
     }
 
     const signature = event.headers['x-hub-signature-256'];
     const payload = event.body;
 
     if (!signature || !payload) {
-        return new Response('Bad request: Missing signature or payload.', {
-            status: HttpStatusCodes.BAD_REQUEST,
-        });
+        throw new BadRequestError('Missing signature or payload');
     }
 
-    const isValid = validateSignature(payload, secret, signature);
-
+    const isValid = validateSignature(payload, integrations[0].secret, signature);
     if (!isValid) {
-        return new Response('Unauthorized: Invalid signature.', {
-            status: HttpStatusCodes.UNAUTHORIZED,
-        });
+        throw new UnauthorizedError('Invalid signature');
     }
 
     await next();

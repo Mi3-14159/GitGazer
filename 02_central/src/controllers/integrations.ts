@@ -7,6 +7,7 @@ import {
     updateIntegration as updateIntegrationDDB,
 } from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Integration} from '@common/types';
 
 export const getIntegrations = async (params: {integrationIds: string[]; limit?: number}): Promise<Integration[]> => {
@@ -33,7 +34,7 @@ export const createIntegration = async (label: string, owner: string, userName: 
     try {
         await createIntegrationDDB(integration, owner);
     } catch (error) {
-        throw new Error(`Failed to create integration: ${error}`);
+        throw new InternalServerError('Failed to create integration', undefined, {cause: error});
     }
 
     return integration;
@@ -52,24 +53,23 @@ export const upsertIntegration = async (params: {
     if (id) {
         logger.info(`Updating integration ${id} with label: ${label}`);
 
-        // Check if user is authorized to update this integration
         if (!userGroups.includes(id)) {
-            throw new Error('User is not authorized to update this integration');
+            throw new UnauthorizedError('User is not authorized to update this integration');
         }
 
         if (!label) {
-            throw new Error('Missing label to update integration');
+            throw new BadRequestError('Missing label for integration update');
         }
 
         try {
             return await updateIntegrationDDB(id, label);
         } catch (error) {
-            throw new Error(`Failed to update integration: ${error}`);
+            throw new InternalServerError('Failed to update integration', undefined, {cause: error});
         }
     }
 
     if (!label || !owner || !userName) {
-        throw new Error('Missing parameters to create integration');
+        throw new BadRequestError('Missing parameters to create integration');
     }
 
     logger.info(`Creating new integration with label: ${label}`);
@@ -81,14 +81,16 @@ export const deleteIntegration = async (id: string, userGroups: string[]): Promi
     logger.info(`Deleting integration with ID: ${id}`);
 
     if (!userGroups.includes(id)) {
-        throw new Error('User is not authorized to delete this integration');
+        throw new UnauthorizedError('User is not authorized to delete this integration');
     }
 
     const results = await Promise.allSettled([deleteIntegrationDDB(id), deleteIntegrationMembers(id), deleteIntegrationNotificationRules(id)]);
 
-    results.forEach((result) => {
-        if (result.status === 'rejected') {
-            throw new Error(`Failed to delete integration: ${result.reason}`);
-        }
-    });
+    const failedResults = results.filter((result) => result.status === 'rejected');
+    if (failedResults.length > 0) {
+        logger.error(`Failed to delete integration ${id} completely`, {failedResults});
+        throw new InternalServerError('Failed to delete integration completely');
+    }
+
+    logger.info(`Successfully deleted integration with ID: ${id}`);
 };

@@ -2,23 +2,26 @@ import {createWorkflow} from '@/controllers/imports';
 import {getLogger} from '@/logger';
 import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
 
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 
 const router = new Router();
 
 router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => {
-    const logger = getLogger(); // Get logger at runtime
-    const {body} = reqCtx.event;
+    const logger = getLogger();
 
-    if (!body || !reqCtx.params.integrationId) {
-        return new Response(JSON.stringify({message: 'Bad Request'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-        });
+    if (!reqCtx.event.body) {
+        throw new BadRequestError('Missing request body');
+    }
+
+    let requestBody;
+    try {
+        requestBody = await reqCtx.req.json();
+    } catch (error) {
+        throw new BadRequestError('Invalid request body');
     }
 
     try {
-        const githubEvent = JSON.parse(body);
-        await createWorkflow(reqCtx.params.integrationId, githubEvent);
+        await createWorkflow(reqCtx.params.integrationId, requestBody);
     } catch (error) {
         logger.error('Error creating workflow', error as Error);
 

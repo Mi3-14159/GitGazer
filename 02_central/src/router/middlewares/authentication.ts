@@ -1,7 +1,7 @@
 import {getLogger} from '@/logger';
 import {AppRequestContext} from '@/types';
-import {HttpStatusCodes} from '@aws-lambda-powertools/event-handler/http';
-import {NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
+import {UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
@@ -47,7 +47,7 @@ function extractTokenFromCookies(cookies: string[] | undefined, tokenName: strin
     return null;
 }
 
-export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
+export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
     const logger = getLogger();
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const {rawPath} = event;
@@ -84,15 +84,7 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
             hasRefreshToken,
             rawPath,
         });
-        return new Response(
-            JSON.stringify({
-                error: 'Unauthorized: missing authentication tokens',
-            }),
-            {
-                status: HttpStatusCodes.UNAUTHORIZED,
-                headers: {'Content-Type': 'application/json'},
-            },
-        );
+        throw new UnauthorizedError('Missing authentication tokens');
     }
 
     try {
@@ -125,15 +117,7 @@ export const authenticate = async ({reqCtx, next}: {reqCtx: AppRequestContext; n
             rawPath,
         });
 
-        return new Response(
-            JSON.stringify({
-                error: 'Unauthorized: invalid or expired tokens',
-            }),
-            {
-                status: HttpStatusCodes.UNAUTHORIZED,
-                headers: {'Content-Type': 'application/json'},
-            },
-        );
+        throw new UnauthorizedError('Invalid or expired authentication tokens');
     }
 
     await next();

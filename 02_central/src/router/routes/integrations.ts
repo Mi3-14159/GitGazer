@@ -1,8 +1,7 @@
 import {deleteIntegration, getIntegrations, upsertIntegration} from '@/controllers/integrations';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 
 const router = new Router();
 
@@ -14,35 +13,19 @@ router.get('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRe
 });
 
 router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    if (!event.body) {
-        return new Response(JSON.stringify({error: 'Missing request body'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+    if (!reqCtx.event.body) {
+        throw new BadRequestError('Missing request body');
     }
 
     let requestBody;
     try {
-        requestBody = JSON.parse(event.body);
+        requestBody = await reqCtx.req.json();
     } catch (error) {
-        return new Response(JSON.stringify({error: 'Invalid request body'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        throw new BadRequestError('Invalid request body');
     }
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
-        return new Response(JSON.stringify({error: 'Invalid label'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        throw new BadRequestError('Invalid label');
     }
 
     const userId = reqCtx.appContext!.userId;
@@ -59,45 +42,19 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
 });
 
 router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-
-    if (!reqCtx.params.integrationId) {
-        return new Response(JSON.stringify({error: 'Missing integration ID'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-    }
-
-    if (!event.body) {
-        return new Response(JSON.stringify({error: 'Missing request body'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+    if (!reqCtx.event.body) {
+        throw new BadRequestError('Missing request body');
     }
 
     let requestBody;
     try {
-        requestBody = JSON.parse(event.body);
+        requestBody = await reqCtx.req.json();
     } catch (error) {
-        return new Response(JSON.stringify({error: 'Invalid request body'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        throw new BadRequestError('Invalid request body');
     }
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
-        return new Response(JSON.stringify({error: 'Invalid label'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        throw new BadRequestError('Invalid label');
     }
 
     const userGroups = reqCtx.appContext?.integrations ?? [];
@@ -110,15 +67,6 @@ router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async
 });
 
 router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    if (!reqCtx.params.integrationId) {
-        return new Response(JSON.stringify({error: 'Missing integration ID'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-    }
-
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     await deleteIntegration(reqCtx.params.integrationId, integrationIds);
 

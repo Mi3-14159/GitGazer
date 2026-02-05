@@ -1,7 +1,7 @@
 import {getWorkflows} from '@/controllers/workflows';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isWorkflowsRequestParameters} from '@common/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
@@ -26,21 +26,11 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
             queryStringParameters.exclusiveStartKeys = JSON.parse(queryStringParameters.exclusiveStartKeys || 'null');
         }
     } catch (error) {
-        return new Response(JSON.stringify({message: 'Invalid exclusiveStartKeys parameter'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        throw new BadRequestError('Invalid exclusiveStartKeys parameter');
     }
 
     if (!isWorkflowsRequestParameters(queryStringParameters)) {
-        return new Response(JSON.stringify({message: 'Invalid query parameters'}), {
-            status: HttpStatusCodes.BAD_REQUEST,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        throw new BadRequestError('Invalid query parameters');
     }
 
     const {limit, projection, exclusiveStartKeys} = queryStringParameters ?? {};

@@ -3,7 +3,14 @@ import {createHmac, randomBytes} from 'crypto';
 
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {
+    BadRequestError,
+    ForbiddenError,
+    HttpStatusCodes,
+    InternalServerError,
+    Router,
+    UnauthorizedError,
+} from '@aws-lambda-powertools/event-handler/http';
 import {State, UserAttributes, WSToken} from '@common/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 const router = new Router();
@@ -89,21 +96,14 @@ const parseBody = (body: string, isBase64Encoded: boolean): Body => {
 };
 
 router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
-    const logger = getLogger(); // Get logger at runtime
     const {body, isBase64Encoded} = reqCtx.event as APIGatewayProxyEventV2;
     if (!body) {
-        logger.error('No body found');
-        return new Response('Body is required', {
-            status: HttpStatusCodes.BAD_REQUEST,
-        });
+        throw new BadRequestError('Missing request body');
     }
 
     const result = parseBody(body, isBase64Encoded);
     if (!result.client_id || !result.client_secret || !result.code) {
-        logger.error('Missing required parameters', {result});
-        return new Response('Missing required parameters', {
-            status: HttpStatusCodes.BAD_REQUEST,
-        });
+        throw new BadRequestError('Missing required parameters');
     }
 
     const token = await (
@@ -164,16 +164,10 @@ router.get('/api/auth/cognito/user', async (reqCtx: AppRequestContext) => {
 });
 
 router.get('/api/user', async (reqCtx: AppRequestContext) => {
-    const logger = getLogger();
-
     const {userId, username, email, name, nickname, picture} = reqCtx.appContext!;
 
     if (!userId) {
-        logger.error('No user context from appContext');
-        return new Response(JSON.stringify({error: 'Unauthorized'}), {
-            status: HttpStatusCodes.UNAUTHORIZED,
-            headers: {'Content-Type': 'application/json'},
-        });
+        throw new UnauthorizedError('userId is missing');
     }
 
     const user: UserAttributes = {
@@ -198,301 +192,230 @@ router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     logger.info('OAuth callback handler invoked');
 
-    try {
-        // Extract authorization code from query parameters
-        const code = reqCtx.event.queryStringParameters?.code;
-        const state = reqCtx.event.queryStringParameters?.state;
+    // Extract authorization code from query parameters
+    const code = reqCtx.event.queryStringParameters?.code;
+    const state = reqCtx.event.queryStringParameters?.state;
 
-        if (!code) {
-            logger.error('Missing authorization code in callback');
-            return new Response(JSON.stringify({error: 'Missing authorization code'}), {
-                status: HttpStatusCodes.BAD_REQUEST,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
-
-        if (!state) {
-            logger.error('Missing state parameter in callback');
-            return new Response(JSON.stringify({error: 'Missing state parameter'}), {
-                status: HttpStatusCodes.BAD_REQUEST,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
-
-        logger.debug('Exchanging authorization code for tokens', {state});
-
-        // Exchange code for tokens at Cognito token endpoint
-        const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
-
-        const params = new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: COGNITO_CLIENT_ID,
-            code: code,
-            redirect_uri: COGNITO_REDIRECT_URI,
-        });
-
-        // Build headers with optional client secret for confidential client
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        };
-
-        headers['Authorization'] = `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`;
-
-        const tokenResponse = await fetch(tokenEndpoint, {
-            method: 'POST',
-            headers,
-            body: params.toString(),
-        });
-
-        if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
-            logger.error('Failed to exchange code for tokens', {
-                status: tokenResponse.status,
-                error: errorText,
-            });
-            return new Response(JSON.stringify({error: 'Failed to obtain tokens'}), {
-                status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
-
-        const tokens: TokenResponse = await tokenResponse.json();
-        logger.debug('Successfully obtained tokens from Cognito');
-
-        // Calculate cookie expiration (use token expiry time)
-        const maxAge = tokens.expires_in;
-
-        // Set HttpOnly cookies with security attributes
-        const cookies = [
-            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
-            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
-            `refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${60 * 60 * 24 * 30}`, // 30 days
-        ];
-
-        // Decode and validate state parameter (mandatory)
-        let finalRedirectUrl: string;
-        try {
-            // Decode state parameter (base64-encoded JSON)
-            const decodedState = Buffer.from(state, 'base64').toString('utf-8');
-            const stateData = JSON.parse(decodedState) as State;
-
-            if (!stateData.redirect_url) {
-                logger.error('Missing redirect_url in state parameter');
-                return new Response(JSON.stringify({error: 'Invalid state parameter'}), {
-                    status: HttpStatusCodes.BAD_REQUEST,
-                    headers: {'Content-Type': 'application/json'},
-                });
-            }
-
-            const validatedUrl = validateRedirectUrl(stateData.redirect_url);
-            if (!validatedUrl) {
-                logger.error('Invalid or disallowed redirect URL in state', {
-                    attempted: stateData.redirect_url,
-                });
-                return new Response(JSON.stringify({error: 'Invalid redirect URL'}), {
-                    status: HttpStatusCodes.BAD_REQUEST,
-                    headers: {'Content-Type': 'application/json'},
-                });
-            }
-
-            finalRedirectUrl = validatedUrl;
-            logger.debug('Using dynamic redirect URL from state', {
-                redirect: finalRedirectUrl,
-            });
-        } catch (error) {
-            logger.error('Failed to parse state parameter', {error});
-            return new Response(JSON.stringify({error: 'Invalid state parameter format'}), {
-                status: HttpStatusCodes.BAD_REQUEST,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
-
-        logger.info('OAuth callback successful, redirecting to frontend', {
-            frontendUrl: finalRedirectUrl,
-        });
-
-        // Redirect to frontend with cookies set
-        return new Response(null, {
-            status: HttpStatusCodes.FOUND,
-            headers: {
-                Location: finalRedirectUrl,
-                'Set-Cookie': cookies.join(', '),
-            },
-        });
-    } catch (error) {
-        logger.error('Unexpected error in OAuth callback', {error});
-        return new Response(JSON.stringify({error: 'Internal server error'}), {
-            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-            headers: {'Content-Type': 'application/json'},
-        });
+    if (!code) {
+        throw new BadRequestError('Missing authorization code');
     }
+
+    if (!state) {
+        throw new BadRequestError('Missing state parameter');
+    }
+
+    logger.debug('Exchanging authorization code for tokens', {state});
+
+    // Exchange code for tokens at Cognito token endpoint
+    const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
+
+    const params = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: COGNITO_CLIENT_ID,
+        code: code,
+        redirect_uri: COGNITO_REDIRECT_URI,
+    });
+
+    // Build headers with optional client secret for confidential client
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    headers['Authorization'] = `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`;
+
+    const tokenResponse = await fetch(tokenEndpoint, {
+        method: 'POST',
+        headers,
+        body: params.toString(),
+    });
+
+    if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        logger.error('Failed to exchange code for tokens', {
+            status: tokenResponse.status,
+            error: errorText,
+        });
+        throw new InternalServerError('Failed to exchange code for tokens');
+    }
+
+    const tokens: TokenResponse = await tokenResponse.json();
+    logger.debug('Successfully obtained tokens from Cognito');
+
+    // Calculate cookie expiration (use token expiry time)
+    const maxAge = tokens.expires_in;
+
+    // Set HttpOnly cookies with security attributes
+    const cookies = [
+        `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+        `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+        `refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${60 * 60 * 24 * 30}`, // 30 days
+    ];
+
+    // Decode state parameter (base64-encoded JSON)
+    const decodedState = Buffer.from(state, 'base64').toString('utf-8');
+    const stateData = JSON.parse(decodedState) as State;
+
+    if (!stateData.redirect_url) {
+        throw new BadRequestError('Missing redirect_url in state');
+    }
+
+    const validatedRedirectUrl = validateRedirectUrl(stateData.redirect_url);
+    if (!validatedRedirectUrl) {
+        throw new BadRequestError('Invalid redirect_url in state');
+    }
+
+    logger.info('OAuth callback successful, redirecting to frontend', {
+        frontendUrl: validatedRedirectUrl,
+    });
+
+    // Redirect to frontend with cookies set
+    return new Response(null, {
+        status: HttpStatusCodes.FOUND,
+        headers: {
+            Location: validatedRedirectUrl,
+            'Set-Cookie': cookies.join(', '),
+        },
+    });
 });
 
 router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     logger.info('Token refresh handler invoked');
 
-    try {
-        // Extract refresh token from cookies
-        const event = reqCtx.event as APIGatewayProxyEventV2;
-        const cookies = event.cookies || [];
-        let refreshToken: string | null = null;
+    // Extract refresh token from cookies
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const cookies = event.cookies || [];
+    let refreshToken: string | null = null;
 
-        for (const cookieString of cookies) {
-            const cookiePairs = cookieString.split(';').map((c: string) => c.trim());
-            for (const pair of cookiePairs) {
-                const [name, value] = pair.split('=');
-                if (name === 'refreshToken') {
-                    refreshToken = value;
-                    break;
-                }
+    for (const cookieString of cookies) {
+        const cookiePairs = cookieString.split(';').map((c: string) => c.trim());
+        for (const pair of cookiePairs) {
+            const [name, value] = pair.split('=');
+            if (name === 'refreshToken') {
+                refreshToken = value;
+                break;
             }
-            if (refreshToken) break;
         }
-
-        if (!refreshToken) {
-            logger.error('Missing refresh token in cookies');
-            return new Response(JSON.stringify({error: 'Missing refresh token'}), {
-                status: HttpStatusCodes.UNAUTHORIZED,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
-
-        logger.debug('Refreshing tokens using refresh token');
-
-        // Exchange refresh token for new access and ID tokens
-        const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
-
-        const params = new URLSearchParams({
-            grant_type: 'refresh_token',
-            client_id: COGNITO_CLIENT_ID,
-            refresh_token: refreshToken,
-        });
-
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`,
-        };
-
-        const tokenResponse = await fetch(tokenEndpoint, {
-            method: 'POST',
-            headers,
-            body: params.toString(),
-        });
-
-        if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
-            logger.error('Failed to refresh tokens', {
-                status: tokenResponse.status,
-                error: errorText,
-            });
-
-            // Clear cookies on refresh failure
-            const clearCookies = [
-                'accessToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
-                'idToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
-                'refreshToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
-            ];
-
-            return new Response(JSON.stringify({error: 'Failed to refresh tokens'}), {
-                status: HttpStatusCodes.UNAUTHORIZED,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Set-Cookie': clearCookies.join(', '),
-                },
-            });
-        }
-
-        const tokens: TokenResponse = await tokenResponse.json();
-        logger.debug('Successfully refreshed tokens');
-
-        // Calculate cookie expiration (use token expiry time)
-        const maxAge = tokens.expires_in;
-
-        // Set new HttpOnly cookies with security attributes
-        const cookies_out = [
-            `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
-            `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
-            // Keep existing refresh token (Cognito may or may not return a new one)
-            ...(tokens.refresh_token
-                ? [`refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${60 * 60 * 24 * 30}`]
-                : []),
-        ];
-
-        logger.info('Token refresh successful');
-
-        return new Response(JSON.stringify({success: true}), {
-            status: HttpStatusCodes.OK,
-            headers: {
-                'Cache-Control': 'no-cache, no-store, max-age=0',
-                'Content-Type': 'application/json',
-                'Set-Cookie': cookies_out.join(', '),
-            },
-        });
-    } catch (error) {
-        logger.error('Unexpected error in token refresh', {error});
-        return new Response(JSON.stringify({error: 'Internal server error'}), {
-            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-            headers: {'Content-Type': 'application/json'},
-        });
+        if (refreshToken) break;
     }
-});
 
-router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
-    const logger = getLogger();
-    logger.info('Logout handler invoked');
+    if (!refreshToken) {
+        throw new UnauthorizedError('Missing refresh token');
+    }
 
-    try {
-        const event = reqCtx.event as APIGatewayProxyEventV2;
-        const redirect_uri = event.queryStringParameters?.redirect_uri;
-        if (!redirect_uri) {
-            return new Response(JSON.stringify({error: 'Missing redirect_uri parameter'}), {
-                status: HttpStatusCodes.BAD_REQUEST,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
+    logger.debug('Refreshing tokens using refresh token');
 
-        const validatedRedirectUrl = validateRedirectUrl(redirect_uri);
-        if (!validatedRedirectUrl) {
-            logger.info('Invalid or disallowed Origin header in logout', {attempted: redirect_uri});
-            return new Response(JSON.stringify({error: 'Invalid redirect URL'}), {
-                status: HttpStatusCodes.BAD_REQUEST,
-                headers: {'Content-Type': 'application/json'},
-            });
-        }
+    // Exchange refresh token for new access and ID tokens
+    const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
 
+    const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: COGNITO_CLIENT_ID,
+        refresh_token: refreshToken,
+    });
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`,
+    };
+
+    const tokenResponse = await fetch(tokenEndpoint, {
+        method: 'POST',
+        headers,
+        body: params.toString(),
+    });
+
+    if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        logger.error('Failed to refresh tokens', {
+            status: tokenResponse.status,
+            error: errorText,
+        });
+
+        // Clear cookies on refresh failure
         const clearCookies = [
             'accessToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
             'idToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
             'refreshToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
         ];
 
-        // Build Cognito logout URL
-        const logoutUrl = `https://${COGNITO_DOMAIN}/logout`;
-        const params = new URLSearchParams({
-            client_id: COGNITO_CLIENT_ID,
-            logout_uri: validatedRedirectUrl,
-        });
-
-        logger.info('Logout successful, clearing cookies and redirecting to Cognito', {
-            redirectUrl: validatedRedirectUrl,
-        });
-
-        // Redirect to Cognito logout with cookies cleared
-        return new Response(null, {
-            status: HttpStatusCodes.FOUND,
+        return new Response(JSON.stringify({error: 'Failed to refresh tokens'}), {
+            status: HttpStatusCodes.UNAUTHORIZED,
             headers: {
-                Location: `${logoutUrl}?${params.toString()}`,
+                'Content-Type': 'application/json',
                 'Set-Cookie': clearCookies.join(', '),
             },
         });
-    } catch (error) {
-        logger.error('Unexpected error in logout', {error});
-        return new Response(JSON.stringify({error: 'Internal server error'}), {
-            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-            headers: {'Content-Type': 'application/json'},
-        });
     }
+
+    const tokens: TokenResponse = await tokenResponse.json();
+    logger.debug('Successfully refreshed tokens');
+
+    // Calculate cookie expiration (use token expiry time)
+    const maxAge = tokens.expires_in;
+
+    // Set new HttpOnly cookies with security attributes
+    const cookies_out = [
+        `accessToken=${tokens.access_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+        `idToken=${tokens.id_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${maxAge}`,
+        // Keep existing refresh token (Cognito may or may not return a new one)
+        ...(tokens.refresh_token
+            ? [`refreshToken=${tokens.refresh_token}; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=${60 * 60 * 24 * 30}`]
+            : []),
+    ];
+
+    logger.info('Token refresh successful');
+
+    return new Response(JSON.stringify({success: true}), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Cache-Control': 'no-cache, no-store, max-age=0',
+            'Content-Type': 'application/json',
+            'Set-Cookie': cookies_out.join(', '),
+        },
+    });
+});
+
+router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
+    const logger = getLogger();
+    logger.info('Logout handler invoked');
+
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const redirect_uri = event.queryStringParameters?.redirect_uri;
+    if (!redirect_uri) {
+        throw new BadRequestError('Missing redirect_uri parameter');
+    }
+
+    const validatedRedirectUrl = validateRedirectUrl(redirect_uri);
+    if (!validatedRedirectUrl) {
+        throw new BadRequestError('Invalid redirect_uri parameter');
+    }
+
+    const clearCookies = [
+        'accessToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+        'idToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+        'refreshToken=; Secure; HttpOnly; SameSite=None; Path=/; Max-Age=0',
+    ];
+
+    // Build Cognito logout URL
+    const logoutUrl = `https://${COGNITO_DOMAIN}/logout`;
+    const params = new URLSearchParams({
+        client_id: COGNITO_CLIENT_ID,
+        logout_uri: validatedRedirectUrl,
+    });
+
+    logger.info('Logout successful, clearing cookies and redirecting to Cognito', {
+        redirectUrl: validatedRedirectUrl,
+    });
+
+    // Redirect to Cognito logout with cookies cleared
+    return new Response(null, {
+        status: HttpStatusCodes.FOUND,
+        headers: {
+            Location: `${logoutUrl}?${params.toString()}`,
+            'Set-Cookie': clearCookies.join(', '),
+        },
+    });
 });
 
 router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
@@ -500,19 +423,11 @@ router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppR
     const {userId, username, email, integrations} = reqCtx.appContext!;
 
     if (!userId) {
-        logger.error('No user context from appContext for WebSocket token generation');
-        return new Response(JSON.stringify({error: 'Unauthorized'}), {
-            status: HttpStatusCodes.UNAUTHORIZED,
-            headers: {'Content-Type': 'application/json'},
-        });
+        throw new UnauthorizedError('Missing userId for WebSocket token generation');
     }
 
     if (!integrations || integrations.length === 0) {
-        logger.warn('User has no integrations for WebSocket access', {userId});
-        return new Response(JSON.stringify({error: 'No integrations available'}), {
-            status: HttpStatusCodes.FORBIDDEN,
-            headers: {'Content-Type': 'application/json'},
-        });
+        throw new ForbiddenError('User has no integrations for WebSocket access');
     }
 
     // Create a simple token payload

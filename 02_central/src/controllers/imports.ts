@@ -1,5 +1,6 @@
 import {deleteConnection, getConnections, putWorkflow} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
+import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
 import {
     ApiGatewayManagementApiClient,
     ApiGatewayManagementApiServiceException,
@@ -47,7 +48,7 @@ export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId
             workflow_event: event,
         };
     } else {
-        throw new Error('Unsupported event type');
+        throw new BadRequestError('Unsupported event type');
     }
 
     const response = await putWorkflow(workflow);
@@ -73,7 +74,7 @@ const postToConnections = async <T extends WorkflowEvent<any>>(params: StreamWor
         const result = results[i];
         const connection = connections[i];
         if (result.status === 'fulfilled') {
-            logger.info(`Successfully sent message to ${connection.connectionId}: ${JSON.stringify(result.value)}`);
+            logger.debug(`Successfully sent message to ${connection.connectionId}: ${JSON.stringify(result.value)}`);
         } else {
             await handlePostToConnectionError(connection.integrationId, connection.connectionId, result.reason);
         }

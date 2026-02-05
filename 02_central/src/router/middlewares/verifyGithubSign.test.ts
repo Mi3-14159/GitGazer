@@ -21,7 +21,7 @@ describe('verifyGithubSign middleware', () => {
         vi.restoreAllMocks();
     });
 
-    it('returns 400 when integrationId path parameter is missing', async () => {
+    it('throws BadRequestError when integrationId path parameter is missing', async () => {
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
 
@@ -31,14 +31,12 @@ describe('verifyGithubSign middleware', () => {
             body: 'x',
         };
 
-        const out = await verifyGithubSign({reqCtx: makeReqCtx(event), next} as any);
+        await expect(verifyGithubSign({reqCtx: makeReqCtx(event), next} as any)).rejects.toThrow('Missing integration ID in path parameters');
 
         expect(next).not.toHaveBeenCalled();
-        expect(out).toBeInstanceOf(Response);
-        expect((out as Response).status).toBe(400);
     });
 
-    it('returns 400 when integration cannot be found (missing secret)', async () => {
+    it('throws BadRequestError when integration cannot be found (missing secret)', async () => {
         const dynamodb = await import('@/clients/dynamodb');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
@@ -50,14 +48,12 @@ describe('verifyGithubSign middleware', () => {
             body: 'x',
         };
 
-        const out = await verifyGithubSign({reqCtx: makeReqCtx(event), next} as any);
+        await expect(verifyGithubSign({reqCtx: makeReqCtx(event), next} as any)).rejects.toThrow('Integration not found');
 
         expect(next).not.toHaveBeenCalled();
-        expect(out).toBeInstanceOf(Response);
-        expect((out as Response).status).toBe(400);
     });
 
-    it('returns 400 when signature or payload is missing', async () => {
+    it('throws BadRequestError when signature or payload is missing', async () => {
         const dynamodb = await import('@/clients/dynamodb');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
@@ -69,9 +65,7 @@ describe('verifyGithubSign middleware', () => {
             body: 'payload',
         };
 
-        const out1 = await verifyGithubSign({reqCtx: makeReqCtx(eventMissingSig), next} as any);
-        expect(out1).toBeInstanceOf(Response);
-        expect((out1 as Response).status).toBe(400);
+        await expect(verifyGithubSign({reqCtx: makeReqCtx(eventMissingSig), next} as any)).rejects.toThrow('Missing signature or payload');
 
         const eventMissingBody = {
             pathParameters: {integrationId: 'int-1'},
@@ -79,14 +73,12 @@ describe('verifyGithubSign middleware', () => {
             body: undefined,
         };
 
-        const out2 = await verifyGithubSign({reqCtx: makeReqCtx(eventMissingBody), next} as any);
-        expect(out2).toBeInstanceOf(Response);
-        expect((out2 as Response).status).toBe(400);
+        await expect(verifyGithubSign({reqCtx: makeReqCtx(eventMissingBody), next} as any)).rejects.toThrow('Missing signature or payload');
 
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('returns 401 when signature is invalid', async () => {
+    it('throws UnauthorizedError when signature is invalid', async () => {
         const dynamodb = await import('@/clients/dynamodb');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
@@ -103,11 +95,9 @@ describe('verifyGithubSign middleware', () => {
             body: payload,
         };
 
-        const out = await verifyGithubSign({reqCtx: makeReqCtx(event), next} as any);
+        await expect(verifyGithubSign({reqCtx: makeReqCtx(event), next} as any)).rejects.toThrow('Invalid signature');
 
         expect(next).not.toHaveBeenCalled();
-        expect(out).toBeInstanceOf(Response);
-        expect((out as Response).status).toBe(401);
     });
 
     it('calls next when signature is valid', async () => {
