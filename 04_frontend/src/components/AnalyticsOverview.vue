@@ -114,17 +114,17 @@
     <v-main>
         <v-container fluid>
             <v-row>
-                <v-col cols="12">
+                <v-col>
                     <h1 class="text-h4 mb-4">Analytics Query</h1>
                 </v-col>
             </v-row>
 
             <!-- Query Editor -->
             <v-row>
-                <v-col cols="12">
+                <v-col>
                     <v-card>
                         <v-card-title>SQL Query Editor</v-card-title>
-                        <v-card-text>
+                        <v-card-text class="pb-0">
                             <v-textarea
                                 v-model="queryText"
                                 label="Enter SQL query"
@@ -135,7 +135,7 @@
                                 auto-grow
                             ></v-textarea>
                         </v-card-text>
-                        <v-card-actions>
+                        <v-card-actions class="pt-0">
                             <v-btn
                                 color="primary"
                                 :loading="isLoading"
@@ -156,14 +156,6 @@
                             >
                                 Clear
                             </v-btn>
-                            <v-spacer></v-spacer>
-                            <v-chip
-                                v-if="currentQuery?.status"
-                                :color="statusColor"
-                                variant="flat"
-                            >
-                                {{ currentQuery.status }}
-                            </v-chip>
                         </v-card-actions>
                     </v-card>
                 </v-col>
@@ -171,7 +163,7 @@
 
             <!-- Error Message -->
             <v-row v-if="errorMessage">
-                <v-col cols="12">
+                <v-col>
                     <v-alert
                         type="error"
                         closable
@@ -184,48 +176,44 @@
 
             <!-- Query Info -->
             <v-row v-if="currentQuery">
-                <v-col cols="12">
+                <v-col>
                     <v-card>
-                        <v-card-title>Query Information</v-card-title>
-                        <v-card-text>
-                            <v-list density="compact">
-                                <v-list-item>
-                                    <v-list-item-title>Query ID</v-list-item-title>
-                                    <v-list-item-subtitle>{{ currentQuery.queryId }}</v-list-item-subtitle>
-                                </v-list-item>
-                                <v-list-item>
-                                    <v-list-item-title>Status</v-list-item-title>
-                                    <v-list-item-subtitle>
-                                        <v-chip
-                                            :color="statusColor"
-                                            size="small"
-                                        >
-                                            {{ currentQuery.status }}
-                                        </v-chip>
-                                    </v-list-item-subtitle>
-                                </v-list-item>
-                            </v-list>
-                        </v-card-text>
-                        <v-card-actions v-if="currentQuery.status === 'SUCCEEDED' && currentQuery.resultsUrl">
+                        <v-card-text class="d-flex flex-column flex-md-row align-start align-md-center ga-2">
+                            <div class="d-flex align-center">
+                                <span class="text-body-2 mr-2">Query ID:</span>
+                                <span class="text-body-2 text-medium-emphasis">{{ currentQuery.queryId }}</span>
+                            </div>
+                            <div class="d-flex align-center">
+                                <span class="text-body-2 mr-2">Status:</span>
+                                <v-chip
+                                    :color="statusColor"
+                                    size="small"
+                                >
+                                    {{ currentQuery.status }}
+                                </v-chip>
+                            </div>
+                            <v-spacer class="d-none d-md-flex"></v-spacer>
                             <v-btn
+                                v-if="currentQuery.status === 'SUCCEEDED' && currentQuery.resultsUrl"
                                 color="primary"
                                 variant="text"
                                 @click="handleDownloadResults"
+                                class="align-self-start align-self-md-center"
                             >
                                 <v-icon
                                     start
                                     icon="mdi-download"
                                 ></v-icon>
-                                Download CSV
+                                Download result
                             </v-btn>
-                        </v-card-actions>
+                        </v-card-text>
                     </v-card>
                 </v-col>
             </v-row>
 
             <!-- Results Table -->
             <v-row v-if="resultsData.length > 0">
-                <v-col cols="12">
+                <v-col>
                     <v-card>
                         <v-card-title>Query Results ({{ resultsData.length }} rows)</v-card-title>
                         <v-card-text>
