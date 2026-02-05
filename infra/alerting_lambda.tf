@@ -106,16 +106,17 @@ resource "aws_lambda_function" "alerting" {
   memory_size       = 256
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER              = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS  = "none"
-      ENVIRONMENT                          = terraform.workspace
-      POWERTOOLS_LOG_LEVEL                 = local.lambda_application_log_level
-      POWERTOOLS_LOGGER_LOG_EVENT          = local.lambda_enable_event_logging
-      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN    = aws_dynamodb_table.notification_rules.name
-      DYNAMO_DB_WORKFLOWS_TABLE_ARN        = aws_dynamodb_table.workflows.name
-      DYNAMO_DB_CONNECTIONS_TABLE_ARN      = aws_dynamodb_table.connections.name
-      DYNAMO_DB_INTEGRATIONS_TABLE_ARN     = aws_dynamodb_table.integrations.name
-      DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN = aws_dynamodb_table.user_assignments.name
+      AWS_LAMBDA_EXEC_WRAPPER                           = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS               = "none"
+      ENVIRONMENT                                       = terraform.workspace
+      POWERTOOLS_LOG_LEVEL                              = local.lambda_application_log_level
+      POWERTOOLS_LOGGER_LOG_EVENT                       = local.lambda_enable_event_logging
+      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN                 = aws_dynamodb_table.notification_rules.name
+      DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME = local.notification_rules_table_index_name
+      DYNAMO_DB_WORKFLOWS_TABLE_ARN                     = aws_dynamodb_table.workflows.name
+      DYNAMO_DB_CONNECTIONS_TABLE_ARN                   = aws_dynamodb_table.connections.name
+      DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
+      DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
     }
   }
   layers = local.lambda_layers
