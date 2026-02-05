@@ -25,16 +25,16 @@ export const upsertIntegration = async (params: {
     id?: string;
     label?: string;
     owner?: string;
-    userName?: string;
-    userGroups: string[];
+    userId?: string;
+    integrationIds: string[];
 }): Promise<Integration> => {
     const logger = getLogger();
-    const {id, label, owner, userName, userGroups} = params;
+    const {id, label, owner, userId, integrationIds} = params;
 
     if (id) {
         logger.info(`Updating integration ${id} with label: ${label}`);
 
-        if (!userGroups.includes(id)) {
+        if (!integrationIds.includes(id)) {
             throw new UnauthorizedError('User is not authorized to update this integration');
         }
 
@@ -45,7 +45,7 @@ export const upsertIntegration = async (params: {
         return await updateIntegrationDDB(id, label);
     }
 
-    if (!label || !owner || !userName) {
+    if (!label || !owner || !userId) {
         throw new BadRequestError('Missing parameters to create integration');
     }
 
@@ -57,7 +57,7 @@ export const upsertIntegration = async (params: {
         owner,
         secret: crypto.randomUUID(),
     };
-    return await createIntegrationDDB(integration, userName);
+    return await createIntegrationDDB(integration, userId);
 };
 
 export const deleteIntegration = async (id: string, userGroups: string[]): Promise<void> => {

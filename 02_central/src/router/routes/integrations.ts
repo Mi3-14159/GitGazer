@@ -28,16 +28,14 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
         throw new BadRequestError('Invalid label');
     }
 
-    const userId = reqCtx.appContext!.userId;
-    const username = reqCtx.appContext!.username;
-    const userGroups = reqCtx.appContext?.integrations ?? [];
+    const {userId, integrations = []} = reqCtx.appContext ?? {};
 
     return await upsertIntegration({
         id: requestBody.id,
         label: requestBody.label,
         owner: userId,
-        userName: username,
-        userGroups,
+        userId,
+        integrationIds: integrations,
     });
 });
 
@@ -57,12 +55,12 @@ router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async
         throw new BadRequestError('Invalid label');
     }
 
-    const userGroups = reqCtx.appContext?.integrations ?? [];
+    const integration = reqCtx.appContext?.integrations ?? [];
 
     return await upsertIntegration({
         id: reqCtx.params.integrationId,
         label: requestBody.label,
-        userGroups,
+        integrationIds: integration,
     });
 });
 
