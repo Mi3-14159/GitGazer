@@ -25,11 +25,10 @@ describe('notifications controller', () => {
         expect(dynamodb.getNotificationRulesBy).not.toHaveBeenCalled();
     });
 
-    it('postNotificationRule throws when user is not in the integration group', async () => {
+    it('upsertNotificationRule throws when user is not in the integration group', async () => {
         await expect(
-            notifications.postNotificationRule(
-                {
-                    integrationId: 'integrationA',
+            notifications.upsertNotificationRule({
+                rule: {
                     enabled: true,
                     channels: [],
                     ignore_dependabot: false,
@@ -40,12 +39,14 @@ describe('notifications controller', () => {
                         head_branch: 'b',
                     },
                 } as any,
-                ['integrationB'],
-            ),
+                integrationId: 'integrationA',
+                userIntegrationIds: ['integrationB'],
+                createOnly: true,
+            }),
         ).rejects.toThrow('Unauthorized to create notification rule for this integration');
     });
 
-    it('postNotificationRule generates an id when missing and persists rule', async () => {
+    it('upsertNotificationRule generates an id when creating and persists rule', async () => {
         vi.stubGlobal('crypto', {
             randomUUID: () => 'uuid-123',
         } as any);
@@ -59,7 +60,6 @@ describe('notifications controller', () => {
         });
 
         const rule: any = {
-            integrationId: 'integrationA',
             enabled: true,
             channels: [],
             ignore_dependabot: false,
@@ -71,34 +71,29 @@ describe('notifications controller', () => {
             },
         };
 
-        const out = await notifications.postNotificationRule(rule, ['integrationA']);
+        const out = await notifications.upsertNotificationRule({
+            rule,
+            integrationId: 'integrationA',
+            userIntegrationIds: ['integrationA'],
+            createOnly: true,
+        });
 
         expect(dynamodb.putNotificationRule).toHaveBeenCalledTimes(1);
-        expect(rule.id).toBe('uuid-123');
         expect(out.id).toBe('uuid-123');
         expect(out.integrationId).toBe('integrationA');
     });
 
-    it('deleteNotificationRule returns false when no rule exists', async () => {
-        (dynamodb.getNotificationRulesBy as any).mockResolvedValue([]);
+    it('deleteNotificationRule throws when user is not in the integration group', async () => {
+        await expect(notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationB'])).rejects.toThrow(
+            'Unauthorized to delete notification rule for this integration',
+        );
 
-        const out = await notifications.deleteNotificationRule('rule-1', ['integrationA']);
-
-        expect(out).toBe(false);
         expect(dynamodb.deleteNotificationRule).not.toHaveBeenCalled();
     });
 
-    it('deleteNotificationRule deletes and returns true when rule exists', async () => {
-        (dynamodb.getNotificationRulesBy as any).mockResolvedValue([
-            {
-                id: 'rule-1',
-                integrationId: 'integrationA',
-            },
-        ]);
+    it('deleteNotificationRule calls delete when authorized', async () => {
+        await notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationA']);
 
-        const out = await notifications.deleteNotificationRule('rule-1', ['integrationA']);
-
-        expect(out).toBe(true);
         expect(dynamodb.deleteNotificationRule).toHaveBeenCalledWith('rule-1', 'integrationA');
     });
 });
