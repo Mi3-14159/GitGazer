@@ -28,6 +28,17 @@ module "athena_query_results_bucket" {
   versioning = {
     enabled = false
   }
+
+  lifecycle_rule = [
+    {
+      id      = "expire-objects"
+      enabled = true
+
+      expiration = {
+        days = 30
+      }
+    }
+  ]
 }
 
 resource "aws_athena_workgroup" "analytics" {
