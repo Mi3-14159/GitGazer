@@ -55,6 +55,7 @@
     "buildZip:websocket": "npm run build:websocket && npm run zip:websocket",
     "clean": "rimraf ./dist",
     "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
+    "generate:fixtures": "node --env-file=.env.dev -r ts-node/register -r tsconfig-paths/register scripts/generateNotificationFixtures.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "postbuild": "cp package*.json dist && cd dist && npm ci --omit=dev",

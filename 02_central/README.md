@@ -55,4 +55,11 @@ npm run lint:fix             # Auto-fix linting errors
 npm run pretty               # Format code with Prettier
 ```
 
+## Utility Scripts
+
+```bash
+# Generate notification rule fixtures for testing
+npm run generate:fixtures <integrationId> <count>
+```
+
 For detailed development instructions, see [.github/backend.instructions.md](.github/backend.instructions.md).
