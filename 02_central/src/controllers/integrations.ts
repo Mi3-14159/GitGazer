@@ -49,6 +49,11 @@ export const upsertIntegration = async (params: {
         throw new BadRequestError('Missing parameters to create integration');
     }
 
+    return await createIntegration(label, owner);
+};
+
+const createIntegration = async (label: string, owner: string): Promise<Integration> => {
+    const logger = getLogger();
     logger.info(`Creating new integration with label: ${label}`);
 
     const integration: Integration = {
@@ -57,7 +62,7 @@ export const upsertIntegration = async (params: {
         owner,
         secret: crypto.randomUUID(),
     };
-    return await createIntegrationDDB(integration, userId);
+    return await createIntegrationDDB(integration);
 };
 
 export const deleteIntegration = async (id: string, userGroups: string[]): Promise<void> => {

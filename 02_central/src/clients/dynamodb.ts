@@ -302,9 +302,9 @@ export const getIntegrations = async (ids: string[]): Promise<Integration[]> => 
     return result.Responses?.map((response) => response.Item as Integration).filter(Boolean) ?? [];
 };
 
-export const createIntegration = async (integration: Integration, userId: string): Promise<Integration> => {
+export const createIntegration = async (integration: Integration): Promise<Integration> => {
     const logger = getLogger();
-    logger.info(`Creating integration ${integration.id}`, {id: integration.id, userId});
+    logger.info(`Creating integration ${integration.id} with owner ${integration.owner}`);
 
     const command = new TransactWriteCommand({
         TransactItems: [
@@ -319,7 +319,7 @@ export const createIntegration = async (integration: Integration, userId: string
                 Put: {
                     TableName: userAssignmentsTableName,
                     Item: {
-                        userId,
+                        userId: integration.owner,
                         integrationId: integration.id,
                     },
                 },
