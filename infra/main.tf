@@ -32,6 +32,8 @@ data "aws_caller_identity" "current" {}
 
 data "aws_ssoadmin_instances" "this" {}
 
+data "aws_lakeformation_data_lake_settings" "this" {}
+
 locals {
   frontend_failover_sub_path                     = "fe-failover"
   github_oauth_scopes                            = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
