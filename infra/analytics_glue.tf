@@ -37,13 +37,15 @@ resource "aws_glue_resource_policy" "this" {
 }
 
 resource "awscc_glue_integration" "analytics" {
-  integration_name = "${var.name_prefix}-analytics-${terraform.workspace}"
-  source_arn       = aws_dynamodb_table.workflows.arn
-  target_arn       = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-
+  integration_name              = "${var.name_prefix}-analytics-${terraform.workspace}"
+  source_arn                    = aws_dynamodb_table.workflows.arn
+  target_arn                    = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
   additional_encryption_context = {}
-  description                   = "GitGazer Glue Integration for Analytics - ${terraform.workspace}"
-  kms_key_id                    = aws_kms_key.this.arn
+  integration_config = {
+    refresh_interval = "60"
+  }
+  description = "GitGazer Glue Integration for Analytics - ${terraform.workspace}"
+  kms_key_id  = aws_kms_key.this.arn
   depends_on = [
     awscc_glue_integration_resource_property.analytics,
     null_resource.create_integration_table_properties,

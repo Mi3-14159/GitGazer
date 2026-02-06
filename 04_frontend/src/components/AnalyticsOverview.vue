@@ -20,7 +20,7 @@
     created_at,
     id,
     "workflow_event.workflow_run.conclusion"
-FROM "zetl_2ae4e415_2c03_41f6_b77a_87def23fc43f"."gitgazer_workflows_default"
+FROM "zetl_4392df5e_ca3c_4a34_802a_4b0fd8d05582"."gitgazer_workflows_default"
 WHERE
     event_type = 'workflow_run'
 LIMIT 10;`;
