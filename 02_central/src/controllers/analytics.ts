@@ -33,6 +33,10 @@ export const executeQuery = async (params: {
         throw new ForbiddenError('You do not have access to this integration');
     }
 
+    if (!params.query.toLowerCase().startsWith('select')) {
+        throw new ForbiddenError('Only SELECT queries are allowed');
+    }
+
     const iamRoleArn = getIamRoleArn(params.integrationId);
     const assumedRole = await assumeRole(iamRoleArn);
     if (!assumedRole.Credentials) {
