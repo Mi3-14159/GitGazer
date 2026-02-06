@@ -21,6 +21,7 @@ declare module 'vue' {
     NotificationsOveview: typeof import('./src/components/NotificationsOveview.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    ThemeToggle: typeof import('./src/components/ThemeToggle.vue')['default']
     VirtualTable: typeof import('./src/components/VirtualTable.vue')['default']
     WorkflowCardDetails: typeof import('./src/components/WorkflowCardDetails.vue')['default']
     WorkflowOverview: typeof import('./src/components/WorkflowOverview.vue')['default']

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import ThemeToggle from '@/components/ThemeToggle.vue';
     import {useAuth} from '@/composables/useAuth';
     import {ref} from 'vue';
     import {useRouter} from 'vue-router';
@@ -77,5 +78,11 @@
                 ></v-list-item>
             </v-list>
         </nav>
+
+        <template v-slot:append>
+            <div class="pa-2 d-flex justify-center">
+                <ThemeToggle :rail="rail" />
+            </div>
+        </template>
     </v-navigation-drawer>
 </template>

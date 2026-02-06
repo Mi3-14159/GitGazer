@@ -141,7 +141,7 @@
     }
 
     :deep(.v-list-item:hover) {
-        background-color: rgba(0, 0, 0, 0.04);
+        background-color: rgba(var(--v-theme-on-surface), 0.04);
     }
 
     /* Sort button visibility - hide when not active or hovered */

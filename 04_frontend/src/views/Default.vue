@@ -20,14 +20,12 @@
 </script>
 
 <template>
-    <v-app id="gitgazer">
-        <Navigation
-            :username="user?.nickname"
-            :picture-url="user?.picture"
-        />
-        <WorkflowOverview v-if="router.currentRoute.value.name === 'dashboard'" />
-        <NotificationsOveview v-else-if="router.currentRoute.value.name === 'notifications'" />
-        <IntegrationsOverview v-else-if="router.currentRoute.value.name === 'integrations'" />
-        <AnalyticsOverview v-else-if="router.currentRoute.value.name === 'analytics'" />
-    </v-app>
+    <Navigation
+        :username="user?.nickname"
+        :picture-url="user?.picture"
+    />
+    <WorkflowOverview v-if="router.currentRoute.value.name === 'dashboard'" />
+    <NotificationsOveview v-else-if="router.currentRoute.value.name === 'notifications'" />
+    <IntegrationsOverview v-else-if="router.currentRoute.value.name === 'integrations'" />
+    <AnalyticsOverview v-else-if="router.currentRoute.value.name === 'analytics'" />
 </template>
