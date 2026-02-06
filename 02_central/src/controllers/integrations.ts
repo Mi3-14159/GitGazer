@@ -49,9 +49,7 @@ export const upsertIntegration = async (params: {
             throw new BadRequestError('Missing label for integration update');
         }
 
-        const integration = await updateIntegrationDDB(id, label);
-        await handlePermissions(id);
-        return integration;
+        return await updateIntegrationDDB(id, label);
     }
 
     if (!label || !owner || !userId) {
