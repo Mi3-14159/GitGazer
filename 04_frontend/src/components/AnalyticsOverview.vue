@@ -187,6 +187,7 @@ LIMIT 10;`;
                                 :loading="isLoading"
                                 :disabled="!queryText.trim() || !selectedIntegrationId || isLoading"
                                 @click="handleSubmitQuery"
+                                variant="tonal"
                             >
                                 <v-icon
                                     start
@@ -234,6 +235,7 @@ LIMIT 10;`;
                                 <v-chip
                                     :color="statusColor"
                                     size="small"
+                                    variant="flat"
                                 >
                                     {{ currentQuery.status }}
                                 </v-chip>

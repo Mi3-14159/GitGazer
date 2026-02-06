@@ -100,6 +100,7 @@
                     :color="getJobStatusColor(value)"
                     size="small"
                     label
+                    variant="flat"
                 >
                     {{ value }}
                 </v-chip>

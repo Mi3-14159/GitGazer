@@ -24,6 +24,7 @@
         :color="props.value ? props.trueColor : props.falseColor"
         :size="props.size"
         :density="props.density"
+        variant="flat"
     >
         {{ props.value ? props.trueLabel : props.falseLabel }}
     </v-chip>
