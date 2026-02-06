@@ -33,7 +33,8 @@ export const executeQuery = async (params: {
         throw new ForbiddenError('You do not have access to this integration');
     }
 
-    if (!params.query.toLowerCase().startsWith('select')) {
+    const firstWord = params.query.trim().toLowerCase().split(/\s+/)[0];
+    if (firstWord !== 'select') {
         throw new ForbiddenError('Only SELECT queries are allowed');
     }
 
