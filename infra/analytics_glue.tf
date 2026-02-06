@@ -50,6 +50,9 @@ resource "awscc_glue_integration" "analytics" {
     awscc_glue_integration_resource_property.analytics,
     null_resource.create_integration_table_properties,
   ]
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "awscc_glue_integration_resource_property" "analytics" {
