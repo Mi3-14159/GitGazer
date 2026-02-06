@@ -43,7 +43,7 @@ describe('notifications controller', () => {
                 userIntegrationIds: ['integrationB'],
                 createOnly: true,
             }),
-        ).rejects.toThrow('Unauthorized to create notification rule for this integration');
+        ).rejects.toThrow('Unauthorized to create/update notification rule for this integration');
     });
 
     it('upsertNotificationRule generates an id when creating and persists rule', async () => {
