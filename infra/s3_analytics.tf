@@ -63,7 +63,7 @@ resource "aws_athena_workgroup" "analytics" {
 
   configuration {
     bytes_scanned_cutoff_per_query     = 1024 * 1024 * 1024 * 1024 * 1024 # 1 PB
-    enforce_workgroup_configuration    = false
+    enforce_workgroup_configuration    = true
     publish_cloudwatch_metrics_enabled = true
     engine_version {
       selected_engine_version = "AUTO"
