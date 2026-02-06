@@ -49,6 +49,7 @@ module "athena_query_results_bucket" {
   attach_deny_incorrect_kms_key_sse = true
   server_side_encryption_configuration = {
     rule = {
+      bucket_key_enabled = true
       apply_server_side_encryption_by_default = {
         sse_algorithm     = "aws:kms"
         kms_master_key_id = aws_kms_key.this.arn
