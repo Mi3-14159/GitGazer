@@ -1,10 +1,27 @@
 import {getAthenaQueryExecution, runAthenaQuery} from '@/clients/athena';
 import {isUserQuery, putUserQuery} from '@/clients/dynamodb';
+import {fetchTableSchema} from '@/clients/glue';
 import {getIamRoleArn} from '@/clients/iam';
 import {getSignedUrl} from '@/clients/s3';
 import {assumeRole} from '@/clients/sts';
+import {getLogger} from '@/logger';
 import {ForbiddenError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
-import {QueryResponse} from '@common/types/analytics';
+import {QueryResponse, TableSchema, TableSchemaField} from '@common/types/analytics';
+
+const catalogId = process.env.LAKEFORMATION_CATALOG_ID;
+if (!catalogId) {
+    throw new Error('LAKEFORMATION_CATALOG_ID environment variable is not set');
+}
+
+const tableName = process.env.ATHENA_JOBS_TABLE;
+if (!tableName) {
+    throw new Error('ATHENA_JOBS_TABLE environment variable is not set');
+}
+
+const athenaDatabase = process.env.ATHENA_DATABASE;
+if (!athenaDatabase) {
+    throw new Error('ATHENA_DATABASE environment variable is not set');
+}
 
 export const executeQuery = async (params: {
     query: string;
@@ -55,4 +72,25 @@ export const getQueryExecution = async (userId: string, queryId: string): Promis
     response.resultsUrl = await getSignedUrl({bucket, key});
 
     return response;
+};
+
+export const getSchema = async (): Promise<TableSchema> => {
+    const logger = getLogger();
+    logger.info('Fetching table schema from Glue');
+
+    const columns = await fetchTableSchema(catalogId, athenaDatabase, tableName);
+    const tableSchema: TableSchema = {
+        namespace: athenaDatabase,
+        table: tableName,
+        fields: columns.map((col) => {
+            const field: TableSchemaField = {
+                name: col.Name!,
+                type: col.Type!,
+                comment: col.Comment,
+            };
+            return field;
+        }),
+    };
+
+    return tableSchema;
 };

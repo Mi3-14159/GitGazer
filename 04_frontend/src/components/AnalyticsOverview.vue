@@ -6,7 +6,7 @@
     import Papa from 'papaparse';
     import {computed, onMounted, ref} from 'vue';
 
-    const {submitQuery, pollUntilComplete, isPolling, isSubmitting} = useAnalytics();
+    const {submitQuery, pollUntilComplete, isPolling, isSubmitting, getSchema} = useAnalytics();
     const {getIntegrations, isLoadingIntegrations} = useIntegration();
 
     const integrations = ref<Integration[]>([]);
@@ -15,16 +15,7 @@
     const errorMessage = ref<string | null>(null);
     const resultsData = ref<any[]>([]);
     const resultsHeaders = ref<any[]>([]);
-    const defaultQuery = `SELECT
-    integrationId,
-    created_at,
-    id,
-    "workflow_event.workflow_run.conclusion"
-FROM "zetl_9f4eae06_2878_4f06_b139_ff6d6a6be9b1"."gitgazer_workflows_default"
-WHERE
-    event_type = 'workflow_run'
-LIMIT 10;`;
-    const queryText = ref(defaultQuery);
+    const queryText = ref('');
 
     const isLoading = computed(() => isSubmitting.value || isPolling.value);
 
@@ -127,8 +118,22 @@ LIMIT 10;`;
         resultsHeaders.value = [];
     };
 
+    const createDefaultQuery = async () => {
+        const schema = await getSchema();
+        queryText.value = `SELECT
+    integrationId,
+    created_at,
+    id,
+    "workflow_event.workflow_run.conclusion"
+FROM "${schema.namespace}"."${schema.table}"
+WHERE
+    event_type = 'workflow_run'
+LIMIT 10;`;
+    };
+
     onMounted(async () => {
         try {
+            createDefaultQuery();
             integrations.value = await getIntegrations();
             if (integrations.value.length > 0) {
                 selectedIntegrationId.value = integrations.value[0].id;
@@ -170,7 +175,6 @@ LIMIT 10;`;
                             <v-textarea
                                 v-model="queryText"
                                 label="Enter SQL query"
-                                :placeholder="defaultQuery"
                                 rows="8"
                                 variant="outlined"
                                 :disabled="isLoading"

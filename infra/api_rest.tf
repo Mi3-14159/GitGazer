@@ -24,6 +24,9 @@ locals {
     "integrations/analytics/queries/{queryId}" = {
       methods = ["GET"]
     },
+    "integrations/analytics/schema" = {
+      methods = ["GET"]
+    },
     "auth/cognito/public" = {
       methods = ["GET"]
     },

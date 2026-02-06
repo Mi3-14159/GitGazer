@@ -1,5 +1,5 @@
 import {useAuth} from '@/composables/useAuth';
-import {QueryRequestBody, QueryResponse} from '@common/types/analytics';
+import {QueryRequestBody, QueryResponse, TableSchema} from '@common/types/analytics';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -76,11 +76,22 @@ export const useAnalytics = () => {
         });
     };
 
+    const getSchema = async (): Promise<TableSchema> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/analytics/schema`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to get schema: ${response.status}`);
+        }
+
+        return (await response.json()) as TableSchema;
+    };
+
     return {
         submitQuery,
         getQueryStatus,
         pollUntilComplete,
         isPolling,
         isSubmitting,
+        getSchema,
     };
 };

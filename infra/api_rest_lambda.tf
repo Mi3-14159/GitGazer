@@ -126,6 +126,20 @@ data "aws_iam_policy_document" "api" {
     ]
   }
 
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetTable",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
+    ]
+  }
 
   statement {
     effect = "Allow"
@@ -172,6 +186,7 @@ data "aws_iam_policy_document" "api" {
     actions = [
       "lakeformation:GrantPermissions",
       "lakeformation:RevokePermissions",
+      "lakeformation:GetDataAccess",
     ]
     resources = [
       "*",

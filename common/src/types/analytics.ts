@@ -17,3 +17,15 @@ export type QueryResponse = {
     | "SUCCEEDED";
   resultsUrl?: string;
 };
+
+export type TableSchemaField = {
+  name: string;
+  type: string;
+  comment?: string;
+};
+
+export type TableSchema = {
+  namespace: string;
+  table: string;
+  fields: TableSchemaField[];
+};

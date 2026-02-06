@@ -1,4 +1,4 @@
-import {executeQuery, getQueryExecution} from '@/controllers/analytics';
+import {executeQuery, getQueryExecution, getSchema} from '@/controllers/analytics';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, Router} from '@aws-lambda-powertools/event-handler/http';
@@ -32,6 +32,10 @@ router.post('/api/integrations/:integrationId/analytics/queries', [addUserIntegr
 
 router.get('/api/integrations/analytics/queries/:queryId', async (reqCtx: AppRequestContext) => {
     return await getQueryExecution(reqCtx.appContext?.userId!, reqCtx.params.queryId);
+});
+
+router.get('/api/integrations/analytics/schema', async () => {
+    return await getSchema();
 });
 
 export default router;
