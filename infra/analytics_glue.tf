@@ -42,7 +42,7 @@ resource "awscc_glue_integration" "analytics" {
   target_arn                    = "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
   additional_encryption_context = {}
   integration_config = {
-    refresh_interval = "60"
+    refresh_interval = "${60 * 6}" # 6 hours
   }
   description = "GitGazer Glue Integration for Analytics - ${terraform.workspace}"
   kms_key_id  = aws_kms_key.this.arn
