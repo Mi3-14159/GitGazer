@@ -1,17 +1,30 @@
 <script setup lang="ts">
     import {useAnalytics} from '@/composables/useAnalytics';
+    import {useIntegration} from '@/composables/useIntegration';
+    import type {Integration} from '@common/types';
     import {QueryResponse} from '@common/types/analytics';
     import Papa from 'papaparse';
-    import {computed, ref} from 'vue';
+    import {computed, onMounted, ref} from 'vue';
 
     const {submitQuery, pollUntilComplete, isPolling, isSubmitting} = useAnalytics();
+    const {getIntegrations, isLoadingIntegrations} = useIntegration();
 
-    const defaultQuery = `SELECT integrationId, * FROM "zetl_2ae4e415_2c03_41f6_b77a_87def23fc43f"."gitgazer_workflows_default" limit 10;`;
-    const queryText = ref(defaultQuery);
+    const integrations = ref<Integration[]>([]);
+    const selectedIntegrationId = ref<string | null>(null);
     const currentQuery = ref<QueryResponse | null>(null);
     const errorMessage = ref<string | null>(null);
     const resultsData = ref<any[]>([]);
     const resultsHeaders = ref<any[]>([]);
+    const defaultQuery = `SELECT
+    integrationId,
+    created_at,
+    id,
+    "workflow_event.workflow_run.conclusion"
+FROM "zetl_2ae4e415_2c03_41f6_b77a_87def23fc43f"."gitgazer_workflows_default"
+WHERE
+    event_type = 'workflow_run'
+LIMIT 10;`;
+    const queryText = ref(defaultQuery);
 
     const isLoading = computed(() => isSubmitting.value || isPolling.value);
 
@@ -34,13 +47,18 @@
     });
 
     const handleSubmitQuery = async () => {
+        if (!selectedIntegrationId.value) {
+            errorMessage.value = 'Please select an integration first';
+            return;
+        }
+
         errorMessage.value = null;
         resultsData.value = [];
         resultsHeaders.value = [];
 
         try {
             // Submit the query
-            const response = await submitQuery(queryText.value);
+            const response = await submitQuery(selectedIntegrationId.value, queryText.value);
             currentQuery.value = response;
 
             // Start polling for results
@@ -108,19 +126,43 @@
         resultsData.value = [];
         resultsHeaders.value = [];
     };
+
+    onMounted(async () => {
+        try {
+            integrations.value = await getIntegrations();
+            if (integrations.value.length > 0) {
+                selectedIntegrationId.value = integrations.value[0].id;
+            }
+        } catch (error) {
+            errorMessage.value = `Failed to load integrations: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        }
+    });
 </script>
 
 <template>
     <v-main>
         <v-container fluid>
+            <!-- Integration Selection -->
             <v-row>
-                <v-col>
-                    <h1 class="text-h4 mb-4">Analytics Query</h1>
+                <v-col cols="auto">
+                    <v-select
+                        v-model="selectedIntegrationId"
+                        :items="integrations"
+                        item-title="label"
+                        item-value="id"
+                        label="Select Integration"
+                        variant="outlined"
+                        :loading="isLoadingIntegrations"
+                        :disabled="isLoading || isLoadingIntegrations"
+                        prepend-inner-icon="mdi-account-cog"
+                        density="comfortable"
+                    >
+                    </v-select>
                 </v-col>
             </v-row>
 
             <!-- Query Editor -->
-            <v-row>
+            <v-row style="margin-top: 0">
                 <v-col>
                     <v-card>
                         <v-card-title>SQL Query Editor</v-card-title>
@@ -139,7 +181,7 @@
                             <v-btn
                                 color="primary"
                                 :loading="isLoading"
-                                :disabled="!queryText.trim() || isLoading"
+                                :disabled="!queryText.trim() || !selectedIntegrationId || isLoading"
                                 @click="handleSubmitQuery"
                             >
                                 <v-icon

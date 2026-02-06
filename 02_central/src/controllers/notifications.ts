@@ -1,5 +1,5 @@
 import {deleteNotificationRule as ddeleteNotificationRule, getNotificationRulesBy, putNotificationRule} from '@/clients/dynamodb';
-import {UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
 import {NotificationRule, NotificationRuleUpdate} from '@common/types';
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
@@ -23,7 +23,7 @@ export const upsertNotificationRule = async (params: {
     ruleId?: string;
 }): Promise<NotificationRule> => {
     if (!params.userIntegrationIds.includes(params.integrationId)) {
-        throw new Error('Unauthorized to create notification rule for this integration');
+        throw new ForbiddenError('Unauthorized to create/update notification rule for this integration');
     }
 
     return await putNotificationRule(
@@ -38,7 +38,7 @@ export const upsertNotificationRule = async (params: {
 
 export const deleteNotificationRule = async (ruleId: string, integrationId: string, userIntegrationIds: string[]): Promise<void> => {
     if (!userIntegrationIds.includes(integrationId)) {
-        throw new UnauthorizedError('Unauthorized to delete notification rule for this integration');
+        throw new ForbiddenError('Unauthorized to delete notification rule for this integration');
     }
 
     await ddeleteNotificationRule(ruleId, integrationId);

@@ -98,10 +98,8 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
-      "athena:StartQueryExecution",
       "athena:GetQueryExecution",
       "athena:GetQueryResults",
-      "athena:StopQueryExecution",
       "athena:GetWorkGroup",
       "athena:ListQueryExecutions"
     ]
@@ -142,30 +140,43 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
-      "lakeformation:GetDataAccess"
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:TagRole",
+      "iam:UntagRole",
     ]
     resources = [
       "*",
+    ]
+    condition {
+      test     = "StringLike"
+      variable = "iam:ResourceTag/${var.name_prefix}"
+      values   = ["true"]
+    }
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "sts:AssumeRole",
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name_prefix}-${terraform.workspace}-*-api",
     ]
   }
 
   statement {
     effect = "Allow"
     actions = [
-      "glue:GetDatabase",
-      "glue:GetDatabases",
-      "glue:GetTable",
-      "glue:GetTables",
-      "glue:GetPartition",
-      "glue:GetPartitions",
+      "lakeformation:GrantPermissions",
+      "lakeformation:RevokePermissions",
     ]
     resources = [
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
+      "*",
     ]
+    # TODO: this should probably be restricted to only allow granting permissions on the relevant data lake resources and only to the roles created by this api
   }
 }
 
@@ -217,6 +228,7 @@ resource "aws_lambda_function" "api" {
       ATHENA_CATALOG                                    = aws_athena_data_catalog.analytics.name
       ATHENA_QUERY_RESULT_S3_BUCKET                     = module.athena_query_results_bucket.s3_bucket_id
       ATHENA_WORKGROUP                                  = aws_athena_workgroup.analytics.name
+      LAKEFORMATION_CATALOG_ID                          = local.s3tables_catalog_id
       CORS_ORIGINS                                      = jsonencode(local.cors_allowed_origins)
       # OAuth callback configuration
       COGNITO_DOMAIN    = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
@@ -233,6 +245,8 @@ resource "aws_lambda_function" "api" {
           )
         )
       )
+      API_RUNTIME_POLICY_ARN = aws_iam_policy.api_runtime.arn
+      AWS_ACCOUNT_ID         = data.aws_caller_identity.current.account_id
     }
   }
   layers = local.lambda_layers

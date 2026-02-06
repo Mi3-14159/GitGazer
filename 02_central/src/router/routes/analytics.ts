@@ -1,11 +1,12 @@
 import {executeQuery, getQueryExecution} from '@/controllers/analytics';
+import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isQueryRequestBody} from '@common/types/analytics';
 
 const router = new Router();
 
-router.post('/api/analytics/queries', async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/analytics/queries', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     if (!reqCtx.event.body) {
         throw new BadRequestError('Missing request body');
     }
@@ -21,10 +22,15 @@ router.post('/api/analytics/queries', async (reqCtx: AppRequestContext) => {
         throw new BadRequestError('Invalid request body');
     }
 
-    return await executeQuery(reqCtx.appContext?.userId!, requestBody.query);
+    return await executeQuery({
+        userId: reqCtx.appContext?.userId!,
+        query: requestBody.query,
+        userIntegrations: reqCtx.appContext?.integrations!,
+        integrationId: reqCtx.params.integrationId,
+    });
 });
 
-router.get('/api/analytics/queries/:queryId', async (reqCtx: AppRequestContext) => {
+router.get('/api/integrations/analytics/queries/:queryId', async (reqCtx: AppRequestContext) => {
     return await getQueryExecution(reqCtx.appContext?.userId!, reqCtx.params.queryId);
 });
 

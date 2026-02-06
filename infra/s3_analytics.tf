@@ -45,6 +45,16 @@ module "athena_query_results_bucket" {
       max_age_seconds = 3000
     }
   ]
+  allowed_kms_key_arn               = aws_kms_key.this.arn
+  attach_deny_incorrect_kms_key_sse = true
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm     = "aws:kms"
+        kms_master_key_id = aws_kms_key.this.arn
+      }
+    }
+  }
 }
 
 resource "aws_athena_workgroup" "analytics" {
@@ -275,16 +285,78 @@ data "aws_iam_policy_document" "analytics_zero_etl_role_policy" {
   }
 }
 
-resource "aws_lakeformation_permissions" "analytics_database" {
-  permissions = ["SELECT"]
-  principal   = aws_iam_role.api.arn
-
-  table {
-    catalog_id    = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
-    database_name = local.analytics_database_name
-    name          = local.analytics_workflows_tablename
-    # this can enable all tables in the database
-    # either use name or wildcard
-    # wildcard      = true
+data "aws_iam_policy_document" "api_runtime_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "athena:StartQueryExecution",
+    ]
+    resources = [
+      aws_athena_workgroup.analytics.arn,
+    ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      module.athena_query_results_bucket.s3_bucket_arn,
+      "${module.athena_query_results_bucket.s3_bucket_arn}/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "lakeformation:GetDataAccess",
+      "lakeformation:CreateDataCellsFilter",
+      "lakeformation:DeleteDataCellsFilter",
+      "lakeformation:GetDataCellsFilter",
+      "lakeformation:UpdateDataCellsFilter",
+    ]
+    resources = [
+      "*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartition",
+      "glue:GetPartitions",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+      "kms:Encrypt",
+    ]
+    resources = [
+      aws_kms_key.this.arn,
+    ]
+  }
+}
+
+resource "aws_iam_policy" "api_runtime" {
+  name   = "${var.name_prefix}-api-runtime-policy-${terraform.workspace}"
+  policy = data.aws_iam_policy_document.api_runtime_policy.json
 }

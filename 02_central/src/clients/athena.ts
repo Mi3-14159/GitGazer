@@ -1,13 +1,8 @@
-import {
-    AthenaClient,
-    GetQueryExecutionCommand,
-    GetQueryExecutionCommandOutput,
-    QueryExecutionState,
-    StartQueryExecutionCommand,
-} from '@aws-sdk/client-athena';
+import {AthenaClient, GetQueryExecutionCommand, GetQueryExecutionCommandOutput, StartQueryExecutionCommand} from '@aws-sdk/client-athena';
 
 import {getLogger} from '@/logger';
 import {InternalServerError} from '@aws-lambda-powertools/event-handler/http';
+import {Credentials} from '@aws-sdk/client-sts';
 
 const client = new AthenaClient({});
 
@@ -31,13 +26,11 @@ if (!athenaQueryResultsS3Bucket) {
     throw new Error('ATHENA_QUERY_RESULT_S3_BUCKET environment variable is not set');
 }
 
-const POLL_INTERVAL_MS = 1000;
-const MAX_POLL_ATTEMPTS = 60;
 const MAX_QUERY_RESULTS_AGE_MINUTES = 15;
 
 export type AthenaRow = Record<string, string | null>;
 
-export const runAthenaQuery = async (query: string): Promise<string> => {
+export const runAthenaQuery = async (query: string, credentials: Credentials): Promise<string> => {
     const logger = getLogger();
     const now = new Date();
     const startCommand = new StartQueryExecutionCommand({
@@ -62,7 +55,15 @@ export const runAthenaQuery = async (query: string): Promise<string> => {
     });
 
     logger.debug('Starting Athena query', {startCommand});
-    const startResponse = await client.send(startCommand);
+
+    const tmpClient = new AthenaClient({
+        credentials: {
+            accessKeyId: credentials.AccessKeyId!,
+            secretAccessKey: credentials.SecretAccessKey!,
+            sessionToken: credentials.SessionToken,
+        },
+    });
+    const startResponse = await tmpClient.send(startCommand);
     const queryExecutionId = startResponse.QueryExecutionId;
 
     if (!queryExecutionId) {
@@ -75,28 +76,3 @@ export const runAthenaQuery = async (query: string): Promise<string> => {
 export const getAthenaQueryExecution = async (queryExecutionId: string): Promise<GetQueryExecutionCommandOutput> => {
     return await client.send(new GetQueryExecutionCommand({QueryExecutionId: queryExecutionId}));
 };
-
-export const waitForCompletion = async (queryExecutionId: string): Promise<GetQueryExecutionCommandOutput> => {
-    const logger = getLogger();
-
-    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-        const execution = await client.send(new GetQueryExecutionCommand({QueryExecutionId: queryExecutionId}));
-        const state = execution.QueryExecution?.Status?.State;
-
-        if (state === QueryExecutionState.SUCCEEDED) {
-            return execution;
-        }
-
-        if (state === QueryExecutionState.FAILED || state === QueryExecutionState.CANCELLED) {
-            const reason = execution.QueryExecution?.Status?.StateChangeReason;
-            throw new InternalServerError(`Athena query ${queryExecutionId} failed: ${state}${reason ? ` - ${reason}` : ''}`);
-        }
-
-        await sleep(POLL_INTERVAL_MS);
-    }
-
-    logger.warn(`Athena query ${queryExecutionId} exceeded max poll attempts`);
-    throw new InternalServerError(`Athena query ${queryExecutionId} did not complete within timeout`);
-};
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));

@@ -9,11 +9,11 @@ export const useAnalytics = () => {
     const isPolling = ref(false);
     const isSubmitting = ref(false);
 
-    const submitQuery = async (query: string): Promise<QueryResponse> => {
+    const submitQuery = async (integrationId: string, query: string): Promise<QueryResponse> => {
         isSubmitting.value = true;
         try {
             const body: QueryRequestBody = {query};
-            const response = await fetchWithAuth(`${API_ENDPOINT}/analytics/queries`, {
+            const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/analytics/queries`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -32,7 +32,7 @@ export const useAnalytics = () => {
     };
 
     const getQueryStatus = async (queryId: string): Promise<QueryResponse> => {
-        const response = await fetchWithAuth(`${API_ENDPOINT}/analytics/queries/${queryId}`);
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/analytics/queries/${queryId}`);
 
         if (!response.ok) {
             throw new Error(`Failed to get query status: ${response.status}`);

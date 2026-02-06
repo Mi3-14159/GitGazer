@@ -6,9 +6,16 @@ import {
     getIntegrations as getIntegrationsDDB,
     updateIntegration as updateIntegrationDDB,
 } from '@/clients/dynamodb';
+import {createLambdaRole, deleteRole, getIamRoleArn, getIamRoleName} from '@/clients/iam';
+import {createDataFilter, deleteDataFilter, grantLakeFormationPermissions, revokeLakeFormationPermissions} from '@/clients/lakeformation';
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Integration} from '@common/types';
+
+const environment = process.env.ENVIRONMENT;
+if (!environment) {
+    throw new Error('ENVIRONMENT environment variable is not set');
+}
 
 export const getIntegrations = async (params: {integrationIds: string[]; limit?: number}): Promise<Integration[]> => {
     const {integrationIds} = params;
@@ -42,7 +49,9 @@ export const upsertIntegration = async (params: {
             throw new BadRequestError('Missing label for integration update');
         }
 
-        return await updateIntegrationDDB(id, label);
+        const integration = await updateIntegrationDDB(id, label);
+        await handlePermissions(id);
+        return integration;
     }
 
     if (!label || !owner || !userId) {
@@ -62,12 +71,54 @@ const createIntegration = async (label: string, owner: string): Promise<Integrat
         owner,
         secret: crypto.randomUUID(),
     };
-    return await createIntegrationDDB(integration);
+
+    const results = await Promise.allSettled([createIntegrationDDB(integration), handlePermissions(integration.id)]);
+
+    const failedResults = results.filter((result) => result.status === 'rejected');
+    if (failedResults.length > 0) {
+        logger.error(`Failed to create integration '${label}:${integration.id}'`, {failedResults});
+        throw new InternalServerError('Failed to create integration');
+    }
+
+    logger.info(`Successfully created integration '${label}:${integration.id}'`);
+    return integration;
+};
+
+const handlePermissions = async (integrationId: string, toDelete?: boolean): Promise<void> => {
+    if (toDelete) {
+        const roleName = getIamRoleName(integrationId);
+        const roleArn = getIamRoleArn(integrationId);
+
+        const results = await Promise.allSettled([
+            revokeLakeFormationPermissions({roleArn, integrationId}),
+            deleteDataFilter({integrationId}),
+            deleteRole(roleName),
+        ]);
+
+        const failedResults = results.filter((result) => result.status === 'rejected');
+        if (failedResults.length > 0) {
+            throw new InternalServerError('Failed to revoke permissions for integration', undefined, {failedResults});
+        }
+
+        return;
+    }
+
+    const role = await createLambdaRole(
+        getIamRoleName(integrationId),
+        `GitGazer (${environment}) Lambda execution role for integration ${integrationId}`,
+    );
+
+    const results = await Promise.allSettled([grantLakeFormationPermissions({roleArn: role.Arn!, integrationId}), createDataFilter({integrationId})]);
+
+    const failedResults = results.filter((result) => result.status === 'rejected');
+    if (failedResults.length > 0) {
+        throw new InternalServerError('Failed to set up permissions for integration', undefined, {failedResults});
+    }
 };
 
 export const deleteIntegration = async (id: string, userGroups: string[], userId: string): Promise<void> => {
     const logger = getLogger();
-    logger.info(`Deleting integration with ID: ${id}`);
+    logger.info(`User ${userId} is attempting to delete integration ${id}`);
 
     if (!userGroups.includes(id)) {
         throw new UnauthorizedError('User is not authorized to delete this integration');
@@ -82,7 +133,12 @@ export const deleteIntegration = async (id: string, userGroups: string[], userId
         throw new ForbiddenError('User is not the owner of this integration');
     }
 
-    const results = await Promise.allSettled([deleteIntegrationDDB(id), deleteIntegrationMembers(id), deleteIntegrationNotificationRules(id)]);
+    const results = await Promise.allSettled([
+        deleteIntegrationDDB(id),
+        deleteIntegrationMembers(id),
+        deleteIntegrationNotificationRules(id),
+        handlePermissions(id, true),
+    ]);
 
     const failedResults = results.filter((result) => result.status === 'rejected');
     if (failedResults.length > 0) {
@@ -90,5 +146,5 @@ export const deleteIntegration = async (id: string, userGroups: string[], userId
         throw new InternalServerError('Failed to delete integration completely');
     }
 
-    logger.info(`Successfully deleted integration with ID: ${id}`);
+    logger.info(`Successfully deleted integration '${id}'`);
 };

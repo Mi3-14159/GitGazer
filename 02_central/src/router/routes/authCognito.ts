@@ -167,7 +167,7 @@ router.get('/api/user', async (reqCtx: AppRequestContext) => {
     const {userId, username, email, name, nickname, picture} = reqCtx.appContext!;
 
     if (!userId) {
-        throw new UnauthorizedError('userId is missing');
+        throw new ForbiddenError('userId is missing');
     }
 
     const user: UserAttributes = {
