@@ -67,3 +67,9 @@ variable "enable_lambda_tracing" {
   description = "Enable AWS X-Ray tracing for the Lambda functions"
   default     = false
 }
+
+variable "enable_bedrock_invocation_logging" {
+  type        = bool
+  description = "Enable logging of Bedrock model invocations"
+  default     = false
+}
