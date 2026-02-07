@@ -33,7 +33,7 @@ resource "aws_dynamodb_table" "workflows" {
 
   ttl {
     attribute_name = "expire_at"
-    enabled        = true
+    enabled        = var.expire_in_sec != null
   }
 
   global_secondary_index {

@@ -18,8 +18,8 @@ variable "enabled_pitr" {
 
 variable "expire_in_sec" {
   type        = number
-  description = "Time in seconds for the jobs to expire"
-  default     = 60 * 60 * 24 * 1 # 1 days
+  description = "Time in seconds for the jobs to expire. If null, the TTL will be disabled."
+  default     = null
 }
 
 variable "apigateway_logging_enabled" {
