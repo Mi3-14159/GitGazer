@@ -6,7 +6,7 @@
     import Papa from 'papaparse';
     import {computed, onMounted, ref} from 'vue';
 
-    const {submitQuery, pollUntilComplete, isPolling, isSubmitting, getSchema} = useAnalytics();
+    const {submitQuery, pollUntilComplete, isPolling, isSubmitting, getSchema, generateQuery, isGenerating} = useAnalytics();
     const {getIntegrations, isLoadingIntegrations} = useIntegration();
 
     const integrations = ref<Integration[]>([]);
@@ -16,6 +16,7 @@
     const resultsData = ref<any[]>([]);
     const resultsHeaders = ref<any[]>([]);
     const queryText = ref('');
+    const promptText = ref('');
 
     const isLoading = computed(() => isSubmitting.value || isPolling.value);
 
@@ -118,6 +119,27 @@
         resultsHeaders.value = [];
     };
 
+    const handleGenerateQuery = async () => {
+        if (!selectedIntegrationId.value) {
+            errorMessage.value = 'Please select an integration first';
+            return;
+        }
+
+        if (!promptText.value.trim()) {
+            errorMessage.value = 'Please enter a prompt';
+            return;
+        }
+
+        errorMessage.value = null;
+
+        try {
+            const generatedQuery = await generateQuery(selectedIntegrationId.value, promptText.value);
+            queryText.value = generatedQuery;
+        } catch (error) {
+            errorMessage.value = `Failed to generate query: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        }
+    };
+
     const createDefaultQuery = async () => {
         const schema = await getSchema();
         queryText.value = `SELECT
@@ -147,9 +169,12 @@ LIMIT 10;`;
 <template>
     <v-main>
         <v-container fluid>
-            <!-- Integration Selection -->
+            <!-- Integration Selection and LLM Prompt -->
             <v-row>
-                <v-col cols="auto">
+                <v-col
+                    cols="12"
+                    md="3"
+                >
                     <v-select
                         v-model="selectedIntegrationId"
                         :items="integrations"
@@ -158,11 +183,46 @@ LIMIT 10;`;
                         label="Select Integration"
                         variant="outlined"
                         :loading="isLoadingIntegrations"
-                        :disabled="isLoading || isLoadingIntegrations"
+                        :disabled="isLoading || isLoadingIntegrations || isGenerating"
                         prepend-inner-icon="mdi-account-cog"
                         density="comfortable"
                     >
                     </v-select>
+                </v-col>
+                <v-col
+                    cols="12"
+                    md="7"
+                >
+                    <v-text-field
+                        v-model="promptText"
+                        label="Describe your query in natural language"
+                        variant="outlined"
+                        :disabled="isLoading || isGenerating || !selectedIntegrationId"
+                        prepend-inner-icon="mdi-robot"
+                        density="comfortable"
+                        placeholder="e.g., Show me all failed workflow runs in the last 7 days"
+                        clearable
+                    >
+                    </v-text-field>
+                </v-col>
+                <v-col
+                    cols="12"
+                    md="2"
+                >
+                    <v-btn
+                        color="primary"
+                        :loading="isGenerating"
+                        :disabled="!promptText.trim() || !selectedIntegrationId || isLoading || isGenerating"
+                        @click="handleGenerateQuery"
+                        variant="tonal"
+                        block
+                    >
+                        <v-icon
+                            start
+                            icon="mdi-creation"
+                        ></v-icon>
+                        Generate
+                    </v-btn>
                 </v-col>
             </v-row>
 

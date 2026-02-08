@@ -1,5 +1,5 @@
 import {useAuth} from '@/composables/useAuth';
-import {QueryRequestBody, QueryResponse, TableSchema} from '@common/types/analytics';
+import {QueryRequestBody, QueryResponse, QuerySuggestionResponse, TableSchema} from '@common/types/analytics';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -8,6 +8,7 @@ export const useAnalytics = () => {
     const {fetchWithAuth} = useAuth();
     const isPolling = ref(false);
     const isSubmitting = ref(false);
+    const isGenerating = ref(false);
 
     const submitQuery = async (integrationId: string, query: string): Promise<QueryResponse> => {
         isSubmitting.value = true;
@@ -86,6 +87,28 @@ export const useAnalytics = () => {
         return (await response.json()) as TableSchema;
     };
 
+    const generateQuery = async (integrationId: string, prompt: string): Promise<string> => {
+        isGenerating.value = true;
+        try {
+            const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/analytics/queries/suggest`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({prompt}),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to generate query: ${response.status}`);
+            }
+
+            const result = (await response.json()) as QuerySuggestionResponse;
+            return result.suggestion || '';
+        } finally {
+            isGenerating.value = false;
+        }
+    };
+
     return {
         submitQuery,
         getQueryStatus,
@@ -93,5 +116,7 @@ export const useAnalytics = () => {
         isPolling,
         isSubmitting,
         getSchema,
+        generateQuery,
+        isGenerating,
     };
 };
