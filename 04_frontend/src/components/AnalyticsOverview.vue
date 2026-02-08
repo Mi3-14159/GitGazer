@@ -5,6 +5,7 @@
     import type {Integration} from '@common/types';
     import {QueryResponse} from '@common/types/analytics';
     import Papa from 'papaparse';
+    import {format, FormatOptionsWithLanguage} from 'sql-formatter';
     import {computed, onMounted, ref} from 'vue';
 
     const {submitQuery, pollUntilComplete, isPolling, isSubmitting, getSchema, generateQuery, isGenerating} = useAnalytics();
@@ -18,6 +19,11 @@
     const resultsHeaders = ref<any[]>([]);
     const queryText = ref('');
     const promptText = ref('');
+    const formatCfg: FormatOptionsWithLanguage = {
+        language: 'sql',
+        tabWidth: 2,
+        keywordCase: 'upper',
+    };
 
     const isLoading = computed(() => isSubmitting.value || isPolling.value);
 
@@ -122,6 +128,16 @@
         resultsHeaders.value = [];
     };
 
+    const handleFormatQuery = () => {
+        if (queryText.value.trim()) {
+            try {
+                queryText.value = format(queryText.value, formatCfg);
+            } catch (error) {
+                errorMessage.value = `Failed to format query: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            }
+        }
+    };
+
     const handleGenerateQuery = async () => {
         if (!selectedIntegrationId.value) {
             errorMessage.value = 'Please select an integration first';
@@ -137,7 +153,7 @@
 
         try {
             const generatedQuery = await generateQuery(selectedIntegrationId.value, promptText.value);
-            queryText.value = generatedQuery;
+            queryText.value = format(generatedQuery, formatCfg);
         } catch (error) {
             errorMessage.value = `Failed to generate query: ${error instanceof Error ? error.message : 'Unknown error'}`;
         }
@@ -145,15 +161,10 @@
 
     const createDefaultQuery = async () => {
         const schema = await getSchema();
-        queryText.value = `SELECT
-  integrationId,
-  created_at,
-  id,
-  "workflow_event.workflow_run.conclusion"
-FROM "${schema.namespace}"."${schema.table}"
-WHERE
-  event_type = 'workflow_run'
-LIMIT 10;`;
+        queryText.value = format(
+            `SELECT integrationId, created_at, id "workflow_event.workflow_run.conclusion" FROM "${schema.namespace}"."${schema.table}" WHERE event_type = 'workflow_run' LIMIT 10;`,
+            formatCfg,
+        );
     };
 
     onMounted(async () => {
@@ -262,6 +273,18 @@ LIMIT 10;`;
                                 :disabled="isLoading"
                             >
                                 Clear
+                            </v-btn>
+                            <v-spacer></v-spacer>
+                            <v-btn
+                                variant="text"
+                                @click="handleFormatQuery"
+                                :disabled="!queryText.trim() || isLoading"
+                            >
+                                <v-icon
+                                    start
+                                    icon="mdi-format-align-left"
+                                ></v-icon>
+                                Format
                             </v-btn>
                         </v-card-actions>
                     </v-card>
