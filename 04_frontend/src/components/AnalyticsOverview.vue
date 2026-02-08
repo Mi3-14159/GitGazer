@@ -202,6 +202,7 @@ LIMIT 10;`;
                         density="comfortable"
                         placeholder="e.g., Show me all failed workflow runs in the last 7 days"
                         clearable
+                        @keydown.enter="handleGenerateQuery"
                     >
                     </v-text-field>
                 </v-col>
@@ -239,6 +240,7 @@ LIMIT 10;`;
                                 variant="outlined"
                                 :disabled="isLoading"
                                 auto-grow
+                                @keydown.enter="handleSubmitQuery"
                             ></v-textarea>
                         </v-card-text>
                         <v-card-actions class="pt-0">
