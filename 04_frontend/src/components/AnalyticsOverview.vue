@@ -235,7 +235,7 @@ LIMIT 10;`;
                 <v-col>
                     <v-card>
                         <v-card-title>SQL Query Editor</v-card-title>
-                        <v-card-text class="pb-0">
+                        <v-card-text class="pb-5">
                             <CodeMirrorEditor
                                 v-model="queryText"
                                 :disabled="isLoading"

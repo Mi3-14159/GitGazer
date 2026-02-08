@@ -14,7 +14,6 @@
 
     const props = withDefaults(defineProps<Props>(), {
         disabled: false,
-        minHeight: '200px',
         maxHeight: '400px',
     });
 
@@ -106,7 +105,6 @@
         ref="editorContainer"
         class="codemirror-wrapper"
         :style="{
-            minHeight: minHeight,
             maxHeight: maxHeight,
         }"
     ></div>
