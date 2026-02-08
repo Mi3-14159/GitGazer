@@ -9,6 +9,7 @@ export const useAnalytics = () => {
     const isPolling = ref(false);
     const isSubmitting = ref(false);
     const isGenerating = ref(false);
+    const schema = ref<TableSchema | null>(null);
 
     const submitQuery = async (integrationId: string, query: string): Promise<QueryResponse> => {
         isSubmitting.value = true;
@@ -22,11 +23,12 @@ export const useAnalytics = () => {
                 body: JSON.stringify(body),
             });
 
+            const result = await response.json();
             if (!response.ok) {
-                throw new Error(`Failed to submit query: ${response.status}`);
+                throw new Error(`Failed to submit query: ${response.status}`, {cause: result.details?.message});
             }
 
-            return (await response.json()) as QueryResponse;
+            return result as QueryResponse;
         } finally {
             isSubmitting.value = false;
         }
@@ -78,13 +80,19 @@ export const useAnalytics = () => {
     };
 
     const getSchema = async (): Promise<TableSchema> => {
+        if (schema.value) {
+            return schema.value;
+        }
+
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/analytics/schema`);
 
         if (!response.ok) {
             throw new Error(`Failed to get schema: ${response.status}`);
         }
 
-        return (await response.json()) as TableSchema;
+        schema.value = (await response.json()) as TableSchema;
+
+        return schema.value;
     };
 
     const generateQuery = async (integrationId: string, prompt: string): Promise<string> => {

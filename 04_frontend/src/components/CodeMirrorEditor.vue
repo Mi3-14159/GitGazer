@@ -1,14 +1,15 @@
 <script setup lang="ts">
-    import {sql} from '@codemirror/lang-sql';
+    import {PostgreSQL, sql} from '@codemirror/lang-sql';
     import {Compartment, EditorState} from '@codemirror/state';
     import {EditorView, basicSetup} from 'codemirror';
-    import {onMounted, onUnmounted, ref, watch} from 'vue';
+    import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
 
     interface Props {
         modelValue: string;
         disabled?: boolean;
         minHeight?: string;
         maxHeight?: string;
+        schema?: any;
     }
 
     const props = withDefaults(defineProps<Props>(), {
@@ -23,6 +24,19 @@
     const editorContainer = ref<HTMLElement | null>(null);
     let editorView: EditorView | null = null;
     const editableCompartment = new Compartment();
+    const sqlCompartment = new Compartment();
+
+    const codemirrorSchema = computed(() => {
+        if (!props.schema?.table || !props.schema?.fields) {
+            return {};
+        }
+
+        const columnNames = props.schema.fields.map((field: any) => field.name);
+
+        return {
+            [props.schema.table]: columnNames,
+        };
+    });
 
     const initializeEditor = () => {
         if (!editorContainer.value || editorView) return;
@@ -31,7 +45,14 @@
             doc: props.modelValue,
             extensions: [
                 basicSetup,
-                sql(),
+                sqlCompartment.of(
+                    sql({
+                        dialect: PostgreSQL,
+                        schema: codemirrorSchema.value,
+                        defaultSchema: props.schema?.table,
+                        defaultTable: props.schema?.table,
+                    }),
+                ),
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged) {
                         emit('update:modelValue', update.state.doc.toString());
@@ -88,6 +109,26 @@
                 });
             }
         },
+    );
+
+    // Watch for schema changes
+    watch(
+        () => props.schema,
+        () => {
+            if (editorView) {
+                editorView.dispatch({
+                    effects: sqlCompartment.reconfigure(
+                        sql({
+                            dialect: PostgreSQL,
+                            schema: codemirrorSchema.value,
+                            defaultSchema: props.schema?.table,
+                            defaultTable: props.schema?.table,
+                        }),
+                    ),
+                });
+            }
+        },
+        {deep: true},
     );
 
     onMounted(() => {

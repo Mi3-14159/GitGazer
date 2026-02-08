@@ -6,7 +6,8 @@ import {getIamRoleArn} from '@/clients/iam';
 import {getSignedUrl} from '@/clients/s3';
 import {assumeRole} from '@/clients/sts';
 import {getLogger} from '@/logger';
-import {ForbiddenError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, ForbiddenError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
+import {InvalidRequestException} from '@aws-sdk/client-athena';
 import {QueryResponse, QuerySuggestionRequest, QuerySuggestionResponse, TableSchema, TableSchemaField} from '@common/types/analytics';
 
 const catalogId = process.env.LAKEFORMATION_CATALOG_ID;
@@ -60,13 +61,22 @@ export const executeQuery = async (params: {
         throw new InternalServerError(`Failed to assume role for integration ${params.integrationId}`);
     }
 
-    const queryExecutionId = await runAthenaQuery(params.query, assumedRole.Credentials);
-    await putUserQuery(params.userId, queryExecutionId);
+    try {
+        const queryExecutionId = await runAthenaQuery(params.query, assumedRole.Credentials);
+        await putUserQuery(params.userId, queryExecutionId);
 
-    return {
-        queryId: queryExecutionId,
-        status: 'REQUESTED',
-    };
+        return {
+            queryId: queryExecutionId,
+            status: 'REQUESTED',
+        };
+    } catch (error) {
+        if (error instanceof InvalidRequestException) {
+            throw new BadRequestError('Invalid query', undefined, {message: error.message});
+        }
+
+        getLogger().error('Error executing Athena query', {error});
+        throw new InternalServerError('Failed to execute query');
+    }
 };
 
 export const getQueryExecution = async (userId: string, queryId: string): Promise<QueryResponse> => {

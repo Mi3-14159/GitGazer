@@ -3,7 +3,7 @@
     import {useAnalytics} from '@/composables/useAnalytics';
     import {useIntegration} from '@/composables/useIntegration';
     import type {Integration} from '@common/types';
-    import {QueryResponse} from '@common/types/analytics';
+    import {QueryResponse, TableSchema} from '@common/types/analytics';
     import Papa from 'papaparse';
     import {format, FormatOptionsWithLanguage} from 'sql-formatter';
     import {computed, onMounted, ref} from 'vue';
@@ -14,11 +14,12 @@
     const integrations = ref<Integration[]>([]);
     const selectedIntegrationId = ref<string | null>(null);
     const currentQuery = ref<QueryResponse | null>(null);
-    const errorMessage = ref<string | null>(null);
+    const error = ref<Error | null>(null);
     const resultsData = ref<any[]>([]);
     const resultsHeaders = ref<any[]>([]);
     const queryText = ref('');
     const promptText = ref('');
+    const schema = ref<TableSchema | null>(null);
     const formatCfg: FormatOptionsWithLanguage = {
         language: 'trino',
         tabWidth: 2,
@@ -50,11 +51,11 @@
 
     const handleSubmitQuery = async () => {
         if (!selectedIntegrationId.value) {
-            errorMessage.value = 'Please select an integration first';
+            error.value = new Error('Please select an integration first');
             return;
         }
 
-        errorMessage.value = null;
+        error.value = null;
         resultsData.value = [];
         resultsHeaders.value = [];
 
@@ -72,10 +73,10 @@
             if (currentQuery.value?.status === 'SUCCEEDED' && currentQuery.value.resultsUrl) {
                 await fetchResults(currentQuery.value.resultsUrl);
             } else if (currentQuery.value?.status === 'FAILED') {
-                errorMessage.value = currentQuery.value.message || 'Query execution failed';
+                error.value = new Error(currentQuery.value.message || 'Query execution failed');
             }
-        } catch (error) {
-            errorMessage.value = error instanceof Error ? error.message : 'An error occurred';
+        } catch (err) {
+            error.value = err instanceof Error ? err : new Error('An error occurred');
         }
     };
 
@@ -113,8 +114,8 @@
 
             // Data is already parsed as objects
             resultsData.value = parsed.data;
-        } catch (error) {
-            errorMessage.value = `Failed to parse results: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        } catch (err) {
+            error.value = err instanceof Error ? err : new Error('Failed to parse results');
         }
     };
 
@@ -126,7 +127,7 @@
 
     const handleClearQuery = () => {
         currentQuery.value = null;
-        errorMessage.value = null;
+        error.value = null;
         resultsData.value = [];
         resultsHeaders.value = [];
     };
@@ -135,50 +136,46 @@
         if (queryText.value.trim()) {
             try {
                 queryText.value = format(queryText.value, formatCfg);
-            } catch (error) {
-                errorMessage.value = `Failed to format query: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            } catch (err) {
+                error.value = err instanceof Error ? err : new Error('Failed to format query');
             }
         }
     };
 
     const handleGenerateQuery = async () => {
         if (!selectedIntegrationId.value) {
-            errorMessage.value = 'Please select an integration first';
+            error.value = new Error('Please select an integration first');
             return;
         }
 
         if (!promptText.value.trim()) {
-            errorMessage.value = 'Please enter a prompt';
+            error.value = new Error('Please enter a prompt');
             return;
         }
 
-        errorMessage.value = null;
+        error.value = null;
 
         try {
             const generatedQuery = await generateQuery(selectedIntegrationId.value, promptText.value);
             queryText.value = format(generatedQuery, formatCfg);
-        } catch (error) {
-            errorMessage.value = `Failed to generate query: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        } catch (err) {
+            error.value = err instanceof Error ? err : new Error('Failed to generate query');
         }
-    };
-
-    const createDefaultQuery = async () => {
-        const schema = await getSchema();
-        queryText.value = format(
-            `SELECT integrationId, created_at, id "workflow_event.workflow_run.conclusion" FROM "${schema.namespace}"."${schema.table}" WHERE event_type = 'workflow_run' LIMIT 10;`,
-            formatCfg,
-        );
     };
 
     onMounted(async () => {
         try {
-            createDefaultQuery();
+            schema.value = await getSchema();
+            queryText.value = format(
+                `SELECT integrationId, created_at, id, "workflow_event.workflow_run.conclusion" FROM ${schema.value?.table} WHERE event_type = 'workflow_run' LIMIT 10;`,
+                formatCfg,
+            );
             integrations.value = await getIntegrations();
             if (integrations.value.length > 0) {
                 selectedIntegrationId.value = integrations.value[0].id;
             }
-        } catch (error) {
-            errorMessage.value = `Failed to load integrations: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        } catch (err) {
+            error.value = err instanceof Error ? err : new Error('Failed to load integrations');
         }
     });
 </script>
@@ -253,6 +250,7 @@
                             <CodeMirrorEditor
                                 v-model="queryText"
                                 :disabled="isLoading"
+                                :schema="schema"
                             />
                         </v-card-text>
                         <v-card-actions class="pt-0">
@@ -295,14 +293,15 @@
             </v-row>
 
             <!-- Error Message -->
-            <v-row v-if="errorMessage">
+            <v-row v-if="error">
                 <v-col>
                     <v-alert
                         type="error"
                         closable
-                        @click:close="errorMessage = null"
+                        @click:close="error = null"
                     >
-                        {{ errorMessage }}
+                        <v-alert-title v-if="error?.cause">{{ error?.message }}</v-alert-title>
+                        {{ error?.cause ? error?.cause : error.message }}
                     </v-alert>
                 </v-col>
             </v-row>
