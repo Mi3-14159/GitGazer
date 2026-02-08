@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import CodeMirrorEditor from '@/components/CodeMirrorEditor.vue';
     import {useAnalytics} from '@/composables/useAnalytics';
     import {useIntegration} from '@/composables/useIntegration';
     import type {Integration} from '@common/types';
@@ -235,15 +236,10 @@ LIMIT 10;`;
                     <v-card>
                         <v-card-title>SQL Query Editor</v-card-title>
                         <v-card-text class="pb-0">
-                            <v-textarea
+                            <CodeMirrorEditor
                                 v-model="queryText"
-                                label="Enter SQL query"
-                                rows="8"
-                                variant="outlined"
                                 :disabled="isLoading"
-                                auto-grow
-                                @keydown.enter="handleSubmitQuery"
-                            ></v-textarea>
+                            />
                         </v-card-text>
                         <v-card-actions class="pt-0">
                             <v-btn
