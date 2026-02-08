@@ -27,6 +27,7 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
             throw error;
         }
 
+        logger.error('Error creating workflow', {error});
         throw new InternalServerError('Error creating workflow');
     }
 
