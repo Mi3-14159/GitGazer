@@ -23,6 +23,9 @@
         language: 'trino',
         tabWidth: 2,
         keywordCase: 'upper',
+        dataTypeCase: 'upper',
+        functionCase: 'upper',
+        logicalOperatorNewline: 'before',
     };
 
     const isLoading = computed(() => isSubmitting.value || isPolling.value);
