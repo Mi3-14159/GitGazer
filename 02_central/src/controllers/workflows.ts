@@ -14,7 +14,7 @@ export const getWorkflows = async (params: {
 
     const workflows = await getWorkflowsBy({
         keys: integrationIds.map((id) => ({integrationId: id})),
-        ...(limit && {limit: Math.min(limit, 100)}),
+        ...(limit && {limit: Math.min(limit, 1000)}),
         projection,
         exclusiveStartKeys,
     });
