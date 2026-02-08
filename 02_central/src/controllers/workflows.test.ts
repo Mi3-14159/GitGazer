@@ -110,7 +110,7 @@ describe('workflows controller', () => {
             limit: 0,
         });
 
-        // 0 is falsy, so limit should not be passed
+        // A limit of 0 is treated as no limit specified
         expect(dynamodb.getWorkflowsBy).toHaveBeenCalledWith({
             keys: [{integrationId: 'integration1'}],
         });
