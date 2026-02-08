@@ -61,6 +61,8 @@
             // If succeeded, fetch and parse the results
             if (currentQuery.value?.status === 'SUCCEEDED' && currentQuery.value.resultsUrl) {
                 await fetchResults(currentQuery.value.resultsUrl);
+            } else if (currentQuery.value?.status === 'FAILED') {
+                errorMessage.value = currentQuery.value.message || 'Query execution failed';
             }
         } catch (error) {
             errorMessage.value = error instanceof Error ? error.message : 'An error occurred';

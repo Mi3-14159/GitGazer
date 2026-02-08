@@ -79,6 +79,7 @@ export const getQueryExecution = async (userId: string, queryId: string): Promis
     const response: QueryResponse = {
         queryId,
         status: execution.QueryExecution?.Status?.State,
+        message: execution.QueryExecution?.Status?.StateChangeReason,
     };
 
     const {OutputLocation} = execution.QueryExecution?.ResultConfiguration || {};

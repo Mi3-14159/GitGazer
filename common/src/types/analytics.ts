@@ -16,6 +16,7 @@ export type QueryResponse = {
     | "RUNNING"
     | "SUCCEEDED";
   resultsUrl?: string;
+  message?: string;
 };
 
 export type TableSchemaField = {
