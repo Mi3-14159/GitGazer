@@ -146,13 +146,13 @@
     const createDefaultQuery = async () => {
         const schema = await getSchema();
         queryText.value = `SELECT
-    integrationId,
-    created_at,
-    id,
-    "workflow_event.workflow_run.conclusion"
+  integrationId,
+  created_at,
+  id,
+  "workflow_event.workflow_run.conclusion"
 FROM "${schema.namespace}"."${schema.table}"
 WHERE
-    event_type = 'workflow_run'
+  event_type = 'workflow_run'
 LIMIT 10;`;
     };
 
