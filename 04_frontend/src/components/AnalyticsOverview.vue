@@ -185,7 +185,7 @@ LIMIT 10;`;
                         :loading="isLoadingIntegrations"
                         :disabled="isLoading || isLoadingIntegrations || isGenerating"
                         prepend-inner-icon="mdi-account-cog"
-                        density="comfortable"
+                        density="compact"
                     >
                     </v-select>
                 </v-col>
@@ -199,7 +199,7 @@ LIMIT 10;`;
                         variant="outlined"
                         :disabled="isLoading || isGenerating || !selectedIntegrationId"
                         prepend-inner-icon="mdi-robot"
-                        density="comfortable"
+                        density="compact"
                         placeholder="e.g., Show me all failed workflow runs in the last 7 days"
                         clearable
                         @keydown.enter="handleGenerateQuery"
@@ -330,7 +330,7 @@ LIMIT 10;`;
                             <v-data-table
                                 :headers="resultsHeaders"
                                 :items="resultsData"
-                                :items-per-page="25"
+                                :items-per-page="50"
                                 density="compact"
                                 class="elevation-1"
                             >
