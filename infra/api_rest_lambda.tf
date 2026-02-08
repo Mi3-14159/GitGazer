@@ -285,16 +285,9 @@ resource "aws_lambda_function" "api" {
       COGNITO_CLIENT_ID = aws_cognito_user_pool_client.this.id
       # TODO!: i know this is not safe to expose the client secret in the lambda env vars
       # it needs refactoring to use a secure backend for the api config
-      COGNITO_CLIENT_SECRET = aws_cognito_user_pool_client.this.client_secret
-      COGNITO_REDIRECT_URI  = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
-      ALLOWED_FRONTEND_ORIGINS = jsonencode(
-        compact(
-          concat(
-            ["https://${aws_cloudfront_distribution.this.domain_name}"],
-            local.cors_allowed_origins
-          )
-        )
-      )
+      COGNITO_CLIENT_SECRET                = aws_cognito_user_pool_client.this.client_secret
+      COGNITO_REDIRECT_URI                 = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
+      ALLOWED_FRONTEND_ORIGINS             = jsonencode(compact(concat(["https://${aws_cloudfront_distribution.this.domain_name}"], local.cors_allowed_origins)))
       API_RUNTIME_POLICY_ARN               = aws_iam_policy.api_runtime.arn
       AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
       QUERY_GENERATOR_BEDROCK_MODEL_ID     = awscc_bedrock_prompt.query_generation.arn
