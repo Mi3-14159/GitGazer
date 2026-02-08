@@ -2,7 +2,7 @@ import {createWorkflow} from '@/controllers/imports';
 import {getLogger} from '@/logger';
 import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
 
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
 
 const router = new Router();
 
@@ -23,11 +23,11 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
     try {
         await createWorkflow(reqCtx.params.integrationId, requestBody);
     } catch (error) {
-        logger.error('Error creating workflow', error as Error);
+        if (error instanceof HttpError) {
+            throw error;
+        }
 
-        return new Response(JSON.stringify({message: 'Internal Server Error'}), {
-            status: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        });
+        throw new InternalServerError('Error creating workflow');
     }
 
     return {message: 'ok'};
