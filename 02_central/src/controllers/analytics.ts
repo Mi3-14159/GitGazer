@@ -112,7 +112,6 @@ export const getSchema = async (): Promise<TableSchema> => {
 
     const columns = await fetchTableSchema(catalogId, athenaDatabase, tableName);
     const tableSchema: TableSchema = {
-        namespace: athenaDatabase,
         table: tableName,
         fields: columns.map((col) => {
             const field: TableSchemaField = {

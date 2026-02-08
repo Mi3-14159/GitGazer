@@ -26,7 +26,6 @@ export type TableSchemaField = {
 };
 
 export type TableSchema = {
-  namespace: string;
   table: string;
   fields: TableSchemaField[];
 };
