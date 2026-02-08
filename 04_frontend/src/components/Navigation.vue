@@ -21,7 +21,7 @@
         v-model="drawer"
         :rail="rail"
         permanent
-        @click="rail = false"
+        @click="rail = !rail"
         width="180"
     >
         <v-list-item
@@ -50,31 +50,31 @@
                     prepend-icon="mdi-view-dashboard"
                     title="Dashboard"
                     value="dashboard"
-                    @click="router.push('/dashboard')"
+                    @click.stop="router.push('/dashboard')"
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-bell-ring"
                     title="Notifications"
                     value="notifications"
-                    @click="router.push('/notifications')"
+                    @click.stop="router.push('/notifications')"
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-account-cog"
                     title="Integrations"
                     value="integrations"
-                    @click="router.push('/integrations')"
+                    @click.stop="router.push('/integrations')"
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-chart-bar"
                     title="Analytics"
                     value="analytics"
-                    @click="router.push('/analytics')"
+                    @click.stop="router.push('/analytics')"
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-logout"
                     title="Logout"
                     value="logout"
-                    :onclick="signOut"
+                    @click.stop="signOut"
                 ></v-list-item>
             </v-list>
         </nav>
