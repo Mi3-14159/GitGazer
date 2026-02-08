@@ -17,7 +17,7 @@
     watch(
         () => settingsStore.resolvedTheme,
         (newTheme) => {
-            theme.global.name.value = newTheme;
+            theme.change(newTheme);
         },
         {immediate: true},
     );
