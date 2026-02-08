@@ -70,6 +70,22 @@ describe('workflows controller', () => {
         });
     });
 
+    it('getWorkflows passes limit of exactly 1000 without modification', async () => {
+        (dynamodb.getWorkflowsBy as any).mockResolvedValue([
+            {items: [], lastEvaluatedKey: undefined},
+        ]);
+
+        await workflows.getWorkflows({
+            integrationIds: ['integration1'],
+            limit: 1000,
+        });
+
+        expect(dynamodb.getWorkflowsBy).toHaveBeenCalledWith({
+            keys: [{integrationId: 'integration1'}],
+            limit: 1000,
+        });
+    });
+
     it('getWorkflows does not pass limit when undefined', async () => {
         (dynamodb.getWorkflowsBy as any).mockResolvedValue([
             {items: [], lastEvaluatedKey: undefined},
