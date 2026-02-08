@@ -15,12 +15,7 @@ terraform {
 provider "aws" {
   region = var.aws_region
   default_tags {
-    tags = {
-      gitgazer  = true
-      env       = terraform.workspace
-      terraform = true
-      app       = var.name_prefix
-    }
+    tags = local.default_tags
   }
 }
 
@@ -35,6 +30,12 @@ data "aws_ssoadmin_instances" "this" {}
 data "aws_lakeformation_data_lake_settings" "this" {}
 
 locals {
+  default_tags = {
+    gitgazer  = true
+    env       = terraform.workspace
+    terraform = true
+    app       = var.name_prefix
+  }
   frontend_failover_sub_path                     = "fe-failover"
   github_oauth_scopes                            = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
   websocket_api_stage_name                       = "prod"

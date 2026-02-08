@@ -193,6 +193,41 @@ data "aws_iam_policy_document" "api" {
     ]
     # TODO: this should probably be restricted to only allow granting permissions on the relevant data lake resources and only to the roles created by this api
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+    ]
+    resources = [
+      "*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "bedrock:GetPrompt",
+      "bedrock:RenderPrompt",
+    ]
+    resources = [
+      awscc_bedrock_prompt.query_generation.arn,
+      "${awscc_bedrock_prompt.query_generation.arn}:*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "bedrock:ApplyGuardrail",
+      "bedrock:GetGuardrail",
+    ]
+    resources = [
+      aws_bedrock_guardrail.query_generation.guardrail_arn,
+      "arn:aws:bedrock:*:${data.aws_caller_identity.current.account_id}:guardrail-profile/*"
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "api" {
@@ -260,8 +295,11 @@ resource "aws_lambda_function" "api" {
           )
         )
       )
-      API_RUNTIME_POLICY_ARN = aws_iam_policy.api_runtime.arn
-      AWS_ACCOUNT_ID         = data.aws_caller_identity.current.account_id
+      API_RUNTIME_POLICY_ARN               = aws_iam_policy.api_runtime.arn
+      AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
+      QUERY_GENERATOR_BEDROCK_MODEL_ID     = awscc_bedrock_prompt.query_generation.arn
+      QUERY_GENERATOR_GUARDRAIL_IDENTIFIER = aws_bedrock_guardrail.query_generation.guardrail_id
+      QUERY_GENERATOR_GUARDRAIL_VERSION    = "DRAFT"
     }
   }
   layers = local.lambda_layers

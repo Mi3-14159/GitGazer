@@ -1,4 +1,5 @@
 import {getAthenaQueryExecution, runAthenaQuery} from '@/clients/athena';
+import {converse} from '@/clients/bedrock';
 import {isUserQuery, putUserQuery} from '@/clients/dynamodb';
 import {fetchTableSchema} from '@/clients/glue';
 import {getIamRoleArn} from '@/clients/iam';
@@ -6,7 +7,7 @@ import {getSignedUrl} from '@/clients/s3';
 import {assumeRole} from '@/clients/sts';
 import {getLogger} from '@/logger';
 import {ForbiddenError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
-import {QueryResponse, TableSchema, TableSchemaField} from '@common/types/analytics';
+import {QueryResponse, QuerySuggestionRequest, QuerySuggestionResponse, TableSchema, TableSchemaField} from '@common/types/analytics';
 
 const catalogId = process.env.LAKEFORMATION_CATALOG_ID;
 if (!catalogId) {
@@ -21,6 +22,21 @@ if (!tableName) {
 const athenaDatabase = process.env.ATHENA_DATABASE;
 if (!athenaDatabase) {
     throw new Error('ATHENA_DATABASE environment variable is not set');
+}
+
+const queryGeneratorBedrockModelId = process.env.QUERY_GENERATOR_BEDROCK_MODEL_ID;
+if (!queryGeneratorBedrockModelId) {
+    throw new Error('QUERY_GENERATOR_BEDROCK_MODEL_ID environment variable is not set');
+}
+
+const queryGeneratorGuardrailIdentifier = process.env.QUERY_GENERATOR_GUARDRAIL_IDENTIFIER;
+if (!queryGeneratorGuardrailIdentifier) {
+    throw new Error('QUERY_GENERATOR_GUARDRAIL_IDENTIFIER environment variable is not set');
+}
+
+const queryGeneratorGuardrailVersion = process.env.QUERY_GENERATOR_GUARDRAIL_VERSION;
+if (!queryGeneratorGuardrailVersion) {
+    throw new Error('QUERY_GENERATOR_GUARDRAIL_VERSION environment variable is not set');
 }
 
 export const executeQuery = async (params: {
@@ -98,4 +114,39 @@ export const getSchema = async (): Promise<TableSchema> => {
     };
 
     return tableSchema;
+};
+
+export const suggestAQuery = async (params: QuerySuggestionRequest): Promise<QuerySuggestionResponse> => {
+    const logger = getLogger();
+    logger.info('Suggesting a query based on prompt', {prompt: params.prompt});
+
+    const schema = await getSchema();
+    const response = await converse({
+        modelId: queryGeneratorBedrockModelId,
+        guardrailConfig: {
+            guardrailIdentifier: queryGeneratorGuardrailIdentifier,
+            guardrailVersion: queryGeneratorGuardrailVersion,
+            trace: 'enabled',
+        },
+        promptVariables: {
+            schema: {
+                text: JSON.stringify(schema),
+            },
+            user_requirements: {
+                text: params.prompt,
+            },
+        },
+    });
+
+    if (!response.output?.message?.content || response.output.message.content.length === 0) {
+        throw new InternalServerError('Failed to get query suggestion from Bedrock');
+    }
+
+    const query = response.output?.message?.content
+        .map((content) => content.text)
+        .join('\n\n')
+        .trim();
+    return {
+        suggestion: query,
+    };
 };

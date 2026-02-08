@@ -11,6 +11,6 @@ export const handler = async (event: APIGatewayProxyEventV2, context: Context): 
 
     const result = await app.resolve(event, context);
 
-    logger.debug({message: 'result', result});
+    logger.debug('result', {result});
     return result;
 };

@@ -27,6 +27,9 @@ locals {
     "integrations/analytics/schema" = {
       methods = ["GET"]
     },
+    "integrations/analytics/queries/suggest" = {
+      methods = ["POST"]
+    },
     "auth/cognito/public" = {
       methods = ["GET"]
     },
