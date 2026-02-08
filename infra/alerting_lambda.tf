@@ -148,7 +148,14 @@ resource "aws_lambda_event_source_mapping" "alerting_jobs_stream" {
   filter_criteria {
     filter {
       pattern = jsonencode({
-        "eventName" : ["INSERT", "MODIFY"]
+        eventName : ["INSERT", "MODIFY"]
+        dynamodb : {
+          NewImage : {
+            event_type : {
+              S : ["workflow_job", "workflow_run"]
+            }
+          }
+        }
       })
     }
   }
