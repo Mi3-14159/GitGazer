@@ -20,7 +20,7 @@
     const queryText = ref('');
     const promptText = ref('');
     const formatCfg: FormatOptionsWithLanguage = {
-        language: 'sql',
+        language: 'trino',
         tabWidth: 2,
         keywordCase: 'upper',
     };
