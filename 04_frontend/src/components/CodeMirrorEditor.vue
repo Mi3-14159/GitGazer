@@ -157,6 +157,8 @@
 <style scoped>
     .codemirror-wrapper {
         background-color: rgb(var(--v-theme-surface));
+        overflow: auto;
+        min-height: 200px;
     }
 
     .codemirror-wrapper :deep(.cm-editor) {
@@ -165,7 +167,7 @@
     }
 
     .codemirror-wrapper :deep(.cm-scroller) {
-        overflow: auto;
+        overflow: auto !important;
     }
 
     .codemirror-wrapper :deep(.cm-editor.cm-focused) {
