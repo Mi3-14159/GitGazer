@@ -213,7 +213,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const handleListWorkflows = async () => {
-        const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
+        const response = await getJobs({limit: 500, projection: ProjectionType.minimal});
 
         response.forEach((workflow) => {
             handleWorkflow(workflow, false);
