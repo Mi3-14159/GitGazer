@@ -19,7 +19,7 @@
     "@babel/types": "^7.28.6",
     "@types/node": "^24.10.13",
     "@types/papaparse": "^5.5.2",
-    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.46.0",
     "@vitejs/plugin-basic-ssl": "^2.1.4",
     "@vitejs/plugin-vue": "^6.0.4",
