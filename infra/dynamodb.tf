@@ -1,5 +1,5 @@
-resource "aws_dynamodb_table" "workflows" {
-  name                        = "${var.name_prefix}-workflows-${terraform.workspace}"
+resource "aws_dynamodb_table" "events" {
+  name                        = "${var.name_prefix}-events-${terraform.workspace}"
   billing_mode                = "PAY_PER_REQUEST"
   hash_key                    = "integrationId"
   range_key                   = "id"
@@ -22,6 +22,11 @@ resource "aws_dynamodb_table" "workflows" {
     type = "S"
   }
 
+  attribute {
+    name = "event_type_group"
+    type = "S"
+  }
+
   server_side_encryption {
     enabled     = true
     kms_key_arn = aws_kms_key.this.arn
@@ -37,15 +42,25 @@ resource "aws_dynamodb_table" "workflows" {
   }
 
   global_secondary_index {
-    name            = "newest_integration_index"
-    hash_key        = "integrationId"
-    range_key       = "created_at"
+    name            = "newestEventsByType"
     projection_type = "ALL"
+    key_schema {
+      attribute_name = "integrationId"
+      key_type       = "HASH"
+    }
+    key_schema {
+      attribute_name = "event_type_group"
+      key_type       = "RANGE"
+    }
+    key_schema {
+      attribute_name = "created_at"
+      key_type       = "RANGE"
+    }
   }
 }
 
-resource "aws_dynamodb_resource_policy" "workflows" {
-  resource_arn = aws_dynamodb_table.workflows.arn
+resource "aws_dynamodb_resource_policy" "events" {
+  resource_arn = aws_dynamodb_table.events.arn
   policy       = data.aws_iam_policy_document.dynamodb_table_resource_policy.json
 }
 

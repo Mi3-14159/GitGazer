@@ -2,7 +2,7 @@ import {getNotificationRulesBy, getWorkflowsBy} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
-import {NotificationRule, NotificationRuleChannelType, Workflow, WorkflowJobEvent, WorkflowType} from '@common/types';
+import {Event, NotificationRule, NotificationRuleChannelType, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
 const logger = getLogger();
@@ -27,15 +27,15 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                 continue;
             }
 
-            if (record.dynamodb?.NewImage?.event_type?.S !== WorkflowType.JOB) {
+            if (record.dynamodb?.NewImage?.event_type?.S !== 'workflow_job') {
                 continue;
             }
 
-            const item = unmarshall(record.dynamodb.NewImage as unknown as Record<string, any>) as Workflow<WorkflowJobEvent>;
+            const item = unmarshall(record.dynamodb.NewImage as unknown as Record<string, any>) as Event<WorkflowJobEvent>;
 
             // Only alert for completed failures
-            const {status} = item.workflow_event.workflow_job;
-            const {conclusion} = item.workflow_event.workflow_job;
+            const {status} = item.event.workflow_job;
+            const {conclusion} = item.event.workflow_job;
             if (status !== 'completed' || conclusion !== 'failure') {
                 continue;
             }
@@ -44,10 +44,10 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
             const rules: NotificationRule[] = await getNotificationRulesBy({integrationIds: [integrationId]});
             logger.info(`Found ${rules.length} notification rules for integration ${integrationId}`, {rules});
 
-            const {full_name} = item.workflow_event.repository;
+            const {full_name} = item.event.repository;
             const [owner, repository_name] = full_name.split('/');
-            const {head_branch, workflow_name, name: job_name, run_id} = item.workflow_event.workflow_job;
-            const sender = item.workflow_event.sender.login;
+            const {head_branch, workflow_name, name: job_name, run_id} = item.event.workflow_job;
+            const sender = item.event.sender.login;
             const matching = rules.filter((r) => {
                 if (!r.enabled) return false;
                 if (!r.rule) return false;
@@ -80,17 +80,16 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
             // Fetch parent workflow_run to get event field (matches Step Functions branch 2)
             let workflowRunEvent;
             const workflowRuns = await getWorkflowsBy({
-                keys: [{integrationId, id: run_id.toString()}],
-                filters: {event_type: WorkflowType.RUN},
+                keys: [{integrationId, id: `workflow_run/${run_id.toString()}`}],
                 limit: 1,
             });
             const parentRun = workflowRuns
                 .map((queryResult) => queryResult.items)
                 .flat()
-                .find((job) => job.id === run_id.toString());
+                .find((job) => job.id === run_id.toString()) as Event<Partial<WorkflowRunEvent>>;
 
             if (parentRun) {
-                workflowRunEvent = parentRun.workflow_event.workflow_run?.event;
+                workflowRunEvent = parentRun.event.workflow_run?.event;
             }
 
             const body = {
@@ -98,7 +97,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                     {
                         text: {
                             emoji: true,
-                            text: `${item.workflow_event.workflow_job.workflow_name} - ${item.workflow_event.workflow_job.conclusion}`,
+                            text: `${item.event.workflow_job.workflow_name} - ${item.event.workflow_job.conclusion}`,
                             type: 'plain_text',
                         },
                         type: 'header',
@@ -106,19 +105,19 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                     {
                         fields: [
                             {
-                                text: `*Organisation:* <http://github.com/${item.workflow_event.repository.owner.login}|${item.workflow_event.repository.owner.login}>`,
+                                text: `*Organisation:* <http://github.com/${item.event.repository.owner.login}|${item.event.repository.owner.login}>`,
                                 type: 'mrkdwn',
                             },
                             {
-                                text: `*Repository:* <${item.workflow_event.repository.html_url}|${item.workflow_event.repository.name}>`,
+                                text: `*Repository:* <${item.event.repository.html_url}|${item.event.repository.name}>`,
                                 type: 'mrkdwn',
                             },
                             {
-                                text: `*Workflow:* <${item.workflow_event.repository.html_url}/actions/runs/${item.workflow_event.workflow_job.run_id}|${item.workflow_event.workflow_job.workflow_name} / ${item.workflow_event.workflow_job.name}>`,
+                                text: `*Workflow:* <${item.event.repository.html_url}/actions/runs/${item.event.workflow_job.run_id}|${item.event.workflow_job.workflow_name} / ${item.event.workflow_job.name}>`,
                                 type: 'mrkdwn',
                             },
                             {
-                                text: `*Conclusion:* <${item.workflow_event.repository.html_url}/actions/runs/${item.workflow_event.workflow_job.run_id}|${item.workflow_event.workflow_job.conclusion}>`,
+                                text: `*Conclusion:* <${item.event.repository.html_url}/actions/runs/${item.event.workflow_job.run_id}|${item.event.workflow_job.conclusion}>`,
                                 type: 'mrkdwn',
                             },
                             {
@@ -126,7 +125,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                                 type: 'mrkdwn',
                             },
                             {
-                                text: `*Sender:* <https://github.com/${item.workflow_event.sender.login}|${item.workflow_event.sender.login}>`,
+                                text: `*Sender:* <https://github.com/${item.event.sender.login}|${item.event.sender.login}>`,
                                 type: 'mrkdwn',
                             },
                         ],

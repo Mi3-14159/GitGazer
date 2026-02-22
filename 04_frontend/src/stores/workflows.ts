@@ -1,16 +1,12 @@
 import {useAuth} from '@/composables/useAuth';
 import {
-    isWorkflowJobEvent,
-    isWorkflowRunEvent,
+    Event,
     ProjectionType,
-    StreamWorkflowEvent,
-    WebhookEvent,
-    Workflow,
+    StreamEvent,
     WorkflowJobEvent,
     WorkflowRunEvent,
     WorkflowsRequestParameters,
     WorkflowsResponse,
-    WorkflowType,
     WSToken,
 } from '@common/types';
 import {defineStore} from 'pinia';
@@ -20,8 +16,8 @@ const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 const WS_ENDPOINT = import.meta.env.VITE_WEBSOCKET_API_ENDPOINT;
 
 export type WorkflowGroup = {
-    run: Workflow<WorkflowRunEvent>;
-    jobs: Map<string, Workflow<WorkflowJobEvent>>;
+    run: Event<WorkflowRunEvent>;
+    jobs: Map<string, Event<WorkflowJobEvent>>;
 };
 
 export const useWorkflowsStore = defineStore('workflows', () => {
@@ -145,7 +141,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
             ws.onmessage = (event) => {
                 try {
-                    const message = JSON.parse(event.data) as StreamWorkflowEvent<WebhookEvent>;
+                    const message = JSON.parse(event.data) as StreamEvent<'workflow_job' | 'workflow_run'>;
                     handleWorkflow(message.payload, true);
                     sortWorkflows();
                 } catch (error) {
@@ -201,10 +197,10 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             throw new Error(`Failed to fetch workflows: ${response.status}`);
         }
 
-        const events = (await response.json()) as unknown as WorkflowsResponse<Workflow<WebhookEvent>>;
+        const events = (await response.json()) as unknown as WorkflowsResponse<Event<WorkflowJobEvent> | Event<WorkflowRunEvent>>;
 
         events.forEach((event) => {
-            if (event.lastEvaluatedKey) {
+            if (event.items && event.items.length > 0 && event.lastEvaluatedKey) {
                 lastEvaluatedKeys.set(event.items[0].integrationId, event.lastEvaluatedKey);
             }
         });
@@ -220,7 +216,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         });
 
         workflowsArray.value = Array.from(workflows.values())
-            .filter((group) => group.run.workflow_event)
+            .filter((group) => group.run)
             .sort(compareWorkflows);
         isLoading.value = false;
     };
@@ -231,8 +227,8 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 run: {
                     id: runId,
                     integrationId,
-                    event_type: WorkflowType.RUN,
-                } as Workflow<WorkflowRunEvent>,
+                    event_type: 'workflow_run',
+                } as Event<WorkflowRunEvent>,
                 jobs: new Map(),
             });
             workflows.set(runId, group);
@@ -243,15 +239,24 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         return workflows.get(runId)!;
     };
 
-    const handleWorkflow = (workflow: Workflow<WebhookEvent>, addToArray = true) => {
-        if (isWorkflowJobEvent(workflow.workflow_event)) {
-            const runId = String(workflow.workflow_event.workflow_job.run_id);
-            const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
-            group.jobs.set(workflow.id, workflow as Workflow<WorkflowJobEvent>);
-        } else if (isWorkflowRunEvent(workflow.workflow_event)) {
-            const runId = workflow.id;
-            const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
-            group.run = workflow as Workflow<WorkflowRunEvent>;
+    const handleWorkflow = (workflow: Event<WorkflowRunEvent | WorkflowJobEvent>, addToArray = true) => {
+        switch (workflow.event_type) {
+            case 'workflow_job': {
+                const jobWorkflow = workflow as Event<WorkflowJobEvent>;
+                const runId = String(jobWorkflow.event.workflow_job.run_id);
+                const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
+                group.jobs.set(workflow.id, jobWorkflow);
+                break;
+            }
+            case 'workflow_run': {
+                const runWorkflow = workflow as Event<WorkflowRunEvent>;
+                const runId = String(runWorkflow.event.workflow_run.id);
+                const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
+                group.run = runWorkflow;
+                break;
+            }
+            default:
+                console.warn(`Unsupported workflow event type: ${workflow.event_type}`);
         }
     };
 

@@ -13,7 +13,8 @@ import {
 
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
-import {Integration, NotificationRule, ProjectionType, Workflow, WorkflowEvent, WorkflowType} from '@common/types';
+import {Event, Integration, NotificationRule, ProjectionType} from '@common/types';
+import type {EventPayloadMap} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
 if (!notificationTableName) {
@@ -30,9 +31,9 @@ if (!connectionTableName) {
     throw new Error('DYNAMO_DB_CONNECTIONS_TABLE_ARN is not defined');
 }
 
-const workflowsTableName = process.env.DYNAMO_DB_WORKFLOWS_TABLE_ARN;
-if (!workflowsTableName) {
-    throw new Error('DYNAMO_DB_WORKFLOWS_TABLE_ARN is not defined');
+const eventsTableName = process.env.DYNAMO_DB_EVENTS_TABLE_ARN;
+if (!eventsTableName) {
+    throw new Error('DYNAMO_DB_EVENTS_TABLE_ARN is not defined');
 }
 
 const integrationsTableName = process.env.DYNAMO_DB_INTEGRATIONS_TABLE_ARN;
@@ -71,6 +72,7 @@ const query = async <T>(commands: QueryCommand[]): Promise<QueryResult<T>[]> => 
         return {items: r.value.Items as T[], lastEvaluatedKey: r.value.LastEvaluatedKey};
     });
 
+    logger.trace(`DynamoDB query results`, {fulfilledResults});
     return fulfilledResults;
 };
 
@@ -98,13 +100,13 @@ export const getNotificationRulesBy = async (params: {integrationIds: string[]; 
     return query<NotificationRule>(commands).then((results) => results.flatMap((r) => r.items));
 };
 
-export const getWorkflowsBy = async <T extends WorkflowType>(params: {
+export const getWorkflowsBy = async <T extends 'workflow_job' | 'workflow_run'>(params: {
     keys: {integrationId: string; id?: string}[];
-    filters?: {event_type?: T};
+    filters?: {event_type?: T[]};
     limit?: number;
     projection?: ProjectionType;
     exclusiveStartKeys?: {[key: string]: any};
-}): Promise<QueryResult<Workflow<Partial<WorkflowEvent<T>>>>[]> => {
+}): Promise<QueryResult<Event<Partial<EventPayloadMap[T]>>>[]> => {
     const logger = getLogger();
     logger.info(`Getting workflows`, {params});
 
@@ -113,19 +115,19 @@ export const getWorkflowsBy = async <T extends WorkflowType>(params: {
         'id',
         'created_at',
         'event_type',
-        'workflow_event.repository.full_name',
-        'workflow_event.workflow_job.workflow_name',
-        'workflow_event.workflow_job.#name',
-        'workflow_event.workflow_job.head_branch',
-        'workflow_event.workflow_job.#status',
-        'workflow_event.workflow_job.conclusion',
-        'workflow_event.workflow_job.run_id',
-        'workflow_event.workflow_job.id',
-        'workflow_event.workflow_run.#name',
-        'workflow_event.workflow_run.head_branch',
-        'workflow_event.workflow_run.#status',
-        'workflow_event.workflow_run.conclusion',
-        'workflow_event.workflow_run.id',
+        'event.repository.full_name',
+        'event.workflow_job.workflow_name',
+        'event.workflow_job.#name',
+        'event.workflow_job.head_branch',
+        'event.workflow_job.#status',
+        'event.workflow_job.conclusion',
+        'event.workflow_job.run_id',
+        'event.workflow_job.id',
+        'event.workflow_run.#name',
+        'event.workflow_run.head_branch',
+        'event.workflow_run.#status',
+        'event.workflow_run.conclusion',
+        'event.workflow_run.id',
     ];
 
     const commands = params.keys.map((keys) => {
@@ -140,13 +142,25 @@ export const getWorkflowsBy = async <T extends WorkflowType>(params: {
             }
         });
 
+        if (!params.filters?.event_type) {
+            keyConditionExpressionParts.push('event_type_group = :event_type_group');
+            expressionAttributeValues[':event_type_group'] = 'workflow';
+        }
+
         Object.entries(params.filters ?? {}).forEach(([key, value]) => {
-            expressionAttributeValues[`:${key}`] = value;
-            filterExpressionParts.push(`${key} = :${key}`);
+            if (Array.isArray(value)) {
+                filterExpressionParts.push(`${key} IN (${value.map((_, i) => `:filter_${key}_${i}`).join(', ')})`);
+                value.forEach((v, i) => {
+                    expressionAttributeValues[`:filter_${key}_${i}`] = v;
+                });
+            } else if (value !== undefined) {
+                filterExpressionParts.push(`${key} = :${key}`);
+                expressionAttributeValues[`:${key}`] = value;
+            }
         });
 
         return new QueryCommand({
-            TableName: workflowsTableName,
+            TableName: eventsTableName,
             KeyConditionExpression: keyConditionExpressionParts.join(' AND '),
             ExpressionAttributeValues: expressionAttributeValues,
             ExpressionAttributeNames:
@@ -157,7 +171,7 @@ export const getWorkflowsBy = async <T extends WorkflowType>(params: {
                       }
                     : undefined,
             Limit: params.limit ?? 10,
-            IndexName: !keys.id ? 'newest_integration_index' : undefined,
+            IndexName: !keys.id && !params.filters?.event_type ? 'newestEventsByType' : undefined,
             ScanIndexForward: false,
             ProjectionExpression: params.projection === ProjectionType.minimal ? projectionExpressionValues.join(', ') : undefined,
             FilterExpression: filterExpressionParts.length ? filterExpressionParts.join(' AND ') : undefined,
@@ -165,7 +179,7 @@ export const getWorkflowsBy = async <T extends WorkflowType>(params: {
         });
     });
 
-    return query<Workflow<Partial<WorkflowEvent<T>>>>(commands);
+    return await query<Event<Partial<EventPayloadMap[T]>>>(commands);
 };
 
 export const putNotificationRule = async (
@@ -229,19 +243,53 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
     await client.send(command);
 };
 
-export const putWorkflow = async <T extends WorkflowEvent<any>>(workflow: Workflow<T>): Promise<Workflow<T>> => {
+export const putEvent = async <T extends keyof EventPayloadMap>(
+    event: Omit<Event<EventPayloadMap[T]>, 'created_at'>,
+): Promise<Event<EventPayloadMap[T]>> => {
     const logger = getLogger();
-    logger.info(`Putting workflow ${workflow.id}`, {
-        id: workflow.id,
+    logger.info(`Putting event ${event.integrationId}.${event.id}`, {
+        integrationId: event.integrationId,
+        id: event.id,
+        event,
     });
 
-    const command = new PutCommand({
-        TableName: workflowsTableName,
-        Item: workflow,
+    const updateExpressionParts: string[] = ['#created_at = if_not_exists(#created_at, :created_at)', '#updated_at = :updated_at'];
+    const expressionAttributeNames: {[key: string]: string} = {
+        '#created_at': 'created_at',
+        '#updated_at': 'updated_at',
+    };
+    const expressionAttributeValues: {[key: string]: any} = {
+        ':created_at': new Date().toISOString(),
+        ':updated_at': new Date().toISOString(),
+    };
+
+    Object.keys(event)
+        .filter((key) => !['integrationId', 'id'].includes(key))
+        .forEach((key) => {
+            const value = (event as any)[key];
+            if (!value) {
+                return;
+            }
+
+            updateExpressionParts.push(`#${key} = :${key}`);
+            expressionAttributeNames[`#${key}`] = key;
+            expressionAttributeValues[`:${key}`] = value;
+        });
+
+    const command = new UpdateCommand({
+        TableName: eventsTableName,
+        Key: {
+            integrationId: event.integrationId,
+            id: event.id,
+        },
+        UpdateExpression: `SET ${updateExpressionParts.join(', ')}`,
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+        ReturnValues: 'ALL_NEW',
     });
 
-    await client.send(command);
-    return workflow;
+    const result = await client.send(command);
+    return result.Attributes as Event<EventPayloadMap[T]>;
 };
 
 export const getConnections = async (integrationId: string): Promise<WebsocketConnection[]> => {
