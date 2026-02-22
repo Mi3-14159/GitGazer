@@ -1,8 +1,5 @@
-import type {
-  WebhookEvent,
-  WorkflowJobEvent,
-  WorkflowRunEvent,
-} from "@octokit/webhooks-types";
+import type { EmitterWebhookEventName } from "@octokit/webhooks";
+import type { EventPayloadMap } from "@octokit/webhooks-types";
 
 export type * from "@octokit/webhooks-types";
 
@@ -100,42 +97,14 @@ export const isIntegration = (integration: any): integration is Integration => {
   );
 };
 
-export enum WorkflowType {
-  JOB = "workflow_job",
-  RUN = "workflow_run",
-}
-
-export const isWorkflowJobEvent = (
-  event: WebhookEvent,
-): event is WorkflowJobEvent => {
-  return (
-    (event as WorkflowJobEvent).workflow_job !== undefined &&
-    (event as WorkflowJobEvent).workflow_job.id !== undefined
-  );
-};
-
-export const isWorkflowRunEvent = (
-  event: WebhookEvent,
-): event is WorkflowRunEvent => {
-  return (
-    (event as WorkflowRunEvent).workflow_run !== undefined &&
-    (event as WorkflowRunEvent).workflow_run.id !== undefined
-  );
-};
-
-export type WorkflowEvent<T extends WorkflowType> = T extends WorkflowType.JOB
-  ? WorkflowJobEvent
-  : T extends WorkflowType.RUN
-    ? WorkflowRunEvent
-    : WorkflowJobEvent | WorkflowRunEvent;
-
-export type Workflow<Subtype> = {
+export type Event<Subtype> = {
   integrationId: string;
   id: string;
   created_at: string;
   expire_at?: number;
-  event_type: WorkflowType;
-  workflow_event: Subtype;
+  event_type: EmitterWebhookEventName;
+  event_type_group?: string;
+  event: Subtype;
 };
 
 export enum ProjectionType {
@@ -180,9 +149,9 @@ export const isWorkflowsRequestParameters = (
   return true;
 };
 
-export type StreamWorkflowEvent<Subtype> = {
-  eventType: WorkflowType;
-  payload: Workflow<Subtype>;
+export type StreamEvent<T extends keyof EventPayloadMap> = {
+  eventType: EmitterWebhookEventName;
+  payload: Event<EventPayloadMap[T]>;
 };
 
 export type UserAttributes = {

@@ -3,7 +3,7 @@
     import {useScrollbarObserver} from '@/composables/useScrollbarObserver';
     import {useTableFiltering, type FilterableColumn} from '@/composables/useTableFiltering';
     import {WorkflowGroup} from '@/stores/workflows';
-    import {Workflow, WorkflowJobEvent} from '@common/types';
+    import {Event as GGEvent, WorkflowJobEvent} from '@common/types';
     import {computed, ref, toRef, type ComponentPublicInstance} from 'vue';
 
     export interface HeaderColumn<T = any> extends FilterableColumn<T> {
@@ -18,7 +18,7 @@
             threshold?: number;
             loading?: boolean;
             headerConfig?: HeaderColumn[];
-            onJobClick?: (job: Workflow<WorkflowJobEvent>) => void;
+            onJobClick?: (job: GGEvent<WorkflowJobEvent>) => void;
             loadMore?: () => void;
         }>(),
         {

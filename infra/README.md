@@ -24,7 +24,6 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 |------|---------|
 | <a name="provider_aws"></a> [aws](#provider\_aws) | 6.31.0 |
 | <a name="provider_awscc"></a> [awscc](#provider\_awscc) | 1.70.0 |
-| <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
 
 ## Modules
 
@@ -69,13 +68,13 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_cognito_user_pool.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool) | resource |
 | [aws_cognito_user_pool_client.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_client) | resource |
 | [aws_cognito_user_pool_domain.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_domain) | resource |
-| [aws_dynamodb_resource_policy.workflows](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_resource_policy) | resource |
+| [aws_dynamodb_resource_policy.events](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_resource_policy) | resource |
 | [aws_dynamodb_table.connections](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
+| [aws_dynamodb_table.events](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_dynamodb_table.integrations](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_dynamodb_table.notification_rules](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_dynamodb_table.user_assignments](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_dynamodb_table.user_queries](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
-| [aws_dynamodb_table.workflows](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
 | [aws_glue_resource_policy.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/glue_resource_policy) | resource |
 | [aws_iam_policy.api_runtime](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_iam_role.alerting](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
@@ -116,9 +115,6 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_s3_bucket_policy.ui_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
 | [aws_s3tables_table_bucket.analytics](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3tables_table_bucket) | resource |
 | [awscc_bedrock_prompt.query_generation](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/bedrock_prompt) | resource |
-| [awscc_glue_integration.analytics](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/glue_integration) | resource |
-| [awscc_glue_integration_resource_property.analytics](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/glue_integration_resource_property) | resource |
-| [null_resource.create_integration_table_properties](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_cloudfront_cache_policy.managed_caching_disabled](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/cloudfront_cache_policy) | data source |
 | [aws_cloudfront_cache_policy.managed_caching_optimized](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/cloudfront_cache_policy) | data source |

@@ -1,12 +1,16 @@
 import {resolve} from 'path';
+import {loadEnv} from 'vite';
 import {defineConfig} from 'vitest/config';
 
 import tsconfig from './tsconfig.json';
 
-export default defineConfig({
+export default defineConfig(({mode}) => ({
     test: {
         environment: 'node',
         setupFiles: ['./vitest.setup.ts'],
+        clearMocks: true,
+        globals: true,
+        env: loadEnv(mode, process.cwd(), ''),
         alias: Object.fromEntries(
             Object.entries(tsconfig.compilerOptions.paths).map(([key, value]) => [
                 key.replace('/*', ''),
@@ -23,4 +27,4 @@ export default defineConfig({
             },
         ],
     },
-});
+}));

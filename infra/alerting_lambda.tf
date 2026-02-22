@@ -58,9 +58,9 @@ data "aws_iam_policy_document" "alerting" {
       "dynamodb:Batch*",
     ]
     resources = compact([
-      aws_dynamodb_table.workflows.arn,
-      "${aws_dynamodb_table.workflows.arn}/stream/*",
-      "${aws_dynamodb_table.workflows.arn}/index/*",
+      aws_dynamodb_table.events.arn,
+      "${aws_dynamodb_table.events.arn}/stream/*",
+      "${aws_dynamodb_table.events.arn}/index/*",
       aws_dynamodb_table.notification_rules.arn,
       "${aws_dynamodb_table.notification_rules.arn}/index/*",
       aws_dynamodb_table.user_assignments.arn,
@@ -115,7 +115,7 @@ resource "aws_lambda_function" "alerting" {
       POWERTOOLS_LOGGER_LOG_EVENT                       = local.lambda_enable_event_logging
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN                 = aws_dynamodb_table.notification_rules.name
       DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME = local.notification_rules_table_index_name
-      DYNAMO_DB_WORKFLOWS_TABLE_ARN                     = aws_dynamodb_table.workflows.name
+      DYNAMO_DB_EVENTS_TABLE_ARN                        = aws_dynamodb_table.events.name
       DYNAMO_DB_CONNECTIONS_TABLE_ARN                   = aws_dynamodb_table.connections.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
@@ -135,7 +135,7 @@ resource "aws_lambda_function" "alerting" {
 }
 
 resource "aws_lambda_event_source_mapping" "alerting_jobs_stream" {
-  event_source_arn               = aws_dynamodb_table.workflows.stream_arn
+  event_source_arn               = aws_dynamodb_table.events.stream_arn
   function_name                  = aws_lambda_function.alerting.arn
   starting_position              = "LATEST"
   batch_size                     = 10

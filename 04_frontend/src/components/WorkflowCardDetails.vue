@@ -1,12 +1,12 @@
 <script setup lang="ts">
-    import {Workflow, WorkflowJobEvent} from '@common/types';
+    import {Event, WorkflowJobEvent} from '@common/types';
     import {computed} from 'vue';
 
     const props = defineProps<{
-        job: Workflow<WorkflowJobEvent> | null;
+        job: Event<WorkflowJobEvent> | null;
     }>();
 
-    const emit = defineEmits<{(e: 'update:job', value: Workflow<WorkflowJobEvent> | null): void}>();
+    const emit = defineEmits<{(e: 'update:job', value: Event<WorkflowJobEvent> | null): void}>();
 
     // Use a computed property to control the dialog visibility.
     const dialog = computed({
@@ -17,18 +17,18 @@
     });
 
     // Helper functions
-    const getJobStatus = (job: Workflow<WorkflowJobEvent>) => {
-        return job.workflow_event.workflow_job.conclusion || job.workflow_event.workflow_job.status || 'In Progress';
+    const getJobStatus = (job: Event<WorkflowJobEvent>) => {
+        return job.event.workflow_job.conclusion || job.event.workflow_job.status || 'In Progress';
     };
 
-    const formatJobTime = (job: Workflow<WorkflowJobEvent>) => {
-        const date = new Date(job.workflow_event.workflow_job.created_at);
+    const formatJobTime = (job: Event<WorkflowJobEvent>) => {
+        const date = new Date(job.event.workflow_job.created_at);
         return date.toLocaleString();
     };
 
-    const getGitHubWebUrl = (job: Workflow<WorkflowJobEvent>) => {
-        const repoFullName = job.workflow_event.repository.full_name;
-        const runId = job.workflow_event.workflow_job.run_id;
+    const getGitHubWebUrl = (job: Event<WorkflowJobEvent>) => {
+        const repoFullName = job.event.repository.full_name;
+        const runId = job.event.workflow_job.run_id;
         return `https://github.com/${repoFullName}/actions/runs/${runId}`;
     };
 
@@ -55,7 +55,7 @@
                     >
                         <v-text-field
                             label="Repository"
-                            :model-value="props.job.workflow_event.repository.full_name"
+                            :model-value="props.job.event.repository.full_name"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -68,7 +68,7 @@
                     >
                         <v-text-field
                             label="Workflow"
-                            :model-value="props.job.workflow_event.workflow_job.workflow_name"
+                            :model-value="props.job.event.workflow_job.workflow_name"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -81,7 +81,7 @@
                     >
                         <v-text-field
                             label="Job Name"
-                            :model-value="props.job.workflow_event.workflow_job.name"
+                            :model-value="props.job.event.workflow_job.name"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -121,7 +121,7 @@
                     >
                         <v-text-field
                             label="Run ID"
-                            :model-value="props.job.workflow_event.workflow_job.run_id"
+                            :model-value="props.job.event.workflow_job.run_id"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -134,7 +134,7 @@
                     >
                         <v-text-field
                             label="Job ID"
-                            :model-value="props.job.workflow_event.workflow_job.id"
+                            :model-value="props.job.event.workflow_job.id"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -147,7 +147,7 @@
                     >
                         <v-text-field
                             label="Head Branch"
-                            :model-value="props.job.workflow_event.workflow_job.head_branch"
+                            :model-value="props.job.event.workflow_job.head_branch"
                             readonly
                             variant="outlined"
                             density="compact"

@@ -1,4 +1,4 @@
-import {deleteConnection, getConnections, putWorkflow} from '@/clients/dynamodb';
+import {deleteConnection, getConnections, putEvent} from '@/clients/dynamodb';
 import {getLogger} from '@/logger';
 import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
 import {
@@ -7,7 +7,8 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {isWorkflowJobEvent, isWorkflowRunEvent, StreamWorkflowEvent, Workflow, WorkflowEvent, WorkflowType} from '@common/types';
+import {Event, EventPayloadMap, StreamEvent} from '@common/types';
+import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;
 const expireInSec = parseInt(expireInSecString ?? '') || undefined;
@@ -27,36 +28,50 @@ const apiClient = new ApiGatewayManagementApiClient({
     endpoint: `https://${websocketApiDomain}/${stage}`,
 });
 
-export async function createWorkflow<T extends WorkflowEvent<any>>(integrationId: string, event: T): Promise<Workflow<T>> {
-    let workflow: Workflow<T>;
-    if (isWorkflowJobEvent(event)) {
-        workflow = {
-            integrationId,
-            id: [event.workflow_job.run_id, event.workflow_job.id].join('/'),
-            created_at: event.workflow_job.created_at,
-            expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
-            event_type: WorkflowType.JOB,
-            workflow_event: event,
-        };
-    } else if (isWorkflowRunEvent(event)) {
-        workflow = {
-            integrationId,
-            id: `${event.workflow_run.id}`,
-            created_at: event.workflow_run.created_at,
-            expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
-            event_type: WorkflowType.RUN,
-            workflow_event: event,
-        };
-    } else {
-        throw new BadRequestError('Unsupported event type');
+export async function handleEvent<T extends EmitterWebhookEventName & keyof EventPayloadMap>(
+    integrationId: string,
+    eventType: T,
+    event: EventPayloadMap[T],
+): Promise<void> {
+    let event_type_group: string | undefined = undefined;
+    if (['workflow_job', 'workflow_run'].includes(eventType)) {
+        event_type_group = 'workflow';
     }
 
-    const response = await putWorkflow(workflow);
-    await postToConnections({eventType: workflow.event_type, payload: workflow});
-    return response;
+    const ggEvent: Omit<Event<EventPayloadMap[T]>, 'created_at'> = {
+        integrationId,
+        id: getEventId(eventType, event),
+        expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
+        event_type: eventType,
+        event_type_group,
+        event: event,
+    };
+
+    const savedEvent = await putEvent(ggEvent);
+
+    if (eventType === 'workflow_job' || eventType === 'workflow_run') {
+        await postToConnections({
+            eventType,
+            payload: savedEvent,
+        });
+    }
 }
 
-const postToConnections = async <T extends WorkflowEvent<any>>(params: StreamWorkflowEvent<T>) => {
+export const getEventId = <T extends EmitterWebhookEventName & keyof EventPayloadMap>(eventType: T, event: EventPayloadMap[T]): string => {
+    const eventData = event as any;
+
+    if (!(eventType in eventData) || !eventData[eventType] || typeof eventData[eventType] !== 'object') {
+        throw new BadRequestError(`Event payload does not contain expected property for event type ${eventType}`);
+    }
+
+    if ('id' in eventData[eventType] === false) {
+        throw new BadRequestError(`Event payload for event type ${eventType} does not contain an 'id' property`);
+    }
+
+    return `${eventType}/${eventData[eventType].id}`;
+};
+
+const postToConnections = async <T extends keyof EventPayloadMap>(params: StreamEvent<T>) => {
     const logger = getLogger();
     const connections = await getConnections(params.payload.integrationId);
 

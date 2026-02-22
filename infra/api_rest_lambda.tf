@@ -80,8 +80,8 @@ data "aws_iam_policy_document" "api" {
       "dynamodb:Batch*"
     ]
     resources = compact([
-      aws_dynamodb_table.workflows.arn,
-      "${aws_dynamodb_table.workflows.arn}/index/*",
+      aws_dynamodb_table.events.arn,
+      "${aws_dynamodb_table.events.arn}/index/*",
       try(aws_dynamodb_table.notification_rules.arn, null),
       try("${aws_dynamodb_table.notification_rules.arn}/index/*", null),
       aws_dynamodb_table.connections.arn,
@@ -263,7 +263,7 @@ resource "aws_lambda_function" "api" {
       EXPIRE_IN_SEC                                     = var.expire_in_sec
       DYNAMO_DB_NOTIFICATIONS_TABLE_ARN                 = aws_dynamodb_table.notification_rules.name
       DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME = local.notification_rules_table_index_name
-      DYNAMO_DB_WORKFLOWS_TABLE_ARN                     = aws_dynamodb_table.workflows.name
+      DYNAMO_DB_EVENTS_TABLE_ARN                        = aws_dynamodb_table.events.name
       DYNAMO_DB_USER_QUERIES_TABLE_ARN                  = aws_dynamodb_table.user_queries.name
       UI_BUCKET_NAME                                    = module.ui_bucket.s3_bucket_id
       KMS_KEY_ID                                        = aws_kms_key.this.id
@@ -273,13 +273,15 @@ resource "aws_lambda_function" "api" {
       WEBSOCKET_API_STAGE                               = aws_apigatewayv2_stage.websocket_ws.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
-      ATHENA_DATABASE                                   = local.analytics_database_name
-      ATHENA_JOBS_TABLE                                 = local.analytics_workflows_tablename
-      ATHENA_CATALOG                                    = aws_athena_data_catalog.analytics.name
-      ATHENA_QUERY_RESULT_S3_BUCKET                     = module.athena_query_results_bucket.s3_bucket_id
-      ATHENA_WORKGROUP                                  = aws_athena_workgroup.analytics.name
-      LAKEFORMATION_CATALOG_ID                          = local.s3tables_catalog_id
-      CORS_ORIGINS                                      = jsonencode(local.cors_allowed_origins)
+      # TODO: add after glue issue is resolved
+      #ATHENA_DATABASE                                   = local.analytics_database_name
+      ATHENA_DATABASE               = "placeholder"
+      ATHENA_JOBS_TABLE             = local.analytics_tablename
+      ATHENA_CATALOG                = aws_athena_data_catalog.analytics.name
+      ATHENA_QUERY_RESULT_S3_BUCKET = module.athena_query_results_bucket.s3_bucket_id
+      ATHENA_WORKGROUP              = aws_athena_workgroup.analytics.name
+      LAKEFORMATION_CATALOG_ID      = local.s3tables_catalog_id
+      CORS_ORIGINS                  = jsonencode(local.cors_allowed_origins)
       # OAuth callback configuration
       COGNITO_DOMAIN    = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
       COGNITO_CLIENT_ID = aws_cognito_user_pool_client.this.id
