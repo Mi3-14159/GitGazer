@@ -46,7 +46,7 @@ jobs:
           key: ${{ runner.os }}-terraform-${{ hashFiles('./02_central/terraform/.terraform.lock.hcl') }}
           restore-keys: ${{ runner.os }}-terraform-
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
           terraform_version: ${{ steps.terraform-version.outputs.version }}
