@@ -169,10 +169,9 @@ export const workflowJobs = githubSchema
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
             }).onDelete('set null'),
-            foreignKey({
-                columns: [table.integrationId, table.workflowRunId],
-                foreignColumns: [workflowRuns.integrationId, workflowRuns.id],
-            }).onDelete('set null'),
+            // it's missing the foreign key constraint to workflow_runs because of event basis of webhooks
+            // the workflow job event might be processed before the workflow run event,
+            // which would lead to foreign key constraint violation.
         ],
     )
     .enableRLS();
