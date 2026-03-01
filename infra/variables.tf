@@ -88,7 +88,7 @@ variable "db_config" {
       }), {
       min_capacity             = 0.5
       max_capacity             = 2
-      seconds_until_auto_pause = 0
+      seconds_until_auto_pause = 60 * 30
     })
     instances = optional(any, {
       one = {}
