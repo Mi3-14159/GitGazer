@@ -30,6 +30,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_athena_query_results_bucket"></a> [athena\_query\_results\_bucket](#module\_athena\_query\_results\_bucket) | terraform-aws-modules/s3-bucket/aws | ~> 5.9 |
+| <a name="module_db"></a> [db](#module\_db) | terraform-aws-modules/rds-aurora/aws |  ~> 10.2 |
 | <a name="module_lambda_store"></a> [lambda\_store](#module\_lambda\_store) | terraform-aws-modules/s3-bucket/aws | ~> 5.9 |
 | <a name="module_ui_bucket"></a> [ui\_bucket](#module\_ui\_bucket) | terraform-aws-modules/s3-bucket/aws | ~> 5.2 |
 
@@ -139,6 +140,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_iam_policy_document.s3_policy_cf_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_kms_secrets.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/kms_secrets) | data source |
 | [aws_lakeformation_data_lake_settings.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/lakeformation_data_lake_settings) | data source |
+| [aws_rds_engine_version.postgresql](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/rds_engine_version) | data source |
 | [aws_s3_object.alerting_lambda_function_archive](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/s3_object) | data source |
 | [aws_s3_object.api_lambda_function_archive](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/s3_object) | data source |
 | [aws_s3_object.websocket_lambda_function_archive](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/s3_object) | data source |
@@ -152,6 +154,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
 | <a name="input_callback_uls"></a> [callback\_uls](#input\_callback\_uls) | List of callback URLs for the Cognito User Pool Client | `list(string)` | `[]` | no |
 | <a name="input_custom_domain_config"></a> [custom\_domain\_config](#input\_custom\_domain\_config) | Configuration for the custom domain | <pre>object({<br/>    hosted_zone_id  = string<br/>    domain_name     = string<br/>    certificate_arn = string<br/>  })</pre> | `null` | no |
+| <a name="input_db_config"></a> [db\_config](#input\_db\_config) | Configuration for the RDS database | <pre>object({<br/>    engine_version              = optional(string, "17.7")<br/>    engine_mode                 = optional(string, "provisioned")<br/>    instance_class              = optional(string, "db.serverless")<br/>    vpc_id                      = string<br/>    subnets                     = list(string)<br/>    cluster_monitoring_interval = optional(number, 0)<br/>    serverlessv2_scaling_configuration = optional(object({<br/>      max_capacity             = number<br/>      min_capacity             = optional(number)<br/>      seconds_until_auto_pause = optional(number)<br/>      }), {<br/>      min_capacity             = 0<br/>      max_capacity             = 2<br/>      seconds_until_auto_pause = 60 * 30<br/>    })<br/>    instances = optional(any, {<br/>      one = {}<br/>    })<br/>  })</pre> | n/a | yes |
 | <a name="input_enable_bedrock_invocation_logging"></a> [enable\_bedrock\_invocation\_logging](#input\_enable\_bedrock\_invocation\_logging) | Enable logging of Bedrock model invocations | `bool` | `false` | no |
 | <a name="input_enable_lambda_tracing"></a> [enable\_lambda\_tracing](#input\_enable\_lambda\_tracing) | Enable AWS X-Ray tracing for the Lambda functions | `bool` | `false` | no |
 | <a name="input_enabled_pitr"></a> [enabled\_pitr](#input\_enabled\_pitr) | Enable point in time recovery for the DynamoDB table | `bool` | `false` | no |

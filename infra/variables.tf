@@ -1,4 +1,3 @@
-
 variable "aws_region" {
   type        = string
   description = "AWS region to deploy the resources"
@@ -72,4 +71,28 @@ variable "enable_bedrock_invocation_logging" {
   type        = bool
   description = "Enable logging of Bedrock model invocations"
   default     = false
+}
+
+variable "db_config" {
+  type = object({
+    engine_version              = optional(string, "17.7")
+    engine_mode                 = optional(string, "provisioned")
+    instance_class              = optional(string, "db.serverless")
+    vpc_id                      = string
+    subnets                     = list(string)
+    cluster_monitoring_interval = optional(number, 0)
+    serverlessv2_scaling_configuration = optional(object({
+      max_capacity             = number
+      min_capacity             = optional(number)
+      seconds_until_auto_pause = optional(number)
+      }), {
+      min_capacity             = 0
+      max_capacity             = 2
+      seconds_until_auto_pause = 60 * 30
+    })
+    instances = optional(any, {
+      one = {}
+    })
+  })
+  description = "Configuration for the RDS database"
 }
