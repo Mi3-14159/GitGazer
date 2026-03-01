@@ -12,7 +12,7 @@ export const integrations = githubSchema
             secret: uuid('secret').notNull().defaultRandom(),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        (t) => [tenantSeparationPolicy()],
+        () => [tenantSeparationPolicy()],
     )
     .enableRLS();
 
