@@ -28,7 +28,7 @@
     "@aws-sdk/client-glue": "^3.993.0",
     "@aws-sdk/client-iam": "^3.993.0",
     "@aws-sdk/client-lakeformation": "^3.993.0",
-    "@aws-sdk/client-rds-data": "3.873.0",
+    "@aws-sdk/client-rds-data": "3.1000.0",
     "@aws-sdk/client-s3": "^3.993.0",
     "@aws-sdk/client-sts": "^3.993.0",
     "@aws-sdk/lib-dynamodb": "^3.993.0",
