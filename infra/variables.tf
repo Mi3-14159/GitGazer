@@ -86,7 +86,7 @@ variable "db_config" {
       min_capacity             = optional(number)
       seconds_until_auto_pause = optional(number)
       }), {
-      min_capacity             = 0
+      min_capacity             = 0.5
       max_capacity             = 2
       seconds_until_auto_pause = 60 * 30
     })
