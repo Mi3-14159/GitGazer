@@ -49,6 +49,7 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         versions: ["25.x"]
+      - dependency-name: "@aws-sdk/client-rds-data"
 
   - package-ecosystem: "npm"
     directory: "/04_frontend"
