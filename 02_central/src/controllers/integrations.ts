@@ -6,8 +6,6 @@ import {
     getIntegrations as getIntegrationsDDB,
     updateIntegration as updateIntegrationDDB,
 } from '@/clients/dynamodb';
-import {createLambdaRole, deleteRole, getIamRoleArn, getIamRoleName} from '@/clients/iam';
-import {createDataFilter, deleteDataFilter, grantLakeFormationPermissions, revokeLakeFormationPermissions} from '@/clients/lakeformation';
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Integration} from '@common/types';
@@ -70,7 +68,7 @@ const createIntegration = async (label: string, owner: string): Promise<Integrat
         secret: crypto.randomUUID(),
     };
 
-    const results = await Promise.allSettled([createIntegrationDDB(integration), handlePermissions(integration.id)]);
+    const results = await Promise.allSettled([createIntegrationDDB(integration)]);
 
     const failedResults = results.filter((result) => result.status === 'rejected');
     if (failedResults.length > 0) {
@@ -80,38 +78,6 @@ const createIntegration = async (label: string, owner: string): Promise<Integrat
 
     logger.info(`Successfully created integration '${label}:${integration.id}'`);
     return integration;
-};
-
-const handlePermissions = async (integrationId: string, toDelete?: boolean): Promise<void> => {
-    if (toDelete) {
-        const roleName = getIamRoleName(integrationId);
-        const roleArn = getIamRoleArn(integrationId);
-
-        const results = await Promise.allSettled([
-            revokeLakeFormationPermissions({roleArn, integrationId}),
-            deleteDataFilter({integrationId}),
-            deleteRole(roleName),
-        ]);
-
-        const failedResults = results.filter((result) => result.status === 'rejected');
-        if (failedResults.length > 0) {
-            throw new InternalServerError('Failed to revoke permissions for integration', undefined, {failedResults});
-        }
-
-        return;
-    }
-
-    const role = await createLambdaRole(
-        getIamRoleName(integrationId),
-        `GitGazer (${environment}) Lambda execution role for integration ${integrationId}`,
-    );
-
-    const results = await Promise.allSettled([grantLakeFormationPermissions({roleArn: role.Arn!, integrationId}), createDataFilter({integrationId})]);
-
-    const failedResults = results.filter((result) => result.status === 'rejected');
-    if (failedResults.length > 0) {
-        throw new InternalServerError('Failed to set up permissions for integration', undefined, {failedResults});
-    }
 };
 
 export const deleteIntegration = async (id: string, userGroups: string[], userId: string): Promise<void> => {
@@ -131,12 +97,7 @@ export const deleteIntegration = async (id: string, userGroups: string[], userId
         throw new ForbiddenError('User is not the owner of this integration');
     }
 
-    const results = await Promise.allSettled([
-        deleteIntegrationDDB(id),
-        deleteIntegrationMembers(id),
-        deleteIntegrationNotificationRules(id),
-        handlePermissions(id, true),
-    ]);
+    const results = await Promise.allSettled([deleteIntegrationDDB(id), deleteIntegrationMembers(id), deleteIntegrationNotificationRules(id)]);
 
     const failedResults = results.filter((result) => result.status === 'rejected');
     if (failedResults.length > 0) {
