@@ -1,0 +1,1 @@
+ALTER TABLE "github"."workflow_jobs" ALTER COLUMN "workflow_run_id" DROP NOT NULL;
