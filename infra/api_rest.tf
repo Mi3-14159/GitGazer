@@ -18,18 +18,6 @@ locals {
     "integrations/{integrationId}/notifications/{notificationId}" = {
       methods = ["DELETE", "PUT"]
     },
-    "integrations/{integrationId}/analytics/queries" = {
-      methods = ["POST"]
-    },
-    "integrations/analytics/queries/{queryId}" = {
-      methods = ["GET"]
-    },
-    "integrations/analytics/schema" = {
-      methods = ["GET"]
-    },
-    "integrations/analytics/queries/suggest" = {
-      methods = ["POST"]
-    },
     "auth/cognito/public" = {
       methods = ["GET"]
     },
