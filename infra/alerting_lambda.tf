@@ -39,9 +39,10 @@ data "aws_iam_policy_document" "alerting" {
       "kms:GenerateDataKey",
       "kms:Encrypt",
     ]
-    resources = [
+    resources = distinct([
       aws_kms_key.this.arn,
-    ]
+      module.db.cluster_master_user_secret.kms_key_id
+    ])
   }
 
   # Read access to tables used by alerting
@@ -78,7 +79,7 @@ data "aws_iam_policy_document" "alerting" {
     ]
     resources = [
       module.db.cluster_arn,
-      module.db.cluster_master_user_secret,
+      module.db.cluster_master_user_secret.secret_arn,
     ]
   }
 }
@@ -133,7 +134,7 @@ resource "aws_lambda_function" "alerting" {
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
       DYNAMO_DB_USER_QUERIES_TABLE_ARN                  = aws_dynamodb_table.user_queries.name
       RDS_DATABASE                                      = "postgres"
-      RDS_SECRET_ARN                                    = module.db.cluster_master_user_secret
+      RDS_SECRET_ARN                                    = module.db.cluster_master_user_secret.secret_arn
       RDS_RESOURCE_ARN                                  = module.db.cluster_arn
     }
   }
