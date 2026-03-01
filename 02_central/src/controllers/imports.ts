@@ -52,17 +52,17 @@ export async function handleEvent<T extends EmitterWebhookEventName & keyof Even
     const [ddbResponse, rdsResponse] = await Promise.allSettled(promises);
 
     if (ddbResponse.status === 'rejected') {
-        getLogger().error(`Error writing event to DynamoDB: ${ddbResponse.reason}`);
+        getLogger().error(`Error writing event to DynamoDB, integration: ${integrationId}`, ddbResponse.reason);
         throw new InternalServerError();
     }
 
     if (!ddbResponse.value) {
-        getLogger().error(`Failed to write event to DynamoDB for unknown reasons, return value is falsy`);
+        getLogger().error(`Failed to write event to DynamoDB for unknown reasons, integration: ${integrationId}, return value is falsy`);
         throw new InternalServerError();
     }
 
     if (rdsResponse.status === 'rejected') {
-        getLogger().error(`Error writing event to RDS: ${rdsResponse.reason}`);
+        getLogger().error(`Error writing event to RDS, integration: ${integrationId}`, rdsResponse.reason);
     }
 
     if (eventType === 'workflow_job' || eventType === 'workflow_run') {
