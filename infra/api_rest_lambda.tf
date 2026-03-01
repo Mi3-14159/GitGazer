@@ -63,9 +63,10 @@ data "aws_iam_policy_document" "api" {
       "kms:GenerateDataKey",
       "kms:Encrypt",
     ]
-    resources = [
+    resources = distinct([
       aws_kms_key.this.arn,
-    ]
+      module.db.cluster_master_user_secret[0].kms_key_id
+    ])
   }
 
   statement {
@@ -96,49 +97,9 @@ data "aws_iam_policy_document" "api" {
   }
 
   statement {
-    effect = "Allow"
-    actions = [
-      "athena:GetQueryExecution",
-      "athena:GetQueryResults",
-      "athena:GetWorkGroup",
-      "athena:ListQueryExecutions"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
     effect    = "Allow"
     actions   = ["s3:GetObject"]
     resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "s3:PutObject",
-      "s3:GetObject",
-      "s3:ListBucket",
-      "s3:GetBucketLocation",
-    ]
-    resources = [
-      module.athena_query_results_bucket.s3_bucket_arn,
-      "${module.athena_query_results_bucket.s3_bucket_arn}/*",
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "glue:GetTable",
-    ]
-    resources = [
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
-      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}/*",
-    ]
   }
 
   statement {
@@ -149,49 +110,6 @@ data "aws_iam_policy_document" "api" {
     resources = [
       "${aws_apigatewayv2_api.websocket.execution_arn}/*"
     ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "iam:CreateRole",
-      "iam:DeleteRole",
-      "iam:AttachRolePolicy",
-      "iam:DetachRolePolicy",
-      "iam:TagRole",
-      "iam:UntagRole",
-    ]
-    resources = [
-      "*",
-    ]
-    condition {
-      test     = "StringLike"
-      variable = "iam:ResourceTag/${var.name_prefix}"
-      values   = ["true"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "sts:AssumeRole",
-    ]
-    resources = [
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name_prefix}-${terraform.workspace}-*-api",
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "lakeformation:GrantPermissions",
-      "lakeformation:RevokePermissions",
-      "lakeformation:GetDataAccess",
-    ]
-    resources = [
-      "*",
-    ]
-    # TODO: this should probably be restricted to only allow granting permissions on the relevant data lake resources and only to the roles created by this api
   }
 
   statement {
@@ -226,6 +144,18 @@ data "aws_iam_policy_document" "api" {
     resources = [
       aws_bedrock_guardrail.query_generation.guardrail_arn,
       "arn:aws:bedrock:*:${data.aws_caller_identity.current.account_id}:guardrail-profile/*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "rds-data:*",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [
+      module.db.cluster_arn,
+      module.db.cluster_master_user_secret[0].secret_arn,
     ]
   }
 }
@@ -273,15 +203,7 @@ resource "aws_lambda_function" "api" {
       WEBSOCKET_API_STAGE                               = aws_apigatewayv2_stage.websocket_ws.name
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
-      # TODO: add after glue issue is resolved
-      #ATHENA_DATABASE                                   = local.analytics_database_name
-      ATHENA_DATABASE               = "placeholder"
-      ATHENA_JOBS_TABLE             = local.analytics_tablename
-      ATHENA_CATALOG                = aws_athena_data_catalog.analytics.name
-      ATHENA_QUERY_RESULT_S3_BUCKET = module.athena_query_results_bucket.s3_bucket_id
-      ATHENA_WORKGROUP              = aws_athena_workgroup.analytics.name
-      LAKEFORMATION_CATALOG_ID      = local.s3tables_catalog_id
-      CORS_ORIGINS                  = jsonencode(local.cors_allowed_origins)
+      CORS_ORIGINS                                      = jsonencode(local.cors_allowed_origins)
       # OAuth callback configuration
       COGNITO_DOMAIN    = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
       COGNITO_CLIENT_ID = aws_cognito_user_pool_client.this.id
@@ -290,11 +212,13 @@ resource "aws_lambda_function" "api" {
       COGNITO_CLIENT_SECRET                = aws_cognito_user_pool_client.this.client_secret
       COGNITO_REDIRECT_URI                 = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
       ALLOWED_FRONTEND_ORIGINS             = jsonencode(compact(concat(["https://${aws_cloudfront_distribution.this.domain_name}"], local.cors_allowed_origins)))
-      API_RUNTIME_POLICY_ARN               = aws_iam_policy.api_runtime.arn
       AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
       QUERY_GENERATOR_BEDROCK_MODEL_ID     = awscc_bedrock_prompt.query_generation.arn
       QUERY_GENERATOR_GUARDRAIL_IDENTIFIER = aws_bedrock_guardrail.query_generation.guardrail_id
       QUERY_GENERATOR_GUARDRAIL_VERSION    = "DRAFT"
+      RDS_DATABASE                         = "postgres"
+      RDS_SECRET_ARN                       = module.db.cluster_master_user_secret[0].secret_arn
+      RDS_RESOURCE_ARN                     = module.db.cluster_arn
     }
   }
   layers = local.lambda_layers

@@ -1,6 +1,5 @@
 import {getLogger} from '@/logger';
 import {authenticate} from '@/router/middlewares/authentication';
-import analyticsRoutes from '@/router/routes/analytics';
 import authCognitoRoutes from '@/router/routes/authCognito';
 import feFailover from '@/router/routes/feFailover';
 import importRoutes from '@/router/routes/import';
@@ -37,7 +36,6 @@ app.includeRouter(feFailover);
 app.includeRouter(notificationsRoutes);
 app.includeRouter(workflowsRoutes);
 app.includeRouter(integrationsRoutes);
-app.includeRouter(analyticsRoutes);
 
 logger.info('Routes setup completed');
 

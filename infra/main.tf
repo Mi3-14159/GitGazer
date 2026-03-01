@@ -19,10 +19,6 @@ provider "aws" {
   }
 }
 
-provider "awscc" {
-  region = var.aws_region
-}
-
 data "aws_caller_identity" "current" {}
 
 data "aws_ssoadmin_instances" "this" {}
@@ -40,7 +36,6 @@ locals {
   github_oauth_scopes                            = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
   websocket_api_stage_name                       = "prod"
   dynamodb_table_connections_connection_id_index = "connectionId-index"
-  s3tables_catalog_id                            = "${data.aws_caller_identity.current.account_id}:s3tablescatalog/${aws_s3tables_table_bucket.analytics.name}"
   lambda_layers = flatten([
     "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21",
     var.enable_lambda_tracing ? [
@@ -53,8 +48,5 @@ locals {
     "https://app.gitgazer.local:5173",
     try("https://${var.custom_domain_config.domain_name}", null),
   ])
-  analytics_tablename = replace(aws_dynamodb_table.events.name, "-", "_")
-  # TODO: add after glue issue is resolved
-  #analytics_database_name             = format("zetl_%s", replace(element(split(":", awscc_glue_integration.analytics.integration_arn), -1), "-", "_"))
   notification_rules_table_index_name = "integrationId-index"
 }

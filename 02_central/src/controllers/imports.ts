@@ -1,6 +1,7 @@
 import {deleteConnection, getConnections, putEvent} from '@/clients/dynamodb';
+import {insertEvent} from '@/controllers/imports/index';
 import {getLogger} from '@/logger';
-import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
 import {
     ApiGatewayManagementApiClient,
     ApiGatewayManagementApiServiceException,
@@ -47,12 +48,27 @@ export async function handleEvent<T extends EmitterWebhookEventName & keyof Even
         event: event,
     };
 
-    const savedEvent = await putEvent(ggEvent);
+    const promises = [putEvent(ggEvent), insertEvent(integrationId, event)];
+    const [ddbResponse, rdsResponse] = await Promise.allSettled(promises);
+
+    if (ddbResponse.status === 'rejected') {
+        getLogger().error(`Error writing event to DynamoDB: ${ddbResponse.reason}`);
+        throw new InternalServerError();
+    }
+
+    if (!ddbResponse.value) {
+        getLogger().error(`Failed to write event to DynamoDB for unknown reasons, return value is falsy`);
+        throw new InternalServerError();
+    }
+
+    if (rdsResponse.status === 'rejected') {
+        getLogger().error(`Error writing event to RDS: ${rdsResponse.reason}`);
+    }
 
     if (eventType === 'workflow_job' || eventType === 'workflow_run') {
         await postToConnections({
             eventType,
-            payload: savedEvent,
+            payload: ddbResponse.value,
         });
     }
 }
