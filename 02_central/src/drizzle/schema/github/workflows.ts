@@ -160,7 +160,7 @@ export const workflowJobs = githubSchema
             startedAt: timestamp('started_at', {withTimezone: true}).notNull(),
             status: varchar('status', {length: 50}).notNull(),
             workflowName: text('workflow_name').notNull(),
-            workflowRunId: bigint('workflow_run_id', {mode: 'number'}),
+            workflowRunId: bigint('workflow_run_id', {mode: 'number'}).notNull(),
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),

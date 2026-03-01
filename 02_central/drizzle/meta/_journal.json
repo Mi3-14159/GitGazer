@@ -29,13 +29,6 @@
       "when": 1772363496762,
       "tag": "0003_init",
       "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1772398631138,
-      "tag": "0004_mysterious_jasper_sitwell",
-      "breakpoints": true
     }
   ]
 }

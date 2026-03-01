@@ -105,7 +105,6 @@ export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId
                         completedAt,
                         conclusion,
                         status: event.workflow_job.status,
-                        workflowRunId: event.workflow_job.run_id,
                     },
                 });
         }
