@@ -65,7 +65,7 @@ data "aws_iam_policy_document" "api" {
     ]
     resources = distinct([
       aws_kms_key.this.arn,
-      module.db.cluster_master_user_secret.kms_key_id
+      module.db.cluster_master_user_secret[0].kms_key_id
     ])
   }
 
@@ -238,7 +238,7 @@ data "aws_iam_policy_document" "api" {
     ]
     resources = [
       module.db.cluster_arn,
-      module.db.cluster_master_user_secret.secret_arn,
+      module.db.cluster_master_user_secret[0].secret_arn,
     ]
   }
 }
@@ -309,7 +309,7 @@ resource "aws_lambda_function" "api" {
       QUERY_GENERATOR_GUARDRAIL_IDENTIFIER = aws_bedrock_guardrail.query_generation.guardrail_id
       QUERY_GENERATOR_GUARDRAIL_VERSION    = "DRAFT"
       RDS_DATABASE                         = "postgres"
-      RDS_SECRET_ARN                       = module.db.cluster_master_user_secret.secret_arn
+      RDS_SECRET_ARN                       = module.db.cluster_master_user_secret[0].secret_arn
       RDS_RESOURCE_ARN                     = module.db.cluster_arn
     }
   }
