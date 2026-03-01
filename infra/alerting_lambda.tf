@@ -69,6 +69,18 @@ data "aws_iam_policy_document" "alerting" {
       "${aws_dynamodb_table.user_queries.arn}/index/*",
     ])
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "rds-data:*",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [
+      module.db.cluster_arn,
+      module.db.cluster_master_user_secret,
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "alerting" {
@@ -120,6 +132,9 @@ resource "aws_lambda_function" "alerting" {
       DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
       DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
       DYNAMO_DB_USER_QUERIES_TABLE_ARN                  = aws_dynamodb_table.user_queries.name
+      RDS_DATABASE                                      = "postgres"
+      RDS_SECRET_ARN                                    = module.db.cluster_master_user_secret
+      RDS_RESOURCE_ARN                                  = module.db.cluster_arn
     }
   }
   layers = local.lambda_layers

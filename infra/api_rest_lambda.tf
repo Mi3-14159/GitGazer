@@ -228,6 +228,18 @@ data "aws_iam_policy_document" "api" {
       "arn:aws:bedrock:*:${data.aws_caller_identity.current.account_id}:guardrail-profile/*"
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "rds-data:*",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [
+      module.db.cluster_arn,
+      module.db.cluster_master_user_secret,
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "api" {
@@ -295,6 +307,9 @@ resource "aws_lambda_function" "api" {
       QUERY_GENERATOR_BEDROCK_MODEL_ID     = awscc_bedrock_prompt.query_generation.arn
       QUERY_GENERATOR_GUARDRAIL_IDENTIFIER = aws_bedrock_guardrail.query_generation.guardrail_id
       QUERY_GENERATOR_GUARDRAIL_VERSION    = "DRAFT"
+      RDS_DATABASE                         = "postgres"
+      RDS_SECRET_ARN                       = module.db.cluster_master_user_secret
+      RDS_RESOURCE_ARN                     = module.db.cluster_arn
     }
   }
   layers = local.lambda_layers

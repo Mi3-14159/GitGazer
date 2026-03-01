@@ -1,0 +1,28 @@
+{
+  "id": "5fdab709-33bc-4215-8482-26c3e0b0e6bc",
+  "prevId": "789b09b1-12fb-4359-a685-b2685d17f5ad",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {},
+  "enums": {},
+  "schemas": {
+    "gitgazer": "gitgazer",
+    "github": "github"
+  },
+  "views": {},
+  "sequences": {},
+  "roles": {
+    "gitgazer_user": {
+      "name": "gitgazer_user",
+      "createDb": false,
+      "createRole": true,
+      "inherit": true
+    }
+  },
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
