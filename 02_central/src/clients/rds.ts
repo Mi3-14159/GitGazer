@@ -22,7 +22,7 @@ type RdsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const withRlsTransaction = async <T>(integrationIds: string[], callback: (tx: RdsTransaction) => Promise<T>): Promise<T> => {
     return await db.transaction(async (tx) => {
         await tx.execute(sql`SET ROLE ${sql.identifier(gitgazerUser.name)};`);
-        await tx.execute(sql`SET LOCAL rls.integration_ids = ${integrationIds.join(',')};`);
+        await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
 
         return await callback(tx);
     });
