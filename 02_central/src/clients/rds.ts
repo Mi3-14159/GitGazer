@@ -1,5 +1,7 @@
 import * as schema from '@/drizzle/schema';
+import {gitgazerUser} from '@/drizzle/schema';
 import {RDSDataClient} from '@aws-sdk/client-rds-data';
+import {sql} from 'drizzle-orm';
 import {drizzle} from 'drizzle-orm/aws-data-api/pg';
 
 const rdsClient = new RDSDataClient({});
@@ -14,3 +16,14 @@ export const db = drizzle(rdsClient, {
     resourceArn: process.env['RDS_RESOURCE_ARN']!,
     schema,
 });
+
+type RdsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export const withRlsTransaction = async <T>(integrationIds: string[], callback: (tx: RdsTransaction) => Promise<T>): Promise<T> => {
+    return await db.transaction(async (tx) => {
+        await tx.execute(sql`SET ROLE ${sql.identifier(gitgazerUser.name)};`);
+        await tx.execute(sql`SET LOCAL rls.integration_ids = ${integrationIds.join(',')};`);
+
+        return await callback(tx);
+    });
+};
