@@ -1,12 +1,13 @@
 import {useAuth} from '@/composables/useAuth';
 import {
     Event,
+    GetWorkflowsResponse,
+    PaginationCursor,
     ProjectionType,
     StreamEvent,
     WorkflowJobEvent,
     WorkflowRunEvent,
     WorkflowsRequestParameters,
-    WorkflowsResponse,
     WSToken,
 } from '@common/types';
 import {defineStore} from 'pinia';
@@ -36,9 +37,10 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const isLoading = ref(false);
+    const hasMore = ref(true);
     let ws: WebSocket | null = null;
     let tokenRenewalTimer: ReturnType<typeof setTimeout> | null = null;
-    const lastEvaluatedKeys = new Map<string, any>();
+    let cursor: PaginationCursor | undefined;
 
     const fetchWebSocketToken = async (): Promise<string> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/auth/ws-token`);
@@ -187,8 +189,8 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             }
         });
 
-        if (lastEvaluatedKeys.size > 0) {
-            queryParams.append('exclusiveStartKeys', JSON.stringify(Array.from(lastEvaluatedKeys.values())));
+        if (cursor) {
+            queryParams.append('cursor', JSON.stringify(cursor));
         }
 
         const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?${queryParams.toString()}`);
@@ -197,22 +199,74 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             throw new Error(`Failed to fetch workflows: ${response.status}`);
         }
 
-        const events = (await response.json()) as unknown as WorkflowsResponse<Event<WorkflowJobEvent> | Event<WorkflowRunEvent>>;
+        const data = (await response.json()) as GetWorkflowsResponse;
 
-        events.forEach((event) => {
-            if (event.items && event.items.length > 0 && event.lastEvaluatedKey) {
-                lastEvaluatedKeys.set(event.items[0].integrationId, event.lastEvaluatedKey);
-            }
-        });
+        cursor = data.cursor;
+        if (!cursor) {
+            hasMore.value = false;
+        }
 
-        return events.flatMap((event) => event.items);
+        return data.items;
     };
 
     const handleListWorkflows = async () => {
-        const response = await getJobs({limit: 100, projection: ProjectionType.minimal});
+        if (!hasMore.value || isLoading.value) return;
 
-        response.forEach((workflow) => {
-            handleWorkflow(workflow, false);
+        const items = await getJobs({limit: 100, projection: ProjectionType.minimal});
+
+        items.forEach((run) => {
+            const runId = String(run.id);
+            const group = ensureWorkflowGroup(runId, run.integrationId, false);
+
+            group.run = {
+                id: runId,
+                integrationId: run.integrationId,
+                created_at: run.createdAt,
+                event_type: 'workflow_run',
+                event: {
+                    workflow_run: {
+                        id: run.id,
+                        name: run.name,
+                        head_branch: run.headBranch,
+                        conclusion: run.conclusion,
+                        status: run.status,
+                        run_started_at: run.runStartedAt,
+                        updated_at: run.updatedAt,
+                        run_attempt: run.runAttempt,
+                        workflow_id: run.workflowId,
+                        head_commit: {
+                            author: {name: run.headCommitAuthorName},
+                            message: run.headCommitMessage,
+                        },
+                    },
+                    repository: {full_name: run.repository.fullName},
+                },
+            } as Event<WorkflowRunEvent>;
+
+            run.workflowJobs.forEach((job) => {
+                group.jobs.set(String(job.id), {
+                    id: String(job.id),
+                    integrationId: job.integrationId,
+                    created_at: job.createdAt,
+                    event_type: 'workflow_job',
+                    event: {
+                        workflow_job: {
+                            id: job.id,
+                            name: job.name,
+                            conclusion: job.conclusion,
+                            status: job.status,
+                            workflow_name: job.workflowName,
+                            run_id: job.runId,
+                            head_branch: job.headBranch,
+                            created_at: job.createdAt,
+                            started_at: job.startedAt,
+                            completed_at: job.completedAt,
+                            run_attempt: job.runAttempt,
+                        },
+                        repository: {full_name: run.repository.fullName},
+                    },
+                } as Event<WorkflowJobEvent>);
+            });
         });
 
         workflowsArray.value = Array.from(workflows.values())
@@ -261,6 +315,10 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const initializeStore = async () => {
+        // Reset pagination state
+        cursor = undefined;
+        hasMore.value = true;
+
         // Connect to WebSocket for real-time updates
         if (WS_ENDPOINT) {
             await connectToWebSocket();
@@ -272,6 +330,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     return {
         workflows: workflowsArray,
         isLoading,
+        hasMore,
         initializeStore,
         handleListWorkflows,
     };

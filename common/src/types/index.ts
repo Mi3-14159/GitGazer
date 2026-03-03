@@ -111,17 +111,74 @@ export enum ProjectionType {
   minimal = "minimal",
 }
 
-export type WorkflowsResponse<T> = {
+export type PaginationCursor = {
+  createdAt: string;
+  id: number;
+};
+
+export type PaginatedResponse<T> = {
   items: T[];
-  lastEvaluatedKey?: {
-    [key: string]: any;
-  };
-}[];
+  cursor?: PaginationCursor;
+};
+
+export type WorkflowRunConclusion =
+  | "success"
+  | "failure"
+  | "neutral"
+  | "cancelled"
+  | "timed_out"
+  | "action_required"
+  | "stale"
+  | "skipped";
+
+export type WorkflowJob = {
+  integrationId: string;
+  repositoryId: number;
+  id: number;
+  completedAt: string | null;
+  conclusion: string | null;
+  createdAt: string;
+  headBranch: string;
+  name: string;
+  runnerGroupName: string | null;
+  runAttempt: number;
+  runId: number;
+  startedAt: string;
+  status: string;
+  workflowName: string;
+  workflowRunId: number;
+};
+
+export type Repository = {
+  fullName: string;
+};
+
+export type WorkflowRun = {
+  integrationId: string;
+  repositoryId: number;
+  id: number;
+  actorId: number;
+  conclusion: WorkflowRunConclusion | null;
+  createdAt: string;
+  headBranch: string;
+  name: string;
+  runAttempt: number;
+  status: string;
+  runStartedAt: string;
+  updatedAt: string;
+  workflowId: number;
+  headCommitAuthorName: string;
+  headCommitMessage: string;
+  workflowJobs: WorkflowJob[];
+  repository: Repository;
+};
+
+export type GetWorkflowsResponse = PaginatedResponse<WorkflowRun>;
 
 export type WorkflowsRequestParameters = {
   limit?: number;
   projection?: ProjectionType;
-  exclusiveStartKeys?: { [key: string]: any }[];
+  cursor?: PaginationCursor;
 };
 
 export const isWorkflowsRequestParameters = (
@@ -142,8 +199,15 @@ export const isWorkflowsRequestParameters = (
     return false;
   }
 
-  if (params.exclusiveStartKeys && !Array.isArray(params.exclusiveStartKeys)) {
-    return false;
+  if (params.cursor !== undefined) {
+    if (
+      typeof params.cursor !== "object" ||
+      params.cursor === null ||
+      typeof params.cursor.createdAt !== "string" ||
+      typeof params.cursor.id !== "number"
+    ) {
+      return false;
+    }
   }
 
   return true;

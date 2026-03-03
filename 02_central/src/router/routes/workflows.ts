@@ -22,24 +22,23 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
     const {queryStringParameters} = event;
 
     try {
-        if (queryStringParameters?.exclusiveStartKeys) {
-            queryStringParameters.exclusiveStartKeys = JSON.parse(queryStringParameters.exclusiveStartKeys || 'null');
+        if (queryStringParameters?.cursor) {
+            queryStringParameters.cursor = JSON.parse(queryStringParameters.cursor || 'null');
         }
     } catch (error) {
-        throw new BadRequestError('Invalid exclusiveStartKeys parameter');
+        throw new BadRequestError('Invalid cursor parameter');
     }
 
     if (!isWorkflowsRequestParameters(queryStringParameters)) {
         throw new BadRequestError('Invalid query parameters');
     }
 
-    const {limit, projection, exclusiveStartKeys} = queryStringParameters ?? {};
+    const {limit, cursor} = queryStringParameters ?? {};
 
     const workflows = await getWorkflows({
         integrationIds,
         limit,
-        projection,
-        exclusiveStartKeys,
+        cursor,
     });
 
     return new Response(JSON.stringify(workflows), {

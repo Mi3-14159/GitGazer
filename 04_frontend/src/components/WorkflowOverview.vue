@@ -8,7 +8,7 @@
 
     const workflowsStore = useWorkflowsStore();
     const {initializeStore, handleListWorkflows} = workflowsStore;
-    const {workflows, isLoading} = storeToRefs(workflowsStore);
+    const {workflows, isLoading, hasMore} = storeToRefs(workflowsStore);
     const selectedJob = ref<Event<WorkflowJobEvent> | null>(null);
 
     const headerConfig: HeaderColumn[] = [
@@ -101,6 +101,7 @@
         <VirtualTable
             :items="workflows"
             :loading="isLoading"
+            :has-more="hasMore"
             :header-config="headerConfig"
             :onJobClick="onJobClick"
             :loadMore="handleListWorkflows"

@@ -17,6 +17,7 @@
             height?: string | number;
             threshold?: number;
             loading?: boolean;
+            hasMore?: boolean;
             headerConfig?: HeaderColumn[];
             onJobClick?: (job: GGEvent<WorkflowJobEvent>) => void;
             loadMore?: () => void;
@@ -25,6 +26,7 @@
             height: '100%',
             threshold: 200,
             loading: false,
+            hasMore: true,
             headerConfig: () => [],
         },
     );
@@ -61,7 +63,7 @@
         const target = e.target as HTMLElement;
         if (!target) return;
 
-        if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading) {
+        if (target.scrollTop + target.clientHeight >= target.scrollHeight - props.threshold && !props.loading && props.hasMore) {
             props.loadMore?.();
         }
     };
@@ -200,7 +202,7 @@
         </v-virtual-scroll>
 
         <div
-            v-if="loadMore && !hasScrollbar"
+            v-if="loadMore && !hasScrollbar && hasMore"
             class="virtual-table__footer pa-2"
         >
             <v-btn
