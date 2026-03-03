@@ -1,13 +1,9 @@
-import {db} from '@/clients/rds';
-import {enterprises, events, gitgazerUser, organizations, repositories, user, workflowJobs, workflowRuns} from '@/drizzle/schema';
+import {withRlsTransaction} from '@/clients/rds';
+import {enterprises, events, organizations, repositories, user, workflowJobs, workflowRuns} from '@/drizzle/schema';
 import {EventPayloadMap} from '@octokit/webhooks-types';
-import {sql} from 'drizzle-orm';
 
 export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId: string, event: EventPayloadMap[T]) => {
-    await db.transaction(async (tx) => {
-        await tx.execute(sql`SET ROLE ${sql.identifier(gitgazerUser.name)};`);
-        await tx.execute(sql`SET LOCAL rls.integration_ids = ${sql.identifier(integrationId)};`);
-
+    await withRlsTransaction([integrationId], async (tx) => {
         // Insert the raw event
         await tx.insert(events).values({
             integrationId,
