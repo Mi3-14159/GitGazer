@@ -36,6 +36,20 @@
       "when": 1772400206553,
       "tag": "0004_cooing_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772569225281,
+      "tag": "0005_goofy_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772569244895,
+      "tag": "0006_fair_hammerhead",
+      "breakpoints": true
     }
   ]
 }

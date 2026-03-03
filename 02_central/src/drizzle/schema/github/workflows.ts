@@ -23,7 +23,7 @@ export const userAssignments = githubSchema
             integrationId: uuid('integration_id')
                 .notNull()
                 .references(() => integrations.integrationId, {onDelete: 'cascade'}),
-            userId: uuid('user_id')
+            userId: bigint('user_id', {mode: 'number'})
                 .notNull()
                 .references(() => users.id),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
