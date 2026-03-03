@@ -9,6 +9,9 @@ export const integrations = githubSchema
         {
             integrationId: uuid('integration_id').primaryKey().defaultRandom(),
             label: varchar('label', {length: 255}).notNull(),
+            ownerId: bigint('owner_id', {mode: 'number'})
+                .notNull()
+                .references(() => users.id),
             secret: uuid('secret').notNull().defaultRandom(),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },

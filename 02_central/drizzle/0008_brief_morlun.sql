@@ -1,0 +1,1 @@
+ALTER TABLE "github"."integrations" ALTER COLUMN "owner_id" SET NOT NULL;

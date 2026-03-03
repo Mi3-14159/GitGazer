@@ -50,6 +50,20 @@
       "when": 1772569244895,
       "tag": "0006_fair_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772570636293,
+      "tag": "0007_loose_whistler",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772570682857,
+      "tag": "0008_brief_morlun",
+      "breakpoints": true
     }
   ]
 }

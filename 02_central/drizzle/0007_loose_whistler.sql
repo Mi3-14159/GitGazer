@@ -1,0 +1,2 @@
+ALTER TABLE "github"."integrations" ADD COLUMN "owner_id" bigint;--> statement-breakpoint
+ALTER TABLE "github"."integrations" ADD CONSTRAINT "integrations_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "gitgazer"."users"("id") ON DELETE no action ON UPDATE no action;
