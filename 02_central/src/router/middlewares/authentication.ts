@@ -1,6 +1,8 @@
+import {db} from '@/clients/rds';
+import {users} from '@/drizzle/schema/gitgazer';
 import {getLogger} from '@/logger';
 import {AppRequestContext} from '@/types';
-import {UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
@@ -118,6 +120,25 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         });
 
         throw new UnauthorizedError('Invalid or expired authentication tokens');
+    }
+
+    try {
+        await db
+            .insert(users)
+            .values({
+                cognitoId: reqCtx.appContext.userId,
+            })
+            .onConflictDoNothing({target: users.cognitoId});
+
+        logger.debug('User upserted successfully', {
+            cognitoId: reqCtx.appContext.userId,
+        });
+    } catch (error: any) {
+        logger.error('Failed to upsert user in database', {
+            error,
+            cognitoId: reqCtx.appContext.userId,
+        });
+        throw new InternalServerError('Failed to process user information');
     }
 
     await next();
