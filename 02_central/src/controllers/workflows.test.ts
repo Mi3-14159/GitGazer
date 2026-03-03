@@ -23,6 +23,10 @@ const mockWorkflowRun = (overrides: Partial<{integrationId: string; id: number; 
     headCommitAuthorName: 'test',
     headCommitMessage: 'test commit',
     workflowJobs: [],
+    repository: {
+        name: 'my-repo',
+        organization: {login: 'my-org'},
+    },
     ...overrides,
 });
 
