@@ -1,4 +1,4 @@
-import {bigint, pgSchema, uuid} from 'drizzle-orm/pg-core';
+import {bigint, pgSchema, text, timestamp, uuid} from 'drizzle-orm/pg-core';
 import {integrations} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
@@ -12,9 +12,9 @@ export const wsConnections = gitgazerSchema.table('ws_connections', {
     integrationId: uuid('integration_id')
         .notNull()
         .references(() => integrations.integrationId, {onDelete: 'cascade'}),
-    connectionId: uuid('connection_id').notNull().unique(),
+    connectionId: text('connection_id').notNull().unique(),
     userId: bigint('user_id', {mode: 'number'})
         .notNull()
         .references(() => users.id, {onDelete: 'cascade'}),
-    connectedAt: bigint('connected_at', {mode: 'number'}).notNull(),
+    connectedAt: timestamp('connected_at', {withTimezone: true}).notNull().defaultNow(),
 });

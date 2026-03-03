@@ -1,0 +1,1 @@
+ALTER TABLE "gitgazer"."ws_connections" DROP COLUMN "connected_at";

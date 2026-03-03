@@ -1,0 +1,1 @@
+ALTER TABLE "gitgazer"."ws_connections" ALTER COLUMN "connection_id" SET DATA TYPE text;

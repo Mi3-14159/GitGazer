@@ -1,0 +1,1 @@
+ALTER TABLE "gitgazer"."ws_connections" ADD COLUMN "connected_at" timestamp with time zone DEFAULT now() NOT NULL;
