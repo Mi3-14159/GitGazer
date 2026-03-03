@@ -1,6 +1,7 @@
 import {getLogger} from '@/logger';
 import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
 import {BatchWriteCommand, DynamoDBDocumentClient, QueryCommand} from '@aws-sdk/lib-dynamodb';
+import {WSToken} from '@common/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
 import {createHmac} from 'crypto';
 
@@ -22,15 +23,6 @@ if (!cognitoClientSecret) {
     throw new Error('COGNITO_CLIENT_SECRET is not defined');
 }
 
-type WebSocketTokenPayload = {
-    sub: string;
-    username: string;
-    email: string;
-    integrations: string[];
-    exp: number;
-    nonce: string;
-};
-
 type ConnectionRecord = {
     integrationId: string;
     connectionId: string;
@@ -43,7 +35,7 @@ type WebsocketEvent = APIGatewayProxyWebsocketEventV2 & {
 const ddbClient = new DynamoDBClient();
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
-const validateWebSocketToken = (token: string): WebSocketTokenPayload => {
+const validateWebSocketToken = (token: string): WSToken => {
     const parts = token.split('.');
     if (parts.length !== 2) {
         throw new Error('Invalid token format');
@@ -60,7 +52,7 @@ const validateWebSocketToken = (token: string): WebSocketTokenPayload => {
 
     // Decode payload
     const payloadJson = Buffer.from(payloadEncoded, 'base64url').toString('utf-8');
-    const payload = JSON.parse(payloadJson) as WebSocketTokenPayload;
+    const payload = JSON.parse(payloadJson) as WSToken;
 
     // Verify expiration
     const now = Math.floor(Date.now() / 1000);
@@ -69,7 +61,7 @@ const validateWebSocketToken = (token: string): WebSocketTokenPayload => {
     }
 
     // Basic validation
-    if (!payload.sub || !payload.integrations || !Array.isArray(payload.integrations)) {
+    if (!payload.userId || !payload.integrations || !Array.isArray(payload.integrations)) {
         throw new Error('Invalid token payload');
     }
 
@@ -167,10 +159,10 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
         return {statusCode: 401, body: 'Unauthorized: No authentication token provided'};
     }
 
-    let tokenPayload: WebSocketTokenPayload;
+    let tokenPayload: WSToken;
     try {
         tokenPayload = validateWebSocketToken(token);
-        logger.info('WebSocket token validation successful', {sub: tokenPayload.sub});
+        logger.info('WebSocket token validation successful', {userId: tokenPayload.userId});
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         logger.info('Connection denied: Invalid token', {message});
@@ -179,7 +171,7 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
 
     const integrations = tokenPayload.integrations;
     if (integrations.length === 0) {
-        logger.info('No integrations found for user', {sub: tokenPayload.sub});
+        logger.info('No integrations found for user', {userId: tokenPayload.userId});
         return {statusCode: 401, body: 'Connection denied: No authorized integrations found'};
     }
 
@@ -188,7 +180,7 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
             Item: {
                 integrationId: integrationId,
                 connectionId: event.requestContext.connectionId,
-                sub: tokenPayload.sub,
+                sub: tokenPayload.userId,
                 connectedAt: new Date().toISOString(),
             },
         },
