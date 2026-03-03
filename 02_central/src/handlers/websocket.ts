@@ -1,39 +1,22 @@
+import {db} from '@/clients/rds';
+import {wsConnections} from '@/drizzle/schema/gitgazer';
 import {getLogger} from '@/logger';
-import {DynamoDBClient} from '@aws-sdk/client-dynamodb';
-import {BatchWriteCommand, DynamoDBDocumentClient, QueryCommand} from '@aws-sdk/lib-dynamodb';
 import {WSToken} from '@common/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
 import {createHmac} from 'crypto';
+import {eq} from 'drizzle-orm';
 
 const logger = getLogger();
 
-const connectionsTableArn = process.env.DYNAMO_DB_CONNECTIONS_TABLE_ARN;
-const connectionIdIndex = process.env.DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX;
 const cognitoClientSecret = process.env.COGNITO_CLIENT_SECRET;
-
-if (!connectionsTableArn) {
-    throw new Error('DYNAMO_DB_CONNECTIONS_TABLE_ARN is not defined');
-}
-
-if (!connectionIdIndex) {
-    throw new Error('DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX is not defined');
-}
 
 if (!cognitoClientSecret) {
     throw new Error('COGNITO_CLIENT_SECRET is not defined');
 }
 
-type ConnectionRecord = {
-    integrationId: string;
-    connectionId: string;
-};
-
 type WebsocketEvent = APIGatewayProxyWebsocketEventV2 & {
     queryStringParameters?: Record<string, string | undefined> | null;
 };
-
-const ddbClient = new DynamoDBClient();
-const docClient = DynamoDBDocumentClient.from(ddbClient);
 
 const validateWebSocketToken = (token: string): WSToken => {
     const parts = token.split('.');
@@ -92,59 +75,16 @@ const onDisconnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResul
     const connectionId = event.requestContext.connectionId;
 
     try {
-        const queryCommand = new QueryCommand({
-            TableName: connectionsTableArn,
-            IndexName: connectionIdIndex,
-            KeyConditionExpression: 'connectionId = :connectionId',
-            ExpressionAttributeValues: {
-                ':connectionId': connectionId,
-            },
-        });
+        const deletedRecords = await db.delete(wsConnections).where(eq(wsConnections.connectionId, connectionId)).returning();
 
-        const queryResponse = await docClient.send(queryCommand);
-        const items = (queryResponse.Items ?? []) as ConnectionRecord[];
-        logger.info(`Found ${items.length} records for connectionId: ${connectionId}`);
+        const count = deletedRecords.length;
+        logger.info(`Successfully deleted ${count} connection records for connectionId: ${connectionId}`);
 
-        if (items.length === 0) {
-            return {statusCode: 200, body: 'No records to disconnect.'};
-        }
-
-        const deleteRequests = items.map((item) => ({
-            DeleteRequest: {
-                Key: {
-                    integrationId: item.integrationId,
-                    connectionId: item.connectionId,
-                },
-            },
-        }));
-
-        const batchCommand = new BatchWriteCommand({
-            RequestItems: {
-                [connectionsTableArn]: deleteRequests,
-            },
-        });
-
-        const result = await docClient.send(batchCommand);
-        logger.info(`Successfully deleted ${items.length} connection records for connectionId: ${connectionId}`);
-
-        if (result.UnprocessedItems && Object.keys(result.UnprocessedItems).length > 0) {
-            logger.warn('Some items were not processed during disconnect', {unprocessed: result.UnprocessedItems});
-        }
-
-        return {statusCode: 200, body: `Disconnected. Removed ${items.length} records.`};
+        return {statusCode: 200, body: `Disconnected. Removed ${count} records.`};
     } catch (error) {
         logger.error('Error during disconnect', error as Error);
 
         if (error instanceof Error) {
-            if (error.name === 'ValidationException') {
-                return {statusCode: 400, body: `Invalid request: ${error.message}`};
-            }
-            if (error.name === 'ProvisionedThroughputExceededException' || error.name === 'ThrottlingException') {
-                return {statusCode: 429, body: `Service temporarily unavailable: ${error.message}`};
-            }
-            if (error.name === 'ResourceNotFoundException') {
-                return {statusCode: 404, body: `Resource not found: ${error.message}`};
-            }
             return {statusCode: 500, body: `Failed to disconnect: ${error.message}`};
         }
 
@@ -170,35 +110,22 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
     }
 
     const integrations = tokenPayload.integrations;
+    const userId = tokenPayload.userId;
     if (integrations.length === 0) {
-        logger.info('No integrations found for user', {userId: tokenPayload.userId});
+        logger.info('No integrations found for user', {userId});
         return {statusCode: 401, body: 'Connection denied: No authorized integrations found'};
     }
 
-    const writeRequests = integrations.map((integrationId) => ({
-        PutRequest: {
-            Item: {
-                integrationId: integrationId,
-                connectionId: event.requestContext.connectionId,
-                sub: tokenPayload.userId,
-                connectedAt: new Date().toISOString(),
-            },
-        },
-    }));
-
     try {
-        const batchCommand = new BatchWriteCommand({
-            RequestItems: {
-                [connectionsTableArn]: writeRequests,
-            },
-        });
+        const values = integrations.map((integrationId) => ({
+            integrationId,
+            connectionId: event.requestContext.connectionId,
+            userId,
+        }));
 
-        const result = await docClient.send(batchCommand);
+        await db.insert(wsConnections).values(values);
+
         logger.info('Connection stored for integrations', {integrations});
-
-        if (result.UnprocessedItems && Object.keys(result.UnprocessedItems).length > 0) {
-            logger.warn('Some items were not processed during connect', {unprocessed: result.UnprocessedItems});
-        }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         logger.error('Failed to store connections', error as Error);

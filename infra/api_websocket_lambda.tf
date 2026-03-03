@@ -79,6 +79,30 @@ data "aws_iam_policy_document" "api_websocket" {
       "${aws_apigatewayv2_api.websocket.execution_arn}/*"
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "rds-data:*",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [
+      module.db.cluster_arn,
+      module.db.cluster_master_user_secret[0].secret_arn,
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+      "kms:Encrypt",
+    ]
+    resources = distinct([
+      module.db.cluster_master_user_secret[0].kms_key_id
+    ])
+  }
 }
 
 resource "aws_iam_role_policy" "api_websocket" {
@@ -117,6 +141,9 @@ resource "aws_lambda_function" "api_websocket" {
       DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
       DYNAMO_DB_CONNECTIONS_TABLE_ARN                 = aws_dynamodb_table.connections.arn
       DYNAMO_DB_USER_QUERIES_TABLE_ARN                = aws_dynamodb_table.user_queries.name
+      RDS_DATABASE                                    = "postgres"
+      RDS_SECRET_ARN                                  = module.db.cluster_master_user_secret[0].secret_arn
+      RDS_RESOURCE_ARN                                = module.db.cluster_arn
     }
   }
   layers = local.lambda_layers

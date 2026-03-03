@@ -5,9 +5,12 @@ import {describe, expect, it, vi} from 'vitest';
 
 // Mock dependencies
 vi.mock('@/clients/dynamodb', () => ({
+    putEvent: vi.fn(),
+}));
+
+vi.mock('@/clients/websocket-connections', () => ({
     deleteConnection: vi.fn(),
     getConnections: vi.fn(),
-    putEvent: vi.fn(),
 }));
 
 vi.mock('@aws-sdk/client-apigatewaymanagementapi', () => ({

@@ -1,5 +1,5 @@
-import {bigint, pgSchema, text, timestamp, uuid} from 'drizzle-orm/pg-core';
-import {integrations} from './github';
+import {bigint, index, pgSchema, primaryKey, text, timestamp, uuid} from 'drizzle-orm/pg-core';
+import {integrations, tenantSeparationPolicy} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
 
@@ -8,13 +8,21 @@ export const users = gitgazerSchema.table('users', {
     cognitoId: uuid('cognito_id').notNull().unique(),
 });
 
-export const wsConnections = gitgazerSchema.table('ws_connections', {
-    integrationId: uuid('integration_id')
-        .notNull()
-        .references(() => integrations.integrationId, {onDelete: 'cascade'}),
-    connectionId: text('connection_id').notNull().unique(),
-    userId: bigint('user_id', {mode: 'number'})
-        .notNull()
-        .references(() => users.id, {onDelete: 'cascade'}),
-    connectedAt: timestamp('connected_at', {withTimezone: true}).notNull().defaultNow(),
-});
+export const wsConnections = gitgazerSchema.table(
+    'ws_connections',
+    {
+        integrationId: uuid('integration_id')
+            .notNull()
+            .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+        connectionId: text('connection_id').notNull(),
+        userId: bigint('user_id', {mode: 'number'})
+            .notNull()
+            .references(() => users.id, {onDelete: 'cascade'}),
+        connectedAt: timestamp('connected_at', {withTimezone: true}).notNull().defaultNow(),
+    },
+    (table) => [
+        tenantSeparationPolicy(),
+        primaryKey({columns: [table.integrationId, table.connectionId, table.userId]}),
+        index('ws_connections_connection_id_idx').on(table.connectionId),
+    ],
+);

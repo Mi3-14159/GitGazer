@@ -1,4 +1,5 @@
-import {deleteConnection, getConnections, putEvent} from '@/clients/dynamodb';
+import {putEvent} from '@/clients/dynamodb';
+import {deleteConnection, getConnections} from '@/clients/websocket-connections';
 import {insertEvent} from '@/controllers/imports/index';
 import {getLogger} from '@/logger';
 import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
