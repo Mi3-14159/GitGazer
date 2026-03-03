@@ -3,12 +3,12 @@ import {RequestContext} from '@aws-lambda-powertools/event-handler/types';
 export type WebsocketConnection = {
     integrationId: string;
     connectionId: string;
-    sub: string;
+    userId: number;
     connectedAt: string;
 };
 
 export type AppContext = {
-    userId: string;
+    userId: number;
     username: string;
     email: string;
     name: string;

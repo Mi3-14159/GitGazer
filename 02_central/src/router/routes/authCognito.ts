@@ -171,12 +171,12 @@ router.get('/api/user', async (reqCtx: AppRequestContext) => {
     }
 
     const user: UserAttributes = {
-        sub: userId,
-        username: username,
-        email: email,
-        name: name,
-        nickname: nickname,
-        picture: picture,
+        userId,
+        username,
+        email,
+        name,
+        nickname,
+        picture,
     };
 
     return new Response(JSON.stringify(user), {
@@ -432,7 +432,7 @@ router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppR
 
     // Create a simple token payload
     const tokenPayload: WSToken = {
-        sub: userId,
+        userId,
         username,
         email,
         integrations,

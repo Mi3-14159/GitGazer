@@ -155,6 +155,7 @@ export type StreamEvent<T extends keyof EventPayloadMap> = {
 };
 
 export type UserAttributes = {
+  userId?: number;
   sub?: string;
   username?: string;
   email?: string;
@@ -164,7 +165,7 @@ export type UserAttributes = {
 };
 
 export type WSToken = {
-  sub: string;
+  userId: number;
   username: string;
   email: string;
   integrations: string[];

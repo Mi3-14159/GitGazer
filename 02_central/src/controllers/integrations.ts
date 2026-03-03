@@ -1,109 +1,144 @@
-import {
-    createIntegration as createIntegrationDDB,
-    deleteIntegration as deleteIntegrationDDB,
-    deleteIntegrationMembers,
-    deleteIntegrationNotificationRules,
-    getIntegrations as getIntegrationsDDB,
-    updateIntegration as updateIntegrationDDB,
-} from '@/clients/dynamodb';
+import {deleteIntegrationNotificationRules} from '@/clients/dynamodb';
+import {db, withRlsTransaction} from '@/clients/rds';
+import {integrations, userAssignments} from '@/drizzle/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Integration} from '@common/types';
+import {and, eq} from 'drizzle-orm';
 
-const environment = process.env.ENVIRONMENT;
-if (!environment) {
-    throw new Error('ENVIRONMENT environment variable is not set');
-}
-
-export const getIntegrations = async (params: {integrationIds: string[]; limit?: number}): Promise<Integration[]> => {
+export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
+    const logger = getLogger();
     const {integrationIds} = params;
+
+    logger.info(`Getting integrations: ${integrationIds.join(', ')}`, {integrationIds});
     if (integrationIds.length === 0) {
         return [];
     }
 
-    const integrations = await getIntegrationsDDB(integrationIds);
+    const results = await withRlsTransaction(integrationIds, async (tx) => {
+        return await tx.select().from(integrations);
+    });
 
-    return integrations as Integration[];
+    return results.map((r) => ({
+        id: r.integrationId,
+        label: r.label,
+        owner: r.ownerId.toString(),
+        secret: r.secret,
+    }));
 };
 
-export const upsertIntegration = async (params: {
-    id?: string;
-    label?: string;
-    owner?: string;
-    userId?: string;
-    integrationIds: string[];
-}): Promise<Integration> => {
+export const upsertIntegration = async (params: {id?: string; label?: string; userId?: number; integrationIds: string[]}): Promise<Integration> => {
     const logger = getLogger();
-    const {id, label, owner, userId, integrationIds} = params;
+    const {id, label, userId, integrationIds} = params;
 
     if (id) {
         logger.info(`Updating integration ${id} with label: ${label}`);
-
-        if (!integrationIds.includes(id)) {
-            throw new UnauthorizedError('User is not authorized to update this integration');
-        }
 
         if (!label) {
             throw new BadRequestError('Missing label for integration update');
         }
 
-        return await updateIntegrationDDB(id, label);
+        // Use RLS to ensure only accessible integrations can be updated
+        const results = await withRlsTransaction(integrationIds, async (tx) => {
+            return await tx.update(integrations).set({label}).where(eq(integrations.integrationId, id)).returning();
+        });
+
+        if (results.length === 0) {
+            throw new UnauthorizedError('Integration not found or access denied');
+        }
+
+        const result = results[0];
+        return {
+            id: result.integrationId,
+            label: result.label,
+            owner: result.ownerId.toString(),
+            secret: result.secret,
+        };
     }
 
-    if (!label || !owner || !userId) {
+    if (!label || !userId) {
         throw new BadRequestError('Missing parameters to create integration');
     }
 
-    return await createIntegration(label, owner);
+    return await createIntegration(label, userId);
 };
 
-const createIntegration = async (label: string, owner: string): Promise<Integration> => {
+const createIntegration = async (label: string, ownerId: number): Promise<Integration> => {
     const logger = getLogger();
     logger.info(`Creating new integration with label: ${label}`);
 
-    const integration: Integration = {
-        id: crypto.randomUUID(),
-        label,
-        owner,
-        secret: crypto.randomUUID(),
-    };
-
-    const results = await Promise.allSettled([createIntegrationDDB(integration)]);
-
-    const failedResults = results.filter((result) => result.status === 'rejected');
-    if (failedResults.length > 0) {
-        logger.error(`Failed to create integration '${label}:${integration.id}'`, {failedResults});
-        throw new InternalServerError('Failed to create integration');
+    if (isNaN(ownerId)) {
+        throw new BadRequestError('Invalid owner ID');
     }
 
-    logger.info(`Successfully created integration '${label}:${integration.id}'`);
-    return integration;
+    try {
+        // Insert integration and user assignment in a transaction
+        const integration = await db.transaction(async (tx) => {
+            const integration = await tx
+                .insert(integrations)
+                .values({
+                    label,
+                    ownerId,
+                })
+                .returning();
+
+            await tx.insert(userAssignments).values({
+                integrationId: integration[0].integrationId,
+                userId: ownerId,
+            });
+
+            return integration[0];
+        });
+
+        logger.info(`Successfully created integration '${label}:${integration.integrationId}'`);
+
+        return {
+            id: integration.integrationId,
+            label: integration.label,
+            owner: integration.ownerId.toString(),
+            secret: integration.secret,
+        };
+    } catch (error: any) {
+        logger.error(`Failed to create integration '${label}'`, {error: error?.message});
+        throw new InternalServerError('Failed to create integration');
+    }
 };
 
-export const deleteIntegration = async (id: string, userGroups: string[], userId: string): Promise<void> => {
+export const deleteIntegration = async (id: string, integrationIds: string[], userId: number): Promise<void> => {
     const logger = getLogger();
     logger.info(`User ${userId} is attempting to delete integration ${id}`);
 
-    if (!userGroups.includes(id)) {
-        throw new UnauthorizedError('User is not authorized to delete this integration');
+    try {
+        await withRlsTransaction(integrationIds, async (tx) => {
+            // Delete integration (cascades to user-assignments via foreign key)
+            await tx.delete(integrations).where(and(eq(integrations.integrationId, id), eq(integrations.ownerId, userId)));
+        });
+
+        // Delete notification rules from DynamoDB (outside transaction)
+        await deleteIntegrationNotificationRules(id);
+
+        logger.info(`Successfully deleted integration '${id}'`);
+    } catch (error: any) {
+        if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+            throw error;
+        }
+        logger.error(`Failed to delete integration ${id}`, {error: error?.message});
+        throw new InternalServerError('Failed to delete integration');
+    }
+};
+
+export const getUserIntegrations = async (userId: number): Promise<string[]> => {
+    const logger = getLogger();
+    logger.info(`Getting integrations for user ${userId}`);
+    if (isNaN(userId)) {
+        logger.warn(`Invalid user ID: ${userId}`);
+        return [];
     }
 
-    const integration = await getIntegrationsDDB([id]);
-    if (integration.length === 0) {
-        throw new BadRequestError('Integration not found');
-    }
+    const assignments = await db
+        .select({integrationId: userAssignments.integrationId})
+        .from(userAssignments)
+        .where(eq(userAssignments.userId, userId));
 
-    if (integration[0].owner !== userId) {
-        throw new ForbiddenError('User is not the owner of this integration');
-    }
-
-    const results = await Promise.allSettled([deleteIntegrationDDB(id), deleteIntegrationMembers(id), deleteIntegrationNotificationRules(id)]);
-
-    const failedResults = results.filter((result) => result.status === 'rejected');
-    if (failedResults.length > 0) {
-        logger.error(`Failed to delete integration ${id} completely`, {failedResults});
-        throw new InternalServerError('Failed to delete integration completely');
-    }
-
-    logger.info(`Successfully deleted integration '${id}'`);
+    return assignments.map((a) => a.integrationId);
 };

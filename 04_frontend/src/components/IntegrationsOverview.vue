@@ -9,7 +9,7 @@
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration} = useIntegration();
 
     const integrations = reactive(new Map());
-    const userId = ref<string>();
+    const userId = ref<number>();
     const dialog = ref(false);
     const editingIntegration = ref<Integration | undefined>(undefined);
     const showSecret = reactive(new Map<string, boolean>());
@@ -64,11 +64,11 @@
         return `${import.meta.env.VITE_IMPORT_URL_BASE}/${id}`;
     };
 
-    const userIsOwner = (owner: string) => {
+    const userIsOwner = (owner: number) => {
         return owner === userId.value;
     };
 
-    const getOwnerAnnotation = (owner: string) => {
+    const getOwnerAnnotation = (owner: number) => {
         return userIsOwner(owner) ? 'you' : 'not you';
     };
 
@@ -86,7 +86,7 @@
 
     onMounted(async () => {
         const userAttrs = await getUserAttributes();
-        userId.value = userAttrs.sub;
+        userId.value = userAttrs.userId;
         handleListIntegrations();
     });
 </script>

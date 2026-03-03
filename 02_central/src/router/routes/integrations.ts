@@ -33,7 +33,6 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
     return await upsertIntegration({
         id: requestBody.id,
         label: requestBody.label,
-        owner: userId,
         userId,
         integrationIds: integrations,
     });

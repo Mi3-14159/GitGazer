@@ -2,12 +2,12 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {addUserIntegrationsToCtx} from './integrations';
 
-// Mock dynamoDB client
-vi.mock('@/clients/dynamodb', () => ({
+// Mock integrations controller
+vi.mock('@/controllers/integrations', () => ({
     getUserIntegrations: vi.fn(),
 }));
 
-import {getUserIntegrations} from '@/clients/dynamodb';
+import {getUserIntegrations} from '@/controllers/integrations';
 
 function makeReqCtx(userId: string) {
     return {
@@ -46,10 +46,10 @@ describe('extractUserIntegrations middleware', () => {
 
     it('throws error when getUserIntegrations throws an error', async () => {
         const next = vi.fn(async () => undefined);
-        const error = new Error('DynamoDB connection failed');
+        const error = new Error('RDS connection failed');
         vi.mocked(getUserIntegrations).mockRejectedValue(error);
 
-        await expect(addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next})).rejects.toThrow('DynamoDB connection failed');
+        await expect(addUserIntegrationsToCtx({reqCtx: makeReqCtx('user123'), next})).rejects.toThrow('RDS connection failed');
 
         expect(next).not.toHaveBeenCalled();
         expect(getUserIntegrations).toHaveBeenCalledWith('user123');

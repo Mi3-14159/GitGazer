@@ -5,6 +5,7 @@ import {AppRequestContext} from '@/types';
 import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
+import {CognitoIdTokenPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
@@ -89,24 +90,16 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         throw new UnauthorizedError('Missing authentication tokens');
     }
 
+    let idPayload: CognitoIdTokenPayload;
     try {
         const accessPayload = await accessTokenVerifier.verify(accessToken);
-        const idPayload = await idTokenVerifier.verify(idToken);
+        idPayload = await idTokenVerifier.verify(idToken);
 
         logger.debug('Tokens verified successfully', {
             sub: accessPayload.sub,
             username: accessPayload.username,
             rawPath,
         });
-
-        reqCtx.appContext = {
-            userId: idPayload.sub,
-            username: (idPayload.username as string) || (idPayload['cognito:username'] as string) || '',
-            email: (idPayload.email as string) || '',
-            name: (idPayload.name as string) || '',
-            nickname: (idPayload.nickname as string) || '',
-            picture: (idPayload.picture as string) || '',
-        };
     } catch (error: any) {
         const errorMessage = error?.message || 'Unknown error';
         const isExpiredError = errorMessage.includes('expired') || errorMessage.includes('Token expired');
@@ -122,24 +115,49 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         throw new UnauthorizedError('Invalid or expired authentication tokens');
     }
 
+    let userId: number;
     try {
-        await db
+        const user = await db
             .insert(users)
             .values({
-                cognitoId: reqCtx.appContext.userId,
+                cognitoId: idPayload.sub,
             })
-            .onConflictDoNothing({target: users.cognitoId});
+            .onConflictDoUpdate({
+                target: users.cognitoId,
+                set: {
+                    cognitoId: idPayload.sub,
+                },
+            })
+            .returning({id: users.id});
+
+        if (user.length === 0) {
+            logger.error('Failed to upsert user: No user returned from database', {
+                cognitoId: idPayload.sub,
+            });
+            throw new InternalServerError('Failed to process user information');
+        }
+
+        userId = user[0].id;
 
         logger.debug('User upserted successfully', {
-            cognitoId: reqCtx.appContext.userId,
+            cognitoId: idPayload.sub,
         });
     } catch (error: any) {
         logger.error('Failed to upsert user in database', {
             error,
-            cognitoId: reqCtx.appContext.userId,
+            cognitoId: idPayload.sub,
         });
         throw new InternalServerError('Failed to process user information');
     }
+
+    reqCtx.appContext = {
+        userId,
+        username: (idPayload.username as string) || (idPayload['cognito:username'] as string) || '',
+        email: (idPayload.email as string) || '',
+        name: (idPayload.name as string) || '',
+        nickname: (idPayload.nickname as string) || '',
+        picture: (idPayload.picture as string) || '',
+    };
 
     await next();
 };

@@ -1,4 +1,4 @@
-import {getUserIntegrations} from '@/clients/dynamodb';
+import {getUserIntegrations} from '@/controllers/integrations';
 import {getLogger} from '@/logger';
 import {AppRequestContext} from '@/types';
 import {NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
@@ -11,7 +11,7 @@ export const addUserIntegrationsToCtx: Middleware = async ({reqCtx, next}: {reqC
 
     const integrations = await getUserIntegrations(userId);
     reqCtx.appContext!.integrations = integrations;
-    logger.debug('User integrations from DynamoDB', {integrations});
+    logger.debug('User integrations from RDS', {integrations});
 
     await next();
 };
