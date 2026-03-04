@@ -10,8 +10,8 @@
  */
 
 import {putNotificationRule} from '@/clients/dynamodb';
+import {NotificationRule, NotificationRuleChannelType} from '@/common/types';
 import {getLogger} from '@/logger';
-import {NotificationRule, NotificationRuleChannelType} from '@common/types';
 
 const logger = getLogger();
 

@@ -1,8 +1,8 @@
+import {isNotificationRuleUpdate} from '@/common/types';
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/controllers/notifications';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {isNotificationRuleUpdate} from '@common/types';
 
 const router = new Router();
 

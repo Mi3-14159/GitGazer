@@ -1,6 +1,6 @@
 import {withRlsTransaction} from '@/clients/rds';
+import {GetWorkflowsResponse, PaginationCursor, WorkflowRun} from '@/common/types';
 import {workflowRuns} from '@/drizzle/schema';
-import {GetWorkflowsResponse, PaginationCursor, WorkflowRun} from '@common/types';
 import {and, desc, eq, lt, or, SQL} from 'drizzle-orm';
 
 type WorkflowsParams = {

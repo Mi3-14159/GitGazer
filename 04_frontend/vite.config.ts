@@ -35,7 +35,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': resolve(__dirname, 'src'),
-            '@common': resolve(__dirname, '../common/src'),
+            '@common': resolve(__dirname, '../02_central/src/common'),
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
     },

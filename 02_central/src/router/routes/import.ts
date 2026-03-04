@@ -2,8 +2,8 @@ import {handleEvent} from '@/controllers/imports';
 import {getLogger} from '@/logger';
 import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
 
+import {EventPayloadMap} from '@/common/types';
 import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
-import {EventPayloadMap} from '@common/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 const router = new Router();

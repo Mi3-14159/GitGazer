@@ -1,6 +1,6 @@
 import {deleteNotificationRule as ddeleteNotificationRule, getNotificationRulesBy, putNotificationRule} from '@/clients/dynamodb';
+import {NotificationRule, NotificationRuleUpdate} from '@/common/types';
 import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
-import {NotificationRule, NotificationRuleUpdate} from '@common/types';
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
     const {integrationIds} = params;

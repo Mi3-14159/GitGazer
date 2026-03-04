@@ -1,5 +1,6 @@
 import {putEvent} from '@/clients/dynamodb';
 import {deleteConnection, getConnections} from '@/clients/websocket-connections';
+import {Event, EventPayloadMap, StreamEvent} from '@/common/types';
 import {insertEvent} from '@/controllers/imports/index';
 import {getLogger} from '@/logger';
 import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
@@ -9,7 +10,6 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {Event, EventPayloadMap, StreamEvent} from '@common/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 const expireInSecString = process.env.EXPIRE_IN_SEC;

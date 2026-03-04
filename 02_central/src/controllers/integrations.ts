@@ -1,9 +1,9 @@
 import {deleteIntegrationNotificationRules} from '@/clients/dynamodb';
 import {db, withRlsTransaction} from '@/clients/rds';
+import {Integration} from '@/common/types';
 import {integrations, userAssignments} from '@/drizzle/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
-import {Integration} from '@common/types';
 import {and, eq} from 'drizzle-orm';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {

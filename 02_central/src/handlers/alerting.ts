@@ -1,8 +1,8 @@
 import {getNotificationRulesBy, getWorkflowsBy} from '@/clients/dynamodb';
+import {Event, NotificationRule, NotificationRuleChannelType, WorkflowJobEvent, WorkflowRunEvent} from '@/common/types';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
-import {Event, NotificationRule, NotificationRuleChannelType, WorkflowJobEvent, WorkflowRunEvent} from '@common/types';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
 
 const logger = getLogger();

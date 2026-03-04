@@ -1,5 +1,5 @@
+import {EventPayloadMap} from '@/common/types';
 import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
-import {EventPayloadMap} from '@common/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 import {describe, expect, it, vi} from 'vitest';
 

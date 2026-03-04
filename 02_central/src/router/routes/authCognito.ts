@@ -1,6 +1,7 @@
 import {getLogger} from '@/logger';
 import {createHmac, randomBytes} from 'crypto';
 
+import {State, UserAttributes, WSToken} from '@/common/types';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {
@@ -11,7 +12,6 @@ import {
     Router,
     UnauthorizedError,
 } from '@aws-lambda-powertools/event-handler/http';
-import {State, UserAttributes, WSToken} from '@common/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 const router = new Router();
 

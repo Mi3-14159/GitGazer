@@ -1,7 +1,7 @@
 import {db} from '@/clients/rds';
+import {WSToken} from '@/common/types';
 import {wsConnections} from '@/drizzle/schema/gitgazer';
 import {getLogger} from '@/logger';
-import {WSToken} from '@common/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
 import {createHmac} from 'crypto';
 import {eq} from 'drizzle-orm';

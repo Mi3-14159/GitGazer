@@ -11,9 +11,9 @@ import {
     UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 
+import {Event, Integration, NotificationRule, ProjectionType} from '@/common/types';
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
-import {Event, Integration, NotificationRule, ProjectionType} from '@common/types';
 import type {EventPayloadMap} from '@octokit/webhooks-types';
 
 const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;

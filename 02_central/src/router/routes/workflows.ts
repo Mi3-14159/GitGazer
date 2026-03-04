@@ -1,8 +1,8 @@
+import {isWorkflowsRequestParameters} from '@/common/types';
 import {getWorkflows} from '@/controllers/workflows';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {isWorkflowsRequestParameters} from '@common/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
