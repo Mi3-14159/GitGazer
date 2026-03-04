@@ -1,4 +1,5 @@
-import {getIntegrations} from '@/clients/dynamodb';
+import {withRlsTransaction} from '@/clients/rds';
+import {integrations} from '@/drizzle/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';
@@ -6,7 +7,7 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
 
 export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
-    const logger = getLogger(); // Get logger at runtime
+    const logger = getLogger();
     logger.debug('running verifyGithubSign middleware');
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const {pathParameters} = event;
@@ -16,12 +17,11 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
     }
 
     const integrationId = pathParameters.integrationId;
-    const integrations = await getIntegrations([integrationId]);
-    if (!integrations || integrations.length === 0) {
-        throw new BadRequestError('Integration not found');
-    }
+    const userIntegrations = await withRlsTransaction([integrationId], async (tx) => {
+        return await tx.select().from(integrations);
+    });
 
-    if (!integrations[0].secret) {
+    if (!userIntegrations[0].secret) {
         throw new InternalServerError('Integration secret not configured');
     }
 
@@ -32,7 +32,7 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
         throw new BadRequestError('Missing signature or payload');
     }
 
-    const isValid = validateSignature(payload, integrations[0].secret, signature);
+    const isValid = validateSignature(payload, userIntegrations[0].secret, signature);
     if (!isValid) {
         throw new UnauthorizedError('Invalid signature');
     }

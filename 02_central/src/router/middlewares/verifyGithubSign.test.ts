@@ -1,9 +1,9 @@
 import * as crypto from 'crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/clients/dynamodb', () => {
+vi.mock('@/clients/rds', () => {
     return {
-        getIntegrations: vi.fn(),
+        withRlsTransaction: vi.fn(),
     };
 });
 
@@ -37,10 +37,12 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('throws BadRequestError when integration cannot be found (missing secret)', async () => {
-        const dynamodb = await import('@/clients/dynamodb');
+        const rds = await import('@/clients/rds');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
-        (dynamodb.getIntegrations as any).mockResolvedValue([]);
+        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
+            return callback({select: () => ({from: () => [{id: 'int-1'}]})});
+        });
 
         const event = {
             pathParameters: {integrationId: 'int-1'},
@@ -48,16 +50,18 @@ describe('verifyGithubSign middleware', () => {
             body: 'x',
         };
 
-        await expect(verifyGithubSign({reqCtx: makeReqCtx(event), next} as any)).rejects.toThrow('Integration not found');
+        await expect(verifyGithubSign({reqCtx: makeReqCtx(event), next} as any)).rejects.toThrow('Integration secret not configured');
 
         expect(next).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestError when signature or payload is missing', async () => {
-        const dynamodb = await import('@/clients/dynamodb');
+        const rds = await import('@/clients/rds');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
-        (dynamodb.getIntegrations as any).mockResolvedValue([{id: 'int-1', secret: 'shh'}]);
+        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
+            return callback({select: () => ({from: () => [{id: 'int-1', secret: 'shh'}]})});
+        });
 
         const eventMissingSig = {
             pathParameters: {integrationId: 'int-1'},
@@ -79,11 +83,13 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('throws UnauthorizedError when signature is invalid', async () => {
-        const dynamodb = await import('@/clients/dynamodb');
+        const rds = await import('@/clients/rds');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
-        (dynamodb.getIntegrations as any).mockResolvedValue([{id: 'int-1', secret}]);
+        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
+            return callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+        });
 
         const payload = JSON.stringify({hello: 'world'});
         const good = signatureFor(payload, secret);
@@ -101,11 +107,13 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('calls next when signature is valid', async () => {
-        const dynamodb = await import('@/clients/dynamodb');
+        const rds = await import('@/clients/rds');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
-        (dynamodb.getIntegrations as any).mockResolvedValue([{id: 'int-1', secret}]);
+        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
+            return callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+        });
 
         const payload = JSON.stringify({ok: true});
         const sig = signatureFor(payload, secret);
