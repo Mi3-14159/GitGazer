@@ -105,6 +105,7 @@ export const repositories = githubSchema
             updatedAt: timestamp('updated_at', {withTimezone: true}).notNull(),
             name: varchar('name', {length: 255}).notNull(),
             private: boolean('private').notNull(),
+            ownerId: bigint('owner_id', {mode: 'number'}),
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),
@@ -113,6 +114,10 @@ export const repositories = githubSchema
                 foreignColumns: [organizations.integrationId, organizations.id],
             }).onDelete('set null'),
             tenantSeparationPolicy(),
+            foreignKey({
+                columns: [table.integrationId, table.ownerId],
+                foreignColumns: [user.integrationId, user.id],
+            }).onDelete('set null'),
         ],
     )
     .enableRLS();
@@ -124,6 +129,10 @@ export const repositoriesRelations = relations(repositories, ({one, many}) => ({
     }),
     workflowRuns: many(workflowRuns),
     workflowJobs: many(workflowJobs),
+    owner: one(user, {
+        fields: [repositories.integrationId, repositories.ownerId],
+        references: [user.integrationId, user.id],
+    }),
 }));
 
 export const user = githubSchema

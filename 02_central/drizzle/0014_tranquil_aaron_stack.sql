@@ -1,0 +1,2 @@
+ALTER TABLE "github"."repositories" ADD COLUMN "owner_id" bigint;--> statement-breakpoint
+ALTER TABLE "github"."repositories" ADD CONSTRAINT "repositories_integration_id_owner_id_user_integration_id_id_fk" FOREIGN KEY ("integration_id","owner_id") REFERENCES "github"."user"("integration_id","id") ON DELETE set null ON UPDATE no action;

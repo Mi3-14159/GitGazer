@@ -45,6 +45,16 @@ export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId
         // Insert/Update Repository
         if ('repository' in event && event.repository) {
             await tx
+                .insert(user)
+                .values({
+                    integrationId,
+                    id: event.repository.owner.id,
+                    login: event.repository.owner.login,
+                    type: event.repository.owner.type,
+                })
+                .onConflictDoNothing();
+
+            await tx
                 .insert(repositories)
                 .values({
                     integrationId,
@@ -54,8 +64,17 @@ export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId
                     private: event.repository.private,
                     createdAt: new Date(event.repository.created_at),
                     updatedAt: new Date(event.repository.updated_at),
+                    ownerId: event.repository.owner.id,
                 })
-                .onConflictDoNothing();
+                .onConflictDoUpdate({
+                    target: [repositories.integrationId, repositories.id],
+                    set: {
+                        name: event.repository.name,
+                        private: event.repository.private,
+                        updatedAt: new Date(event.repository.updated_at),
+                        ownerId: event.repository.owner.id,
+                    },
+                });
         }
 
         // Insert/Update Sender (User)

@@ -27,7 +27,7 @@ export const getWorkflows = async ({integrationIds, limit, cursor}: WorkflowsPar
                 workflowJobs: true,
                 repository: {
                     with: {
-                        organization: true,
+                        owner: true,
                     },
                 },
             },
@@ -48,7 +48,7 @@ export const getWorkflows = async ({integrationIds, limit, cursor}: WorkflowsPar
                 startedAt: job.startedAt.toISOString(),
             })),
             repository: {
-                fullName: `${[run.repository.organization?.login, run.repository.name].filter(Boolean).join('/')}`,
+                fullName: `${[run.repository.owner?.login, run.repository.name].filter(Boolean).join('/')}`,
             },
         }));
 
