@@ -22,7 +22,7 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
     return results.map((r) => ({
         id: r.integrationId,
         label: r.label,
-        owner: r.ownerId.toString(),
+        owner: r.ownerId,
         secret: r.secret,
     }));
 };
@@ -51,7 +51,7 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
         return {
             id: result.integrationId,
             label: result.label,
-            owner: result.ownerId.toString(),
+            owner: result.ownerId,
             secret: result.secret,
         };
     }
@@ -95,7 +95,7 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
         return {
             id: integration.integrationId,
             label: integration.label,
-            owner: integration.ownerId.toString(),
+            owner: integration.ownerId,
             secret: integration.secret,
         };
     } catch (error: any) {

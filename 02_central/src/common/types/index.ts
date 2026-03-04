@@ -72,7 +72,7 @@ export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpd
 export type Integration = {
     id: string;
     label: string;
-    owner: string;
+    owner: number;
     secret: string;
 };
 
