@@ -1,6 +1,19 @@
-import {deleteNotificationRule as ddeleteNotificationRule, getNotificationRulesBy, putNotificationRule} from '@/clients/dynamodb';
+import {withRlsTransaction} from '@/clients/rds';
 import {NotificationRule, NotificationRuleUpdate} from '@/common/types';
+import {notificationRules} from '@/drizzle/schema';
 import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
+import {and, eq} from 'drizzle-orm';
+
+const toNotificationRule = (row: typeof notificationRules.$inferSelect): NotificationRule => ({
+    integrationId: row.integrationId,
+    id: row.id,
+    channels: row.channels,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    enabled: row.enabled,
+    ignore_dependabot: row.ignore_dependabot,
+    rule: row.rule,
+});
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
     const {integrationIds} = params;
@@ -8,11 +21,11 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
         return [];
     }
 
-    const rules = await getNotificationRulesBy({
-        integrationIds,
+    const rows = await withRlsTransaction(integrationIds, async (tx) => {
+        return await tx.select().from(notificationRules);
     });
 
-    return rules;
+    return rows.map(toNotificationRule);
 };
 
 export const upsertNotificationRule = async (params: {
@@ -26,14 +39,31 @@ export const upsertNotificationRule = async (params: {
         throw new ForbiddenError('Unauthorized to create/update notification rule for this integration');
     }
 
-    return await putNotificationRule(
-        {
-            ...params.rule,
-            integrationId: params.integrationId,
-            id: params.createOnly ? crypto.randomUUID() : params.ruleId,
-        },
-        params.createOnly,
-    );
+    const result = await withRlsTransaction([params.integrationId], async (tx) => {
+        return await tx
+            .insert(notificationRules)
+            .values({
+                integrationId: params.integrationId,
+                id: params.ruleId,
+                channels: params.rule.channels,
+                enabled: params.rule.enabled,
+                ignore_dependabot: params.rule.ignore_dependabot,
+                rule: params.rule.rule,
+            })
+            .onConflictDoUpdate({
+                target: [notificationRules.integrationId, notificationRules.id],
+                set: {
+                    channels: params.rule.channels,
+                    enabled: params.rule.enabled,
+                    ignore_dependabot: params.rule.ignore_dependabot,
+                    rule: params.rule.rule,
+                    updatedAt: new Date(),
+                },
+            })
+            .returning();
+    });
+
+    return toNotificationRule(result[0]);
 };
 
 export const deleteNotificationRule = async (ruleId: string, integrationId: string, userIntegrationIds: string[]): Promise<void> => {
@@ -41,5 +71,7 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
         throw new ForbiddenError('Unauthorized to delete notification rule for this integration');
     }
 
-    await ddeleteNotificationRule(ruleId, integrationId);
+    await withRlsTransaction([integrationId], async (tx) => {
+        await tx.delete(notificationRules).where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)));
+    });
 };

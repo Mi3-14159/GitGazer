@@ -1,4 +1,3 @@
-import {deleteIntegrationNotificationRules} from '@/clients/dynamodb';
 import {db, withRlsTransaction} from '@/clients/rds';
 import {Integration} from '@/common/types';
 import {integrations, userAssignments} from '@/drizzle/schema/github/workflows';
@@ -110,12 +109,9 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
 
     try {
         await withRlsTransaction(integrationIds, async (tx) => {
-            // Delete integration (cascades to user-assignments via foreign key)
+            // Delete integration (cascades to user-assignments and notification-rules via foreign key)
             await tx.delete(integrations).where(and(eq(integrations.integrationId, id), eq(integrations.ownerId, userId)));
         });
-
-        // Delete notification rules from DynamoDB (outside transaction)
-        await deleteIntegrationNotificationRules(id);
 
         logger.info(`Successfully deleted integration '${id}'`);
     } catch (error: any) {

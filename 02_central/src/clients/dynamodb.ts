@@ -11,20 +11,10 @@ import {
     UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 
-import {Event, Integration, NotificationRule, ProjectionType} from '@/common/types';
+import {Event, Integration, ProjectionType} from '@/common/types';
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
 import type {EventPayloadMap} from '@octokit/webhooks-types';
-
-const notificationTableName = process.env.DYNAMO_DB_NOTIFICATIONS_TABLE_ARN;
-if (!notificationTableName) {
-    throw new Error('DYNAMO_DB_NOTIFICATIONS_TABLE_ARN is not defined');
-}
-
-const notificationTableIntegrationIdIndexName = process.env.DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME;
-if (!notificationTableIntegrationIdIndexName) {
-    throw new Error('DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME is not defined');
-}
 
 const connectionTableName = process.env.DYNAMO_DB_CONNECTIONS_TABLE_ARN;
 if (!connectionTableName) {
@@ -74,30 +64,6 @@ const query = async <T>(commands: QueryCommand[]): Promise<QueryResult<T>[]> => 
 
     logger.trace(`DynamoDB query results`, {fulfilledResults});
     return fulfilledResults;
-};
-
-export const getNotificationRulesBy = async (params: {integrationIds: string[]; limit?: number; id?: string}): Promise<NotificationRule[]> => {
-    const logger = getLogger();
-    logger.info(`Getting notification rules for integrations ${params.integrationIds.join(', ')}`, {integrations: params.integrationIds});
-
-    const keyConditionExpressionParts = ['integrationId = :integrationId'];
-    if (params.id) {
-        keyConditionExpressionParts.push('id = :id');
-    }
-
-    const commands = params.integrationIds.map((integrationId) => {
-        return new QueryCommand({
-            TableName: notificationTableName,
-            KeyConditionExpression: keyConditionExpressionParts.join(' AND '),
-            ExpressionAttributeValues: {
-                ':integrationId': integrationId,
-                ...(params.id && {':id': params.id}),
-            },
-            IndexName: !params.id ? 'integrationId-index' : undefined,
-        });
-    });
-
-    return query<NotificationRule>(commands).then((results) => results.flatMap((r) => r.items));
 };
 
 export const getWorkflowsBy = async <T extends 'workflow_job' | 'workflow_run'>(params: {
@@ -180,67 +146,6 @@ export const getWorkflowsBy = async <T extends 'workflow_job' | 'workflow_run'>(
     });
 
     return await query<Event<Partial<EventPayloadMap[T]>>>(commands);
-};
-
-export const putNotificationRule = async (
-    rule: Omit<NotificationRule, 'createdAt' | 'updatedAt'>,
-    createOnly?: boolean,
-): Promise<NotificationRule> => {
-    const logger = getLogger();
-    logger.info(`Updating notification rule ${rule.id}`, {rule, createOnly});
-
-    const now = new Date().toUTCString();
-    const {owner, repository_name, workflow_name, head_branch} = rule.rule;
-
-    const command = new UpdateCommand({
-        TableName: notificationTableName,
-        Key: {
-            id: rule.id,
-            integrationId: rule.integrationId,
-        },
-        UpdateExpression:
-            'SET #created_at = if_not_exists(#created_at, :created_at), #updated_at = :updated_at, #enabled = :enabled, #channels = :channels, #rule = :rule, #ignore_dependabot = :ignore_dependabot',
-        ExpressionAttributeNames: {
-            '#created_at': 'created_at',
-            '#updated_at': 'updated_at',
-            '#enabled': 'enabled',
-            '#channels': 'channels',
-            '#rule': 'rule',
-            '#ignore_dependabot': 'ignore_dependabot',
-        },
-        ExpressionAttributeValues: {
-            ':created_at': now,
-            ':updated_at': now,
-            ':enabled': rule.enabled,
-            ':channels': rule.channels,
-            ':rule': {owner, repository_name, workflow_name, head_branch},
-            ':ignore_dependabot': rule.ignore_dependabot,
-        },
-        ...(createOnly && {
-            ConditionExpression: 'attribute_not_exists(id)',
-        }),
-        ReturnValues: 'ALL_NEW',
-    });
-
-    logger.trace('Update command for putting notification rule', {command});
-    const result = await client.send(command);
-
-    return result.Attributes as NotificationRule;
-};
-
-export const deleteNotificationRule = async (ruleId: string, integrationId: string): Promise<void> => {
-    const logger = getLogger();
-    logger.info(`Deleting notification rule`, {ruleId});
-
-    const command = new DeleteCommand({
-        TableName: notificationTableName,
-        Key: {
-            id: ruleId,
-            integrationId,
-        },
-    });
-
-    await client.send(command);
 };
 
 export const putEvent = async <T extends keyof EventPayloadMap>(
@@ -523,73 +428,6 @@ export const deleteIntegrationMembers = async (integrationId: string): Promise<v
                 const batchWriteCommand = batchWriteResult.value;
                 if (batchWriteCommand.UnprocessedItems && Object.keys(batchWriteCommand.UnprocessedItems).length > 0) {
                     logger.error(`Some members of integration ${integrationId} were not deleted in batch write`, {
-                        integrationId,
-                        unprocessedItems: batchWriteCommand.UnprocessedItems,
-                    });
-                }
-            }
-        });
-    } while (lastEvaluatedKey);
-};
-
-export const deleteIntegrationNotificationRules = async (integrationId: string): Promise<void> => {
-    const logger = getLogger();
-    logger.info(`Deleting all notification rules of integration ${integrationId}`, {integrationId});
-
-    let lastEvaluatedKey: Record<string, any> | undefined;
-
-    do {
-        const queryCommand = new QueryCommand({
-            TableName: notificationTableName,
-            KeyConditionExpression: 'integrationId = :integrationId',
-            ExpressionAttributeValues: {
-                ':integrationId': integrationId,
-            },
-            IndexName: notificationTableIntegrationIdIndexName,
-            ExclusiveStartKey: lastEvaluatedKey,
-        });
-
-        const result = await client.send(queryCommand);
-        lastEvaluatedKey = result.LastEvaluatedKey;
-
-        if (!result.Items || result.Items.length === 0) {
-            continue;
-        }
-
-        // Split items into chunks of 25 for BatchWriteItem
-        const chunks: any[][] = [];
-        for (let i = 0; i < result.Items.length; i += 25) {
-            chunks.push(result.Items.slice(i, i + 25));
-        }
-
-        const batchPromises = chunks.map((chunk) => {
-            return client.send(
-                new BatchWriteCommand({
-                    RequestItems: {
-                        [notificationTableName]: chunk.map((item) => ({
-                            DeleteRequest: {
-                                Key: {
-                                    id: item.id,
-                                    integrationId: integrationId,
-                                },
-                            },
-                        })),
-                    },
-                }),
-            );
-        });
-
-        const results = await Promise.allSettled(batchPromises);
-        results.forEach((batchWriteResult) => {
-            if (batchWriteResult.status === 'rejected') {
-                logger.error(`Failed to delete some notification rules of integration ${integrationId} in batch write`, {
-                    integrationId,
-                    error: batchWriteResult.reason,
-                });
-            } else {
-                const batchWriteCommand = batchWriteResult.value;
-                if (batchWriteCommand.UnprocessedItems && Object.keys(batchWriteCommand.UnprocessedItems).length > 0) {
-                    logger.error(`Some notification rules of integration ${integrationId} were not deleted in batch write`, {
                         integrationId,
                         unprocessedItems: batchWriteCommand.UnprocessedItems,
                     });

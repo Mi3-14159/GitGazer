@@ -1,20 +1,19 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/clients/dynamodb', () => {
-    return {
-        getNotificationRulesBy: vi.fn(),
-        putNotificationRule: vi.fn(),
-        deleteNotificationRule: vi.fn(),
-    };
-});
+const mockWithRlsTransaction = vi.fn();
+vi.mock('@/clients/rds', () => ({
+    withRlsTransaction: (...args: any[]) => mockWithRlsTransaction(...args),
+}));
 
-let dynamodb: typeof import('@/clients/dynamodb');
+vi.mock('@/drizzle/schema', () => ({
+    notificationRules: Symbol('notificationRules'),
+}));
+
 let notifications: typeof import('./notifications');
 
 describe('notifications controller', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
-        dynamodb = await import('@/clients/dynamodb');
         notifications = await import('./notifications');
     });
 
@@ -22,7 +21,7 @@ describe('notifications controller', () => {
         const out = await notifications.getNotificationRules({integrationIds: []});
 
         expect(out).toEqual([]);
-        expect(dynamodb.getNotificationRulesBy).not.toHaveBeenCalled();
+        expect(mockWithRlsTransaction).not.toHaveBeenCalled();
     });
 
     it('upsertNotificationRule throws when user is not in the integration group', async () => {
@@ -46,17 +45,31 @@ describe('notifications controller', () => {
         ).rejects.toThrow('Unauthorized to create/update notification rule for this integration');
     });
 
-    it('upsertNotificationRule generates an id when creating and persists rule', async () => {
-        vi.stubGlobal('crypto', {
-            randomUUID: () => 'uuid-123',
-        } as any);
-
-        (dynamodb.putNotificationRule as any).mockImplementation(async (rule: any) => {
-            return {
-                ...rule,
-                created_at: 'now',
-                updated_at: 'now',
+    it('upsertNotificationRule generates an id when creating and persists rule via RDS', async () => {
+        const now = new Date();
+        mockWithRlsTransaction.mockImplementation(async (_ids: string[], cb: Function) => {
+            const mockTx = {
+                insert: () => ({
+                    values: () => ({
+                        onConflictDoUpdate: () => ({
+                            returning: () =>
+                                Promise.resolve([
+                                    {
+                                        id: 'uuid-123',
+                                        integrationId: 'integrationA',
+                                        channels: [],
+                                        enabled: true,
+                                        ignore_dependabot: false,
+                                        rule: {owner: 'o', repository_name: 'r', workflow_name: 'w', head_branch: 'b'},
+                                        createdAt: now,
+                                        updatedAt: now,
+                                    },
+                                ]),
+                        }),
+                    }),
+                }),
             };
+            return cb(mockTx);
         });
 
         const rule: any = {
@@ -78,7 +91,7 @@ describe('notifications controller', () => {
             createOnly: true,
         });
 
-        expect(dynamodb.putNotificationRule).toHaveBeenCalledTimes(1);
+        expect(mockWithRlsTransaction).toHaveBeenCalledTimes(1);
         expect(out.id).toBe('uuid-123');
         expect(out.integrationId).toBe('integrationA');
     });
@@ -88,12 +101,22 @@ describe('notifications controller', () => {
             'Unauthorized to delete notification rule for this integration',
         );
 
-        expect(dynamodb.deleteNotificationRule).not.toHaveBeenCalled();
+        expect(mockWithRlsTransaction).not.toHaveBeenCalled();
     });
 
     it('deleteNotificationRule calls delete when authorized', async () => {
+        mockWithRlsTransaction.mockImplementation(async (_ids: string[], cb: Function) => {
+            const mockTx = {
+                delete: () => ({
+                    where: () => Promise.resolve(),
+                }),
+            };
+            return cb(mockTx);
+        });
+
         await notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationA']);
 
-        expect(dynamodb.deleteNotificationRule).toHaveBeenCalledWith('rule-1', 'integrationA');
+        expect(mockWithRlsTransaction).toHaveBeenCalledTimes(1);
+        expect(mockWithRlsTransaction).toHaveBeenCalledWith(['integrationA'], expect.any(Function));
     });
 });

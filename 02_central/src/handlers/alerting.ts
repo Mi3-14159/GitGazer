@@ -1,9 +1,11 @@
-import {getNotificationRulesBy, getWorkflowsBy} from '@/clients/dynamodb';
-import {Event, NotificationRule, NotificationRuleChannelType, WorkflowJobEvent, WorkflowRunEvent} from '@/common/types';
+import {withRlsTransaction} from '@/clients/rds';
+import {Event, NotificationRuleChannelType, WorkflowJobEvent} from '@/common/types';
+import {notificationRules, workflowRuns} from '@/drizzle/schema';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
 import {DynamoDBBatchResponse, DynamoDBStreamHandler} from 'aws-lambda';
+import {and, eq, or, sql} from 'drizzle-orm';
 
 const logger = getLogger();
 
@@ -41,56 +43,67 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
             }
 
             const integrationId = item.integrationId;
-            const rules: NotificationRule[] = await getNotificationRulesBy({integrationIds: [integrationId]});
-            logger.info(`Found ${rules.length} notification rules for integration ${integrationId}`, {rules});
 
             const {full_name} = item.event.repository;
             const [owner, repository_name] = full_name.split('/');
             const {head_branch, workflow_name, name: job_name, run_id} = item.event.workflow_job;
             const sender = item.event.sender.login;
-            const matching = rules.filter((r) => {
-                if (!r.enabled) return false;
-                if (!r.rule) return false;
 
-                const {rule} = r;
+            // Check if this is a dependabot event
+            const isDependabotEvent = sender === 'dependabot[bot]' || job_name === 'Dependabot';
 
-                // Check dependabot filtering - matches Step Functions logic
-                if (r.ignore_dependabot) {
-                    const isDependabotUser = sender === 'dependabot[bot]';
-                    const isDependabotWorkflow = job_name === 'Dependabot';
-                    if (isDependabotUser || isDependabotWorkflow) {
-                        return false;
-                    }
+            // Query notification rules with SQL filtering for owner/repo/workflow/branch matching and dependabot
+            const matching = await withRlsTransaction([integrationId], async (tx) => {
+                const conditions = [
+                    eq(notificationRules.enabled, true),
+                    or(
+                        sql`${notificationRules.rule}->>'owner' = ''`,
+                        sql`${notificationRules.rule}->>'owner' = '*'`,
+                        sql`${notificationRules.rule}->>'owner' = ${owner}`,
+                    ),
+                    or(
+                        sql`${notificationRules.rule}->>'repository_name' = ''`,
+                        sql`${notificationRules.rule}->>'repository_name' = '*'`,
+                        sql`${notificationRules.rule}->>'repository_name' = ${repository_name}`,
+                    ),
+                    or(
+                        sql`${notificationRules.rule}->>'workflow_name' = ''`,
+                        sql`${notificationRules.rule}->>'workflow_name' = '*'`,
+                        sql`${notificationRules.rule}->>'workflow_name' = ${workflow_name}`,
+                    ),
+                    or(
+                        sql`${notificationRules.rule}->>'head_branch' = ''`,
+                        sql`${notificationRules.rule}->>'head_branch' = '*'`,
+                        sql`${notificationRules.rule}->>'head_branch' = ${head_branch}`,
+                    ),
+                ];
+
+                // If this is a dependabot event, only include rules with ignore_dependabot = false
+                if (isDependabotEvent) {
+                    conditions.push(eq(notificationRules.ignore_dependabot, false));
                 }
 
-                // Match rules - empty string, star, or exact match (matches Step Functions FilterExpression)
-                return (
-                    (rule.owner === '' || rule.owner === '*' || rule.owner === owner) &&
-                    (rule.repository_name === '' || rule.repository_name === '*' || rule.repository_name === repository_name) &&
-                    (rule.workflow_name === '' || rule.workflow_name === '*' || rule.workflow_name === workflow_name) &&
-                    (rule.head_branch === '' || rule.head_branch === '*' || rule.head_branch === head_branch)
-                );
+                return await tx
+                    .select()
+                    .from(notificationRules)
+                    .where(and(...conditions));
             });
+
+            logger.info(`Found ${matching.length} matching notification rules for integration ${integrationId}`, {matching});
 
             if (matching.length === 0) {
                 logger.info(`No matching notification rules for integration ${integrationId}`);
                 continue;
             }
 
-            // Fetch parent workflow_run to get event field (matches Step Functions branch 2)
-            let workflowRunEvent;
-            const workflowRuns = await getWorkflowsBy({
-                keys: [{integrationId, id: `workflow_run/${run_id.toString()}`}],
-                limit: 1,
+            // Fetch parent workflow_run to get event field
+            const workflowRunResult = await withRlsTransaction([integrationId], async (tx) => {
+                return await tx
+                    .select({event: workflowRuns.event})
+                    .from(workflowRuns)
+                    .where(and(eq(workflowRuns.integrationId, integrationId), eq(workflowRuns.id, run_id)))
+                    .limit(1);
             });
-            const parentRun = workflowRuns
-                .map((queryResult) => queryResult.items)
-                .flat()
-                .find((job) => job.id === `workflow_run/${run_id.toString()}`) as Event<Partial<WorkflowRunEvent>>;
-
-            if (parentRun) {
-                workflowRunEvent = parentRun.event.workflow_run?.event;
-            }
 
             const body = {
                 blocks: [
@@ -121,7 +134,7 @@ export const handler: DynamoDBStreamHandler = async (event, context) => {
                                 type: 'mrkdwn',
                             },
                             {
-                                text: `*Event:* ${workflowRunEvent}`,
+                                text: `*Event:* ${workflowRunResult[0]?.event}`,
                                 type: 'mrkdwn',
                             },
                             {
