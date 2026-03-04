@@ -209,6 +209,7 @@ export const workflowRuns = githubSchema
             repositoryId: bigint('repository_id', {mode: 'number'}).notNull(),
             id: bigint('id', {mode: 'number'}).notNull(),
             actorId: bigint('actor_id', {mode: 'number'}).notNull(),
+            event: varchar('event', {length: 255}),
             conclusion: varchar({
                 enum: ['success', 'failure', 'neutral', 'cancelled', 'timed_out', 'action_required', 'stale', 'skipped'],
             }),

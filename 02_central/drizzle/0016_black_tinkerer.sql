@@ -1,0 +1,1 @@
+ALTER TABLE "github"."workflow_runs" ADD COLUMN "event" varchar(255);

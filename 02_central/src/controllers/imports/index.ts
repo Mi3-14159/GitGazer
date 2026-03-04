@@ -154,6 +154,7 @@ export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId
                     headCommitAuthorName: event.workflow_run.head_commit.author.name,
                     headCommitMessage: event.workflow_run.head_commit.message,
                     actorId: event.workflow_run.actor.id,
+                    event: event.workflow_run.event,
                 })
                 .onConflictDoUpdate({
                     target: [workflowRuns.integrationId, workflowRuns.id],
@@ -163,6 +164,7 @@ export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId
                         status: event.workflow_run.status,
                         conclusion: event.workflow_run.conclusion,
                         runStartedAt: new Date(event.workflow_run.run_started_at),
+                        event: event.workflow_run.event,
                     },
                 });
         }
