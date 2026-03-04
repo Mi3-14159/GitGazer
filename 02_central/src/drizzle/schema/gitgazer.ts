@@ -1,4 +1,5 @@
-import {bigint, index, pgSchema, primaryKey, text, timestamp, uuid} from 'drizzle-orm/pg-core';
+import type {NotificationRuleChannel, NotificationRuleRule} from '@/common/types';
+import {bigint, boolean, index, jsonb, pgSchema, primaryKey, text, timestamp, uuid} from 'drizzle-orm/pg-core';
 import {integrations, tenantSeparationPolicy} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
@@ -26,3 +27,22 @@ export const wsConnections = gitgazerSchema.table(
         index('ws_connections_connection_id_idx').on(table.connectionId),
     ],
 );
+
+export const notificationRules = gitgazerSchema
+    .table(
+        'notification_rules',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            id: uuid('id').defaultRandom().notNull(),
+            channels: jsonb('channels').notNull().$type<NotificationRuleChannel[]>(),
+            enabled: boolean('enabled').notNull().default(true),
+            ignore_dependabot: boolean('ignore_dependabot').notNull().default(false),
+            rule: jsonb('rule').notNull().$type<NotificationRuleRule>(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+            updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        (table) => [primaryKey({columns: [table.integrationId, table.id]}), tenantSeparationPolicy()],
+    )
+    .enableRLS();
