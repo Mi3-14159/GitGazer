@@ -13,7 +13,7 @@ export const integrations = githubSchema
                 .notNull()
                 .references(() => users.id),
             secret: uuid('secret').notNull().defaultRandom(),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull().defaultNow(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         () => [tenantSeparationPolicy()],
     )
@@ -29,7 +29,7 @@ export const userAssignments = githubSchema
             userId: bigint('user_id', {mode: 'number'})
                 .notNull()
                 .references(() => users.id),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull().defaultNow(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         (table) => [primaryKey({columns: [table.userId, table.integrationId]}), tenantSeparationPolicy()],
     )
@@ -41,7 +41,7 @@ export const events = githubSchema
         {
             integrationId: uuid('integration_id').references(() => integrations.integrationId, {onDelete: 'cascade'}),
             id: uuid('id').notNull().defaultRandom(),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull().defaultNow(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
             event: jsonb('event').notNull(),
         },
         (table) => [primaryKey({columns: [table.integrationId, table.id]}), tenantSeparationPolicy()],
@@ -55,7 +55,7 @@ export const enterprises = githubSchema
             integrationId: uuid('integration_id').references(() => integrations.integrationId, {onDelete: 'cascade'}),
             id: bigint('id', {mode: 'number'}),
             name: varchar('name', {length: 255}).notNull(),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull(),
         },
         (table) => [primaryKey({columns: [table.integrationId, table.id]}), tenantSeparationPolicy()],
     )
@@ -101,8 +101,8 @@ export const repositories = githubSchema
             integrationId: uuid('integration_id').references(() => integrations.integrationId, {onDelete: 'cascade'}),
             organizationId: bigint('organization_id', {mode: 'number'}),
             id: bigint('id', {mode: 'number'}),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull(),
-            updatedAt: timestamp('updated_at', {withTimezone: true, mode: 'string'}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull(),
+            updatedAt: timestamp('updated_at', {withTimezone: true}).notNull(),
             name: varchar('name', {length: 255}).notNull(),
             private: boolean('private').notNull(),
             ownerId: bigint('owner_id', {mode: 'number'}),
@@ -161,15 +161,15 @@ export const workflowJobs = githubSchema
                 .notNull(),
             repositoryId: bigint('repository_id', {mode: 'number'}).notNull(),
             id: bigint('id', {mode: 'number'}).notNull(),
-            completedAt: timestamp('completed_at', {withTimezone: true, mode: 'string'}),
+            completedAt: timestamp('completed_at', {withTimezone: true}),
             conclusion: varchar('conclusion', {length: 50}),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull(),
             headBranch: text('head_branch').notNull(),
             name: text('name').notNull(),
             runnerGroupName: text('runner_group_name'),
             runAttempt: integer('run_attempt').notNull(),
             runId: bigint('run_id', {mode: 'number'}).notNull(),
-            startedAt: timestamp('started_at', {withTimezone: true, mode: 'string'}).notNull(),
+            startedAt: timestamp('started_at', {withTimezone: true}).notNull(),
             status: varchar('status', {length: 50}).notNull(),
             workflowName: text('workflow_name').notNull(),
             workflowRunId: bigint('workflow_run_id', {mode: 'number'}).notNull(),
@@ -212,16 +212,15 @@ export const workflowRuns = githubSchema
             conclusion: varchar({
                 enum: ['success', 'failure', 'neutral', 'cancelled', 'timed_out', 'action_required', 'stale', 'skipped'],
             }),
-            createdAt: timestamp('created_at', {withTimezone: true, mode: 'string'}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull(),
             headBranch: varchar('head_branch', {length: 255}).notNull(),
             name: text('name').notNull(),
             runAttempt: integer('run_attempt').notNull(),
             status: varchar('status', {length: 50}).notNull(),
             runStartedAt: timestamp('run_started_at', {
                 withTimezone: true,
-                mode: 'string',
             }).notNull(),
-            updatedAt: timestamp('updated_at', {withTimezone: true, mode: 'string'}).notNull(),
+            updatedAt: timestamp('updated_at', {withTimezone: true}).notNull(),
             workflowId: bigint('workflow_id', {mode: 'number'}).notNull(),
             headCommitAuthorName: varchar('head_commit_author_name', {
                 length: 255,
