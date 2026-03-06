@@ -240,6 +240,7 @@ export const workflowRuns = githubSchema
                 foreignColumns: [user.integrationId, user.id],
             }).onDelete('set null'),
             tenantSeparationPolicy(),
+            index('workflow_runs_created_id').on(table.integrationId, table.createdAt, table.id),
         ],
     )
     .enableRLS();
