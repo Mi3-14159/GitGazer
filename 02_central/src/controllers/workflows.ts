@@ -12,7 +12,7 @@ type WorkflowsParams = {
 export const getWorkflows = async ({integrationIds, limit, cursor}: WorkflowsParams): Promise<GetWorkflowsResponse> => {
     if (!integrationIds.length) return {items: [], cursor: undefined};
 
-    const effectiveLimit = Math.min(limit ?? 100, 100);
+    const effectiveLimit = Math.min(limit ?? 100, 50);
 
     return withRlsTransaction(integrationIds, async (tx) => {
         // Keyset pagination: (createdAt, id) < (cursorCreatedAt, cursorId)
