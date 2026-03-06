@@ -1,0 +1,1 @@
+CREATE INDEX "workflow_jobs_run_lookup" ON "github"."workflow_jobs" USING btree ("integration_id","workflow_run_id");

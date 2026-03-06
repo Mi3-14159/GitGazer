@@ -1,5 +1,5 @@
 import {relations} from 'drizzle-orm';
-import {bigint, boolean, foreignKey, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
+import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {users} from '../gitgazer';
 import {githubSchema, tenantSeparationPolicy} from './misc';
 
@@ -184,6 +184,7 @@ export const workflowJobs = githubSchema
             // it's missing the foreign key constraint to workflow_runs because of event basis of webhooks
             // the workflow job event might be processed before the workflow run event,
             // which would lead to foreign key constraint violation.
+            index('workflow_jobs_run_lookup').on(table.integrationId, table.workflowRunId),
         ],
     )
     .enableRLS();
