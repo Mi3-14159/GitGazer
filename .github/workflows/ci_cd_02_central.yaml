@@ -58,7 +58,6 @@ jobs:
       - name: Build Lambdas
         run: |
           npm run buildZip:api
-          npm run buildZip:alerting
           npm run buildZip:websocket
 
       - name: Configure AWS credentials

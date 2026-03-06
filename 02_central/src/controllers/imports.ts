@@ -1,6 +1,7 @@
 import {putEvent} from '@/clients/dynamodb';
 import {deleteConnection, getConnections} from '@/clients/websocket-connections';
-import {Event, EventPayloadMap, StreamEvent} from '@/common/types';
+import {Event, EventPayloadMap, StreamEvent, WorkflowJobEvent} from '@/common/types';
+import {sendWorkflowJobAlerts} from '@/controllers/alerting';
 import {insertEvent} from '@/controllers/imports/index';
 import {getLogger} from '@/logger';
 import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
@@ -71,6 +72,10 @@ export async function handleEvent<T extends EmitterWebhookEventName & keyof Even
             eventType,
             payload: ddbResponse.value,
         });
+    }
+
+    if (eventType === 'workflow_job') {
+        await sendWorkflowJobAlerts(integrationId, event as unknown as WorkflowJobEvent);
     }
 }
 
