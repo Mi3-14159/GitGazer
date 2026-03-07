@@ -1,6 +1,6 @@
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
-import type {EventPayloadMap} from '@octokit/webhooks-types';
 
+export type {EmitterWebhookEventName} from '@octokit/webhooks';
 export type * from '@octokit/webhooks-types';
 
 export type NotificationRule = {
@@ -89,9 +89,7 @@ export type Event<Subtype> = {
     integrationId: string;
     id: string;
     created_at: string;
-    expire_at?: number;
     event_type: EmitterWebhookEventName;
-    event_type_group?: string;
     event: Subtype;
 };
 
@@ -115,7 +113,7 @@ export type WorkflowJob = {
     integrationId: string;
     repositoryId: number;
     id: number;
-    completedAt: string | null;
+    completedAt: string | null | undefined;
     conclusion: string | null;
     createdAt: string;
     headBranch: string;
@@ -188,9 +186,9 @@ export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRe
     return true;
 };
 
-export type StreamEvent<T extends keyof EventPayloadMap> = {
+export type StreamEvent<T extends WorkflowRun | WorkflowJob> = {
     eventType: EmitterWebhookEventName;
-    payload: Event<EventPayloadMap[T]>;
+    payload: T;
 };
 
 export type UserAttributes = {

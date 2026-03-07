@@ -1,12 +1,13 @@
 <script setup lang="ts">
-    import {Event, WorkflowJobEvent} from '@common/types';
+    import {WorkflowJob, WorkflowRun} from '@common/types';
     import {computed} from 'vue';
 
     const props = defineProps<{
-        job: Event<WorkflowJobEvent> | null;
+        job: WorkflowJob | null;
+        run: WorkflowRun | null;
     }>();
 
-    const emit = defineEmits<{(e: 'update:job', value: Event<WorkflowJobEvent> | null): void}>();
+    const emit = defineEmits<{(e: 'update:job', value: WorkflowJob | null): void}>();
 
     // Use a computed property to control the dialog visibility.
     const dialog = computed({
@@ -17,18 +18,19 @@
     });
 
     // Helper functions
-    const getJobStatus = (job: Event<WorkflowJobEvent>) => {
-        return job.event.workflow_job.conclusion || job.event.workflow_job.status || 'In Progress';
+    const getJobStatus = (job: WorkflowJob) => {
+        return job.conclusion || job.status || 'In Progress';
     };
 
-    const formatJobTime = (job: Event<WorkflowJobEvent>) => {
-        const date = new Date(job.event.workflow_job.created_at);
+    const formatJobTime = (job: WorkflowJob) => {
+        const date = new Date(job.createdAt);
         return date.toLocaleString();
     };
 
-    const getGitHubWebUrl = (job: Event<WorkflowJobEvent>) => {
-        const repoFullName = job.event.repository.full_name;
-        const runId = job.event.workflow_job.run_id;
+    const getGitHubWebUrl = (job: WorkflowJob, run?: WorkflowRun | null) => {
+        if (!run) return '';
+        const repoFullName = run.repository.fullName;
+        const runId = job.runId;
         return `https://github.com/${repoFullName}/actions/runs/${runId}`;
     };
 
@@ -55,7 +57,7 @@
                     >
                         <v-text-field
                             label="Repository"
-                            :model-value="props.job.event.repository.full_name"
+                            :model-value="props.run?.repository.fullName"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -68,7 +70,7 @@
                     >
                         <v-text-field
                             label="Workflow"
-                            :model-value="props.job.event.workflow_job.workflow_name"
+                            :model-value="props.job.workflowName"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -81,7 +83,7 @@
                     >
                         <v-text-field
                             label="Job Name"
-                            :model-value="props.job.event.workflow_job.name"
+                            :model-value="props.job.name"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -121,7 +123,7 @@
                     >
                         <v-text-field
                             label="Run ID"
-                            :model-value="props.job.event.workflow_job.run_id"
+                            :model-value="props.job.runId"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -134,7 +136,7 @@
                     >
                         <v-text-field
                             label="Job ID"
-                            :model-value="props.job.event.workflow_job.id"
+                            :model-value="props.job.id"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -147,7 +149,7 @@
                     >
                         <v-text-field
                             label="Head Branch"
-                            :model-value="props.job.event.workflow_job.head_branch"
+                            :model-value="props.job.headBranch"
                             readonly
                             variant="outlined"
                             density="compact"
@@ -157,12 +159,12 @@
                     <v-col cols="12">
                         <v-text-field
                             label="GitHub URL"
-                            :model-value="getGitHubWebUrl(props.job)"
+                            :model-value="getGitHubWebUrl(props.job, props.run)"
                             readonly
                             variant="outlined"
                             density="compact"
                             append-inner-icon="mdi-open-in-new"
-                            @click:append-inner="openUrl(getGitHubWebUrl(props.job))"
+                            @click:append-inner="openUrl(getGitHubWebUrl(props.job, props.run))"
                         ></v-text-field>
                     </v-col>
                 </v-row>

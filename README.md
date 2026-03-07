@@ -13,7 +13,7 @@ GitGazer is a comprehensive monitoring and notification system for GitHub workfl
 - 📊 **Real-time Dashboard**: Monitor GitHub workflow status across repositories
 - 🔔 **Smart Notifications**: Configure rules to get notified about workflow failures or status changes
 - 🔗 **GitHub Integration**: Seamless webhook integration with GitHub repositories and organizations
-- 🚀 **Serverless Architecture**: Built on AWS Lambda, API Gateway, and DynamoDB for scalability
+- 🚀 **Serverless Architecture**: Built on AWS Lambda, API Gateway, and RDS for scalability
 - 📈 **Analytics**: Track workflow performance and trends over time
 - 🔐 **Secure Authentication**: AWS Cognito with GitHub OAuth integration
 
@@ -37,7 +37,7 @@ GitGazer is a comprehensive monitoring and notification system for GitHub workfl
 - Node.js 24
 - TypeScript
 - AWS Lambda
-- DynamoDB
+- RDS (Aurora PostgreSQL Serverless)
 - S3
 - API Gateway (REST + WebSocket)
 
@@ -117,7 +117,7 @@ Review the plan carefully before confirming. Terraform will create:
 
 - API Gateway (REST + WebSocket)
 - Lambda functions
-- DynamoDB tables
+- RDS Aurora PostgreSQL
 - S3 buckets
 - Cognito user pool
 - CloudFront distribution
@@ -344,14 +344,13 @@ Monitor key metrics in CloudWatch:
 
 - Lambda invocations, errors, duration
 - API Gateway requests, latency, errors
-- DynamoDB read/write capacity
+- RDS connections, queries, latency
 - S3 bucket size and requests
 
 ### Troubleshooting
 
 **Lambda cold starts**: Optimize by reducing dependencies and using provisioned concurrency
-**API Gateway timeouts**: Check Lambda execution time and DynamoDB queries
-**DynamoDB throttling**: Increase provisioned capacity or use on-demand billing
+**API Gateway timeouts**: Check Lambda execution time and RDS queries
 **Frontend errors**: Check browser console and CloudFront logs
 
 ## Contributing

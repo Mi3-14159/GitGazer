@@ -17,7 +17,7 @@ export const db = drizzle(rdsClient, {
     schema,
 });
 
-type RdsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type RdsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export const withRlsTransaction = async <T>(integrationIds: string[], callback: (tx: RdsTransaction) => Promise<T>): Promise<T> => {
     return await db.transaction(async (tx) => {

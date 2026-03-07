@@ -9,18 +9,6 @@ variable "name_prefix" {
   default     = "gitgazer"
 }
 
-variable "enabled_pitr" {
-  type        = bool
-  description = "Enable point in time recovery for the DynamoDB table"
-  default     = false
-}
-
-variable "expire_in_sec" {
-  type        = number
-  description = "Time in seconds for the jobs to expire. If null, the TTL will be disabled."
-  default     = null
-}
-
 variable "apigateway_logging_enabled" {
   type        = bool
   description = "Enable logging of the HTTP API Gateway"

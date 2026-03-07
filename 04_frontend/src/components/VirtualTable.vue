@@ -3,7 +3,7 @@
     import {useScrollbarObserver} from '@/composables/useScrollbarObserver';
     import {useTableFiltering, type FilterableColumn} from '@/composables/useTableFiltering';
     import {WorkflowGroup} from '@/stores/workflows';
-    import {Event as GGEvent, WorkflowJobEvent} from '@common/types';
+    import {WorkflowJob} from '@common/types';
     import {computed, ref, toRef, type ComponentPublicInstance} from 'vue';
 
     export interface HeaderColumn<T = any> extends FilterableColumn<T> {
@@ -19,7 +19,7 @@
             loading?: boolean;
             hasMore?: boolean;
             headerConfig?: HeaderColumn[];
-            onJobClick?: (job: GGEvent<WorkflowJobEvent>) => void;
+            onJobClick?: (job: WorkflowJob) => void;
             loadMore?: () => void;
         }>(),
         {
@@ -73,11 +73,11 @@
     const {hasScrollbar} = useScrollbarObserver(scrollerRef);
 
     /* Group Expand/Collapse Logic */
-    const expandedGroups = ref<Set<string>>(new Set());
-    const collapsedGroups = ref<Set<string>>(new Set());
+    const expandedGroups = ref<Set<number>>(new Set());
+    const collapsedGroups = ref<Set<number>>(new Set());
     const useCollapsedInsteadOfExpanded = false;
 
-    const toggleGroup = (id: string) => {
+    const toggleGroup = (id: number) => {
         if (expandedGroups.value.has(id)) {
             expandedGroups.value.delete(id);
         } else {
@@ -91,7 +91,7 @@
         }
     };
 
-    const isExpanded = (id: string) => {
+    const isExpanded = (id: number) => {
         if (useCollapsedInsteadOfExpanded) {
             return !collapsedGroups.value.has(id);
         } else {

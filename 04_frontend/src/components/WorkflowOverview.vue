@@ -2,53 +2,53 @@
     import VirtualTable, {type HeaderColumn} from '@/components/VirtualTable.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
     import {useWorkflowsStore, WorkflowGroup} from '@/stores/workflows';
-    import {Event, WorkflowJobEvent} from '@common/types';
+    import {WorkflowJob} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {onMounted, ref} from 'vue';
 
     const workflowsStore = useWorkflowsStore();
     const {initializeStore, handleListWorkflows} = workflowsStore;
     const {workflows, isLoading, hasMore} = storeToRefs(workflowsStore);
-    const selectedJob = ref<Event<WorkflowJobEvent> | null>(null);
+    const selectedJob = ref<WorkflowJob | null>(null);
 
     const headerConfig: HeaderColumn[] = [
         {
             name: 'Repository',
             scope: 'group',
             width: '2fr',
-            value: (item: WorkflowGroup) => item.run?.event?.repository.full_name,
+            value: (item: WorkflowGroup) => item.run?.repository.fullName,
             filterable: true,
         },
         {
             name: 'Workflow',
             scope: 'group',
             width: '2fr',
-            value: (item: WorkflowGroup) => item.run?.event?.workflow_run.name,
+            value: (item: WorkflowGroup) => item.run?.name,
             filterable: true,
         },
         {
             name: 'Job Name',
             scope: 'row',
             width: '2fr',
-            value: (item: Event<WorkflowJobEvent>) => item.event?.workflow_job.name,
+            value: (item: WorkflowJob) => item.name,
             filterable: false,
         },
         {
             name: 'Branch',
             scope: 'group',
             width: '1.5fr',
-            value: (item: WorkflowGroup) => item.run?.event?.workflow_run.head_branch,
+            value: (item: WorkflowGroup) => item.run?.headBranch,
             filterable: true,
         },
         {
             name: 'Status',
             scope: 'both',
             width: '1fr',
-            value: (item: WorkflowGroup | Event<WorkflowJobEvent>) => {
+            value: (item: WorkflowGroup | WorkflowJob) => {
                 if ('run' in item && item.run) {
-                    return item.run.event?.workflow_run.conclusion || item.run.event?.workflow_run.status;
-                } else if ('event' in item && item.event) {
-                    return item.event?.workflow_job.conclusion || item.event?.workflow_job.status;
+                    return item.run?.conclusion || item.run?.status;
+                } else if ('conclusion' in item && item.conclusion) {
+                    return item.conclusion || item.status;
                 }
                 return 'unknown';
             },
@@ -58,18 +58,18 @@
             name: 'Created',
             scope: 'both',
             width: '1.5fr',
-            value: (item: WorkflowGroup | Event<WorkflowJobEvent>) => {
+            value: (item: WorkflowGroup | WorkflowJob) => {
                 if ('run' in item && item.run) {
-                    return new Date(item.run.created_at).toLocaleString();
-                } else if ('event' in item && item.event) {
-                    return new Date(item.created_at).toLocaleString();
+                    return new Date(item.run.createdAt).toLocaleString();
+                } else if ('createdAt' in item && item.createdAt) {
+                    return new Date(item.createdAt).toLocaleString();
                 }
                 return 'unknown';
             },
         },
     ];
 
-    const onJobClick = (job: Event<WorkflowJobEvent>) => {
+    const onJobClick = (job: WorkflowJob) => {
         selectedJob.value = job;
     };
 
@@ -121,6 +121,7 @@
 
         <WorkflowCardDetails
             :job="selectedJob"
+            :run="workflows.find((group) => group.jobs.get(selectedJob?.id ?? -1) === selectedJob)?.run || null"
             @update:job="selectedJob = $event"
         />
     </v-main>

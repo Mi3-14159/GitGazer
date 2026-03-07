@@ -1,172 +1,64 @@
 import {withRlsTransaction} from '@/clients/rds';
-import {enterprises, events, organizations, repositories, user, workflowJobs, workflowRuns} from '@/drizzle/schema';
-import {EventPayloadMap} from '@octokit/webhooks-types';
+import {EventPayloadMap, WorkflowJob, WorkflowRun} from '@/common/types';
+import {events} from '@/drizzle/schema';
+import {getLogger} from '@/logger';
+import {EmitterWebhookEventName} from '@octokit/webhooks';
+import {InferSelectModel} from 'drizzle-orm/table';
+import {importWorkflow} from './workflow';
+import {importWorkflowJob} from './workflowJob';
+import {importWorkflowRun} from './workflowRun';
 
-export const insertEvent = async <T extends keyof EventPayloadMap>(integrationId: string, event: EventPayloadMap[T]) => {
-    await withRlsTransaction([integrationId], async (tx) => {
-        // Insert the raw event
-        await tx.insert(events).values({
-            integrationId,
-            event: event,
-        });
+const logger = getLogger();
 
-        // Insert/Update Enterprise (if present)
-        let enterpriseId: number | null = null;
-        if ('enterprise' in event && event.enterprise) {
-            const enterprise = event.enterprise as any;
-            enterpriseId = enterprise.id;
-            await tx
-                .insert(enterprises)
-                .values({
-                    integrationId,
-                    id: enterpriseId,
-                    name: enterprise.name,
-                    createdAt: new Date(enterprise.created_at),
-                })
-                .onConflictDoNothing();
+export const insertEvent = async <T extends EmitterWebhookEventName & keyof EventPayloadMap>(
+    integrationId: string,
+    eventType: T,
+    event: EventPayloadMap[T],
+): Promise<WorkflowJob | WorkflowRun | InferSelectModel<typeof events>> => {
+    const result = await withRlsTransaction([integrationId], async (tx) => {
+        // Store in backup table for replay/debugging
+        const ev = await tx
+            .insert(events)
+            .values({
+                integrationId,
+                event: event,
+            })
+            .returning();
+
+        if (eventType === 'workflow_job' && 'workflow_job' in event) {
+            await importWorkflow(integrationId, event as EventPayloadMap['workflow_job'], tx);
+            const workflowJob = await importWorkflowJob(integrationId, event as EventPayloadMap['workflow_job'], tx);
+            const response: WorkflowJob = {
+                ...workflowJob,
+                createdAt: workflowJob.createdAt.toString(),
+                startedAt: workflowJob.startedAt.toString(),
+                completedAt: workflowJob.completedAt?.toString(),
+            };
+
+            logger.info(`Inserted workflow job event for integration ${integrationId}, job id ${workflowJob.id}`);
+            return response;
+        } else if (eventType === 'workflow_run' && 'workflow_run' in event) {
+            const {repository, organization} = await importWorkflow(integrationId, event as EventPayloadMap['workflow_run'], tx);
+            const workflowRun = await importWorkflowRun(integrationId, event as EventPayloadMap['workflow_run'], tx);
+
+            const response: WorkflowRun = {
+                ...workflowRun,
+                createdAt: workflowRun.createdAt.toString(),
+                runStartedAt: workflowRun.runStartedAt.toString(),
+                updatedAt: workflowRun.updatedAt.toString(),
+                workflowJobs: [],
+                repository: {
+                    fullName: [organization?.login, repository.name].filter(Boolean).join('/'),
+                },
+            };
+
+            logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`);
+            return response;
         }
 
-        // Insert/Update Organization (if present)
-        let organizationId: number | null = null;
-        if ('organization' in event && event.organization) {
-            organizationId = event.organization.id;
-            await tx
-                .insert(organizations)
-                .values({
-                    integrationId,
-                    id: organizationId,
-                    enterpriseId: enterpriseId,
-                    login: event.organization.login,
-                    description: event.organization.description ?? null,
-                })
-                .onConflictDoNothing();
-        }
-
-        // Insert/Update Repository
-        if ('repository' in event && event.repository) {
-            await tx
-                .insert(user)
-                .values({
-                    integrationId,
-                    id: event.repository.owner.id,
-                    login: event.repository.owner.login,
-                    type: event.repository.owner.type,
-                })
-                .onConflictDoNothing();
-
-            await tx
-                .insert(repositories)
-                .values({
-                    integrationId,
-                    id: event.repository.id,
-                    organizationId: organizationId,
-                    name: event.repository.name,
-                    private: event.repository.private,
-                    createdAt: new Date(event.repository.created_at),
-                    updatedAt: new Date(event.repository.updated_at),
-                    ownerId: event.repository.owner.id,
-                })
-                .onConflictDoUpdate({
-                    target: [repositories.integrationId, repositories.id],
-                    set: {
-                        name: event.repository.name,
-                        private: event.repository.private,
-                        updatedAt: new Date(event.repository.updated_at),
-                        ownerId: event.repository.owner.id,
-                    },
-                });
-        }
-
-        // Insert/Update Sender (User)
-        if ('sender' in event && event.sender) {
-            await tx
-                .insert(user)
-                .values({
-                    integrationId,
-                    id: event.sender.id,
-                    login: event.sender.login,
-                    type: event.sender.type,
-                })
-                .onConflictDoNothing();
-        }
-
-        // Insert/Update Workflow Job
-        if ('workflow_job' in event && event.workflow_job) {
-            const completedAt = event.workflow_job.completed_at ? new Date(event.workflow_job.completed_at) : null;
-            const conclusion = event.workflow_job.conclusion;
-
-            await tx
-                .insert(workflowJobs)
-                .values({
-                    integrationId,
-                    id: event.workflow_job.id,
-                    repositoryId: event.repository.id,
-                    completedAt,
-                    conclusion,
-                    createdAt: new Date(event.workflow_job.created_at),
-                    headBranch: event.workflow_job.head_branch,
-                    name: event.workflow_job.name,
-                    runnerGroupName: event.workflow_job.runner_group_name,
-                    runAttempt: event.workflow_job.run_attempt,
-                    runId: event.workflow_job.run_id,
-                    startedAt: new Date(event.workflow_job.started_at),
-                    status: event.workflow_job.status,
-                    workflowName: event.workflow_job.workflow_name,
-                    workflowRunId: event.workflow_job.run_id,
-                } as any)
-                .onConflictDoUpdate({
-                    target: [workflowJobs.integrationId, workflowJobs.id],
-                    set: {
-                        completedAt,
-                        conclusion,
-                        status: event.workflow_job.status,
-                    },
-                });
-        }
-
-        // Insert/Update Workflow Run
-        if ('workflow_run' in event && event.workflow_run && 'head_commit' in event.workflow_run) {
-            await tx
-                .insert(user)
-                .values({
-                    integrationId,
-                    id: event.workflow_run.actor.id,
-                    login: event.workflow_run.actor.login,
-                    type: event.workflow_run.actor.type,
-                })
-                .onConflictDoNothing();
-
-            await tx
-                .insert(workflowRuns)
-                .values({
-                    integrationId,
-                    id: event.workflow_run.id,
-                    repositoryId: event.repository.id,
-                    createdAt: new Date(event.workflow_run.created_at),
-                    updatedAt: new Date(event.workflow_run.updated_at),
-                    name: event.workflow_run.name,
-                    headBranch: event.workflow_run.head_branch,
-                    runAttempt: event.workflow_run.run_attempt,
-                    status: event.workflow_run.status,
-                    conclusion: event.workflow_run.conclusion,
-                    workflowId: event.workflow_run.workflow_id,
-                    runStartedAt: new Date(event.workflow_run.run_started_at),
-                    headCommitAuthorName: event.workflow_run.head_commit.author.name,
-                    headCommitMessage: event.workflow_run.head_commit.message,
-                    actorId: event.workflow_run.actor.id,
-                    event: event.workflow_run.event,
-                })
-                .onConflictDoUpdate({
-                    target: [workflowRuns.integrationId, workflowRuns.id],
-                    set: {
-                        updatedAt: new Date(event.workflow_run.updated_at),
-                        runAttempt: event.workflow_run.run_attempt,
-                        status: event.workflow_run.status,
-                        conclusion: event.workflow_run.conclusion,
-                        runStartedAt: new Date(event.workflow_run.run_started_at),
-                        event: event.workflow_run.event,
-                    },
-                });
-        }
+        logger.info(`Inserted generic event for integration ${integrationId}, event type ${eventType}`);
+        return ev[0];
     });
+
+    return result;
 };

@@ -151,7 +151,7 @@ describe('workflows controller', () => {
             limit: 500,
         });
 
-        expect(capturedOptions.limit).toBe(100);
+        expect(capturedOptions.limit).toBe(50);
     });
 
     it('passes where condition when cursor is provided', async () => {

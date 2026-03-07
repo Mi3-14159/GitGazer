@@ -72,33 +72,8 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
-      "dynamodb:PutItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:GetItem",
-      "dynamodb:DeleteItem",
-      "dynamodb:Query",
-      "dynamodb:Scan",
-      "dynamodb:Batch*"
+      "s3:GetObject"
     ]
-    resources = compact([
-      aws_dynamodb_table.events.arn,
-      "${aws_dynamodb_table.events.arn}/index/*",
-      try(aws_dynamodb_table.notification_rules.arn, null),
-      try("${aws_dynamodb_table.notification_rules.arn}/index/*", null),
-      aws_dynamodb_table.connections.arn,
-      "${aws_dynamodb_table.connections.arn}/index/*",
-      aws_dynamodb_table.integrations.arn,
-      "${aws_dynamodb_table.integrations.arn}/index/*",
-      aws_dynamodb_table.user_assignments.arn,
-      "${aws_dynamodb_table.user_assignments.arn}/index/*",
-      aws_dynamodb_table.user_queries.arn,
-      "${aws_dynamodb_table.user_queries.arn}/index/*",
-    ])
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["s3:GetObject"]
     resources = ["${module.ui_bucket.s3_bucket_arn}/*"]
   }
 
@@ -185,25 +160,17 @@ resource "aws_lambda_function" "api" {
   memory_size       = 256
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER                           = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS               = "none"
-      ENVIRONMENT                                       = terraform.workspace
-      POWERTOOLS_LOG_LEVEL                              = local.lambda_application_log_level
-      POWERTOOLS_LOGGER_LOG_EVENT                       = local.lambda_enable_event_logging
-      EXPIRE_IN_SEC                                     = var.expire_in_sec
-      DYNAMO_DB_NOTIFICATIONS_TABLE_ARN                 = aws_dynamodb_table.notification_rules.name
-      DYNAMO_DB_NOTIFICATIONS_INTEGRATION_ID_INDEX_NAME = local.notification_rules_table_index_name
-      DYNAMO_DB_EVENTS_TABLE_ARN                        = aws_dynamodb_table.events.name
-      DYNAMO_DB_USER_QUERIES_TABLE_ARN                  = aws_dynamodb_table.user_queries.name
-      UI_BUCKET_NAME                                    = module.ui_bucket.s3_bucket_id
-      KMS_KEY_ID                                        = aws_kms_key.this.id
-      COGNITO_USER_POOL_ID                              = aws_cognito_user_pool.this.id
-      DYNAMO_DB_CONNECTIONS_TABLE_ARN                   = aws_dynamodb_table.connections.name
-      WEBSOCKET_API_DOMAIN_NAME                         = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
-      WEBSOCKET_API_STAGE                               = aws_apigatewayv2_stage.websocket_ws.name
-      DYNAMO_DB_INTEGRATIONS_TABLE_ARN                  = aws_dynamodb_table.integrations.name
-      DYNAMO_DB_USER_ASSIGNMENTS_TABLE_ARN              = aws_dynamodb_table.user_assignments.name
-      CORS_ORIGINS                                      = jsonencode(local.cors_allowed_origins)
+      AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
+      ENVIRONMENT                         = terraform.workspace
+      POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
+      POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
+      UI_BUCKET_NAME                      = module.ui_bucket.s3_bucket_id
+      KMS_KEY_ID                          = aws_kms_key.this.id
+      COGNITO_USER_POOL_ID                = aws_cognito_user_pool.this.id
+      WEBSOCKET_API_DOMAIN_NAME           = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
+      WEBSOCKET_API_STAGE                 = aws_apigatewayv2_stage.websocket_ws.name
+      CORS_ORIGINS                        = jsonencode(local.cors_allowed_origins)
       # OAuth callback configuration
       COGNITO_DOMAIN    = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
       COGNITO_CLIENT_ID = aws_cognito_user_pool_client.this.id

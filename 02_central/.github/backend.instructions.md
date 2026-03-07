@@ -55,7 +55,7 @@ npm run pretty
 ### AWS Service Clients
 
 - Centralized AWS clients in `src/clients/`
-- Use existing client instances (DynamoDB, S3, Cognito, Athena, Firehose, etc.)
+- Use existing client instances (RDS, S3, Cognito, Athena, Firehose, etc.)
 - Never instantiate AWS clients directly in controllers or routes
 - Clients are pre-configured with region and credentials
 
@@ -96,18 +96,18 @@ npm run pretty
 3. Implement business logic with proper error handling
 4. Add unit tests with mocked AWS services
 
-### Working with DynamoDB
+### Working with RDS
 
-- Use `DocumentClient` from `@aws-sdk/lib-dynamodb`
-- All table names from environment variables
-- Use TTL field `expire_at` for automatic cleanup
+- Use Drizzle ORM for database access via `@/clients/rds`
+- Use `withRlsTransaction` for row-level security scoped queries
+- All table schemas defined in `src/drizzle/schema/`
 - Follow existing patterns in `src/controllers/`
 
 ### GitHub Webhook Handling
 
 - Webhook validation via `verifyGithubSign` middleware
 - GitHub events processed by controllers in `src/controllers/`
-- Store job data in DynamoDB
+- Store job data in RDS
 - Trigger notifications via Step Functions
 
 ## Development Environment
@@ -122,7 +122,7 @@ npm run pretty
 ### Environment Variables
 
 - `AWS_REGION`: AWS region for services
-- `DYNAMODB_*`: DynamoDB table names
+- `RDS_*`: RDS connection configuration
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
 - See `src/develop.ts` for full list

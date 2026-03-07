@@ -41,7 +41,7 @@ GitGazer uses AWS serverless architecture with the following components:
 
 - **API Gateway**: REST and WebSocket APIs
 - **Lambda**: Multiple functions (API, Alerting, WebSocket, Analytics)
-- **DynamoDB**: Job data storage with TTL
+- **RDS**: Aurora PostgreSQL Serverless database
 - **S3**: Lambda artifacts, UI hosting, analytics data
 - **Cognito**: User authentication and authorization
 - **CloudFront**: CDN for UI distribution
@@ -66,7 +66,7 @@ GitGazer uses AWS serverless architecture with the following components:
   - `analytics_lambda.tf`: Analytics Lambda function
   - `cloudfront.tf`: CDN configuration
   - `cognito.tf`: Authentication setup
-  - `dynamodb.tf`: Database tables
+  - `rds.tf`: Database configuration
   - `s3_*.tf`: Storage buckets
   - `kms.tf`: Encryption keys
   - `secrets.tf`: Secrets management
@@ -94,7 +94,7 @@ GitGazer uses AWS serverless architecture with the following components:
 ### State Management
 
 - Remote state in S3 (configured in `main.tf`)
-- State locking with DynamoDB
+- State locking configured in backend
 - Never commit state files to git
 - Use workspace-specific state
 
@@ -158,7 +158,7 @@ GitGazer uses AWS serverless architecture with the following components:
 
 ### Security
 
-- Enable encryption at rest (S3, DynamoDB)
+- Enable encryption at rest (S3, RDS)
 - Use KMS for key management
 - Implement least-privilege IAM policies
 - Enable CloudTrail logging
@@ -166,14 +166,13 @@ GitGazer uses AWS serverless architecture with the following components:
 
 ### High Availability
 
-- Multi-AZ deployments for DynamoDB
+- Multi-AZ deployments for RDS
 - S3 cross-region replication if needed
 - CloudFront for global distribution
 - Lambda automatic scaling
 
 ### Cost Optimization
 
-- Use DynamoDB TTL for data cleanup
 - Implement S3 lifecycle policies
 - Right-size Lambda memory
 - Monitor CloudWatch costs
@@ -220,13 +219,13 @@ GitGazer uses AWS serverless architecture with the following components:
 4. Test with API Gateway console
 5. Apply changes with Terraform
 
-### Adding DynamoDB Table
+### Adding RDS Schema
 
-1. Define table resource
-2. Configure partition/sort keys
-3. Set up GSIs if needed
-4. Enable TTL for cleanup
-5. Grant Lambda access
+1. Define Drizzle schema in `02_central/src/drizzle/schema/`
+2. Generate migration with `drizzle-kit generate`
+3. Apply migration with `drizzle-kit migrate`
+4. Ensure RLS policies are configured
+5. Grant Lambda access via IAM
 
 ### Updating Cognito
 

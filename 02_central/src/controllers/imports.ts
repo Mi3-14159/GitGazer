@@ -1,10 +1,9 @@
-import {putEvent} from '@/clients/dynamodb';
 import {deleteConnection, getConnections} from '@/clients/websocket-connections';
-import {Event, EventPayloadMap, StreamEvent, WorkflowJobEvent} from '@/common/types';
+import {EventPayloadMap, StreamEvent, WorkflowJob, WorkflowJobEvent, WorkflowRun} from '@/common/types';
 import {sendWorkflowJobAlerts} from '@/controllers/alerting';
 import {insertEvent} from '@/controllers/imports/index';
 import {getLogger} from '@/logger';
-import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
+import {InternalServerError} from '@aws-lambda-powertools/event-handler/http';
 import {
     ApiGatewayManagementApiClient,
     ApiGatewayManagementApiServiceException,
@@ -12,9 +11,6 @@ import {
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
-
-const expireInSecString = process.env.EXPIRE_IN_SEC;
-const expireInSec = parseInt(expireInSecString ?? '') || undefined;
 
 const websocketApiDomain = process.env.WEBSOCKET_API_DOMAIN_NAME;
 if (!websocketApiDomain) {
@@ -31,69 +27,33 @@ const apiClient = new ApiGatewayManagementApiClient({
     endpoint: `https://${websocketApiDomain}/${stage}`,
 });
 
-export async function handleEvent<T extends EmitterWebhookEventName & keyof EventPayloadMap>(
+export const handleEvent = async <T extends EmitterWebhookEventName & keyof EventPayloadMap>(
     integrationId: string,
     eventType: T,
     event: EventPayloadMap[T],
-): Promise<void> {
-    let event_type_group: string | undefined = undefined;
-    if (['workflow_job', 'workflow_run'].includes(eventType)) {
-        event_type_group = 'workflow';
-    }
+): Promise<void> => {
+    try {
+        const result = await insertEvent(integrationId, eventType, event);
 
-    const ggEvent: Omit<Event<EventPayloadMap[T]>, 'created_at'> = {
-        integrationId,
-        id: getEventId(eventType, event),
-        expire_at: expireInSec ? Math.floor(new Date().getTime() / 1000) + expireInSec : undefined,
-        event_type: eventType,
-        event_type_group,
-        event: event,
-    };
-
-    const promises = [putEvent(ggEvent), insertEvent(integrationId, event)];
-    const [ddbResponse, rdsResponse] = await Promise.allSettled(promises);
-
-    if (ddbResponse.status === 'rejected') {
-        getLogger().error(`Error writing event to DynamoDB, integration: ${integrationId}`, ddbResponse.reason);
+        if (eventType === 'workflow_job') {
+            await postToConnections<WorkflowJob>({
+                eventType,
+                payload: result as WorkflowJob,
+            });
+            await sendWorkflowJobAlerts(integrationId, event as unknown as WorkflowJobEvent);
+        } else if (eventType === 'workflow_run') {
+            await postToConnections<WorkflowRun>({
+                eventType,
+                payload: result as WorkflowRun,
+            });
+        }
+    } catch (error) {
+        getLogger().error(`Error handling event: ${error instanceof Error ? error.stack : JSON.stringify(error)}`);
         throw new InternalServerError();
     }
-
-    if (!ddbResponse.value) {
-        getLogger().error(`Failed to write event to DynamoDB for unknown reasons, integration: ${integrationId}, return value is falsy`);
-        throw new InternalServerError();
-    }
-
-    if (rdsResponse.status === 'rejected') {
-        getLogger().error(`Error writing event to RDS, integration: ${integrationId}`, rdsResponse.reason);
-    }
-
-    if (eventType === 'workflow_job' || eventType === 'workflow_run') {
-        await postToConnections({
-            eventType,
-            payload: ddbResponse.value,
-        });
-    }
-
-    if (eventType === 'workflow_job') {
-        await sendWorkflowJobAlerts(integrationId, event as unknown as WorkflowJobEvent);
-    }
-}
-
-export const getEventId = <T extends EmitterWebhookEventName & keyof EventPayloadMap>(eventType: T, event: EventPayloadMap[T]): string => {
-    const eventData = event as any;
-
-    if (!(eventType in eventData) || !eventData[eventType] || typeof eventData[eventType] !== 'object') {
-        throw new BadRequestError(`Event payload does not contain expected property for event type ${eventType}`);
-    }
-
-    if ('id' in eventData[eventType] === false) {
-        throw new BadRequestError(`Event payload for event type ${eventType} does not contain an 'id' property`);
-    }
-
-    return `${eventType}/${eventData[eventType].id}`;
 };
 
-const postToConnections = async <T extends keyof EventPayloadMap>(params: StreamEvent<T>) => {
+const postToConnections = async <T extends WorkflowRun | WorkflowJob>(params: StreamEvent<T>) => {
     const logger = getLogger();
     const connections = await getConnections(params.payload.integrationId);
 

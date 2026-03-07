@@ -59,20 +59,6 @@ data "aws_iam_policy_document" "api_websocket" {
   statement {
     effect = "Allow"
     actions = [
-      "dynamodb:PutItem",
-      "dynamodb:DeleteItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:GetItem",
-      "dynamodb:Scan",
-      "dynamodb:Query",
-      "dynamodb:BatchWriteItem"
-    ]
-    resources = [aws_dynamodb_table.connections.arn, "${aws_dynamodb_table.connections.arn}/index/*"]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
       "execute-api:ManageConnections"
     ]
     resources = [
@@ -130,20 +116,16 @@ resource "aws_lambda_function" "api_websocket" {
   memory_size       = 512 # speedup jwt verification with more memory = more CPU
   environment {
     variables = {
-      AWS_LAMBDA_EXEC_WRAPPER                         = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS             = "none"
-      ENVIRONMENT                                     = terraform.workspace
-      POWERTOOLS_LOG_LEVEL                            = local.lambda_application_log_level
-      POWERTOOLS_LOGGER_LOG_EVENT                     = local.lambda_enable_event_logging
-      TABLE_NAME                                      = aws_dynamodb_table.connections.name
-      COGNITO_CLIENT_ID                               = aws_cognito_user_pool_client.this.id
-      COGNITO_CLIENT_SECRET                           = aws_cognito_user_pool_client.this.client_secret
-      DYNAMO_DB_TABLE_CONNECTIONS_CONNECTION_ID_INDEX = local.dynamodb_table_connections_connection_id_index
-      DYNAMO_DB_CONNECTIONS_TABLE_ARN                 = aws_dynamodb_table.connections.arn
-      DYNAMO_DB_USER_QUERIES_TABLE_ARN                = aws_dynamodb_table.user_queries.name
-      RDS_DATABASE                                    = "postgres"
-      RDS_SECRET_ARN                                  = module.db.cluster_master_user_secret[0].secret_arn
-      RDS_RESOURCE_ARN                                = module.db.cluster_arn
+      AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
+      OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
+      ENVIRONMENT                         = terraform.workspace
+      POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
+      POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
+      COGNITO_CLIENT_ID                   = aws_cognito_user_pool_client.this.id
+      COGNITO_CLIENT_SECRET               = aws_cognito_user_pool_client.this.client_secret
+      RDS_DATABASE                        = "postgres"
+      RDS_SECRET_ARN                      = module.db.cluster_master_user_secret[0].secret_arn
+      RDS_RESOURCE_ARN                    = module.db.cluster_arn
     }
   }
   layers = local.lambda_layers

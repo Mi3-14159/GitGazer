@@ -201,7 +201,7 @@ Backend variables are configured in `02_central/.env.dev` for local development.
 Key variables:
 
 - `AWS_REGION`: AWS region for services
-- `DYNAMODB_*`: DynamoDB table names
+- `RDS_*`: RDS connection configuration
 - `S3_*`: S3 bucket names
 - `ALLOWED_FRONTEND_ORIGINS`: Comma-separated list of allowed origins (must include `https://app.gitgazer.local:5173` for local dev)
 
@@ -296,8 +296,8 @@ The proxy is **not used** when:
 1. Verify AWS credentials: `aws sts get-caller-identity`
 2. If using aws-vault: `aws-vault exec <profile> -- aws sts get-caller-identity`
 3. Check `.env.dev` has correct AWS_REGION
-4. Ensure DynamoDB tables exist in your AWS account
-5. Verify IAM permissions for DynamoDB, S3, Cognito
+4. Ensure RDS database is accessible from your AWS account
+5. Verify IAM permissions for RDS, S3, Cognito
 
 ### Hot Module Replacement Not Working
 
