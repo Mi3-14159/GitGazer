@@ -2,8 +2,7 @@
     import ColumnHeader from '@/components/ColumnHeader.vue';
     import {useScrollbarObserver} from '@/composables/useScrollbarObserver';
     import {useTableFiltering, type FilterableColumn} from '@/composables/useTableFiltering';
-    import {WorkflowGroup} from '@/stores/workflows';
-    import {WorkflowJob} from '@common/types';
+    import {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {computed, ref, toRef, type ComponentPublicInstance} from 'vue';
 
     export interface HeaderColumn<T = any> extends FilterableColumn<T> {
@@ -13,7 +12,7 @@
 
     const props = withDefaults(
         defineProps<{
-            items: WorkflowGroup[];
+            items: WorkflowRunWithRelations[];
             height?: string | number;
             threshold?: number;
             loading?: boolean;
@@ -146,12 +145,12 @@
                     <div
                         class="grid group-row"
                         :style="gridStyle"
-                        @click="toggleGroup(item.run.id)"
-                        :class="{expanded: isExpanded(item.run.id)}"
+                        @click="toggleGroup(item.id)"
+                        :class="{expanded: isExpanded(item.id)}"
                     >
                         <div class="col-expand">
                             <v-icon
-                                :icon="isExpanded(item.run.id) ? '$expand' : '$next'"
+                                :icon="isExpanded(item.id) ? '$expand' : '$next'"
                                 size="x-small"
                             />
                         </div>
@@ -162,7 +161,7 @@
                             <slot
                                 :name="`item.${column.name}`"
                                 :item="item"
-                                :value="column.value(item)"
+                                :value="column.scope === 'group' || column.scope === 'both' ? column.value(item) : ''"
                                 type="group"
                             >
                                 {{ column.scope === 'group' || column.scope === 'both' ? column.value(item) : '' }}
@@ -172,11 +171,11 @@
 
                     <!-- Job Rows (Rendered only if expanded) -->
                     <div
-                        v-if="isExpanded(item.run.id)"
+                        v-if="isExpanded(item.id)"
                         class="rows-container"
                     >
                         <div
-                            v-for="job in item.jobs.values()"
+                            v-for="job in item.workflowJobs.values()"
                             :key="job.id"
                             class="grid item-row"
                             :style="gridStyle"
@@ -189,7 +188,7 @@
                                 <slot
                                     :name="`item.${column.name}`"
                                     :item="job"
-                                    :value="column.value(job)"
+                                    :value="column.scope === 'row' || column.scope === 'both' ? column.value(job) : ''"
                                     type="row"
                                 >
                                     {{ column.scope === 'row' || column.scope === 'both' ? column.value(job) : '' }}

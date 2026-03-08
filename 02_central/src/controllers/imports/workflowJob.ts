@@ -1,6 +1,6 @@
-import {RdsTransaction} from '@/clients/rds';
-import {WorkflowJobEvent} from '@/common/types';
-import {workflowJobs} from '@/drizzle/schema/github/workflows';
+import {RdsTransaction} from '@gitgazer/db/client';
+import {workflowJobs} from '@gitgazer/db/schema/github/workflows';
+import {WorkflowJobEvent} from '@gitgazer/db/types';
 import {InferSelectModel} from 'drizzle-orm/table';
 
 export const importWorkflowJob = async (

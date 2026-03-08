@@ -6,7 +6,7 @@ import {
     ProjectionType,
     StreamEvent,
     WorkflowJob,
-    WorkflowRun,
+    WorkflowRunWithRelations,
     WorkflowsRequestParameters,
     WSToken,
 } from '@common/types';
@@ -16,25 +16,9 @@ import {reactive, ref} from 'vue';
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 const WS_ENDPOINT = import.meta.env.VITE_WEBSOCKET_API_ENDPOINT;
 
-export type WorkflowGroup = {
-    run: WorkflowRun;
-    jobs: Map<number, WorkflowJob>;
-};
-
 export const useWorkflowsStore = defineStore('workflows', () => {
     const {fetchWithAuth} = useAuth();
-    const workflows = new Map<string, WorkflowGroup>();
-    const workflowsArray = ref<WorkflowGroup[]>([]);
-
-    const compareWorkflows = (a: WorkflowGroup, b: WorkflowGroup) => {
-        const timeA = a.run.createdAt ? new Date(a.run.createdAt).getTime() : 0;
-        const timeB = b.run.createdAt ? new Date(b.run.createdAt).getTime() : 0;
-        return timeB - timeA;
-    };
-
-    const sortWorkflows = () => {
-        workflowsArray.value.sort(compareWorkflows);
-    };
+    const workflowsArray = ref<WorkflowRunWithRelations[]>([]);
 
     const isLoading = ref(false);
     const hasMore = ref(true);
@@ -143,9 +127,8 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
             ws.onmessage = (event) => {
                 try {
-                    const message = JSON.parse(event.data) as StreamEvent<WorkflowRun | WorkflowJob>;
-                    handleWorkflow(message.eventType, message.payload, true);
-                    sortWorkflows();
+                    const message = JSON.parse(event.data) as StreamEvent<WorkflowRunWithRelations | WorkflowJob>;
+                    handleWorkflow(message.eventType, message.payload);
                 } catch (error) {
                     console.error('Failed to parse WebSocket message', error);
                 }
@@ -212,54 +195,45 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const handleListWorkflows = async () => {
         if (!hasMore.value || isLoading.value) return;
 
-        const items = await getJobs({limit: 100, projection: ProjectionType.minimal});
-
-        items.forEach((run) => {
-            const runId = String(run.id);
-            const group = ensureWorkflowGroup(runId, run.integrationId, false);
-            group.run = run;
-            run.workflowJobs.forEach((job) => {
-                group.jobs.set(job.id, job);
-            });
-        });
-
-        workflowsArray.value = Array.from(workflows.values())
-            .filter((group) => group.run)
-            .sort(compareWorkflows);
+        workflowsArray.value = await getJobs({limit: 100, projection: ProjectionType.minimal});
         isLoading.value = false;
     };
 
-    const ensureWorkflowGroup = (runId: string, integrationId: string, addToArray: boolean) => {
-        if (!workflows.has(runId)) {
-            const group: WorkflowGroup = reactive({
-                run: {
-                    integrationId,
-                    id: runId,
-                } as unknown as WorkflowRun,
-                jobs: new Map(),
-            });
-            workflows.set(runId, group);
-            if (addToArray) {
-                workflowsArray.value.push(group);
-            }
-        }
-        return workflows.get(runId)!;
-    };
-
-    const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRun | WorkflowJob, addToArray = true) => {
+    const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRunWithRelations | WorkflowJob) => {
         switch (eventType) {
             case 'workflow_job': {
-                const jobWorkflow = workflow as WorkflowJob;
-                const runId = String(jobWorkflow.runId);
-                const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
-                group.jobs.set(workflow.id, jobWorkflow);
+                const workflowJob = workflow as WorkflowJob;
+                const wr = workflowsArray.value.find((run) => run.id === workflowJob.runId);
+                if (!wr) {
+                    const run: WorkflowRunWithRelations = reactive({
+                        id: workflowJob.id,
+                        integrationId: workflowJob.integrationId,
+                    }) as unknown as WorkflowRunWithRelations;
+                    workflowsArray.value = [run, ...workflowsArray.value];
+                    break;
+                }
+
+                const jobIndex = wr.workflowJobs.findIndex((job) => job.id === workflowJob.id);
+                if (jobIndex !== -1) {
+                    wr.workflowJobs[jobIndex] = workflowJob;
+                    return;
+                }
+                wr.workflowJobs = [workflowJob, ...wr.workflowJobs];
                 break;
             }
             case 'workflow_run': {
-                const runWorkflow = workflow as WorkflowRun;
-                const runId = String(runWorkflow.id);
-                const group = ensureWorkflowGroup(runId, workflow.integrationId, addToArray);
-                group.run = runWorkflow;
+                const workflowRun = workflow as WorkflowRunWithRelations;
+                const workflowRunIndex = workflowsArray.value.findIndex((run) => run.id === workflowRun.id);
+                if (workflowRunIndex !== -1) {
+                    const existingWorkflowRun = workflowsArray.value[workflowRunIndex];
+                    workflowsArray.value[workflowRunIndex] = {
+                        ...workflowRun,
+                        workflowJobs: existingWorkflowRun.workflowJobs,
+                    };
+                    break;
+                }
+
+                workflowsArray.value = [workflowRun, ...workflowsArray.value];
                 break;
             }
             default:

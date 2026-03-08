@@ -1,4 +1,4 @@
-import {isNotificationRuleUpdate} from '@/common/types';
+import {isNotificationRuleUpdate} from '@gitgazer/db/types';
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/controllers/notifications';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';

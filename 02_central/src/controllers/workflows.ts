@@ -1,6 +1,7 @@
-import {withRlsTransaction} from '@/clients/rds';
-import {GetWorkflowsResponse, PaginationCursor, WorkflowRun} from '@/common/types';
-import {workflowRuns} from '@/drizzle/schema';
+import {withRlsTransaction} from '@gitgazer/db/client';
+import {workflowRunRelations} from '@gitgazer/db/queries';
+import {workflowRuns} from '@gitgazer/db/schema';
+import {GetWorkflowsResponse, PaginationCursor} from '@gitgazer/db/types';
 import {and, desc, eq, lt, or, SQL} from 'drizzle-orm';
 
 type WorkflowsParams = {
@@ -23,39 +24,16 @@ export const getWorkflows = async ({integrationIds, limit, cursor}: WorkflowsPar
         }
 
         const runs = await tx.query.workflowRuns.findMany({
-            with: {
-                workflowJobs: true,
-                repository: {
-                    with: {
-                        owner: true,
-                    },
-                },
-            },
+            with: workflowRunRelations,
             ...(cursorCondition ? {where: cursorCondition} : {}),
             orderBy: [desc(workflowRuns.createdAt), desc(workflowRuns.id)],
             limit: effectiveLimit,
         });
 
-        const items: WorkflowRun[] = runs.map((run) => ({
-            ...run,
-            createdAt: run.createdAt.toISOString(),
-            runStartedAt: run.runStartedAt.toISOString(),
-            updatedAt: run.updatedAt.toISOString(),
-            workflowJobs: run.workflowJobs.map((job) => ({
-                ...job,
-                completedAt: job.completedAt?.toISOString() ?? null,
-                createdAt: job.createdAt.toISOString(),
-                startedAt: job.startedAt.toISOString(),
-            })),
-            repository: {
-                fullName: `${[run.repository.owner?.login, run.repository.name].filter(Boolean).join('/')}`,
-            },
-        }));
-
         const lastItem = runs[runs.length - 1];
         const nextCursor: PaginationCursor | undefined =
             runs.length >= effectiveLimit && lastItem ? {createdAt: lastItem.createdAt.toISOString(), id: lastItem.id} : undefined;
 
-        return {items, cursor: nextCursor};
+        return {items: runs, cursor: nextCursor};
     });
 };

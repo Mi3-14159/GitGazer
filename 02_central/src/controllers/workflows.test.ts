@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/clients/rds', () => {
+vi.mock('@gitgazer/db/client', () => {
     return {
         withRlsTransaction: vi.fn(),
     };
@@ -30,13 +30,13 @@ const mockWorkflowRun = (overrides: Partial<{integrationId: string; id: number; 
     ...overrides,
 });
 
-let rds: typeof import('@/clients/rds');
+let rds: typeof import('@gitgazer/db/client');
 let workflows: typeof import('./workflows');
 
 describe('workflows controller', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
-        rds = await import('@/clients/rds');
+        rds = await import('@gitgazer/db/client');
         workflows = await import('./workflows');
     });
 

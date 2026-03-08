@@ -1,6 +1,6 @@
-import {db, withRlsTransaction} from '@/clients/rds';
-import {Integration} from '@/common/types';
-import {integrations, userAssignments} from '@/drizzle/schema/github/workflows';
+import {db, withRlsTransaction} from '@gitgazer/db/client';
+import {Integration} from '@gitgazer/db/types';
+import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {and, eq} from 'drizzle-orm';

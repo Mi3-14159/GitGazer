@@ -150,7 +150,7 @@ resource "aws_lambda_function" "api" {
   description       = "GitGazers REST API Lambda Function"
   function_name     = "${var.name_prefix}-api-${terraform.workspace}"
   role              = aws_iam_role.api.arn
-  handler           = "handlers/api.handler"
+  handler           = "02_central/src/handlers/api.handler"
   runtime           = "nodejs24.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = data.aws_s3_object.api_lambda_function_archive.key

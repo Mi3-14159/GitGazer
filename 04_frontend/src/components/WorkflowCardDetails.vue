@@ -1,10 +1,10 @@
 <script setup lang="ts">
-    import {WorkflowJob, WorkflowRun} from '@common/types';
+    import {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {computed} from 'vue';
 
     const props = defineProps<{
         job: WorkflowJob | null;
-        run: WorkflowRun | null;
+        run: WorkflowRunWithRelations | undefined;
     }>();
 
     const emit = defineEmits<{(e: 'update:job', value: WorkflowJob | null): void}>();
@@ -27,11 +27,9 @@
         return date.toLocaleString();
     };
 
-    const getGitHubWebUrl = (job: WorkflowJob, run?: WorkflowRun | null) => {
+    const getGitHubWebUrl = (job: WorkflowJob, run?: WorkflowRunWithRelations | null) => {
         if (!run) return '';
-        const repoFullName = run.repository.fullName;
-        const runId = job.runId;
-        return `https://github.com/${repoFullName}/actions/runs/${runId}`;
+        return `https://github.com/${run.repository.owner?.login}/${run.repository.name}/actions/runs/${job.runId}`;
     };
 
     const openUrl = (url: string) => {
@@ -57,7 +55,7 @@
                     >
                         <v-text-field
                             label="Repository"
-                            :model-value="props.run?.repository.fullName"
+                            :model-value="props.run?.repository.name"
                             readonly
                             variant="outlined"
                             density="compact"

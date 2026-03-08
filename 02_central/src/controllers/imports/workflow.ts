@@ -1,6 +1,6 @@
-import {RdsTransaction} from '@/clients/rds';
-import {WorkflowJobEvent, WorkflowRunEvent} from '@/common/types';
-import {enterprises, organizations, repositories, user} from '@/drizzle/schema/github/workflows';
+import {RdsTransaction} from '@gitgazer/db/client';
+import {enterprises, organizations, repositories, user} from '@gitgazer/db/schema/github/workflows';
+import {WorkflowJobEvent, WorkflowRunEvent} from '@gitgazer/db/types';
 import {InferSelectModel} from 'drizzle-orm';
 
 export const importWorkflow = async (
@@ -24,7 +24,7 @@ export const importWorkflow = async (
                 integrationId,
                 id: enterpriseId,
                 name: enterprise.name,
-                createdAt: new Date(enterprise.created_at),
+                createdAt: enterprise.created_at,
             })
             .onConflictDoNothing()
             .returning();

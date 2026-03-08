@@ -1,7 +1,7 @@
 import {getLogger} from '@/logger';
 import {createHmac, randomBytes} from 'crypto';
 
-import {State, UserAttributes, WSToken} from '@/common/types';
+import {State, UserAttributes, WSToken} from '@gitgazer/db/types';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {

@@ -1,6 +1,6 @@
-import {withRlsTransaction} from '@/clients/rds';
-import {NotificationRule, NotificationRuleUpdate} from '@/common/types';
-import {notificationRules} from '@/drizzle/schema';
+import {withRlsTransaction} from '@gitgazer/db/client';
+import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
+import {notificationRules} from '@gitgazer/db/schema';
 import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
 import {and, eq} from 'drizzle-orm';
 

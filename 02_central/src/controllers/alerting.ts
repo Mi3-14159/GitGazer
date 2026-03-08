@@ -1,6 +1,6 @@
-import {withRlsTransaction} from '@/clients/rds';
-import {NotificationRuleChannelType, WorkflowJobEvent} from '@/common/types';
-import {notificationRules, workflowRuns} from '@/drizzle/schema';
+import {withRlsTransaction} from '@gitgazer/db/client';
+import {NotificationRuleChannelType, WorkflowJobEvent} from '@gitgazer/db/types';
+import {notificationRules, workflowRuns} from '@gitgazer/db/schema';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
 import {and, eq, or, sql} from 'drizzle-orm';

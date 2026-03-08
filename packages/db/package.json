@@ -1,0 +1,17 @@
+{
+  "name": "@gitgazer/db",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@octokit/webhooks": "^14.2.0",
+    "@octokit/webhooks-schemas": "^7.6.1",
+    "@octokit/webhooks-types": "^7.6.1"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-rds-data": "3.873.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -37,7 +37,7 @@
   "engines": {
     "node": "^24"
   },
-  "name": "gitgazer-frontend",
+  "name": "@gitgazer/web",
   "scripts": {
     "build": "vue-tsc --noEmit && vite build",
     "dev": "vite",

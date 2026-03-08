@@ -1,5 +1,5 @@
-import {db} from '@/clients/rds';
-import {wsConnections} from '@/drizzle/schema/gitgazer';
+import {db} from '@gitgazer/db/client';
+import {wsConnections} from '@gitgazer/db/schema/gitgazer';
 import {getLogger} from '@/logger';
 import {WebsocketConnection} from '@/types';
 import {and, eq} from 'drizzle-orm';

@@ -1,0 +1,4 @@
+packages:
+  - "02_central"
+  - "04_frontend"
+  - "packages/*"

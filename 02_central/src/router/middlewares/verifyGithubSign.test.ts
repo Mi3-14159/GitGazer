@@ -1,7 +1,7 @@
 import * as crypto from 'crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/clients/rds', () => {
+vi.mock('@gitgazer/db/client', () => {
     return {
         withRlsTransaction: vi.fn(),
     };
@@ -37,7 +37,7 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('throws BadRequestError when integration cannot be found (missing secret)', async () => {
-        const rds = await import('@/clients/rds');
+        const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
@@ -56,7 +56,7 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('throws BadRequestError when signature or payload is missing', async () => {
-        const rds = await import('@/clients/rds');
+        const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
@@ -83,7 +83,7 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('throws UnauthorizedError when signature is invalid', async () => {
-        const rds = await import('@/clients/rds');
+        const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
@@ -107,7 +107,7 @@ describe('verifyGithubSign middleware', () => {
     });
 
     it('calls next when signature is valid', async () => {
-        const rds = await import('@/clients/rds');
+        const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';

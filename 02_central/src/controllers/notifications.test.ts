@@ -1,11 +1,11 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
-vi.mock('@/clients/rds', () => ({
+vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: (...args: any[]) => mockWithRlsTransaction(...args),
 }));
 
-vi.mock('@/drizzle/schema', () => ({
+vi.mock('@gitgazer/db/schema', () => ({
     notificationRules: Symbol('notificationRules'),
 }));
 

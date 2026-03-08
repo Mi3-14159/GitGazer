@@ -5,7 +5,7 @@ config({path: process.env.ENV_FILE});
 
 export default defineConfig({
     out: './drizzle',
-    schema: './src/drizzle/schema/index.ts',
+    schema: '../packages/db/src/schema/index.ts',
     schemaFilter: ['gitgazer', 'github'],
     dialect: 'postgresql',
     driver: 'aws-data-api',

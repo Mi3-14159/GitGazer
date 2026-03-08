@@ -1,4 +1,4 @@
-import {isWorkflowsRequestParameters} from '@/common/types';
+import {isWorkflowsRequestParameters} from '@gitgazer/db/types';
 import {getWorkflows} from '@/controllers/workflows';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';

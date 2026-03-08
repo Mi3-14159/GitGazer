@@ -1,5 +1,5 @@
-import {withRlsTransaction} from '@/clients/rds';
-import {integrations} from '@/drizzle/schema/github/workflows';
+import {withRlsTransaction} from '@gitgazer/db/client';
+import {integrations} from '@gitgazer/db/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';

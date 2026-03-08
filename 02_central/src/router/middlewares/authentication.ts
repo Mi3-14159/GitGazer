@@ -1,5 +1,5 @@
-import {db} from '@/clients/rds';
-import {users} from '@/drizzle/schema/gitgazer';
+import {db} from '@gitgazer/db/client';
+import {users} from '@gitgazer/db/schema/gitgazer';
 import {getLogger} from '@/logger';
 import {AppRequestContext} from '@/types';
 import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';

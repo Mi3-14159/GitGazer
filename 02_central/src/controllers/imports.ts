@@ -1,5 +1,4 @@
 import {deleteConnection, getConnections} from '@/clients/websocket-connections';
-import {EventPayloadMap, StreamEvent, WorkflowJob, WorkflowJobEvent, WorkflowRun} from '@/common/types';
 import {sendWorkflowJobAlerts} from '@/controllers/alerting';
 import {insertEvent} from '@/controllers/imports/index';
 import {getLogger} from '@/logger';
@@ -10,6 +9,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
+import {EventPayloadMap, StreamEvent, WorkflowJobEvent} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 const websocketApiDomain = process.env.WEBSOCKET_API_DOMAIN_NAME;
@@ -36,15 +36,17 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
         const result = await insertEvent(integrationId, eventType, event);
 
         if (eventType === 'workflow_job') {
-            await postToConnections<WorkflowJob>({
+            await postToConnections({
                 eventType,
-                payload: result as WorkflowJob,
+                integrationId,
+                payload: result,
             });
             await sendWorkflowJobAlerts(integrationId, event as unknown as WorkflowJobEvent);
         } else if (eventType === 'workflow_run') {
-            await postToConnections<WorkflowRun>({
+            await postToConnections({
                 eventType,
-                payload: result as WorkflowRun,
+                integrationId,
+                payload: result,
             });
         }
     } catch (error) {
@@ -53,9 +55,9 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
     }
 };
 
-const postToConnections = async <T extends WorkflowRun | WorkflowJob>(params: StreamEvent<T>) => {
+const postToConnections = async <T>(params: StreamEvent<T>) => {
     const logger = getLogger();
-    const connections = await getConnections(params.payload.integrationId);
+    const connections = await getConnections(params.integrationId);
 
     const promises = [];
     for (const connection of connections) {

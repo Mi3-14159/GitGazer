@@ -1,8 +1,8 @@
 <script setup lang="ts">
     import VirtualTable, {type HeaderColumn} from '@/components/VirtualTable.vue';
     import WorkflowCardDetails from '@/components/WorkflowCardDetails.vue';
-    import {useWorkflowsStore, WorkflowGroup} from '@/stores/workflows';
-    import {WorkflowJob} from '@common/types';
+    import {useWorkflowsStore} from '@/stores/workflows';
+    import {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {onMounted, ref} from 'vue';
 
@@ -16,14 +16,14 @@
             name: 'Repository',
             scope: 'group',
             width: '2fr',
-            value: (item: WorkflowGroup) => item.run?.repository.fullName,
+            value: (item: WorkflowRunWithRelations) => item.repository.name,
             filterable: true,
         },
         {
             name: 'Workflow',
             scope: 'group',
             width: '2fr',
-            value: (item: WorkflowGroup) => item.run?.name,
+            value: (item: WorkflowRunWithRelations) => item.name,
             filterable: true,
         },
         {
@@ -37,20 +37,15 @@
             name: 'Branch',
             scope: 'group',
             width: '1.5fr',
-            value: (item: WorkflowGroup) => item.run?.headBranch,
+            value: (item: WorkflowRunWithRelations) => item.headBranch,
             filterable: true,
         },
         {
             name: 'Status',
             scope: 'both',
             width: '1fr',
-            value: (item: WorkflowGroup | WorkflowJob) => {
-                if ('run' in item && item.run) {
-                    return item.run?.conclusion || item.run?.status;
-                } else if ('conclusion' in item && item.conclusion) {
-                    return item.conclusion || item.status;
-                }
-                return 'unknown';
+            value: (item: WorkflowRunWithRelations | WorkflowJob) => {
+                return item.conclusion || item.status || 'unknown';
             },
             filterable: true,
         },
@@ -58,9 +53,10 @@
             name: 'Created',
             scope: 'both',
             width: '1.5fr',
-            value: (item: WorkflowGroup | WorkflowJob) => {
+            value: (item: WorkflowRunWithRelations | WorkflowJob) => {
+                debugger;
                 if ('run' in item && item.run) {
-                    return new Date(item.run.createdAt).toLocaleString();
+                    return new Date(item.createdAt).toLocaleString();
                 } else if ('createdAt' in item && item.createdAt) {
                     return new Date(item.createdAt).toLocaleString();
                 }
@@ -94,17 +90,20 @@
                 return 'default';
         }
     };
+
+    const getRunOfSelectedJob = () => {
+        return workflows.value.find((run) => run.workflowJobs.some((job) => job.id === selectedJob.value?.id));
+    };
 </script>
 
 <template>
     <v-main class="fill-height">
         <VirtualTable
-            :items="workflows"
+            :items="workflows.filter((run) => run.workflowJobs?.length > 0)"
             :loading="isLoading"
             :has-more="hasMore"
             :header-config="headerConfig"
             :onJobClick="onJobClick"
-            :loadMore="handleListWorkflows"
             class="workflow-table"
         >
             <template #item.Status="{value}">
@@ -120,8 +119,9 @@
         </VirtualTable>
 
         <WorkflowCardDetails
+            v-if="selectedJob"
             :job="selectedJob"
-            :run="workflows.find((group) => group.jobs.get(selectedJob?.id ?? -1) === selectedJob)?.run || null"
+            :run="getRunOfSelectedJob()"
             @update:job="selectedJob = $event"
         />
     </v-main>
