@@ -46,6 +46,11 @@ jobs:
           cache: "npm"
           cache-dependency-path: ./04_frontend/package-lock.json
 
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          cache: true
+
       - name: Install package DB
         working-directory: /
         run: pnpm install --frozen-lockfile --filter @gitgazer/db
