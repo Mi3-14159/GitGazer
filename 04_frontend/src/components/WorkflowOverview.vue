@@ -104,6 +104,7 @@
             :has-more="hasMore"
             :header-config="headerConfig"
             :onJobClick="onJobClick"
+            :loadMore="handleListWorkflows"
             class="workflow-table"
         >
             <template #item.Status="{value}">
