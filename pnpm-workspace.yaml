@@ -1,4 +1,3 @@
 packages:
-  - "apps/api"
-  - "04_frontend"
+  - "apps/*"
   - "packages/*"

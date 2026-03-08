@@ -8,7 +8,7 @@
     "moduleResolution": "bundler",
     "paths": {
       "@/*": ["src/*"],
-      "@common/*": ["../packages/db/src/*"]
+      "@common/*": ["../../packages/db/src/*"]
     },
     "resolveJsonModule": true,
     "types": ["vite/client", "node"],
@@ -22,8 +22,8 @@
     "skipLibCheck": true,
     "composite": true
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/typed-router.d.ts", "../packages/db/src/**/*.ts"],
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/typed-router.d.ts", "../../packages/db/src/**/*.ts"],
   "exclude": ["dist", "node_modules", "cypress"],
   "references": [{"path": "./tsconfig.node.json"}],
-  "extends": "../tsconfig.json"
+  "extends": "../../tsconfig.json"
 }
