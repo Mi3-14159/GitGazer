@@ -51,8 +51,9 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Re
 
     let response = await fetch(url, fetchOptions);
 
-    // If we get a 401, try to refresh the session and retry once
-    if (response.status === 401 && !isRefreshing) {
+    // If we get a 401, refresh the session and retry once.
+    // If a refresh is already in progress, wait for it instead of returning the 401.
+    if (response.status === 401) {
         const refreshed = await refreshSession();
 
         if (refreshed) {

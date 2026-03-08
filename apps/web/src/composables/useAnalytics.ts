@@ -50,33 +50,22 @@ export const useAnalytics = () => {
         intervalMs: number = 3000,
         maxAttempts: number = 60,
     ): Promise<void> => {
-        return new Promise((resolve, reject) => {
-            isPolling.value = true;
-            let attempts = 0;
+        isPolling.value = true;
+        try {
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                await new Promise((r) => setTimeout(r, intervalMs));
 
-            const interval = setInterval(async () => {
-                try {
-                    attempts++;
+                const status = await getQueryStatus(queryId);
+                onUpdate(status);
 
-                    const status = await getQueryStatus(queryId);
-                    onUpdate(status);
-
-                    if (['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(status.status || '')) {
-                        clearInterval(interval);
-                        isPolling.value = false;
-                        resolve();
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(interval);
-                        isPolling.value = false;
-                        reject(new Error('Query polling timeout'));
-                    }
-                } catch (error) {
-                    clearInterval(interval);
-                    isPolling.value = false;
-                    reject(error);
+                if (['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(status.status || '')) {
+                    return;
                 }
-            }, intervalMs);
-        });
+            }
+            throw new Error('Query polling timeout');
+        } finally {
+            isPolling.value = false;
+        }
     };
 
     const getSchema = async (): Promise<TableSchema> => {

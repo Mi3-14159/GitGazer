@@ -24,6 +24,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const hasMore = ref(true);
     let ws: WebSocket | null = null;
     let tokenRenewalTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let cursor: PaginationCursor | undefined;
 
     const fetchWebSocketToken = async (): Promise<string> => {
@@ -39,7 +40,9 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
     const getTokenExpiry = (token: string): number => {
         try {
-            const [payloadEncoded] = token.split('.');
+            const parts = token.split('.');
+            if (parts.length < 2) return 0;
+            const payloadEncoded = parts[1];
             const payloadJson = atob(payloadEncoded.replace(/-/g, '+').replace(/_/g, '/'));
             const payload = JSON.parse(payloadJson) as WSToken;
             return payload.exp;
@@ -86,9 +89,17 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             } catch (error) {
                 console.error('Failed to renew WebSocket token', error);
                 // Attempt reconnection after a delay
-                setTimeout(() => connectToWebSocket(), 5000);
+                scheduleReconnect();
             }
         }, renewalDelay);
+    };
+
+    const scheduleReconnect = () => {
+        if (reconnectTimer) return;
+        reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            connectToWebSocket();
+        }, 5000);
     };
 
     const connectToWebSocket = async (): Promise<void> => {
@@ -142,18 +153,20 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 console.log('WebSocket disconnected', event.code, event.reason);
                 ws = null;
 
-                // Clear renewal timer on disconnect
+                // Clear timers on disconnect
                 if (tokenRenewalTimer) {
                     clearTimeout(tokenRenewalTimer);
                     tokenRenewalTimer = null;
+                }
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
                 }
 
                 // Attempt to reconnect after a delay if not a normal or intentional closure
                 // Code 1000 is normal closure, including our token renewal closure
                 if (event.code !== 1000) {
-                    setTimeout(() => {
-                        connectToWebSocket();
-                    }, 5000);
+                    scheduleReconnect();
                 }
             };
         } catch (error) {
@@ -164,39 +177,41 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
     const getJobs = async (params?: WorkflowsRequestParameters) => {
         isLoading.value = true;
+        try {
+            const queryParams = new URLSearchParams();
+            Object.entries(params ?? {}).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, String(value));
+                }
+            });
 
-        const queryParams = new URLSearchParams();
-        Object.entries(params ?? {}).forEach(([key, value]) => {
-            if (value !== undefined) {
-                queryParams.append(key, String(value));
+            if (cursor) {
+                queryParams.append('cursor', JSON.stringify(cursor));
             }
-        });
 
-        if (cursor) {
-            queryParams.append('cursor', JSON.stringify(cursor));
+            const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?${queryParams.toString()}`);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch workflows: ${response.status}`);
+            }
+
+            const data = (await response.json()) as GetWorkflowsResponse;
+
+            cursor = data.cursor;
+            if (!cursor) {
+                hasMore.value = false;
+            }
+
+            return data.items;
+        } finally {
+            isLoading.value = false;
         }
-
-        const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?${queryParams.toString()}`);
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch workflows: ${response.status}`);
-        }
-
-        const data = (await response.json()) as GetWorkflowsResponse;
-
-        cursor = data.cursor;
-        if (!cursor) {
-            hasMore.value = false;
-        }
-
-        return data.items;
     };
 
     const handleListWorkflows = async () => {
         if (!hasMore.value || isLoading.value) return;
 
         workflowsArray.value = await getJobs({limit: 100, projection: ProjectionType.minimal});
-        isLoading.value = false;
     };
 
     const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRunWithRelations | WorkflowJob) => {
