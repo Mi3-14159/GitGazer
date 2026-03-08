@@ -46,6 +46,10 @@ jobs:
           cache: "npm"
           cache-dependency-path: ./04_frontend/package-lock.json
 
+      - name: Install package DB
+        working-directory: /
+        run: pnpm install --frozen-lockfile --filter @gitgazer/db
+
       - name: Install api package dependencies
         working-directory: 02_central
         run: npm ci
