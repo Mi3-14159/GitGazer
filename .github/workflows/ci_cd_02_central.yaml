@@ -48,7 +48,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: latest
 
       - name: Install package DB
         working-directory: /
