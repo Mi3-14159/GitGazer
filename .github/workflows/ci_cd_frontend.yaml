@@ -49,7 +49,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install package DB
-        run: pnpm install --frozen-lockfile --filter @gitgazer/web
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         working-directory: ./04_frontend
