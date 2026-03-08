@@ -62,8 +62,7 @@ jobs:
       - name: Build Lambdas
         working-directory: ./02_central
         run: |
-          npm run buildZip:api
-          npm run buildZip:websocket
+          npm run buildZip
 
       - name: Configure AWS credentials
         if: github.ref == 'refs/heads/main' || inputs.deploy == true

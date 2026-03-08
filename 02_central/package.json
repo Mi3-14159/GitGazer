@@ -49,7 +49,7 @@
   },
   "scripts": {
     "build": "pnpm run clean && tsup",
-    "buildZip": "pnpm run build && pnpm run zip",
+    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket",
     "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
