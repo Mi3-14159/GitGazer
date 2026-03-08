@@ -220,11 +220,11 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 const workflowJob = workflow as WorkflowJob;
                 const wr = workflowsArray.value.find((run) => run.id === workflowJob.runId);
                 if (!wr) {
-                    const run: WorkflowRunWithRelations = reactive({
+                    const run: WorkflowRunWithRelations = {
                         id: workflowJob.id,
                         integrationId: workflowJob.integrationId,
-                    }) as unknown as WorkflowRunWithRelations;
-                    workflowsArray.value = [run, ...workflowsArray.value];
+                    } as unknown as WorkflowRunWithRelations;
+                    workflowsArray.value = [reactive(run), ...workflowsArray.value];
                     break;
                 }
 
