@@ -57,18 +57,15 @@
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
   },
   "scripts": {
-    "build": "rimraf dist && tsup",
-    "buildZip": "pnpm run build && pnpm run zip:api && pnpm run zip:websocket",
-    "buildZip:api": "pnpm run build && pnpm run zip:api",
-    "buildZip:websocket": "pnpm run build && pnpm run zip:websocket",
+    "build": "pnpm run clean && tsup",
+    "buildZip": "pnpm run build && pnpm run zip",
     "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "pretty": "prettier --write src",
     "test:unit": "vitest --project unit --run",
-    "zip:api": "cd dist/api && zip gitgazer-api.zip -qr * && mkdir -p ../../tmp && mv gitgazer-api.zip ../../tmp/",
-    "zip:websocket": "cd dist/websocket && zip gitgazer-websocket.zip -qr * && mkdir -p ../../tmp && mv gitgazer-websocket.zip ../../tmp/"
+    "zip": "f() { [ \"$1\" = \"--\" ] && shift; cd dist/$1 && zip gitgazer-$1.zip -qr * && mkdir -p ../../tmp && mv gitgazer-$1.zip ../../tmp/; }; f"
   },
   "version": "1.0.0"
 }

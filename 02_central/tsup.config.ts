@@ -19,11 +19,13 @@ const shared: Options = {
 
 export default defineConfig([
     {
+        name: 'api',
         ...shared,
         entry: {index: 'src/handlers/api.ts'},
         outDir: 'dist/api',
     },
     {
+        name: 'websocket',
         ...shared,
         entry: {index: 'src/handlers/websocket.ts'},
         outDir: 'dist/websocket',
