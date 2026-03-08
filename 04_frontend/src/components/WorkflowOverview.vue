@@ -54,7 +54,6 @@
             scope: 'both',
             width: '1.5fr',
             value: (item: WorkflowRunWithRelations | WorkflowJob) => {
-                debugger;
                 if ('run' in item && item.run) {
                     return new Date(item.createdAt).toLocaleString();
                 } else if ('createdAt' in item && item.createdAt) {
