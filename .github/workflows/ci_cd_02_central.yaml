@@ -40,15 +40,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
       - uses: actions/setup-node@v6
         with:
           node-version-file: ./02_central/package.json
           cache: "npm"
           cache-dependency-path: ./02_central/package-lock.json
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
 
       - name: Install package DB
         working-directory: /

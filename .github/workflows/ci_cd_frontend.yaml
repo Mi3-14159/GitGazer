@@ -37,15 +37,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
       - uses: actions/setup-node@v6
         with:
           node-version-file: ./04_frontend/package.json
           cache: "npm"
           cache-dependency-path: ./04_frontend/package-lock.json
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
 
       - name: Install package DB
         run: pnpm install --frozen-lockfile --filter @gitgazer/db
