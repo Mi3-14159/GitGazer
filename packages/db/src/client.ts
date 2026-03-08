@@ -19,7 +19,6 @@ export const db = drizzle(rdsClient, {
   secretArn: process.env["RDS_SECRET_ARN"]!,
   resourceArn: process.env["RDS_RESOURCE_ARN"]!,
   schema,
-  logger: true,
 });
 
 export type RdsTransaction = Parameters<

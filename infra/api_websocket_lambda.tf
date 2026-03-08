@@ -106,7 +106,7 @@ resource "aws_lambda_function" "api_websocket" {
   description       = "GitGazers websocket handler"
   function_name     = "${var.name_prefix}-websocket-handler-${terraform.workspace}"
   role              = aws_iam_role.api_websocket.arn
-  handler           = "02_central/src/handlers/websocket.handler"
+  handler           = "index.handler"
   runtime           = "nodejs24.x"
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = data.aws_s3_object.websocket_lambda_function_archive.key

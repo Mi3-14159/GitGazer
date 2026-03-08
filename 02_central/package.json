@@ -3,21 +3,11 @@
   "bugs": {
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
-  "dependencies": {
+  "description": "lambda as API",
+  "devDependencies": {
     "@aws-lambda-powertools/event-handler": "^2.31.0",
     "@aws-lambda-powertools/jmespath": "^2.31.0",
     "@aws-lambda-powertools/logger": "^2.31.0",
-    "@octokit/webhooks": "^14.2.0",
-    "@octokit/webhooks-schemas": "^7.6.1",
-    "@octokit/webhooks-types": "^7.6.1",
-    "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1",
-    "aws-jwt-verify": "^5.1.1",
-    "drizzle-orm": "^0.45.1",
-    "pg": "^8.20.0"
-  },
-  "description": "lambda as API",
-  "devDependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.1002.0",
     "@aws-sdk/client-athena": "^3.1002.0",
     "@aws-sdk/client-bedrock-agent": "^3.1002.0",
@@ -31,19 +21,28 @@
     "@aws-sdk/client-s3": "^3.1002.0",
     "@aws-sdk/client-sts": "^3.1002.0",
     "@aws-sdk/s3-request-presigner": "^3.1002.0",
+    "@octokit/webhooks": "^14.2.0",
+    "@octokit/webhooks-schemas": "^7.6.1",
+    "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.160",
     "@types/node": "^24.10.13",
     "@types/pg": "^8.18.0",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.45.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "aws-jwt-verify": "^5.1.1",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
+    "drizzle-orm": "^0.45.1",
     "eslint": "^9.39.2",
+    "pg": "^8.20.0",
     "prettier": "^3.8.1",
     "rimraf": "^6.1.3",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
@@ -52,33 +51,24 @@
   },
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
-  "name": "api-lambda",
-  "optionalDependencies": {
-    "@rollup/rollup-darwin-x64": "^4.57.1",
-    "@rollup/rollup-linux-x64-gnu": "^4.57.1"
-  },
+  "name": "@gitgazer/lambdas",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
   },
   "scripts": {
-    "build:alerting": "npm run prebuild && tsc --project tsconfig.alerting.json && tsc-alias && npm run postbuild",
-    "build:api": "npm run prebuild && tsc --project tsconfig.api.json && tsc-alias --project tsconfig.api.json && npm run postbuild",
-    "build:websocket": "npm run prebuild && tsc --project tsconfig.websocket.json && tsc-alias && npm run postbuild",
-    "buildZip:alerting": "npm run build:alerting && npm run zip:alerting",
-    "buildZip:api": "npm run build:api && npm run zip:api",
-    "buildZip:websocket": "npm run build:websocket && npm run zip:websocket",
-    "clean": "rimraf ./dist",
+    "build": "rimraf dist && tsup",
+    "buildZip": "pnpm run build && pnpm run zip:api && pnpm run zip:websocket",
+    "buildZip:api": "pnpm run build && pnpm run zip:api",
+    "buildZip:websocket": "pnpm run build && pnpm run zip:websocket",
+    "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env.dev --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "postbuild": "cp package*.json dist && cd dist && npm ci --omit=dev",
-    "prebuild": "npm run clean",
     "pretty": "prettier --write src",
     "test:unit": "vitest --project unit --run",
-    "zip:alerting": "cd dist && zip gitgazer-alerting.zip -qr * && mkdir -p ../tmp && mv gitgazer-alerting.zip ../tmp/",
-    "zip:api": "cd dist && zip gitgazer-api.zip -qr * && mkdir -p ../tmp && mv gitgazer-api.zip ../tmp/",
-    "zip:websocket": "cd dist && zip gitgazer-websocket.zip -qr * && mkdir -p ../tmp && mv gitgazer-websocket.zip ../tmp/"
+    "zip:api": "cd dist/api && zip gitgazer-api.zip -qr * && mkdir -p ../../tmp && mv gitgazer-api.zip ../../tmp/",
+    "zip:websocket": "cd dist/websocket && zip gitgazer-websocket.zip -qr * && mkdir -p ../../tmp && mv gitgazer-websocket.zip ../../tmp/"
   },
   "version": "1.0.0"
 }
