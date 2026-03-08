@@ -45,19 +45,15 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: ./04_frontend/package.json
-          cache: "npm"
-          cache-dependency-path: ./04_frontend/package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install package DB
-        run: pnpm install --frozen-lockfile --filter @gitgazer/db
-
-      - name: Install dependencies
-        working-directory: ./04_frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile --filter @gitgazer/web
 
       - name: Build
         working-directory: ./04_frontend
-        run: npm run build
+        run: pnpm run build
         env:
           VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
           VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
