@@ -1,17 +1,17 @@
-name: CI/CD frontend
+name: CI/CD apps/web
 on:
   push:
     branches:
       - main
     paths:
-      - "04_frontend/**"
-      - ".github/workflows/ci_cd_frontend.yaml"
-      - "common/**"
+      - ".github/workflows/ci_cd_apps_web.yaml"
+      - "apps/web/**"
+      - "packages/**"
   pull_request:
     paths:
-      - "04_frontend/**"
-      - ".github/workflows/ci_cd_frontend.yaml"
-      - "common/**"
+      - ".github/workflows/ci_cd_apps_web.yaml"
+      - "apps/web/**"
+      - "packages/**"
   workflow_dispatch:
     inputs:
       deploy:
@@ -25,7 +25,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     concurrency:
-      group: 04_frontend-${{ github.ref }}
+      group: apps/web-${{ github.ref }}
       cancel-in-progress: false
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version-file: ./04_frontend/package.json
+          node-version-file: ./apps/web/package.json
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
@@ -52,7 +52,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        working-directory: ./04_frontend
+        working-directory: ./apps/web
         run: pnpm run build
         env:
           VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
@@ -71,13 +71,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: gitgazer-frontend-deployment
+          role-session-name: gitgazer-apps-web-deployment
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           mask-aws-account-id: true
 
       - name: Deploy
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./04_frontend
+        working-directory: ./apps/web
         run: |
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --include "*" --exclude "*.html"
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"
