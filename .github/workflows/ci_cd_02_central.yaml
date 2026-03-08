@@ -47,6 +47,8 @@ jobs:
           cache-dependency-path: ./02_central/package-lock.json
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Install package DB
         working-directory: /
