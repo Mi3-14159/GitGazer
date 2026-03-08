@@ -1,4 +1,4 @@
 packages:
-  - "02_central"
+  - "apps/api"
   - "04_frontend"
   - "packages/*"

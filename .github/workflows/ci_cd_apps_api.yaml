@@ -1,17 +1,17 @@
-name: CI/CD 02_central
+name: CI/CD apps/api
 on:
   push:
     branches:
       - main
     paths:
-      - "02_central/**"
-      - ".github/workflows/ci_cd_02_central.yaml"
-      - "common/**"
+      - ".github/workflows/ci_cd_apps_api.yaml"
+      - "apps/api/**"
+      - "packages/**"
   pull_request:
     paths:
-      - "02_central/**"
-      - ".github/workflows/ci_cd_02_central.yaml"
-      - "common/**"
+      - ".github/workflows/ci_cd_apps_api.yaml"
+      - "apps/api/**"
+      - "packages/**"
   workflow_dispatch:
     inputs:
       deploy:
@@ -25,7 +25,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     concurrency:
-      group: 02_central-${{ github.ref }}
+      group: apps/api-${{ github.ref }}
       cancel-in-progress: false
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version-file: ./02_central/package.json
+          node-version-file: ./apps/api/package.json
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
@@ -52,15 +52,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        working-directory: ./02_central
+        working-directory: ./apps/api
         run: npm run lint
 
       - name: Unit tests
-        working-directory: ./02_central
+        working-directory: ./apps/api
         run: npm run test:unit
 
       - name: Build Lambdas
-        working-directory: ./02_central
+        working-directory: ./apps/api
         run: |
           npm run buildZip
 
@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload Lambdas function code to S3
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./02_central
+        working-directory: ./apps/api
         run: |
           aws s3 sync ./tmp/ s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/
 

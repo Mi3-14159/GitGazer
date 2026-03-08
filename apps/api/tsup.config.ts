@@ -11,7 +11,7 @@ const shared: Options = {
     external: [/^@aws-sdk/],
     esbuildOptions(options) {
         options.alias = {
-            '@gitgazer/db': '../packages/db/src',
+            '@gitgazer/db': '../../packages/db/src',
             '@': './src',
         };
     },

@@ -13,8 +13,8 @@
     "outDir": "dist",
     "paths": {
       "@/*": ["src/*"],
-      "@gitgazer/db/*": ["../packages/db/src/*"],
-      "@gitgazer/db": ["../packages/db/src"]
+      "@gitgazer/db/*": ["../../packages/db/src/*"],
+      "@gitgazer/db": ["../../packages/db/src"]
     },
     "preserveConstEnums": true,
     "pretty": true,
