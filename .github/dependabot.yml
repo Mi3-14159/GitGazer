@@ -32,7 +32,7 @@ updates:
         update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
-    directory: "/02_central"
+    directory: "/"
     open-pull-requests-limit: 10
     rebase-strategy: auto
     schedule:
@@ -43,45 +43,10 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      02_central:
+      npm-dependencies:
         patterns: ["*"]
         update-types: ["minor", "patch"]
     ignore:
       - dependency-name: "@types/node"
         versions: ["25.x"]
       - dependency-name: "@aws-sdk/client-rds-data"
-
-  - package-ecosystem: "npm"
-    directory: "/04_frontend"
-    open-pull-requests-limit: 10
-    rebase-strategy: auto
-    schedule:
-      interval: cron
-      cronjob: "30 10 * * MON-THU"
-      timezone: "Europe/Berlin"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      04_frontend:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-    ignore:
-      - dependency-name: "@types/node"
-        versions: ["25.x"]
-
-  - package-ecosystem: "npm"
-    directory: "/common"
-    open-pull-requests-limit: 10
-    rebase-strategy: auto
-    schedule:
-      interval: cron
-      cronjob: "30 11 * * MON-THU"
-      timezone: "Europe/Berlin"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      common:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
