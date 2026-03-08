@@ -24,9 +24,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./04_frontend
     concurrency:
       group: 04_frontend-${{ github.ref }}
       cancel-in-progress: false
@@ -51,17 +48,14 @@ jobs:
           version: latest
 
       - name: Install package DB
-        working-directory: /
         run: pnpm install --frozen-lockfile --filter @gitgazer/db
 
-      - name: Install api package dependencies
-        working-directory: 02_central
-        run: npm ci
-
       - name: Install dependencies
+        working-directory: ./04_frontend
         run: npm ci
 
       - name: Build
+        working-directory: ./04_frontend
         run: npm run build
         env:
           VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
@@ -86,6 +80,7 @@ jobs:
 
       - name: Deploy
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
+        working-directory: ./04_frontend
         run: |
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --include "*" --exclude "*.html"
           aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"
