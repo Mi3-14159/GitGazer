@@ -1,9 +1,10 @@
 import {getLogger} from '@/logger';
 import {withRlsTransaction} from '@gitgazer/db/client';
 import {events} from '@gitgazer/db/schema';
-import {EventPayloadMap, WorkflowJob, WorkflowRunWithRelations} from '@gitgazer/db/types';
+import {EventPayloadMap, PullRequest, WorkflowJob, WorkflowRunWithRelations} from '@gitgazer/db/types';
 import {EmitterWebhookEventName} from '@octokit/webhooks';
 import {InferSelectModel} from 'drizzle-orm/table';
+import {importPullRequest} from './pullRequest';
 import {importWorkflow} from './workflow';
 import {importWorkflowJob} from './workflowJob';
 import {importWorkflowRun} from './workflowRun';
@@ -14,7 +15,7 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
     integrationId: string,
     eventType: T,
     event: EventPayloadMap[T],
-): Promise<InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations> => {
+): Promise<InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations | PullRequest> => {
     const result = await withRlsTransaction([integrationId], async (tx) => {
         // Store in backup table for replay/debugging
         const ev = await tx
@@ -47,6 +48,11 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
 
             logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`);
             return response;
+        } else if (eventType === 'pull_request' && 'pull_request' in event) {
+            const pullRequest = await importPullRequest(integrationId, event as EventPayloadMap['pull_request'], tx);
+
+            logger.info(`Inserted pull request event for integration ${integrationId}, PR id ${pullRequest.id}`);
+            return pullRequest;
         }
 
         logger.info(`Inserted generic event for integration ${integrationId}, event type ${eventType}`);

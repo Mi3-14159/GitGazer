@@ -48,6 +48,12 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
                 integrationId,
                 payload: result,
             });
+        } else if (eventType === 'pull_request') {
+            await postToConnections({
+                eventType,
+                integrationId,
+                payload: result,
+            });
         }
     } catch (error) {
         getLogger().error(`Error handling event: ${error instanceof Error ? error.stack : JSON.stringify(error)}`);
