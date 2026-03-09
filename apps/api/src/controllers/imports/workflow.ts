@@ -24,7 +24,6 @@ export const importWorkflow = async (
                 integrationId,
                 id: enterpriseId,
                 name: enterprise.name,
-                createdAt: enterprise.created_at,
             })
             .onConflictDoNothing()
             .returning();
