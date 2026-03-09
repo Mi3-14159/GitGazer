@@ -8,44 +8,56 @@ export const importWorkflow = async (
     event: WorkflowJobEvent | WorkflowRunEvent,
     tx: RdsTransaction,
 ): Promise<{
+    enterprise?: InferSelectModel<typeof enterprises>;
+    organization?: InferSelectModel<typeof organizations>;
     owner: InferSelectModel<typeof user>;
     repository: InferSelectModel<typeof repositories>;
     sender: InferSelectModel<typeof user>;
-    organization: InferSelectModel<typeof organizations> | null;
 }> => {
     // Insert/Update Enterprise (if present)
     let enterpriseId: number | null = null;
+    let enterprise: InferSelectModel<typeof enterprises>[] = [];
     if ('enterprise' in event && event.enterprise) {
-        const enterprise = event.enterprise as any;
-        enterpriseId = enterprise.id;
-        await tx
+        const ep = event.enterprise as any;
+        enterpriseId = ep.id;
+        enterprise = await tx
             .insert(enterprises)
             .values({
                 integrationId,
                 id: enterpriseId,
-                name: enterprise.name,
+                name: ep.name,
             })
-            .onConflictDoNothing()
+            .onConflictDoUpdate({
+                target: [enterprises.integrationId, enterprises.id],
+                set: {
+                    name: ep.name,
+                },
+            })
             .returning();
     }
 
     // Insert/Update Organization (if present)
     let organizationId: number | null = null;
-    let organization: InferSelectModel<typeof organizations> | null = null;
+    let organization: InferSelectModel<typeof organizations>[] = [];
     if (event.organization) {
         organizationId = event.organization.id;
-        const orga = await tx
+        organization = await tx
             .insert(organizations)
             .values({
                 integrationId,
                 id: organizationId,
                 enterpriseId: enterpriseId,
                 login: event.organization.login,
-                description: event.organization.description ?? null,
+                description: event.organization.description,
             })
-            .onConflictDoNothing()
+            .onConflictDoUpdate({
+                target: [organizations.integrationId, organizations.id],
+                set: {
+                    login: event.organization.login,
+                    description: event.organization.description,
+                },
+            })
             .returning();
-        organization = orga[0];
     }
 
     // Insert/Update Repository
@@ -57,7 +69,13 @@ export const importWorkflow = async (
             login: event.repository.owner.login,
             type: event.repository.owner.type,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+            target: [user.integrationId, user.id],
+            set: {
+                login: event.repository.owner.login,
+                type: event.repository.owner.type,
+            },
+        })
         .returning();
 
     const repository = await tx
@@ -91,8 +109,14 @@ export const importWorkflow = async (
             login: event.sender.login,
             type: event.sender.type,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+            target: [user.integrationId, user.id],
+            set: {
+                login: event.sender.login,
+                type: event.sender.type,
+            },
+        })
         .returning();
 
-    return {owner: owner[0], repository: repository[0], sender: sender[0], organization};
+    return {enterprise: enterprise[0], organization: organization[0], owner: owner[0], repository: repository[0], sender: sender[0]};
 };
