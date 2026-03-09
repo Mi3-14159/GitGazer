@@ -126,6 +126,7 @@ resource "aws_lambda_function" "api_websocket" {
       RDS_DATABASE                        = "postgres"
       RDS_SECRET_ARN                      = module.db.cluster_master_user_secret[0].secret_arn
       RDS_RESOURCE_ARN                    = module.db.cluster_arn
+      NODE_OPTIONS                        = "--enable-source-maps"
     }
   }
   layers = local.lambda_layers
