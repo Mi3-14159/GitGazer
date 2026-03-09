@@ -8,8 +8,8 @@ export const importWorkflow = async (
     event: WorkflowJobEvent | WorkflowRunEvent,
     tx: RdsTransaction,
 ): Promise<{
-    enterprise?: InferSelectModel<typeof enterprises>;
-    organization?: InferSelectModel<typeof organizations>;
+    enterprise: InferSelectModel<typeof enterprises>;
+    organization: InferSelectModel<typeof organizations>;
     owner: InferSelectModel<typeof user>;
     repository: InferSelectModel<typeof repositories>;
     sender: InferSelectModel<typeof user>;
