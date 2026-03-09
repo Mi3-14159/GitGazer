@@ -211,7 +211,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const handleListWorkflows = async () => {
         if (!hasMore.value || isLoading.value) return;
 
-        workflowsArray.value = await getJobs({limit: 100, projection: ProjectionType.minimal});
+        workflowsArray.value.push(...(await getJobs({limit: 100, projection: ProjectionType.minimal})));
     };
 
     const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRunWithRelations | WorkflowJob) => {
