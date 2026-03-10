@@ -1,4 +1,5 @@
 {
   "name": "gitgazer",
-  "private": true
+  "private": true,
+  "type": "module"
 }
