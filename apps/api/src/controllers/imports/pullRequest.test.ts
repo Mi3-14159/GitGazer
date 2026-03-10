@@ -1,5 +1,5 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
 import type {PullRequestOpenedEvent} from '@octokit/webhooks-types';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 // Symbols for mocked schema tables
 const mockOrganizations = Symbol('organizations');
@@ -20,7 +20,7 @@ const buildMockTx = (returnedPr: any) => {
     const returning = vi.fn().mockResolvedValue([returnedPr]);
     const onConflictDoNothing = vi.fn(() => ({returning}));
     const onConflictDoUpdate = vi.fn(() => ({returning}));
-    
+
     // Mock for select queries - returns empty array for existing users/entities
     const limitMock = vi.fn().mockResolvedValue([]);
     const whereMock = Object.assign(vi.fn().mockResolvedValue([]), {
