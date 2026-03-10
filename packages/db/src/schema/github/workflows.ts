@@ -334,5 +334,95 @@ export const workflowRunsRelations = relations(
       references: [user.integrationId, user.id],
     }),
     workflowJobs: many(workflowJobs),
+    pullRequests: many(workflowRunPullRequests),
+  }),
+);
+
+export const pullRequests = githubSchema
+  .table(
+    "pull_requests",
+    {
+      integrationId: uuid("integration_id")
+        .references(() => integrations.integrationId, { onDelete: "cascade" })
+        .notNull(),
+      repositoryId: bigint("repository_id", { mode: "number" }).notNull(),
+      id: bigint("id", { mode: "number" }).notNull(),
+      number: integer("number").notNull(),
+      state: varchar("state", { length: 50 }).notNull(),
+      title: text("title").notNull(),
+      body: text("body"),
+      headBranch: varchar("head_branch", { length: 255 }).notNull(),
+      baseBranch: varchar("base_branch", { length: 255 }).notNull(),
+      authorId: bigint("author_id", { mode: "number" }).notNull(),
+      draft: boolean("draft").notNull(),
+      merged: boolean("merged"),
+      createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+      updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+      closedAt: timestamp("closed_at", { withTimezone: true }),
+      mergedAt: timestamp("merged_at", { withTimezone: true }),
+    },
+    (table) => [
+      primaryKey({ columns: [table.integrationId, table.id] }),
+      foreignKey({
+        columns: [table.integrationId, table.repositoryId],
+        foreignColumns: [repositories.integrationId, repositories.id],
+      }),
+      foreignKey({
+        columns: [table.integrationId, table.authorId],
+        foreignColumns: [user.integrationId, user.id],
+      }),
+      tenantSeparationPolicy(),
+    ],
+  )
+  .enableRLS();
+
+export const pullRequestsRelations = relations(pullRequests, ({ one, many }) => ({
+  repository: one(repositories, {
+    fields: [pullRequests.integrationId, pullRequests.repositoryId],
+    references: [repositories.integrationId, repositories.id],
+  }),
+  author: one(user, {
+    fields: [pullRequests.integrationId, pullRequests.authorId],
+    references: [user.integrationId, user.id],
+  }),
+  workflowRuns: many(workflowRunPullRequests),
+}));
+
+export const workflowRunPullRequests = githubSchema
+  .table(
+    "workflow_run_pull_requests",
+    {
+      integrationId: uuid("integration_id")
+        .references(() => integrations.integrationId, { onDelete: "cascade" })
+        .notNull(),
+      workflowRunId: bigint("workflow_run_id", { mode: "number" }).notNull(),
+      pullRequestId: bigint("pull_request_id", { mode: "number" }).notNull(),
+    },
+    (table) => [
+      primaryKey({ columns: [table.integrationId, table.workflowRunId, table.pullRequestId] }),
+      foreignKey({
+        columns: [table.integrationId, table.workflowRunId],
+        foreignColumns: [workflowRuns.integrationId, workflowRuns.id],
+      }).onDelete("cascade"),
+      foreignKey({
+        columns: [table.integrationId, table.pullRequestId],
+        foreignColumns: [pullRequests.integrationId, pullRequests.id],
+      }).onDelete("cascade"),
+      tenantSeparationPolicy(),
+    ],
+  )
+  .enableRLS();
+
+export const workflowRunPullRequestsRelations = relations(
+  workflowRunPullRequests,
+  ({ one }) => ({
+    workflowRun: one(workflowRuns, {
+      fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.workflowRunId],
+      references: [workflowRuns.integrationId, workflowRuns.id],
+    }),
+    pullRequest: one(pullRequests, {
+      fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.pullRequestId],
+      references: [pullRequests.integrationId, pullRequests.id],
+    }),
   }),
 );
