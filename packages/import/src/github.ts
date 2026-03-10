@@ -83,8 +83,6 @@ export const fetchAllWorkflowRuns = async (owner: string, repo: string, created?
             break;
         }
         page++;
-
-        break;
     }
 
     return allRuns;
