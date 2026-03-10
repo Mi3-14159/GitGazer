@@ -1,7 +1,7 @@
 import {RdsTransaction} from '@gitgazer/db/client';
 import {enterprises, organizations, pullRequests, repositories, user} from '@gitgazer/db/schema/github/workflows';
 import {PullRequestEvent} from '@gitgazer/db/types';
-import {eq} from 'drizzle-orm';
+import {eq, inArray} from 'drizzle-orm';
 import {InferSelectModel} from 'drizzle-orm/table';
 
 export const importPullRequest = async (
@@ -90,24 +90,35 @@ export const importPullRequest = async (
         }
     }
 
-    // Insert/Update Users in bulk
-    let usr = await tx
-        .insert(user)
-        .values({
-            integrationId,
-            id: event.pull_request.user.id,
-            login: event.pull_request.user.login,
-            type: event.pull_request.user.type,
-        })
-        .onConflictDoNothing()
-        .returning();
+    // Insert/Update Users in bulk (repository owner and PR author)
+    const userMap = new Map<number, InferSelectModel<typeof user>>();
+    userMap.set(event.repository.owner.id, {
+        integrationId,
+        id: event.repository.owner.id,
+        login: event.repository.owner.login,
+        type: event.repository.owner.type,
+    });
+    userMap.set(event.pull_request.user.id, {
+        integrationId,
+        id: event.pull_request.user.id,
+        login: event.pull_request.user.login,
+        type: event.pull_request.user.type,
+    });
 
-    if (usr.length === 0) {
+    const users = await tx.insert(user).values(Array.from(userMap.values())).onConflictDoNothing().returning();
+
+    if (users.length < userMap.size) {
         // If some users were not inserted, it means they already exist. Fetch them to get their data.
-        usr = await tx.select().from(user).where(eq(user.id, event.pull_request.user.id));
-        if (usr.length === 0) {
-            throw new Error(`Failed to insert or find user with id ${event.pull_request.user.id}`);
-        }
+        const existingUsers = await tx
+            .select()
+            .from(user)
+            .where(inArray(user.id, Array.from(userMap.keys())));
+
+        existingUsers.forEach((u) => {
+            if (!userMap.has(u.id)) {
+                userMap.set(u.id, u);
+            }
+        });
     }
 
     // Insert/update pull request
@@ -149,7 +160,7 @@ export const importPullRequest = async (
     return {
         enterprise: enterprise[0],
         organization: organization[0],
-        user: usr[0],
+        user: userMap.get(event.pull_request.user.id)!,
         pullRequest: result[0],
     };
 };

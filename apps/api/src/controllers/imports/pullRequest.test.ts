@@ -6,18 +6,32 @@ const mockOrganizations = Symbol('organizations');
 const mockUser = Symbol('user');
 const mockRepositories = Symbol('repositories');
 const mockPullRequests = Symbol('pullRequests');
+const mockEnterprises = Symbol('enterprises');
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     organizations: mockOrganizations,
     user: mockUser,
     repositories: mockRepositories,
     pullRequests: mockPullRequests,
+    enterprises: mockEnterprises,
 }));
 
 const buildMockTx = (returnedPr: any) => {
-    const onConflictDoNothing = vi.fn().mockResolvedValue([]);
     const returning = vi.fn().mockResolvedValue([returnedPr]);
+    const onConflictDoNothing = vi.fn(() => ({returning}));
     const onConflictDoUpdate = vi.fn(() => ({returning}));
+    
+    // Mock for select queries - returns empty array for existing users/entities
+    const limitMock = vi.fn().mockResolvedValue([]);
+    const whereMock = Object.assign(vi.fn().mockResolvedValue([]), {
+        limit: limitMock,
+    });
+    const fromMock = vi.fn(() => ({
+        where: whereMock,
+    }));
+    const select = vi.fn(() => ({
+        from: fromMock,
+    }));
 
     return {
         insert: vi.fn(() => ({
@@ -26,6 +40,7 @@ const buildMockTx = (returnedPr: any) => {
                 onConflictDoUpdate,
             })),
         })),
+        select,
         _onConflictDoNothing: onConflictDoNothing,
         _onConflictDoUpdate: onConflictDoUpdate,
         _returning: returning,
@@ -411,14 +426,24 @@ describe('importPullRequest', () => {
             mergedAt: null,
         };
 
+        const expectedUser = {
+            integrationId: 'int-1',
+            id: 500,
+            login: 'author',
+            type: 'User',
+        };
+
         const tx = buildMockTx(expectedPr);
         const event = buildPullRequestEvent();
 
         const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
-        expect(result).toEqual(expectedPr);
-        // insert called for owner user, repository, pr author, and pull request itself
-        expect(tx.insert).toHaveBeenCalledTimes(4);
+        expect(result.pullRequest).toEqual(expectedPr);
+        expect(result.user).toEqual(expectedUser);
+        expect(result.enterprise).toBeUndefined();
+        expect(result.organization).toBeUndefined();
+        // insert called for: repository, users (bulk: owner + author), and pull request itself
+        expect(tx.insert).toHaveBeenCalledTimes(3);
     });
 
     it('inserts organization when present in the event', async () => {
@@ -444,8 +469,8 @@ describe('importPullRequest', () => {
 
         await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
-        // insert called for org, owner user, repository, pr author, and pull request itself
-        expect(tx.insert).toHaveBeenCalledTimes(5);
+        // insert called for: org, repository, users (bulk: owner + author), and pull request itself
+        expect(tx.insert).toHaveBeenCalledTimes(4);
     });
 
     it('handles closed and merged pull requests', async () => {
@@ -477,9 +502,9 @@ describe('importPullRequest', () => {
 
         const result = await pullRequestModule.importPullRequest('int-1', event as any, tx as any);
 
-        expect(result.state).toBe('closed');
-        expect(result.merged).toBe(true);
-        expect(result.closedAt).toEqual(new Date(closedAt));
-        expect(result.mergedAt).toEqual(new Date(mergedAt));
+        expect(result.pullRequest.state).toBe('closed');
+        expect(result.pullRequest.merged).toBe(true);
+        expect(result.pullRequest.closedAt).toEqual(new Date(closedAt));
+        expect(result.pullRequest.mergedAt).toEqual(new Date(mergedAt));
     });
 });
