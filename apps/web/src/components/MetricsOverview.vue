@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import EChart from '@/components/charts/EChart.vue';
+    import CustomMetricsDashboard from '@/components/CustomMetricsDashboard.vue';
     import {useChartTheme} from '@/composables/useChartTheme';
     import {useIntegration} from '@/composables/useIntegration';
     import {useMetrics} from '@/composables/useMetrics';
@@ -318,6 +319,14 @@
                         >mdi-account-group</v-icon
                     >
                     SPACE Framework
+                </v-tab>
+                <v-tab value="custom">
+                    <v-icon
+                        start
+                        size="small"
+                        >mdi-chart-box-plus-outline</v-icon
+                    >
+                    Custom
                 </v-tab>
             </v-tabs>
 
@@ -924,6 +933,11 @@
                             </v-card>
                         </v-col>
                     </v-row>
+                </v-tabs-window-item>
+
+                <!-- Custom Tab -->
+                <v-tabs-window-item value="custom">
+                    <CustomMetricsDashboard :integration-id="selectedIntegration" />
                 </v-tabs-window-item>
             </v-tabs-window>
         </v-container>

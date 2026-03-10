@@ -54,6 +54,12 @@ locals {
     "metrics/repositories" = {
       methods = ["GET"]
     },
+    "metrics/custom/query" = {
+      methods = ["POST"]
+    },
+    "metrics/custom/schema" = {
+      methods = ["GET"]
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations

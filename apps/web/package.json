@@ -9,6 +9,7 @@
     "@smithy/signature-v4": "^5.3.11",
     "codemirror": "^6.0.2",
     "echarts": "^6.0.0",
+    "grid-layout-plus": "^1.1.1",
     "papaparse": "^5.5.3",
     "pinia": "^3.0.4",
     "sql-formatter": "^15.7.2",

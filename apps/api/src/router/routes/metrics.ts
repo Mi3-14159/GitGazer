@@ -1,4 +1,5 @@
 import {getDoraMetrics, getSpaceMetrics} from '@/controllers/metrics';
+import {getCustomQuerySchema, runCustomQuery} from '@/controllers/customMetrics';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
@@ -82,6 +83,61 @@ router.get('/api/metrics/repositories', [addUserIntegrationsToCtx], async (reqCt
     const repos = await listRepositories({integrationIds});
 
     return new Response(JSON.stringify(repos), {
+        status: HttpStatusCodes.OK,
+        headers: {'Content-Type': 'application/json'},
+    });
+});
+
+router.post('/api/metrics/custom/query', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+    if (!userIntegrationIds.length) {
+        return new Response(JSON.stringify({message: 'No integrations found for user'}), {
+            status: HttpStatusCodes.OK,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const requestedId = event.queryStringParameters?.integrationId;
+    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+
+    let body: {query?: string};
+    try {
+        body = JSON.parse(event.body ?? '{}');
+    } catch {
+        throw new BadRequestError('Invalid JSON body');
+    }
+
+    if (!body.query || typeof body.query !== 'string' || !body.query.trim()) {
+        throw new BadRequestError('Missing or invalid "query" field');
+    }
+
+    try {
+        const result = await runCustomQuery({integrationIds, query: body.query});
+        return new Response(JSON.stringify(result), {
+            status: HttpStatusCodes.OK,
+            headers: {'Content-Type': 'application/json'},
+        });
+    } catch (e) {
+        const message = e instanceof Error ? e.message : 'Query execution failed';
+        return new Response(JSON.stringify({error: message}), {
+            status: 422,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+});
+
+router.get('/api/metrics/custom/schema', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+    if (!userIntegrationIds.length) {
+        return new Response(JSON.stringify([]), {
+            status: HttpStatusCodes.OK,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    const schema = await getCustomQuerySchema({integrationIds: userIntegrationIds});
+    return new Response(JSON.stringify(schema), {
         status: HttpStatusCodes.OK,
         headers: {'Content-Type': 'application/json'},
     });

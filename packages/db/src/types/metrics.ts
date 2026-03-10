@@ -47,3 +47,40 @@ export type SpaceMetricsResponse = {
     workflowQueueTime: MetricResult;
     contributorCount: MetricResult;
 };
+
+// Custom query types
+
+export type ChartType = 'line' | 'bar' | 'stacked-bar' | 'gauge' | 'multi-line' | 'table';
+
+export type CustomQueryColumn = {
+    name: string;
+    type: string;
+};
+
+export type CustomQueryResponse = {
+    columns: CustomQueryColumn[];
+    rows: Record<string, unknown>[];
+    rowCount: number;
+};
+
+export type TableSchema = {
+    schema: string;
+    table: string;
+    columns: CustomQueryColumn[];
+};
+
+export type WidgetColumnConfig = {
+    xAxis?: string;
+    yAxis?: string;
+    seriesColumn?: string;
+    valueColumn?: string;
+};
+
+export type CustomWidget = {
+    id: string;
+    title: string;
+    query: string;
+    chartType: ChartType;
+    position: {x: number; y: number; w: number; h: number};
+    config: WidgetColumnConfig;
+};
