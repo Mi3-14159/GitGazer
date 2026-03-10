@@ -81,6 +81,7 @@ variable "db_config" {
     instances = optional(any, {
       one = {}
     })
+    cluster_performance_insights_retention_period = optional(number, 7)
   })
   description = "Configuration for the RDS database"
 }
