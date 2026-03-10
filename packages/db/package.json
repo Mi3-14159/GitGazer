@@ -5,9 +5,7 @@
     "@octokit/webhooks-types": "^7.6.1"
   },
   "devDependencies": {
-    "@aws-sdk/client-rds-data": "3.873.0",
-    "@types/node": "^25.4.0",
-    "typescript": "^5.9.3"
+    "@aws-sdk/client-rds-data": "3.873.0"
   },
   "name": "@gitgazer/db",
   "peerDependencies": {
