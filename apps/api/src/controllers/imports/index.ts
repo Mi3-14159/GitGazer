@@ -27,13 +27,13 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
 
         if (eventType === 'workflow_job' && 'workflow_job' in event) {
             await importWorkflow(integrationId, event as EventPayloadMap['workflow_job'], tx);
-            const workflowJob = await importWorkflowJob(integrationId, event as EventPayloadMap['workflow_job'], tx);
+            const {workflowJob} = await importWorkflowJob(integrationId, event as EventPayloadMap['workflow_job'], tx);
 
             logger.info(`Inserted workflow job event for integration ${integrationId}, job id ${workflowJob.id}`);
             return workflowJob;
         } else if (eventType === 'workflow_run' && 'workflow_run' in event) {
-            const {repository, owner, organization} = await importWorkflow(integrationId, event as EventPayloadMap['workflow_run'], tx);
-            const workflowRun = await importWorkflowRun(integrationId, event as EventPayloadMap['workflow_run'], tx);
+            const {repository, organization} = await importWorkflow(integrationId, event as EventPayloadMap['workflow_run'], tx);
+            const {workflowRun, owner} = await importWorkflowRun(integrationId, event as EventPayloadMap['workflow_run'], tx);
 
             const response: WorkflowRunWithRelations = {
                 ...workflowRun,

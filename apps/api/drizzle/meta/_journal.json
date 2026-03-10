@@ -141,6 +141,13 @@
       "when": 1773096194850,
       "tag": "0019_pale_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1773140308844,
+      "tag": "0020_goofy_korg",
+      "breakpoints": true
     }
   ]
 }

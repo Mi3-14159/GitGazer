@@ -1,7 +1,7 @@
 import {RdsTransaction} from '@gitgazer/db/client';
-import {enterprises, organizations, repositories, user} from '@gitgazer/db/schema/github/workflows';
+import {enterprises, organizations, repositories} from '@gitgazer/db/schema/github/workflows';
 import {WorkflowJobEvent, WorkflowRunEvent} from '@gitgazer/db/types';
-import {InferSelectModel} from 'drizzle-orm';
+import {eq, InferSelectModel} from 'drizzle-orm';
 
 export const importWorkflow = async (
     integrationId: string,
@@ -10,9 +10,7 @@ export const importWorkflow = async (
 ): Promise<{
     enterprise: InferSelectModel<typeof enterprises>;
     organization: InferSelectModel<typeof organizations>;
-    owner: InferSelectModel<typeof user>;
     repository: InferSelectModel<typeof repositories>;
-    sender: InferSelectModel<typeof user>;
 }> => {
     // Insert/Update Enterprise (if present)
     let enterpriseId: number | null = null;
@@ -20,6 +18,9 @@ export const importWorkflow = async (
     if ('enterprise' in event && event.enterprise) {
         const ep = event.enterprise as any;
         enterpriseId = ep.id;
+        if (!enterpriseId) {
+            throw new Error('Enterprise ID is missing in the event payload');
+        }
         enterprise = await tx
             .insert(enterprises)
             .values({
@@ -27,13 +28,15 @@ export const importWorkflow = async (
                 id: enterpriseId,
                 name: ep.name,
             })
-            .onConflictDoUpdate({
-                target: [enterprises.integrationId, enterprises.id],
-                set: {
-                    name: ep.name,
-                },
-            })
+            .onConflictDoNothing()
             .returning();
+        if (enterprise.length === 0) {
+            // Enterprise already exists, fetch it to get its data
+            enterprise = await tx.select().from(enterprises).where(eq(enterprises.id, enterpriseId!)).limit(1);
+            if (enterprise.length === 0) {
+                throw new Error(`Failed to insert or find enterprise with id ${enterpriseId}`);
+            }
+        }
     }
 
     // Insert/Update Organization (if present)
@@ -50,35 +53,19 @@ export const importWorkflow = async (
                 login: event.organization.login,
                 description: event.organization.description,
             })
-            .onConflictDoUpdate({
-                target: [organizations.integrationId, organizations.id],
-                set: {
-                    login: event.organization.login,
-                    description: event.organization.description,
-                },
-            })
+            .onConflictDoNothing()
             .returning();
+        if (organization.length === 0) {
+            // Organization already exists, fetch it to get its data
+            organization = await tx.select().from(organizations).where(eq(organizations.id, organizationId!)).limit(1);
+            if (organization.length === 0) {
+                throw new Error(`Failed to insert or find organization with id ${organizationId}`);
+            }
+        }
     }
 
     // Insert/Update Repository
-    const owner = await tx
-        .insert(user)
-        .values({
-            integrationId,
-            id: event.repository.owner.id,
-            login: event.repository.owner.login,
-            type: event.repository.owner.type,
-        })
-        .onConflictDoUpdate({
-            target: [user.integrationId, user.id],
-            set: {
-                login: event.repository.owner.login,
-                type: event.repository.owner.type,
-            },
-        })
-        .returning();
-
-    const repository = await tx
+    let repository = await tx
         .insert(repositories)
         .values({
             integrationId,
@@ -90,33 +77,16 @@ export const importWorkflow = async (
             updatedAt: new Date(event.repository.updated_at),
             ownerId: event.repository.owner.id,
         })
-        .onConflictDoUpdate({
-            target: [repositories.integrationId, repositories.id],
-            set: {
-                name: event.repository.name,
-                private: event.repository.private,
-                updatedAt: new Date(event.repository.updated_at),
-                ownerId: event.repository.owner.id,
-            },
-        })
+        .onConflictDoNothing()
         .returning();
 
-    const sender = await tx
-        .insert(user)
-        .values({
-            integrationId,
-            id: event.sender.id,
-            login: event.sender.login,
-            type: event.sender.type,
-        })
-        .onConflictDoUpdate({
-            target: [user.integrationId, user.id],
-            set: {
-                login: event.sender.login,
-                type: event.sender.type,
-            },
-        })
-        .returning();
+    if (repository.length === 0) {
+        // Repository already exists, fetch it to get its data
+        repository = await tx.select().from(repositories).where(eq(repositories.id, event.repository.id)).limit(1);
+        if (repository.length === 0) {
+            throw new Error(`Failed to insert or find repository with id ${event.repository.id}`);
+        }
+    }
 
-    return {enterprise: enterprise[0], organization: organization[0], owner: owner[0], repository: repository[0], sender: sender[0]};
+    return {enterprise: enterprise[0], organization: organization[0], repository: repository[0]};
 };

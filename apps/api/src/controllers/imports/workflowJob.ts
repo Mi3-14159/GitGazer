@@ -1,13 +1,48 @@
 import {RdsTransaction} from '@gitgazer/db/client';
-import {workflowJobs} from '@gitgazer/db/schema/github/workflows';
+import {user, workflowJobs} from '@gitgazer/db/schema/github/workflows';
 import {WorkflowJobEvent} from '@gitgazer/db/types';
+import {inArray} from 'drizzle-orm';
 import {InferSelectModel} from 'drizzle-orm/table';
 
 export const importWorkflowJob = async (
     integrationId: string,
     event: WorkflowJobEvent,
     tx: RdsTransaction,
-): Promise<InferSelectModel<typeof workflowJobs>> => {
+): Promise<{
+    workflowJob: InferSelectModel<typeof workflowJobs>;
+}> => {
+    // Deduplicate users by id before bulk insert
+    const userMap = new Map<number, InferSelectModel<typeof user>>();
+    userMap.set(event.repository.owner.id, {
+        integrationId,
+        id: event.repository.owner.id,
+        login: event.repository.owner.login,
+        type: event.repository.owner.type,
+    });
+    userMap.set(event.sender.id, {
+        integrationId,
+        id: event.sender.id,
+        login: event.sender.login,
+        type: event.sender.type,
+    });
+
+    // Insert/Update Users in bulk
+    const users = await tx.insert(user).values(Array.from(userMap.values())).onConflictDoNothing().returning();
+
+    if (users.length < userMap.size) {
+        // If some users were not inserted, it means they already exist. Fetch them to get their data.
+        const existingUsers = await tx
+            .select()
+            .from(user)
+            .where(inArray(user.id, Array.from(userMap.keys())));
+
+        existingUsers.forEach((user) => {
+            if (!userMap.has(user.id)) {
+                userMap.set(user.id, user);
+            }
+        });
+    }
+
     const completedAt = event.workflow_job.completed_at ? new Date(event.workflow_job.completed_at) : null;
     const conclusion = event.workflow_job.conclusion;
 
@@ -40,5 +75,5 @@ export const importWorkflowJob = async (
         })
         .returning();
 
-    return workflowJob[0];
+    return {workflowJob: workflowJob[0]};
 };
