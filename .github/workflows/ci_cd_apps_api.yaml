@@ -51,6 +51,10 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Prettier
+              working-directory: ./apps/api
+              run: npm run pretty
+
             - name: Lint
               working-directory: ./apps/api
               run: npm run lint
