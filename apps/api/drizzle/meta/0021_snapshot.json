@@ -1,5 +1,5 @@
 {
-  "id": "76ec38f3-312f-4e5c-968f-ed93068655e9",
+  "id": "ec696d1a-72ff-4623-b381-ff042a8f612b",
   "prevId": "0793a883-8794-4589-b4f3-ce39e81076f4",
   "version": "7",
   "dialect": "postgresql",
@@ -678,7 +678,7 @@
             "integration_id",
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "pull_requests_integration_id_author_id_user_integration_id_id_fk": {
@@ -694,7 +694,7 @@
             "integration_id",
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1153,6 +1153,103 @@
           "columns": [
             "integration_id",
             "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "tenant separation": {
+          "name": "tenant separation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "gitgazer_user"
+          ],
+          "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "github.workflow_run_pull_requests": {
+      "name": "workflow_run_pull_requests",
+      "schema": "github",
+      "columns": {
+        "integration_id": {
+          "name": "integration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workflow_run_id": {
+          "name": "workflow_run_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "workflow_run_pull_requests_integration_id_integrations_integration_id_fk": {
+          "name": "workflow_run_pull_requests_integration_id_integrations_integration_id_fk",
+          "tableFrom": "workflow_run_pull_requests",
+          "tableTo": "integrations",
+          "schemaTo": "github",
+          "columnsFrom": [
+            "integration_id"
+          ],
+          "columnsTo": [
+            "integration_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "workflow_run_pull_requests_integration_id_workflow_run_id_workflow_runs_integration_id_id_fk": {
+          "name": "workflow_run_pull_requests_integration_id_workflow_run_id_workflow_runs_integration_id_id_fk",
+          "tableFrom": "workflow_run_pull_requests",
+          "tableTo": "workflow_runs",
+          "schemaTo": "github",
+          "columnsFrom": [
+            "integration_id",
+            "workflow_run_id"
+          ],
+          "columnsTo": [
+            "integration_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "workflow_run_pull_requests_integration_id_pull_request_id_pull_requests_integration_id_id_fk": {
+          "name": "workflow_run_pull_requests_integration_id_pull_request_id_pull_requests_integration_id_id_fk",
+          "tableFrom": "workflow_run_pull_requests",
+          "tableTo": "pull_requests",
+          "schemaTo": "github",
+          "columnsFrom": [
+            "integration_id",
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "integration_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "workflow_run_pull_requests_integration_id_workflow_run_id_pull_request_id_pk": {
+          "name": "workflow_run_pull_requests_integration_id_workflow_run_id_pull_request_id_pk",
+          "columns": [
+            "integration_id",
+            "workflow_run_id",
+            "pull_request_id"
           ]
         }
       },
