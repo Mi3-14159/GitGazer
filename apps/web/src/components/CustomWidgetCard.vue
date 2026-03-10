@@ -55,7 +55,7 @@
                 title: props.widget.title,
                 data: toDataPoints(rows, config.xAxis, config.yAxis),
                 unit: config.yAxis,
-                granularity: 'day',
+                granularity: 'raw',
                 color: c.primary,
                 areaStyle: true,
             });
@@ -66,7 +66,7 @@
                 title: props.widget.title,
                 data: toDataPoints(rows, config.xAxis, config.yAxis),
                 unit: config.yAxis,
-                granularity: 'day',
+                granularity: 'raw',
                 color: c.primary,
             });
         }
@@ -76,7 +76,7 @@
             return buildStackedBarChart({
                 series: series.map((s, i) => ({...s, color: c.series[i % c.series.length]})),
                 unit: config.yAxis,
-                granularity: 'day',
+                granularity: 'raw',
             });
         }
 
@@ -84,7 +84,7 @@
             const series = groupBySeries(rows, config.seriesColumn, config.xAxis, config.yAxis);
             return buildMultiLineChart({
                 series: series.map((s, i) => ({...s, color: c.series[i % c.series.length], unit: config.yAxis!})),
-                granularity: 'day',
+                granularity: 'raw',
             });
         }
 

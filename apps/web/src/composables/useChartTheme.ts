@@ -36,6 +36,7 @@ export function useChartTheme() {
     const palette = computed(() => COLORS[settingsStore.resolvedTheme]);
 
     function formatPeriodLabel(iso: string, granularity: string): string {
+        if (granularity === 'raw') return iso;
         const d = new Date(iso);
         if (granularity === 'day') return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
         if (granularity === 'month') return d.toLocaleDateString(undefined, {year: 'numeric', month: 'short'});
