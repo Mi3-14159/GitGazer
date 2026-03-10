@@ -49,7 +49,7 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
             logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`);
             return response;
         } else if (eventType === 'pull_request' && 'pull_request' in event) {
-            const pullRequest = await importPullRequest(integrationId, event as EventPayloadMap['pull_request'], tx);
+            const {pullRequest} = await importPullRequest(integrationId, event as EventPayloadMap['pull_request'], tx);
 
             logger.info(`Inserted pull request event for integration ${integrationId}, PR id ${pullRequest.id}`);
             return pullRequest;
