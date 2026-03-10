@@ -118,11 +118,11 @@ GitGazer uses AWS serverless architecture with the following components:
 2. Build and upload Lambda functions:
 
     ```bash
-    cd ../02_central
+    cd ../apps/api
     npm ci
-    npm run buildZip:api
-    aws s3 cp ./dist/lambda.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
-    # Repeat for other Lambda functions
+    npm run buildZip
+    aws s3 cp ./tmp/gitgazer-api.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
+    aws s3 cp ./tmp/gitgazer-websocket.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-websocket.zip
     ```
 
 3. Apply remaining infrastructure:
@@ -134,7 +134,7 @@ GitGazer uses AWS serverless architecture with the following components:
 
 4. Build and deploy frontend:
     ```bash
-    cd ../04_frontend
+    cd ../apps/web
     npm ci
     npm run build
     aws s3 sync dist/. s3://<UI_BUCKET_NAME>/
@@ -221,7 +221,7 @@ GitGazer uses AWS serverless architecture with the following components:
 
 ### Adding RDS Schema
 
-1. Define Drizzle schema in `02_central/src/drizzle/schema/`
+1. Define Drizzle schema in `packages/db/src/schema/`
 2. Generate migration with `drizzle-kit generate`
 3. Apply migration with `drizzle-kit migrate`
 4. Ensure RLS policies are configured
