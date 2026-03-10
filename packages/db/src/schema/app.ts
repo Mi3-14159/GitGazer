@@ -11,3 +11,9 @@ export const gitgazerReader = pgRole('gitgazer_reader', {
     createDb: false,
     inherit: false,
 });
+
+export const gitgazerAnalyst = pgRole('gitgazer_analyst', {
+    createRole: false,
+    createDb: false,
+    inherit: false,
+});

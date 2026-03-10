@@ -1,11 +1,12 @@
 import {sql} from 'drizzle-orm';
+import {gitgazerAnalyst} from '..';
 import {withRlsTransaction} from '../client';
 import type {CustomQueryColumn, CustomQueryResponse, TableSchema} from '../types/metrics';
 
 const FORBIDDEN_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL)\b/i;
 const MAX_ROWS = 1000;
 
-function validateQuery(query: string): void {
+const validateQuery = (query: string): void => {
     const trimmed = query.trim().replace(/;+$/, '').trim();
     if (!trimmed) {
         throw new Error('Query cannot be empty');
@@ -13,13 +14,14 @@ function validateQuery(query: string): void {
     if (FORBIDDEN_KEYWORDS.test(trimmed)) {
         throw new Error('Only SELECT queries are allowed. DDL and DML statements are not permitted.');
     }
-}
+};
 
 export async function executeCustomQuery({integrationIds, query}: {integrationIds: string[]; query: string}): Promise<CustomQueryResponse> {
     validateQuery(query);
 
     return await withRlsTransaction({
         integrationIds,
+        userName: gitgazerAnalyst.name,
         callback: async (tx) => {
             await tx.execute(sql.raw(`SET LOCAL statement_timeout = '10s'`));
             await tx.execute(sql.raw('SET TRANSACTION READ ONLY'));
@@ -48,6 +50,7 @@ export async function executeCustomQuery({integrationIds, query}: {integrationId
 export async function getAvailableSchema({integrationIds}: {integrationIds: string[]}): Promise<TableSchema[]> {
     return await withRlsTransaction({
         integrationIds,
+        userName: gitgazerAnalyst.name,
         callback: async (tx) => {
             const result = await tx.execute(
                 sql`SELECT table_schema, table_name, column_name, data_type

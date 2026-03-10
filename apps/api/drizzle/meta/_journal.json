@@ -176,6 +176,20 @@
       "when": 1773160325000,
       "tag": "0024_grant_permissions_to_new_users",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1773174442080,
+      "tag": "0025_new_pgrole_analyst",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1773174466723,
+      "tag": "0026_grant_permissions_to_analyst",
+      "breakpoints": true
     }
   ]
 }
