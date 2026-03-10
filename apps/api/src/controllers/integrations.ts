@@ -1,8 +1,9 @@
-import {db, withRlsTransaction} from '@gitgazer/db/client';
-import {Integration} from '@gitgazer/db/types';
-import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {gitgazerWriter} from '@gitgazer/db/schema/app';
+import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {Integration} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
@@ -14,8 +15,11 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
         return [];
     }
 
-    const results = await withRlsTransaction(integrationIds, async (tx) => {
-        return await tx.select().from(integrations);
+    const results = await withRlsTransaction({
+        integrationIds,
+        callback: async (tx: RdsTransaction) => {
+            return await tx.select().from(integrations);
+        },
     });
 
     return results.map((r) => ({
@@ -38,8 +42,12 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
         }
 
         // Use RLS to ensure only accessible integrations can be updated
-        const results = await withRlsTransaction(integrationIds, async (tx) => {
-            return await tx.update(integrations).set({label}).where(eq(integrations.integrationId, id)).returning();
+        const results = await withRlsTransaction({
+            integrationIds,
+            userName: gitgazerWriter.name,
+            callback: async (tx: RdsTransaction) => {
+                return await tx.update(integrations).set({label}).where(eq(integrations.integrationId, id)).returning();
+            },
         });
 
         if (results.length === 0) {
@@ -108,9 +116,13 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
     logger.info(`User ${userId} is attempting to delete integration ${id}`);
 
     try {
-        await withRlsTransaction(integrationIds, async (tx) => {
-            // Delete integration (cascades to user-assignments and notification-rules via foreign key)
-            await tx.delete(integrations).where(and(eq(integrations.integrationId, id), eq(integrations.ownerId, userId)));
+        await withRlsTransaction({
+            integrationIds,
+            userName: gitgazerWriter.name,
+            callback: async (tx: RdsTransaction) => {
+                // Delete integration (cascades to user-assignments and notification-rules via foreign key)
+                await tx.delete(integrations).where(and(eq(integrations.integrationId, id), eq(integrations.ownerId, userId)));
+            },
         });
 
         logger.info(`Successfully deleted integration '${id}'`);

@@ -1,7 +1,13 @@
 import {pgRole} from 'drizzle-orm/pg-core';
 
-export const gitgazerUser = pgRole('gitgazer_user', {
-    createRole: true,
+export const gitgazerWriter = pgRole('gitgazer_writer', {
+    createRole: false,
     createDb: false,
-    inherit: true,
+    inherit: false,
+});
+
+export const gitgazerReader = pgRole('gitgazer_reader', {
+    createRole: false,
+    createDb: false,
+    inherit: false,
 });

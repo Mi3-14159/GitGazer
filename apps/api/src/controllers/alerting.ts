@@ -1,8 +1,8 @@
-import {withRlsTransaction} from '@gitgazer/db/client';
-import {NotificationRuleChannelType, WorkflowJobEvent} from '@gitgazer/db/types';
-import {notificationRules, workflowRuns} from '@gitgazer/db/schema';
 import {getLogger} from '@/logger';
 import {fetchWithRetry} from '@/utils/fetch';
+import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {notificationRules, workflowRuns} from '@gitgazer/db/schema';
+import {NotificationRuleChannelType, WorkflowJobEvent} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
 export async function sendWorkflowJobAlerts(integrationId: string, event: WorkflowJobEvent): Promise<void> {
@@ -25,40 +25,43 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
     const isDependabotEvent = sender === 'dependabot[bot]' || job_name === 'Dependabot';
 
     // Query notification rules with SQL filtering for owner/repo/workflow/branch matching and dependabot
-    const matching = await withRlsTransaction([integrationId], async (tx) => {
-        const conditions = [
-            eq(notificationRules.enabled, true),
-            or(
-                sql`${notificationRules.rule}->>'owner' = ''`,
-                sql`${notificationRules.rule}->>'owner' = '*'`,
-                sql`${notificationRules.rule}->>'owner' = ${owner}`,
-            ),
-            or(
-                sql`${notificationRules.rule}->>'repository_name' = ''`,
-                sql`${notificationRules.rule}->>'repository_name' = '*'`,
-                sql`${notificationRules.rule}->>'repository_name' = ${repository_name}`,
-            ),
-            or(
-                sql`${notificationRules.rule}->>'workflow_name' = ''`,
-                sql`${notificationRules.rule}->>'workflow_name' = '*'`,
-                sql`${notificationRules.rule}->>'workflow_name' = ${workflow_name}`,
-            ),
-            or(
-                sql`${notificationRules.rule}->>'head_branch' = ''`,
-                sql`${notificationRules.rule}->>'head_branch' = '*'`,
-                sql`${notificationRules.rule}->>'head_branch' = ${head_branch}`,
-            ),
-        ];
+    const matching = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) => {
+            const conditions = [
+                eq(notificationRules.enabled, true),
+                or(
+                    sql`${notificationRules.rule}->>'owner' = ''`,
+                    sql`${notificationRules.rule}->>'owner' = '*'`,
+                    sql`${notificationRules.rule}->>'owner' = ${owner}`,
+                ),
+                or(
+                    sql`${notificationRules.rule}->>'repository_name' = ''`,
+                    sql`${notificationRules.rule}->>'repository_name' = '*'`,
+                    sql`${notificationRules.rule}->>'repository_name' = ${repository_name}`,
+                ),
+                or(
+                    sql`${notificationRules.rule}->>'workflow_name' = ''`,
+                    sql`${notificationRules.rule}->>'workflow_name' = '*'`,
+                    sql`${notificationRules.rule}->>'workflow_name' = ${workflow_name}`,
+                ),
+                or(
+                    sql`${notificationRules.rule}->>'head_branch' = ''`,
+                    sql`${notificationRules.rule}->>'head_branch' = '*'`,
+                    sql`${notificationRules.rule}->>'head_branch' = ${head_branch}`,
+                ),
+            ];
 
-        // If this is a dependabot event, only include rules with ignore_dependabot = false
-        if (isDependabotEvent) {
-            conditions.push(eq(notificationRules.ignore_dependabot, false));
-        }
+            // If this is a dependabot event, only include rules with ignore_dependabot = false
+            if (isDependabotEvent) {
+                conditions.push(eq(notificationRules.ignore_dependabot, false));
+            }
 
-        return await tx
-            .select()
-            .from(notificationRules)
-            .where(and(...conditions));
+            return await tx
+                .select()
+                .from(notificationRules)
+                .where(and(...conditions));
+        },
     });
 
     if (matching.length === 0) {
@@ -69,12 +72,15 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
     logger.info(`Found ${matching.length} matching notification rules for integration ${integrationId}`, {matching});
 
     // Fetch parent workflow_run to get event field
-    const workflowRunResult = await withRlsTransaction([integrationId], async (tx) => {
-        return await tx
-            .select({event: workflowRuns.event})
-            .from(workflowRuns)
-            .where(and(eq(workflowRuns.integrationId, integrationId), eq(workflowRuns.id, run_id)))
-            .limit(1);
+    const workflowRunResult = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) => {
+            return await tx
+                .select({event: workflowRuns.event})
+                .from(workflowRuns)
+                .where(and(eq(workflowRuns.integrationId, integrationId), eq(workflowRuns.id, run_id)))
+                .limit(1);
+        },
     });
 
     const body = getSlackBody(event, workflowRunResult?.[0]);

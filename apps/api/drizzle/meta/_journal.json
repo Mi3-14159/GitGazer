@@ -162,6 +162,20 @@
       "when": 1773147896563,
       "tag": "0022_fat_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1773158978629,
+      "tag": "0023_daffy_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1773160325000,
+      "tag": "0024_grant_permissions_to_new_users",
+      "breakpoints": true
     }
   ]
 }

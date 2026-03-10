@@ -55,7 +55,7 @@ describe('workflows controller', () => {
             }),
         );
 
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: string[], cb: any) => {
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const tx = {
                 query: {
                     workflowRuns: {
@@ -63,7 +63,7 @@ describe('workflows controller', () => {
                     },
                 },
             };
-            return cb(tx);
+            return params.callback(tx);
         });
 
         const result = await workflows.getWorkflows({
@@ -81,7 +81,7 @@ describe('workflows controller', () => {
     it('returns no cursor when fewer results than limit', async () => {
         const mockRuns = [mockWorkflowRun()];
 
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: string[], cb: any) => {
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const tx = {
                 query: {
                     workflowRuns: {
@@ -89,7 +89,7 @@ describe('workflows controller', () => {
                     },
                 },
             };
-            return cb(tx);
+            return params.callback(tx);
         });
 
         const result = await workflows.getWorkflows({
@@ -107,7 +107,7 @@ describe('workflows controller', () => {
             mockWorkflowRun({integrationId: 'int-2', id: 200, createdAt: new Date('2026-03-02T00:00:00Z')}),
         ];
 
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: string[], cb: any) => {
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const tx = {
                 query: {
                     workflowRuns: {
@@ -115,7 +115,7 @@ describe('workflows controller', () => {
                     },
                 },
             };
-            return cb(tx);
+            return params.callback(tx);
         });
 
         const result = await workflows.getWorkflows({
@@ -132,7 +132,7 @@ describe('workflows controller', () => {
 
     it('caps limit at 100', async () => {
         let capturedOptions: any;
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: string[], cb: any) => {
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const tx = {
                 query: {
                     workflowRuns: {
@@ -143,7 +143,7 @@ describe('workflows controller', () => {
                     },
                 },
             };
-            return cb(tx);
+            return params.callback(tx);
         });
 
         await workflows.getWorkflows({
@@ -156,7 +156,7 @@ describe('workflows controller', () => {
 
     it('passes where condition when cursor is provided', async () => {
         let capturedOptions: any;
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: string[], cb: any) => {
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const tx = {
                 query: {
                     workflowRuns: {
@@ -167,7 +167,7 @@ describe('workflows controller', () => {
                     },
                 },
             };
-            return cb(tx);
+            return params.callback(tx);
         });
 
         await workflows.getWorkflows({
@@ -181,7 +181,7 @@ describe('workflows controller', () => {
 
     it('does not set where condition when no cursor is provided', async () => {
         let capturedOptions: any;
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: string[], cb: any) => {
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const tx = {
                 query: {
                     workflowRuns: {
@@ -192,7 +192,7 @@ describe('workflows controller', () => {
                     },
                 },
             };
-            return cb(tx);
+            return params.callback(tx);
         });
 
         await workflows.getWorkflows({

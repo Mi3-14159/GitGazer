@@ -15,7 +15,7 @@ export const integrations = githubSchema
             secret: uuid('secret').notNull().defaultRandom(),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        () => [tenantSeparationPolicy()],
+        () => [...tenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -31,7 +31,7 @@ export const userAssignments = githubSchema
                 .references(() => users.id),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        (table) => [primaryKey({columns: [table.userId, table.integrationId]}), tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.userId, table.integrationId]}), ...tenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -44,7 +44,7 @@ export const events = githubSchema
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
             event: jsonb('event').notNull(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -56,7 +56,7 @@ export const enterprises = githubSchema
             id: bigint('id', {mode: 'number'}).notNull(),
             name: varchar('name', {length: 255}).notNull(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -80,7 +80,7 @@ export const organizations = githubSchema
                 columns: [table.integrationId, table.enterpriseId],
                 foreignColumns: [enterprises.integrationId, enterprises.id],
             }).onDelete('set null'),
-            tenantSeparationPolicy(),
+            ...tenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -116,7 +116,7 @@ export const repositories = githubSchema
                 columns: [table.integrationId, table.organizationId],
                 foreignColumns: [organizations.integrationId, organizations.id],
             }).onDelete('set null'),
-            tenantSeparationPolicy(),
+            ...tenantSeparationPolicy(),
             foreignKey({
                 columns: [table.integrationId, table.ownerId],
                 foreignColumns: [user.integrationId, user.id],
@@ -147,7 +147,7 @@ export const user = githubSchema
             login: varchar('login', {length: 255}).notNull(),
             type: varchar('type', {length: 255}).notNull(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -185,7 +185,7 @@ export const workflowJobs = githubSchema
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),
-            tenantSeparationPolicy(),
+            ...tenantSeparationPolicy(),
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
@@ -249,7 +249,7 @@ export const workflowRuns = githubSchema
                 columns: [table.integrationId, table.actorId],
                 foreignColumns: [user.integrationId, user.id],
             }).onDelete('set null'),
-            tenantSeparationPolicy(),
+            ...tenantSeparationPolicy(),
             index('workflow_runs_created_id').on(table.integrationId, table.createdAt, table.id),
         ],
     )
@@ -301,7 +301,7 @@ export const pullRequests = githubSchema
                 columns: [table.integrationId, table.authorId],
                 foreignColumns: [user.integrationId, user.id],
             }),
-            tenantSeparationPolicy(),
+            ...tenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -334,7 +334,7 @@ export const workflowRunPullRequests = githubSchema
                 columns: [table.integrationId, table.workflowRunId],
                 foreignColumns: [workflowRuns.integrationId, workflowRuns.id],
             }).onDelete('cascade'),
-            tenantSeparationPolicy(),
+            ...tenantSeparationPolicy(),
             // no foreign key to pull requests, because pull request events are optional
         ],
     )

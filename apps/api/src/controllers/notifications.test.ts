@@ -7,6 +7,7 @@ vi.mock('@gitgazer/db/client', () => ({
 
 vi.mock('@gitgazer/db/schema', () => ({
     notificationRules: Symbol('notificationRules'),
+    gitgazerWriter: {name: 'gitgazer_writer'},
 }));
 
 let notifications: typeof import('./notifications');
@@ -47,7 +48,7 @@ describe('notifications controller', () => {
 
     it('upsertNotificationRule generates an id when creating and persists rule via RDS', async () => {
         const now = new Date();
-        mockWithRlsTransaction.mockImplementation(async (_ids: string[], cb: Function) => {
+        mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
                 insert: () => ({
                     values: () => ({
@@ -69,7 +70,7 @@ describe('notifications controller', () => {
                     }),
                 }),
             };
-            return cb(mockTx);
+            return params.callback(mockTx);
         });
 
         const rule: any = {
@@ -105,18 +106,20 @@ describe('notifications controller', () => {
     });
 
     it('deleteNotificationRule calls delete when authorized', async () => {
-        mockWithRlsTransaction.mockImplementation(async (_ids: string[], cb: Function) => {
+        mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
                 delete: () => ({
                     where: () => Promise.resolve(),
                 }),
             };
-            return cb(mockTx);
+            return params.callback(mockTx);
         });
 
         await notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationA']);
 
         expect(mockWithRlsTransaction).toHaveBeenCalledTimes(1);
-        expect(mockWithRlsTransaction).toHaveBeenCalledWith(['integrationA'], expect.any(Function));
+        expect(mockWithRlsTransaction).toHaveBeenCalledWith(
+            expect.objectContaining({integrationIds: ['integrationA'], callback: expect.any(Function)}),
+        );
     });
 });

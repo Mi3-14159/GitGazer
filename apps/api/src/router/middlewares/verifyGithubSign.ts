@@ -1,8 +1,8 @@
-import {withRlsTransaction} from '@gitgazer/db/client';
-import {integrations} from '@gitgazer/db/schema/github/workflows';
 import {getLogger} from '@/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';
+import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {integrations} from '@gitgazer/db/schema/github/workflows';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
 
@@ -17,8 +17,11 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
     }
 
     const integrationId = pathParameters.integrationId;
-    const userIntegrations = await withRlsTransaction([integrationId], async (tx) => {
-        return await tx.select().from(integrations);
+    const userIntegrations = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) => {
+            return await tx.select().from(integrations);
+        },
     });
 
     if (!userIntegrations[0].secret) {

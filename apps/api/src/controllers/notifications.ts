@@ -1,7 +1,7 @@
-import {withRlsTransaction} from '@gitgazer/db/client';
-import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
-import {notificationRules} from '@gitgazer/db/schema';
 import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
+import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {gitgazerWriter, notificationRules} from '@gitgazer/db/schema';
+import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
 const toNotificationRule = (row: typeof notificationRules.$inferSelect): NotificationRule => ({
@@ -21,8 +21,11 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
         return [];
     }
 
-    const rows = await withRlsTransaction(integrationIds, async (tx) => {
-        return await tx.select().from(notificationRules);
+    const rows = await withRlsTransaction({
+        integrationIds,
+        callback: async (tx: RdsTransaction) => {
+            return await tx.select().from(notificationRules);
+        },
     });
 
     return rows.map(toNotificationRule);
@@ -39,28 +42,32 @@ export const upsertNotificationRule = async (params: {
         throw new ForbiddenError('Unauthorized to create/update notification rule for this integration');
     }
 
-    const result = await withRlsTransaction([params.integrationId], async (tx) => {
-        return await tx
-            .insert(notificationRules)
-            .values({
-                integrationId: params.integrationId,
-                id: params.ruleId,
-                channels: params.rule.channels,
-                enabled: params.rule.enabled,
-                ignore_dependabot: params.rule.ignore_dependabot,
-                rule: params.rule.rule,
-            })
-            .onConflictDoUpdate({
-                target: [notificationRules.integrationId, notificationRules.id],
-                set: {
+    const result = await withRlsTransaction({
+        integrationIds: [params.integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            return await tx
+                .insert(notificationRules)
+                .values({
+                    integrationId: params.integrationId,
+                    id: params.ruleId,
                     channels: params.rule.channels,
                     enabled: params.rule.enabled,
                     ignore_dependabot: params.rule.ignore_dependabot,
                     rule: params.rule.rule,
-                    updatedAt: new Date(),
-                },
-            })
-            .returning();
+                })
+                .onConflictDoUpdate({
+                    target: [notificationRules.integrationId, notificationRules.id],
+                    set: {
+                        channels: params.rule.channels,
+                        enabled: params.rule.enabled,
+                        ignore_dependabot: params.rule.ignore_dependabot,
+                        rule: params.rule.rule,
+                        updatedAt: new Date(),
+                    },
+                })
+                .returning();
+        },
     });
 
     return toNotificationRule(result[0]);
@@ -71,7 +78,11 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
         throw new ForbiddenError('Unauthorized to delete notification rule for this integration');
     }
 
-    await withRlsTransaction([integrationId], async (tx) => {
-        await tx.delete(notificationRules).where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)));
+    await withRlsTransaction({
+        integrationIds: [integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            await tx.delete(notificationRules).where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)));
+        },
     });
 };

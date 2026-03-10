@@ -1,13 +1,22 @@
 import {sql} from 'drizzle-orm';
 import {pgPolicy, pgSchema} from 'drizzle-orm/pg-core';
-import {gitgazerUser} from '../app';
+import {gitgazerReader, gitgazerWriter} from '../app';
 
 export const githubSchema = pgSchema('github');
 
-export const tenantSeparationPolicy = () =>
-    pgPolicy('tenant separation', {
+const using = sql`integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])`;
+
+export const tenantSeparationPolicy = () => [
+    pgPolicy('tenant separation writer', {
         as: 'permissive',
-        to: gitgazerUser,
+        to: gitgazerWriter,
         for: 'all',
-        using: sql`integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])`,
-    });
+        using,
+    }),
+    pgPolicy('tenant separation reader', {
+        as: 'permissive',
+        to: gitgazerReader,
+        for: 'select',
+        using,
+    }),
+];

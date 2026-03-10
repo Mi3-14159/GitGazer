@@ -40,8 +40,8 @@ describe('verifyGithubSign middleware', () => {
         const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
-            return callback({select: () => ({from: () => [{id: 'int-1'}]})});
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            return params.callback({select: () => ({from: () => [{id: 'int-1'}]})});
         });
 
         const event = {
@@ -59,8 +59,8 @@ describe('verifyGithubSign middleware', () => {
         const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
-            return callback({select: () => ({from: () => [{id: 'int-1', secret: 'shh'}]})});
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            return params.callback({select: () => ({from: () => [{id: 'int-1', secret: 'shh'}]})});
         });
 
         const eventMissingSig = {
@@ -87,8 +87,8 @@ describe('verifyGithubSign middleware', () => {
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
-            return callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            return params.callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
         });
 
         const payload = JSON.stringify({hello: 'world'});
@@ -111,8 +111,8 @@ describe('verifyGithubSign middleware', () => {
         const {verifyGithubSign} = await import('./verifyGithubSign');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
-        (rds.withRlsTransaction as any).mockImplementation(async (_ids: any, callback: any) => {
-            return callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            return params.callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
         });
 
         const payload = JSON.stringify({ok: true});
