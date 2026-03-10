@@ -1,5 +1,5 @@
 import {RdsTransaction} from '@gitgazer/db/client';
-import {user, workflowRuns} from '@gitgazer/db/schema/github/workflows';
+import {user, workflowRunPullRequests, workflowRuns} from '@gitgazer/db/schema/github/workflows';
 import {WorkflowRunEvent} from '@gitgazer/db/types';
 import {inArray} from 'drizzle-orm';
 import {InferSelectModel} from 'drizzle-orm/table';
@@ -84,6 +84,17 @@ export const importWorkflowRun = async (
             },
         })
         .returning();
+
+    // Insert pull request associations if the workflow run is part of pull requests
+    if (event.workflow_run.pull_requests && Array.isArray(event.workflow_run.pull_requests) && event.workflow_run.pull_requests.length > 0) {
+        const pullRequestAssociations = event.workflow_run.pull_requests.map((pr: any) => ({
+            integrationId,
+            workflowRunId: event.workflow_run.id,
+            pullRequestId: pr.id,
+        }));
+
+        await tx.insert(workflowRunPullRequests).values(pullRequestAssociations).onConflictDoNothing();
+    }
 
     return {
         workflowRun: workflowRun[0],
