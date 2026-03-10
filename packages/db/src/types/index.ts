@@ -4,6 +4,7 @@ import type {BuildQueryResult} from 'drizzle-orm/relations';
 
 export type {EmitterWebhookEventName} from '@octokit/webhooks';
 export type * from '@octokit/webhooks-types';
+export * from './metrics';
 
 import type {workflowRunRelations} from '../queries';
 import * as schema from '../schema';

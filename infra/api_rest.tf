@@ -45,6 +45,15 @@ locals {
     "user" = {
       methods = ["GET"]
     },
+    "metrics/dora" = {
+      methods = ["GET"]
+    },
+    "metrics/space" = {
+      methods = ["GET"]
+    },
+    "metrics/repositories" = {
+      methods = ["GET"]
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations

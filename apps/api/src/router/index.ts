@@ -4,6 +4,7 @@ import authCognitoRoutes from '@/router/routes/authCognito';
 import feFailover from '@/router/routes/feFailover';
 import importRoutes from '@/router/routes/import';
 import integrationsRoutes from '@/router/routes/integrations';
+import metricsRoutes from '@/router/routes/metrics';
 import notificationsRoutes from '@/router/routes/notifications';
 import workflowsRoutes from '@/router/routes/workflows';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
@@ -36,6 +37,7 @@ app.includeRouter(feFailover);
 app.includeRouter(notificationsRoutes);
 app.includeRouter(workflowsRoutes);
 app.includeRouter(integrationsRoutes);
+app.includeRouter(metricsRoutes);
 
 logger.info('Routes setup completed');
 

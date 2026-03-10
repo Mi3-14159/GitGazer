@@ -1,3 +1,5 @@
+export * from './metrics';
+
 export const workflowRunRelations = {
     workflowJobs: true,
     repository: {

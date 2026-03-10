@@ -71,6 +71,12 @@
                     @click.stop="router.push('/analytics')"
                 ></v-list-item>
                 <v-list-item
+                    prepend-icon="mdi-chart-box-outline"
+                    title="Metrics"
+                    value="metrics"
+                    @click.stop="router.push('/metrics')"
+                ></v-list-item>
+                <v-list-item
                     prepend-icon="mdi-logout"
                     title="Logout"
                     value="logout"
