@@ -29,7 +29,11 @@ export default defineConfig({
                 ],
             },
         }),
-        basicSsl(),
+        basicSsl({
+            name: 'app.gitgazer.local',
+            domains: ['app.gitgazer.local'],
+            certDir: resolve(__dirname, 'certs'),
+        }),
     ],
     define: {'process.env': {}},
     resolve: {
