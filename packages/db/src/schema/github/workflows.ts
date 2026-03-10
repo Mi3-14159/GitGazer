@@ -334,11 +334,8 @@ export const workflowRunPullRequests = githubSchema
                 columns: [table.integrationId, table.workflowRunId],
                 foreignColumns: [workflowRuns.integrationId, workflowRuns.id],
             }).onDelete('cascade'),
-            foreignKey({
-                columns: [table.integrationId, table.pullRequestId],
-                foreignColumns: [pullRequests.integrationId, pullRequests.id],
-            }).onDelete('cascade'),
             tenantSeparationPolicy(),
+            // no foreign key to pull requests, because pull request events are optional
         ],
     )
     .enableRLS();

@@ -1,0 +1,1 @@
+ALTER TABLE "github"."workflow_run_pull_requests" DROP CONSTRAINT "workflow_run_pull_requests_integration_id_pull_request_id_pull_requests_integration_id_id_fk";
