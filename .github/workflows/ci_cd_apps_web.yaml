@@ -1,83 +1,83 @@
 name: CI/CD apps/web
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/ci_cd_apps_web.yaml"
-      - "apps/web/**"
-      - "packages/**"
-  pull_request:
-    paths:
-      - ".github/workflows/ci_cd_apps_web.yaml"
-      - "apps/web/**"
-      - "packages/**"
-  workflow_dispatch:
-    inputs:
-      deploy:
-        description: Deploy to AWS
-        required: false
-        type: boolean
-        default: false
+    push:
+        branches:
+            - main
+        paths:
+            - ".github/workflows/ci_cd_apps_web.yaml"
+            - "apps/web/**"
+            - "packages/**"
+    pull_request:
+        paths:
+            - ".github/workflows/ci_cd_apps_web.yaml"
+            - "apps/web/**"
+            - "packages/**"
+    workflow_dispatch:
+        inputs:
+            deploy:
+                description: Deploy to AWS
+                required: false
+                type: boolean
+                default: false
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    concurrency:
-      group: apps/web-${{ github.ref }}
-      cancel-in-progress: false
-    environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
-      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        concurrency:
+            group: apps/web-${{ github.ref }}
+            cancel-in-progress: false
+        environment:
+            name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+            url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: latest
+                  run_install: false
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: ./apps/web/package.json
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: ./apps/web/package.json
+                  cache: "pnpm"
+                  cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      - name: Build
-        working-directory: ./apps/web
-        run: pnpm run build
-        env:
-          VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
-          VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
-          VITE_COGNITO_USER_POOL_CLIENT_ID: ${{ vars.VITE_COGNITO_USER_POOL_CLIENT_ID }}
-          VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
-          VITE_COGNITO_IDENTITY_POOL_ID: ${{ vars.VITE_COGNITO_IDENTITY_POOL_ID }}
-          VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
-          VITE_REST_API_REGION: ${{ vars.REST_API_REGION }}
-          VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
-          VITE_WEBSOCKET_API_ENDPOINT: ${{ vars.VITE_WEBSOCKET_API_ENDPOINT }}
-          VITE_WEBSOCKET_API_REGION: ${{ vars.VITE_WEBSOCKET_API_REGION }}
+            - name: Build
+              working-directory: ./apps/web
+              run: pnpm run build
+              env:
+                  VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
+                  VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
+                  VITE_COGNITO_USER_POOL_CLIENT_ID: ${{ vars.VITE_COGNITO_USER_POOL_CLIENT_ID }}
+                  VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
+                  VITE_COGNITO_IDENTITY_POOL_ID: ${{ vars.VITE_COGNITO_IDENTITY_POOL_ID }}
+                  VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
+                  VITE_REST_API_REGION: ${{ vars.REST_API_REGION }}
+                  VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
+                  VITE_WEBSOCKET_API_ENDPOINT: ${{ vars.VITE_WEBSOCKET_API_ENDPOINT }}
+                  VITE_WEBSOCKET_API_REGION: ${{ vars.VITE_WEBSOCKET_API_REGION }}
 
-      - name: Configure AWS credentials
-        if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: gitgazer-apps-web-deployment
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          mask-aws-account-id: true
+            - name: Configure AWS credentials
+              if: github.ref == 'refs/heads/main' || inputs.deploy == true
+              uses: aws-actions/configure-aws-credentials@v6
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+                  role-session-name: gitgazer-apps-web-deployment
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+                  mask-aws-account-id: true
 
-      - name: Deploy
-        if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./apps/web
-        run: |
-          aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --include "*" --exclude "*.html"
-          aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"
+            - name: Deploy
+              if: github.ref == 'refs/heads/main' || inputs.deploy == true
+              working-directory: ./apps/web
+              run: |
+                  aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=604800 --include "*" --exclude "*.html"
+                  aws s3 sync dist/. s3://${{ vars.FRONTEND_S3_BUCKET_NAME }}/ --cache-control max-age=60 --include "*.html"

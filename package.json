@@ -11,5 +11,8 @@
   },
   "name": "gitgazer",
   "private": true,
+  "scripts": {
+    "pretty": "prettier --write ."
+  },
   "type": "module"
 }

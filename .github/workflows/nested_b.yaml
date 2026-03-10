@@ -1,12 +1,12 @@
 name: Nested B
 on:
-  workflow_call:
+    workflow_call:
 
 permissions:
-  contents: read
+    contents: read
 jobs:
-  nested_b:
-    uses: ./.github/workflows/nested_c.yaml
+    nested_b:
+        uses: ./.github/workflows/nested_c.yaml
 
-  nested_d:
-    uses: ./.github/workflows/nested_d.yaml
+    nested_d:
+        uses: ./.github/workflows/nested_d.yaml

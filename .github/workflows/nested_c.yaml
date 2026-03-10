@@ -1,12 +1,12 @@
 name: Nested C
 on:
-  workflow_call:
+    workflow_call:
 
 permissions:
-  contents: read
+    contents: read
 jobs:
-  nested_c:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Finish job
-        run: exit 0
+    nested_c:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Finish job
+              run: exit 0
