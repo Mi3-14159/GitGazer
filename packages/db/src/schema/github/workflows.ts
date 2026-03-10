@@ -334,6 +334,7 @@ export const workflowRunsRelations = relations(
       references: [user.integrationId, user.id],
     }),
     workflowJobs: many(workflowJobs),
+    pullRequests: many(workflowRunPullRequests),
   }),
 );
 
@@ -375,7 +376,7 @@ export const pullRequests = githubSchema
   )
   .enableRLS();
 
-export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
+export const pullRequestsRelations = relations(pullRequests, ({ one, many }) => ({
   repository: one(repositories, {
     fields: [pullRequests.integrationId, pullRequests.repositoryId],
     references: [repositories.integrationId, repositories.id],
@@ -384,4 +385,44 @@ export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
     fields: [pullRequests.integrationId, pullRequests.authorId],
     references: [user.integrationId, user.id],
   }),
+  workflowRuns: many(workflowRunPullRequests),
 }));
+
+export const workflowRunPullRequests = githubSchema
+  .table(
+    "workflow_run_pull_requests",
+    {
+      integrationId: uuid("integration_id")
+        .references(() => integrations.integrationId, { onDelete: "cascade" })
+        .notNull(),
+      workflowRunId: bigint("workflow_run_id", { mode: "number" }).notNull(),
+      pullRequestId: bigint("pull_request_id", { mode: "number" }).notNull(),
+    },
+    (table) => [
+      primaryKey({ columns: [table.integrationId, table.workflowRunId, table.pullRequestId] }),
+      foreignKey({
+        columns: [table.integrationId, table.workflowRunId],
+        foreignColumns: [workflowRuns.integrationId, workflowRuns.id],
+      }).onDelete("cascade"),
+      foreignKey({
+        columns: [table.integrationId, table.pullRequestId],
+        foreignColumns: [pullRequests.integrationId, pullRequests.id],
+      }).onDelete("cascade"),
+      tenantSeparationPolicy(),
+    ],
+  )
+  .enableRLS();
+
+export const workflowRunPullRequestsRelations = relations(
+  workflowRunPullRequests,
+  ({ one }) => ({
+    workflowRun: one(workflowRuns, {
+      fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.workflowRunId],
+      references: [workflowRuns.integrationId, workflowRuns.id],
+    }),
+    pullRequest: one(pullRequests, {
+      fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.pullRequestId],
+      references: [pullRequests.integrationId, pullRequests.id],
+    }),
+  }),
+);
