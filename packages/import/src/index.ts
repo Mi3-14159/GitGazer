@@ -1,5 +1,5 @@
 import {insertEvent} from '@/controllers/imports/index';
-import {fetchAllWorkflowRuns, fetchRepo, fetchWorkflow, fetchWorkflowJobs} from './github';
+import {fetchAllWorkflowRuns, fetchRepo, fetchWorkflowJobs} from './github';
 import {transformWorkflowJob, transformWorkflowRun} from './transform';
 
 const required = (name: string): string => {
@@ -54,9 +54,6 @@ const main = async () => {
     const runs = await fetchAllWorkflowRuns(owner, repo, createdFilter);
     console.log(`  Total runs: ${runs.length}`);
 
-    // Cache workflow metadata to avoid redundant API calls
-    const workflowCache = new Map<number, any>();
-
     let runSuccessCount = 0;
     let runErrorCount = 0;
     let jobSuccessCount = 0;
@@ -67,14 +64,9 @@ const main = async () => {
         const runLabel = `[${index + 1}/${total}] Run #${run.id} (${run.name})`;
 
         try {
-            // Fetch workflow metadata (cached)
-            let workflowMeta = workflowCache.get(run.workflow_id);
-            if (!workflowMeta) {
-                workflowMeta = await fetchWorkflow(owner, repo, run.workflow_id);
-                workflowCache.set(run.workflow_id, workflowMeta);
-            }
-
             // Transform and insert workflow_run event
+            // The run already contains workflow_id, name, and path — no need for a separate API call
+            const workflowMeta = {id: run.workflow_id, name: run.name, path: run.path};
             const runEvent = transformWorkflowRun(run, fullRepo, workflowMeta);
 
             if (dryRun) {
