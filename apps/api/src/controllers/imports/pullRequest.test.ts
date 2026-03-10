@@ -16,30 +16,134 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     enterprises: mockEnterprises,
 }));
 
-const buildMockTx = (returnedPr: any) => {
-    const returning = vi.fn().mockResolvedValue([returnedPr]);
+const buildMockTx = (
+    returnedPr: any,
+    options: {
+        returnExistingUsers?: boolean;
+        returnExistingRepo?: boolean;
+        withOrganization?: boolean;
+        withEnterprise?: boolean;
+    } = {},
+) => {
+    // Mock data for entities
+    const mockRepo = {
+        integrationId: 'int-1',
+        id: 200,
+        organizationId: options.withOrganization ? 999 : null,
+        name: 'repo',
+        private: false,
+        createdAt: new Date('2025-01-01T00:00:00Z'),
+        updatedAt: new Date('2025-06-01T00:00:00Z'),
+        ownerId: 100,
+    };
+
+    const mockUsers = [
+        {integrationId: 'int-1', id: 100, login: 'owner', type: 'User'},
+        {integrationId: 'int-1', id: 500, login: 'author', type: 'User'},
+    ];
+
+    const mockOrg = {
+        integrationId: 'int-1',
+        id: 999,
+        enterpriseId: options.withEnterprise ? 888 : null,
+        login: 'my-org',
+        description: null,
+    };
+
+    const mockEnterprise = {
+        integrationId: 'int-1',
+        id: 888,
+        name: 'my-enterprise',
+    };
+
+    // Track which table is being inserted/selected
+    let currentTable: symbol | null = null;
+
+    const returning = vi.fn(() => {
+        // For repository insert
+        if (currentTable === mockRepositories) {
+            return Promise.resolve(options.returnExistingRepo ? [] : [mockRepo]);
+        }
+        // For users bulk insert
+        if (currentTable === mockUser) {
+            return Promise.resolve(options.returnExistingUsers ? [] : mockUsers);
+        }
+        // For pull request (uses onConflictDoUpdate, always returns)
+        if (currentTable === mockPullRequests) {
+            return Promise.resolve([returnedPr]);
+        }
+        // For organization
+        if (currentTable === mockOrganizations) {
+            return Promise.resolve(options.withOrganization ? [mockOrg] : []);
+        }
+        // For enterprise
+        if (currentTable === mockEnterprises) {
+            return Promise.resolve(options.withEnterprise ? [mockEnterprise] : []);
+        }
+        return Promise.resolve([]);
+    });
+
     const onConflictDoNothing = vi.fn(() => ({returning}));
     const onConflictDoUpdate = vi.fn(() => ({returning}));
 
-    // Mock for select queries - returns empty array for existing users/entities
-    const limitMock = vi.fn().mockResolvedValue([]);
-    const whereMock = Object.assign(vi.fn().mockResolvedValue([]), {
-        limit: limitMock,
+    const values = vi.fn(() => {
+        return {
+            onConflictDoNothing,
+            onConflictDoUpdate,
+        };
     });
-    const fromMock = vi.fn(() => ({
-        where: whereMock,
+
+    // Mock for select queries
+    const limitMock = vi.fn(() => {
+        // Return appropriate data based on which table we're selecting from
+        if (currentTable === mockRepositories) {
+            return Promise.resolve([mockRepo]);
+        }
+        if (currentTable === mockUser) {
+            return Promise.resolve(mockUsers);
+        }
+        if (currentTable === mockOrganizations) {
+            return Promise.resolve([mockOrg]);
+        }
+        if (currentTable === mockEnterprises) {
+            return Promise.resolve([mockEnterprise]);
+        }
+        return Promise.resolve([]);
+    });
+
+    const whereMock = vi.fn(() => ({
+        limit: limitMock,
     }));
+
+    // Also support select without where().limit() for bulk user fetching
+    const selectWithoutLimit = Object.assign(
+        vi.fn(() => {
+            if (currentTable === mockUser) {
+                return Promise.resolve(mockUsers);
+            }
+            return Promise.resolve([]);
+        }),
+        {
+            where: whereMock,
+        },
+    );
+
+    const fromMock = vi.fn((table: symbol) => {
+        currentTable = table;
+        return selectWithoutLimit;
+    });
+
     const select = vi.fn(() => ({
         from: fromMock,
     }));
 
+    const insert = vi.fn((table: symbol) => {
+        currentTable = table;
+        return {values};
+    });
+
     return {
-        insert: vi.fn(() => ({
-            values: vi.fn(() => ({
-                onConflictDoNothing,
-                onConflictDoUpdate,
-            })),
-        })),
+        insert,
         select,
         _onConflictDoNothing: onConflictDoNothing,
         _onConflictDoUpdate: onConflictDoUpdate,
@@ -246,6 +350,8 @@ const buildPullRequestEvent = (overrides: Partial<PullRequestOpenedEvent> = {}):
                 open_issues: 0,
                 watchers: 0,
                 default_branch: 'main',
+                web_commit_signoff_required: false,
+                custom_properties: {},
             },
         },
         _links: {
@@ -374,6 +480,8 @@ const buildPullRequestEvent = (overrides: Partial<PullRequestOpenedEvent> = {}):
         default_branch: 'main',
         stargazers: 0,
         master_branch: 'main',
+        web_commit_signoff_required: false,
+        custom_properties: {},
     },
     sender: {
         login: 'author',
@@ -426,20 +534,14 @@ describe('importPullRequest', () => {
             mergedAt: null,
         };
 
-        const expectedUser = {
-            integrationId: 'int-1',
-            id: 500,
-            login: 'author',
-            type: 'User',
-        };
-
         const tx = buildMockTx(expectedPr);
         const event = buildPullRequestEvent();
 
         const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
         expect(result.pullRequest).toEqual(expectedPr);
-        expect(result.user).toEqual(expectedUser);
+        expect(result.user.id).toBe(500);
+        expect(result.user.login).toBe('author');
         expect(result.enterprise).toBeUndefined();
         expect(result.organization).toBeUndefined();
         // insert called for: repository, users (bulk: owner + author), and pull request itself
@@ -447,8 +549,26 @@ describe('importPullRequest', () => {
     });
 
     it('inserts organization when present in the event', async () => {
-        const expectedPr = {integrationId: 'int-1', id: 1001, number: 42};
-        const tx = buildMockTx(expectedPr);
+        const expectedPr = {
+            integrationId: 'int-1',
+            repositoryId: 200,
+            id: 1001,
+            number: 42,
+            state: 'open',
+            title: 'Add new feature',
+            body: 'PR body text',
+            headBranch: 'feature-branch',
+            baseBranch: 'main',
+            authorId: 500,
+            draft: false,
+            merged: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-02T00:00:00Z'),
+            closedAt: null,
+            mergedAt: null,
+        };
+
+        const tx = buildMockTx(expectedPr, {withOrganization: true});
 
         const event = buildPullRequestEvent({
             organization: {
@@ -467,8 +587,11 @@ describe('importPullRequest', () => {
             },
         });
 
-        await pullRequestModule.importPullRequest('int-1', event, tx as any);
+        const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
+        expect(result.organization).toBeDefined();
+        expect(result.organization.id).toBe(999);
+        expect(result.organization.login).toBe('my-org');
         // insert called for: org, repository, users (bulk: owner + author), and pull request itself
         expect(tx.insert).toHaveBeenCalledTimes(4);
     });
@@ -479,9 +602,19 @@ describe('importPullRequest', () => {
 
         const expectedPr = {
             integrationId: 'int-1',
+            repositoryId: 200,
             id: 1001,
+            number: 42,
             state: 'closed',
+            title: 'Add new feature',
+            body: 'PR body text',
+            headBranch: 'feature-branch',
+            baseBranch: 'main',
+            authorId: 500,
+            draft: false,
             merged: true,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-02T00:00:00Z'),
             closedAt: new Date(closedAt),
             mergedAt: new Date(mergedAt),
         };
@@ -489,18 +622,18 @@ describe('importPullRequest', () => {
         const tx = buildMockTx(expectedPr);
 
         const baseEvent = buildPullRequestEvent();
-        const event: PullRequestOpenedEvent = {
+        const event = {
             ...baseEvent,
             pull_request: {
                 ...baseEvent.pull_request,
-                state: 'closed',
+                state: 'closed' as const,
                 merged: true,
                 closed_at: closedAt,
                 merged_at: mergedAt,
             },
-        };
+        } as any;
 
-        const result = await pullRequestModule.importPullRequest('int-1', event as any, tx as any);
+        const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
         expect(result.pullRequest.state).toBe('closed');
         expect(result.pullRequest.merged).toBe(true);
