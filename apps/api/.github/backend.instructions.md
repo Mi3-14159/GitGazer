@@ -1,5 +1,5 @@
 ---
-applyTo: '02_central/**/*.{ts,json}'
+applyTo: 'apps/api/**/*.{ts,json}'
 ---
 
 # Backend Development Instructions
@@ -9,7 +9,7 @@ This module contains the AWS Lambda backend for GitGazer, serving as both API an
 ## Build and Test Commands
 
 ```bash
-cd 02_central
+cd apps/api
 
 # Install dependencies
 npm ci
@@ -17,15 +17,8 @@ npm ci
 # Run unit tests
 npm run test:unit
 
-# Build for different Lambda functions
-npm run build:api         # API Gateway handler
-npm run build:alerting    # Alerting handler
-npm run build:websocket   # WebSocket handler
-
-# Build and package for deployment
-npm run buildZip:api
-npm run buildZip:alerting
-npm run buildZip:websocket
+# Build and package all Lambda functions
+npm run buildZip  # Builds API + WebSocket Lambdas, outputs to tmp/
 
 # Local development (requires AWS credentials)
 npm run dev:api
@@ -42,29 +35,30 @@ npm run pretty
 
 - Always use `@/` prefix for imports (maps to `src/`)
 - Example: `import { router } from '@/router'`
-- Configured in all `tsconfig.*.json` and `vitest.config.ts`
+- Use `@gitgazer/db/*` for imports from the shared `packages/db` package
+- Configured in `tsconfig.json` and `vitest.config.ts`
 - Never use relative imports like `../../../` - always use path aliases
 
 ### Router Pattern
 
-- Custom router in `src/router/router.ts` handles API Gateway Lambda events
+- Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/router/index.ts` handles API Gateway Lambda events
 - Routes defined in `src/router/routes/`
-- Middleware chain: `lowercaseHeaders` → `extractCognitoGroups` → `verifyGithubSign` → route handlers
+- Middleware chain: `cors` → `compress` → `authenticate` → `verifyGithubSign` → route handlers
 - Each route handler receives typed API Gateway event and context
 
 ### AWS Service Clients
 
 - Centralized AWS clients in `src/clients/`
-- Use existing client instances (RDS, S3, Cognito, Athena, Firehose, etc.)
+- Available clients: `rds` (Drizzle ORM), `s3`, `bedrock`, `websocket-connections`
 - Never instantiate AWS clients directly in controllers or routes
 - Clients are pre-configured with region and credentials
 
-### Type Guards
+### Database Access
 
-- All types from `common/types/index.ts` have corresponding `isType()` guards
-- Always use type guards when validating external data
-- Example: `isWorkflowJobEvent(data)` before processing
-- Never assume data structure without validation
+- Use Drizzle ORM via `@gitgazer/db/client` for all database operations
+- Use `withRlsTransaction` for row-level security scoped queries
+- All table schemas defined in `packages/db/src/schema/`
+- Follow existing patterns in `src/controllers/`
 
 ### Error Handling
 
@@ -87,7 +81,7 @@ npm run pretty
 1. Create route handler in `src/router/routes/`
 2. Add route to router in `src/router/index.ts`
 3. Add corresponding tests
-4. Update types in `common/types/` if needed
+4. Update schema/types in `packages/db/` if needed
 
 ### Adding a New Controller
 
@@ -98,16 +92,16 @@ npm run pretty
 
 ### Working with RDS
 
-- Use Drizzle ORM for database access via `@/clients/rds`
+- Use Drizzle ORM for database access via `@gitgazer/db/client`
 - Use `withRlsTransaction` for row-level security scoped queries
-- All table schemas defined in `src/drizzle/schema/`
+- All table schemas defined in `packages/db/src/schema/`
 - Follow existing patterns in `src/controllers/`
 
 ### GitHub Webhook Handling
 
 - Webhook validation via `verifyGithubSign` middleware
 - GitHub events processed by controllers in `src/controllers/`
-- Store job data in RDS
+- Store job data in RDS Aurora PostgreSQL
 - Trigger notifications via Step Functions
 
 ## Development Environment
@@ -116,7 +110,7 @@ npm run pretty
 
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
-- Copy `.env.dev` file and configure environment variables
+- Copy `.env.dev.example` to `.env.dev` and configure environment variables
 - Start local server: `npm run dev:api` (runs on port 8080)
 
 ### Environment Variables
@@ -125,7 +119,7 @@ npm run pretty
 - `RDS_*`: RDS connection configuration
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
-- See `src/develop.ts` for full list
+- See `.env.dev.example` for full list
 
 ## Deployment
 
@@ -133,22 +127,15 @@ npm run pretty
 
 - Build artifacts go to `dist/` directory
 - Package includes `node_modules` (prod dependencies only)
-- Zip files created in `tmp/` directory
+- Zip files created in `tmp/` directory via `npm run buildZip`
 - Upload to S3 bucket specified in infrastructure
 
-### Multiple Lambda Functions
+### Lambda Functions
 
 - **API**: Handles REST API and webhook endpoints (`src/handlers/api.ts`)
-- **Alerting**: Processes notification rules (`src/handlers/alerting.ts`)
 - **WebSocket**: Manages WebSocket connections (`src/handlers/websocket.ts`)
+- **Alerting**: Processes notification rules (`src/handlers/alerting.ts`)
 - **Analytics**: Aggregates workflow data (`src/handlers/analytics.ts`)
-
-Each has separate:
-
-- Build configuration: `tsconfig.*.json`
-- Build script: `npm run build:<name>`
-- Package script: `npm run buildZip:<name>`
-- Output: `tmp/gitgazer-<name>.zip`
 
 ## Code Quality
 

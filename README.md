@@ -21,13 +21,16 @@ GitGazer is a comprehensive monitoring and notification system for GitHub workfl
 
 ### Multi-Module Structure
 
-- **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 24)
-    - API handler for REST endpoints
-    - Alerting handler for notifications
-    - WebSocket handler for real-time updates
-    - Analytics handler for data aggregation
-- **`04_frontend/`**: Vue 3 + Vuetify SPA
-- **`common/`**: Shared TypeScript types and utilities
+This is a pnpm monorepo with `apps/` and `packages/` workspaces:
+
+- **`apps/api/`**: AWS Lambda backend (TypeScript, Node.js 24)
+    - API Lambda handler for REST endpoints and GitHub webhooks
+    - WebSocket Lambda handler for real-time updates
+    - Alerting Lambda handler for notifications
+    - Analytics Lambda handler for data aggregation
+- **`apps/web/`**: Vue 3 + Vuetify SPA
+- **`packages/db/`**: Shared database schema and types (Drizzle ORM)
+- **`packages/import/`**: Backfill utility for historical GitHub Actions data
 - **`infra/`**: Terraform infrastructure as code
 
 ### Technology Stack
@@ -40,6 +43,7 @@ GitGazer is a comprehensive monitoring and notification system for GitHub workfl
 - RDS (Aurora PostgreSQL Serverless)
 - S3
 - API Gateway (REST + WebSocket)
+- Drizzle ORM
 
 **Frontend**:
 
@@ -88,19 +92,12 @@ terraform apply -target module.lambda_store
 ### 2. Build and Upload Lambda Functions
 
 ```bash
-cd 02_central
+cd apps/api
 npm ci
 
-# Build and upload API Lambda
-npm run buildZip:api
+# Build and upload API + WebSocket Lambdas
+npm run buildZip
 aws s3 cp ./tmp/gitgazer-api.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
-
-# Build and upload Alerting Lambda
-npm run buildZip:alerting
-aws s3 cp ./tmp/gitgazer-alerting.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-alerting.zip
-
-# Build and upload WebSocket Lambda
-npm run buildZip:websocket
 aws s3 cp ./tmp/gitgazer-websocket.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-websocket.zip
 ```
 
@@ -126,10 +123,10 @@ Review the plan carefully before confirming. Terraform will create:
 
 ### 4. Build and Deploy Frontend
 
-First, create a `.env.local` file in the `04_frontend` directory with the values from Terraform outputs:
+First, create a `.env.local` file in the `apps/web` directory with the values from Terraform outputs:
 
 ```bash
-cd ../04_frontend
+cd ../apps/web
 cat > .env.local << EOF
 VITE_HOST_URL="http://localhost:5173"
 VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
@@ -189,7 +186,7 @@ The guide covers:
 #### Quick Start - Backend Development
 
 ```bash
-cd 02_central
+cd apps/api
 
 # Install dependencies
 npm ci
@@ -211,7 +208,7 @@ npm run pretty
 #### Quick Start - Frontend Development
 
 ```bash
-cd 04_frontend
+cd apps/web
 
 # Install dependencies
 npm ci
@@ -233,26 +230,27 @@ npm run pretty
 
 ```text
 GitGazer/
-├── 02_central/          # Backend Lambda functions
-│   ├── src/
-│   │   ├── handlers/    # Lambda entry points
-│   │   ├── router/      # API routing
-│   │   ├── controllers/ # Business logic
-│   │   ├── clients/     # AWS service clients
-│   │   └── utils/       # Utility functions
-│   └── scripts/         # Maintenance scripts
-├── 04_frontend/         # Vue.js frontend
-│   └── src/
-│       ├── components/  # Reusable components
-│       ├── views/       # Page components
-│       ├── stores/      # Pinia stores
-│       ├── router/      # Vue Router config
-│       └── api/         # API client
-├── common/              # Shared TypeScript types
-│   └── src/types/       # Type definitions
+├── apps/
+│   ├── api/             # Backend Lambda functions
+│   │   └── src/
+│   │       ├── handlers/    # Lambda entry points
+│   │       ├── router/      # API routing & middleware
+│   │       ├── controllers/ # Business logic
+│   │       ├── clients/     # AWS service clients
+│   │       └── utils/       # Utility functions
+│   └── web/             # Vue.js frontend
+│       └── src/
+│           ├── components/  # Reusable components
+│           ├── views/       # Page components
+│           ├── stores/      # Pinia stores
+│           ├── router/      # Vue Router config
+│           └── api/         # API client
+├── packages/
+│   ├── db/              # Shared database schema & types (Drizzle ORM)
+│   └── import/          # Backfill utility for historical data
 ├── infra/               # Terraform infrastructure
 │   ├── *.tf            # Resource definitions
-│   └── terraform.tfvars # Variables
+│   └── variables.tf    # Variables
 └── docs/                # Documentation
 ```
 
@@ -260,9 +258,8 @@ GitGazer/
 
 For detailed development instructions, see:
 
-- **Backend**: [02_central/.github/backend.instructions.md](02_central/.github/backend.instructions.md)
-- **Frontend**: [04_frontend/.github/frontend.instructions.md](04_frontend/.github/frontend.instructions.md)
-- **Common Types**: [common/.github/common.instructions.md](common/.github/common.instructions.md)
+- **Backend**: [apps/api/.github/backend.instructions.md](apps/api/.github/backend.instructions.md)
+- **Frontend**: [apps/web/.github/frontend.instructions.md](apps/web/.github/frontend.instructions.md)
 - **Infrastructure**: [infra/.github/infrastructure.instructions.md](infra/.github/infrastructure.instructions.md)
 
 ### Development Workflow
@@ -278,25 +275,24 @@ For detailed development instructions, see:
 
 #### Adding a New API Endpoint
 
-1. Create route handler in `02_central/src/router/routes/`
-2. Add route to router in `02_central/src/router/index.ts`
-3. Add types to `common/src/types/index.ts` if needed
+1. Create route handler in `apps/api/src/router/routes/`
+2. Add route to router in `apps/api/src/router/index.ts`
+3. Add types/schema to `packages/db/` if needed
 4. Write unit tests
 5. Update frontend API client if consumed by UI
 
 #### Adding a New Frontend Page
 
-1. Create view component in `04_frontend/src/views/`
-2. Add route in `04_frontend/src/router/`
+1. Create view component in `apps/web/src/views/`
+2. Add route in `apps/web/src/router/`
 3. Create/update Pinia store if needed
 4. Add navigation link if appropriate
 
-#### Updating Shared Types
+#### Updating Shared Schema or Types
 
-1. Modify types in `common/src/types/index.ts`
-2. Add/update type guards
-3. Run `npm install` in dependent modules
-4. Fix any type errors in backend and frontend
+1. Modify schema/types in `packages/db/src/`
+2. Run `pnpm install` in dependent modules
+3. Fix any type errors in backend and frontend
 
 ## Deployment
 
@@ -306,8 +302,8 @@ We recommend using [aws-vault](https://github.com/99designs/aws-vault) for secur
 
 ```bash
 # Deploy backend
-cd 02_central
-aws-vault exec <profile> -- npm run buildZip:api
+cd apps/api
+aws-vault exec <profile> -- npm run buildZip
 aws-vault exec <profile> -- aws s3 cp ./tmp/gitgazer-api.zip s3://...
 
 # Deploy infrastructure
@@ -315,8 +311,9 @@ cd ../infra
 aws-vault exec <profile> -- terraform apply
 
 # Deploy frontend
-cd ../04_frontend
-aws-vault exec <profile> -- ./tmp/build-and-upload.sh
+cd ../apps/web
+aws-vault exec <profile> -- npm run build
+aws-vault exec <profile> -- aws s3 sync dist/. s3://<UI_BUCKET_NAME>/...
 ```
 
 ### CI/CD

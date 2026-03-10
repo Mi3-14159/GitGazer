@@ -6,10 +6,9 @@ GitGazer is a GitHub workflow monitoring tool with notification system built on 
 
 This repository uses targeted instruction files for different modules. When working on specific areas, **always consult**:
 
-- **Backend**: See [02_central/.github/backend.instructions.md](../02_central/.github/backend.instructions.md) for Lambda development
-- **Frontend**: See [04_frontend/.github/frontend.instructions.md](../04_frontend/.github/frontend.instructions.md) for Vue/Vuetify development
+- **Backend**: See [apps/api/.github/backend.instructions.md](../apps/api/.github/backend.instructions.md) for Lambda development
+- **Frontend**: See [apps/web/.github/frontend.instructions.md](../apps/web/.github/frontend.instructions.md) for Vue/Vuetify development
 - **Infrastructure**: See [infra/.github/infrastructure.instructions.md](../infra/.github/infrastructure.instructions.md) for Terraform/AWS resources
-- **Common Types**: See [common/.github/common.instructions.md](../common/.github/common.instructions.md) for shared TypeScript types
 
 These files provide detailed build commands, testing procedures, and module-specific patterns.
 
@@ -17,19 +16,25 @@ These files provide detailed build commands, testing procedures, and module-spec
 
 ### Multi-Module Structure
 
-- **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 24)
-    - Four Lambda functions: API, Alerting, WebSocket, Analytics
-    - Custom router with middleware chain
+This is a pnpm monorepo with `apps/` and `packages/` workspaces.
+
+- **`apps/api/`**: AWS Lambda backend (TypeScript, Node.js 24)
+    - API Lambda handler for REST endpoints and GitHub webhooks
+    - WebSocket Lambda handler for real-time updates
+    - Alerting Lambda handler for notification processing
+    - Analytics Lambda handler for data aggregation
+    - Custom router built on `@aws-lambda-powertools/event-handler/http`
     - Structured logging with AWS Powertools
-- **`04_frontend/`**: Vue 3 + Vuetify SPA frontend
+- **`apps/web/`**: Vue 3 + Vuetify SPA frontend
     - Composition API with `<script setup>`
     - Pinia for state management
     - Real-time WebSocket updates
-- **`common/`**: Shared TypeScript types and utilities
-    - Type definitions with corresponding type guards
-    - Single source of truth for shared types
+- **`packages/db/`**: Shared database schema and types (Drizzle ORM)
+    - Drizzle schema definitions for all tables
+    - Shared TypeScript types and query builders
+- **`packages/import/`**: Backfill utility for importing historical GitHub Actions data
 - **`infra/`**: AWS infrastructure as code (Terraform)
-    - Serverless architecture (Lambda, API Gateway, DynamoDB)
+    - Serverless architecture (Lambda, API Gateway, RDS Aurora PostgreSQL)
     - Authentication with Cognito
     - CloudFront for global distribution
 
@@ -37,16 +42,17 @@ The backend serves as both API and GitHub webhook processor, while the frontend 
 
 ## Key Development Patterns
 
-### Backend (`02_central/`)
+### Backend (`apps/api/`)
 
-- **Router Pattern**: Custom router in `src/router/router.ts` handles API Gateway events
-- **Middleware Chain**: Sequential processing with `lowercaseHeaders` → `extractCognitoGroups` → `verifyGithubSign` → route handlers
-- **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in all `tsconfig.*.json` and `vitest.config.ts`
+- **Router Pattern**: Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/router/index.ts` handles API Gateway events
+- **Middleware Chain**: Sequential processing with `cors` → `compress` → `authenticate` → `verifyGithubSign` → route handlers
+- **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in `tsconfig.json` and `vitest.config.ts`
     - **IMPORTANT**: Never use relative imports like `../../../` - always use `@/` path aliases
-- **AWS Client Pattern**: Centralized clients in `src/clients/` (DynamoDB, S3, Cognito, Athena, Firehose)
-- **Type Guards**: All types in `common/types/index.ts` have corresponding `isType()` guards
-- **Logging**: AWS Powertools Logger for structured logging (not pino)
-- **Multiple Lambdas**: Each Lambda has separate `tsconfig.*.json` and handler in `src/handlers/`
+    - Use `@gitgazer/db/*` to import from the shared `packages/db` package
+- **AWS Client Pattern**: Centralized clients in `src/clients/` (rds, s3, bedrock, websocket-connections)
+- **Database**: Drizzle ORM via `@gitgazer/db` package, with `withRlsTransaction` for row-level security
+- **Logging**: AWS Powertools Logger for structured logging
+- **Multiple Lambdas**: Handlers in `src/handlers/` with a shared tsup build config
 
 ### Development Workflows
 
@@ -55,11 +61,9 @@ The backend serves as both API and GitHub webhook processor, while the frontend 
 In order to run the backend locally, you need to have AWS credentials configured. We recommend using [aws-vault](https://github.com/99designs/aws-vault) for managing your AWS credentials securely.
 
 ```bash
-cd 02_central
+cd apps/api
 npm run dev:api  # Local development server on port 8080 with hot reload
-npm run buildZip:api  # Build and package API Lambda for deployment
-npm run buildZip:alerting  # Build and package Alerting Lambda
-npm run buildZip:websocket  # Build and package WebSocket Lambda
+npm run buildZip  # Build and package API + WebSocket Lambdas for deployment
 npm run test:unit  # Run Vitest unit tests
 ```
 
@@ -68,7 +72,7 @@ npm run test:unit  # Run Vitest unit tests
 #### Frontend Development
 
 ```bash
-cd 04_frontend
+cd apps/web
 npm run dev  # Vite dev server with HMR on port 5173
 npm run build  # Production build for S3 deployment
 ```
@@ -85,14 +89,13 @@ npm run build  # Production build for S3 deployment
 
 - All AWS resources defined in `infra/` directory
 - Environment-specific deployments via Terraform workspaces
-- Lambda deployment artifact: `dist/lambda.zip` (created by `buildZip`)
+- Lambda deployment artifacts created by `buildZip` (e.g., `tmp/gitgazer-api.zip`)
 
 #### Authentication Flow
 
 - AWS Cognito with OAuth integration
 - httpOnly cookies for secure session management
-- JWT tokens in API Gateway authorizer context
-- Group-based authorization via `extractCognitoGroups` middleware
+- JWT tokens verified by `authenticate` middleware
 - Frontend uses cookie-based authentication (no client-side token storage)
 
 #### Data Flow
@@ -100,7 +103,7 @@ npm run build  # Production build for S3 deployment
 1. GitHub webhooks → API Gateway → Lambda (import routes)
 2. Webhook validation via `verifyGithubSign` middleware
 3. GitHub events processed by controllers in `src/controllers/`
-4. Job data stored in DynamoDB with TTL (`expire_at` field)
+4. Job data stored in RDS Aurora PostgreSQL via Drizzle ORM
 5. Notifications triggered via Step Functions
 
 ### Testing Conventions
@@ -111,26 +114,25 @@ npm run build  # Production build for S3 deployment
 
 ### Code Organization
 
-- **Controllers**: Business logic (`src/controllers/`)
-- **Routes**: HTTP endpoint definitions (`src/router/routes/`)
-- **Clients**: AWS service wrappers (`src/clients/`)
-- **Types**: Shared between all modules (`common/src/types/`)
+- **Controllers**: Business logic (`apps/api/src/controllers/`)
+- **Routes**: HTTP endpoint definitions (`apps/api/src/router/routes/`)
+- **Clients**: AWS service wrappers (`apps/api/src/clients/`)
+- **Schema/Types**: Shared between all modules (`packages/db/src/`)
 
 ### Build and Deployment
 
 - CI/CD via GitHub Actions with path-based triggers
-- Backend: `02_central/**` changes trigger Lambda deployment
-- Frontend: `04_frontend/**` changes trigger S3 sync
+- Backend: `apps/api/**` changes trigger Lambda deployment
+- Frontend: `apps/web/**` changes trigger S3 sync
 - Use `aws-vault` for local AWS credential management
 
 ## Common Tasks
 
-**Add new API endpoint**: Create route in `src/router/routes/`, add to router in `src/router/index.ts`
-**Add new notification channel**: Extend `NotificationRuleChannelType` enum in `common/types/`
-**Debug webhook issues**: Check `verifyGithubSign.ts` middleware and integration secrets in DynamoDB
-**Local testing**: Use `src/develop.ts` to simulate API Gateway events locally
+**Add new API endpoint**: Create route in `apps/api/src/router/routes/`, add to router in `apps/api/src/router/index.ts`
+**Debug webhook issues**: Check `verifyGithubSign.ts` middleware and integration secrets in the database
+**Local testing**: Use `apps/api/src/develop.ts` to simulate API Gateway events locally
 
-Focus on serverless patterns, proper error handling with structured logging (`pino`), and maintaining type safety across the shared type system.
+Focus on serverless patterns, proper error handling with structured logging (AWS Powertools Logger), and maintaining type safety across the shared type system.
 
 ## Working with GitHub Copilot Agent
 
@@ -150,7 +152,7 @@ When creating or working on issues for this repository:
 
 ✅ **Good**: "Fix bug where webhook signature verification fails for payloads over 1MB. See `verifyGithubSign.ts` middleware in backend."
 
-✅ **Good**: "Add unit tests for the WorkflowJobEvent type guard in common module. Test valid payloads and edge cases."
+✅ **Good**: "Add unit tests for the WorkflowJobEvent type guard in the db package. Test valid payloads and edge cases."
 
 ❌ **Avoid**: "Make the app better" (too vague)
 
@@ -202,7 +204,7 @@ Always have a human review tasks involving:
 - Use lazy loading in frontend routes
 - Implement proper caching strategies
 - Optimize bundle sizes
-- Use DynamoDB efficiently (avoid scans)
+- Use efficient RDS queries (avoid full table scans)
 
 ## Getting Help
 

@@ -1,4 +1,4 @@
-# 04_frontend - GitGazer Frontend
+# apps/web - GitGazer Frontend
 
 Vue 3 + Vuetify SPA frontend for GitGazer monitoring dashboard.
 
@@ -98,7 +98,7 @@ The Vite dev server (configured in `vite.config.ts`) proxies `/api` requests to 
 
 **Requirements:**
 
-- Backend must be running: `cd ../02_central && aws-vault exec <profile> --no-session -- npm run dev:api`
+- Backend must be running: `cd ../api && aws-vault exec <profile> --no-session -- npm run dev:api`
 - Backend runs on port 8080
 - Proxy handles cookies and authentication automatically
 

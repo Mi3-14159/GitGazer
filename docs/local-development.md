@@ -56,7 +56,7 @@ sudo nano /etc/hosts
 
 #### Configuration
 
-Create `04_frontend/.env.local`:
+Create `apps/web/.env.local`:
 
 ```bash
 VITE_HOST_URL="https://app.gitgazer.local:5173"
@@ -73,7 +73,7 @@ VITE_WEBSOCKET_API_ENDPOINT="<WEBSOCKET_ENDPOINT>"
 
 #### How it Works
 
-The frontend's Vite development server has a built-in proxy (see `vite.config.ts`):
+The frontend's Vite development server has a built-in proxy (see `apps/web/vite.config.ts`):
 
 ```typescript
 proxy: {
@@ -103,7 +103,7 @@ proxy: {
 **Terminal 1 - Backend:**
 
 ```bash
-cd 02_central
+cd apps/api
 npm ci
 
 # Copy and configure environment
@@ -117,7 +117,7 @@ aws-vault exec <profile> --no-session -- npm run dev:api
 **Terminal 2 - Frontend:**
 
 ```bash
-cd 04_frontend
+cd apps/web
 npm ci
 
 # Start frontend dev server (runs on port 5173)
@@ -135,7 +135,7 @@ npm run dev
 
 #### Configuration - Production Backend
 
-Create `04_frontend/.env.local`:
+Create `apps/web/.env.local`:
 
 ```bash
 VITE_HOST_URL="https://app.gitgazer.local:5173"
@@ -171,7 +171,7 @@ Requests bypass the Vite proxy and go directly to the production backend via COR
 **Only Terminal - Frontend:**
 
 ```bash
-cd 04_frontend
+cd apps/web
 npm ci
 npm run dev
 ```
@@ -196,7 +196,7 @@ npm run dev
 
 ### Backend Variables
 
-Backend variables are configured in `02_central/.env.dev` for local development. See [02_central/README.md](../02_central/README.md) for details.
+Backend variables are configured in `apps/api/.env.dev` for local development. See [apps/api/.github/backend.instructions.md](../apps/api/.github/backend.instructions.md) for details.
 
 Key variables:
 
@@ -210,7 +210,7 @@ Key variables:
 The frontend's Vite development server includes a proxy configuration that intercepts requests to `/api` paths:
 
 ```typescript
-// 04_frontend/vite.config.ts
+// apps/web/vite.config.ts
 server: {
     port: 5173,
     host: 'app.gitgazer.local',
@@ -329,8 +329,8 @@ kill -9 <PID>
 
 ## Additional Resources
 
-- [Frontend Development Instructions](../04_frontend/.github/frontend.instructions.md)
-- [Backend Development Instructions](../02_central/.github/backend.instructions.md)
+- [Frontend Development Instructions](../apps/web/.github/frontend.instructions.md)
+- [Backend Development Instructions](../apps/api/.github/backend.instructions.md)
 - [Main README](../README.md)
 - [Infrastructure Documentation](../infra/README.md)
 

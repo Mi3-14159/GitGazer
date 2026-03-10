@@ -1,5 +1,5 @@
 ---
-applyTo: '04_frontend/**/*.{vue,ts,json}'
+applyTo: 'apps/web/**/*.{vue,ts,json}'
 ---
 
 # Frontend Development Instructions
@@ -9,7 +9,7 @@ This module contains the Vue 3 + Vuetify SPA frontend for GitGazer.
 ## Build and Test Commands
 
 ```bash
-cd 04_frontend
+cd apps/web
 
 # Install dependencies
 npm ci
