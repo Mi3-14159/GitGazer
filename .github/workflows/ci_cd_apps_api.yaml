@@ -1,89 +1,93 @@
 name: CI/CD apps/api
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/ci_cd_apps_api.yaml"
-      - "apps/api/**"
-      - "packages/**"
-  pull_request:
-    paths:
-      - ".github/workflows/ci_cd_apps_api.yaml"
-      - "apps/api/**"
-      - "packages/**"
-  workflow_dispatch:
-    inputs:
-      deploy:
-        description: Deploy to AWS
-        required: false
-        type: boolean
-        default: false
+    push:
+        branches:
+            - main
+        paths:
+            - '.github/workflows/ci_cd_apps_api.yaml'
+            - 'apps/api/**'
+            - 'packages/**'
+    pull_request:
+        paths:
+            - '.github/workflows/ci_cd_apps_api.yaml'
+            - 'apps/api/**'
+            - 'packages/**'
+    workflow_dispatch:
+        inputs:
+            deploy:
+                description: Deploy to AWS
+                required: false
+                type: boolean
+                default: false
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    concurrency:
-      group: apps/api-${{ github.ref }}
-      cancel-in-progress: false
-    environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
-      url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        concurrency:
+            group: apps/api-${{ github.ref }}
+            cancel-in-progress: false
+        environment:
+            name: ${{ github.ref == 'refs/heads/main' && 'app.gitgazer.com' || null }}
+            url: ${{ github.ref == 'refs/heads/main' && 'https://app.gitgazer.com/' || null }}
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: latest
+                  run_install: false
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: ./apps/api/package.json
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: ./apps/api/package.json
+                  cache: 'pnpm'
+                  cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        working-directory: ./apps/api
-        run: npm run lint
+            - name: Prettier
+              working-directory: ./apps/api
+              run: npm run pretty
 
-      - name: Unit tests
-        working-directory: ./apps/api
-        run: npm run test:unit
+            - name: Lint
+              working-directory: ./apps/api
+              run: npm run lint
 
-      - name: Build Lambdas
-        working-directory: ./apps/api
-        run: |
-          npm run buildZip
+            - name: Unit tests
+              working-directory: ./apps/api
+              run: npm run test:unit
 
-      - name: Configure AWS credentials
+            - name: Build Lambdas
+              working-directory: ./apps/api
+              run: |
+                  npm run buildZip
+
+            - name: Configure AWS credentials
+              if: github.ref == 'refs/heads/main' || inputs.deploy == true
+              uses: aws-actions/configure-aws-credentials@v6
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+                  role-session-name: gitgazer-deployment
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+                  mask-aws-account-id: true
+
+            - name: Upload Lambdas function code to S3
+              if: github.ref == 'refs/heads/main' || inputs.deploy == true
+              working-directory: ./apps/api
+              run: |
+                  aws s3 sync ./tmp/ s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/
+
+    deploy:
+        uses: ./.github/workflows/deploy_infra.yaml
         if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: gitgazer-deployment
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          mask-aws-account-id: true
-
-      - name: Upload Lambdas function code to S3
-        if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        working-directory: ./apps/api
-        run: |
-          aws s3 sync ./tmp/ s3://${{ secrets.S3_BUCKET_LAMBDA_STORE }}/
-
-  deploy:
-    uses: ./.github/workflows/deploy_infra.yaml
-    if: github.ref == 'refs/heads/main' || inputs.deploy == true
-    needs: build
-    permissions:
-      contents: read
-      id-token: write
-    secrets: inherit
+        needs: build
+        permissions:
+            contents: read
+            id-token: write
+        secrets: inherit

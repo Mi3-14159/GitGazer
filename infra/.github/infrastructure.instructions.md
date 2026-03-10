@@ -1,5 +1,5 @@
 ---
-applyTo: "infra/**/*.{tf,tfvars}"
+applyTo: 'infra/**/*.{tf,tfvars}'
 ---
 
 # Infrastructure Development Instructions
@@ -60,17 +60,17 @@ GitGazer uses AWS serverless architecture with the following components:
 - `variables.tf`: Input variables
 - `outputs.tf`: Output values
 - `*.tf`: Resource-specific modules
-  - `api_rest.tf` / `api_rest_lambda.tf`: REST API Gateway and Lambda
-  - `api_websocket.tf` / `api_websocket_lambda.tf`: WebSocket API and Lambda
-  - `alerting_lambda.tf`: Alerting Lambda function
-  - `analytics_lambda.tf`: Analytics Lambda function
-  - `cloudfront.tf`: CDN configuration
-  - `cognito.tf`: Authentication setup
-  - `rds.tf`: Database configuration
-  - `s3_*.tf`: Storage buckets
-  - `kms.tf`: Encryption keys
-  - `secrets.tf`: Secrets management
-  - `route53.tf`: DNS records
+    - `api_rest.tf` / `api_rest_lambda.tf`: REST API Gateway and Lambda
+    - `api_websocket.tf` / `api_websocket_lambda.tf`: WebSocket API and Lambda
+    - `alerting_lambda.tf`: Alerting Lambda function
+    - `analytics_lambda.tf`: Analytics Lambda function
+    - `cloudfront.tf`: CDN configuration
+    - `cognito.tf`: Authentication setup
+    - `rds.tf`: Database configuration
+    - `s3_*.tf`: Storage buckets
+    - `kms.tf`: Encryption keys
+    - `secrets.tf`: Secrets management
+    - `route53.tf`: DNS records
 
 ## Development Patterns
 
@@ -85,11 +85,11 @@ GitGazer uses AWS serverless architecture with the following components:
 
 - Use workspaces for different environments
 - Commands:
-  ```bash
-  terraform workspace list
-  terraform workspace select dev
-  terraform workspace new prod
-  ```
+    ```bash
+    terraform workspace list
+    terraform workspace select dev
+    terraform workspace new prod
+    ```
 
 ### State Management
 
@@ -111,34 +111,34 @@ GitGazer uses AWS serverless architecture with the following components:
 
 1. Create S3 bucket for Lambda artifacts first:
 
-   ```bash
-   terraform apply -target module.lambda_store
-   ```
+    ```bash
+    terraform apply -target module.lambda_store
+    ```
 
 2. Build and upload Lambda functions:
 
-   ```bash
-   cd ../02_central
-   npm ci
-   npm run buildZip:api
-   aws s3 cp ./dist/lambda.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
-   # Repeat for other Lambda functions
-   ```
+    ```bash
+    cd ../02_central
+    npm ci
+    npm run buildZip:api
+    aws s3 cp ./dist/lambda.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
+    # Repeat for other Lambda functions
+    ```
 
 3. Apply remaining infrastructure:
 
-   ```bash
-   cd ../infra
-   terraform apply
-   ```
+    ```bash
+    cd ../infra
+    terraform apply
+    ```
 
 4. Build and deploy frontend:
-   ```bash
-   cd ../04_frontend
-   npm ci
-   npm run build
-   aws s3 sync dist/. s3://<UI_BUCKET_NAME>/
-   ```
+    ```bash
+    cd ../04_frontend
+    npm ci
+    npm run build
+    aws s3 sync dist/. s3://<UI_BUCKET_NAME>/
+    ```
 
 ### Updates
 

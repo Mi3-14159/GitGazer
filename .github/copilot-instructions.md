@@ -18,20 +18,20 @@ These files provide detailed build commands, testing procedures, and module-spec
 ### Multi-Module Structure
 
 - **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 24)
-  - Four Lambda functions: API, Alerting, WebSocket, Analytics
-  - Custom router with middleware chain
-  - Structured logging with AWS Powertools
+    - Four Lambda functions: API, Alerting, WebSocket, Analytics
+    - Custom router with middleware chain
+    - Structured logging with AWS Powertools
 - **`04_frontend/`**: Vue 3 + Vuetify SPA frontend
-  - Composition API with `<script setup>`
-  - Pinia for state management
-  - Real-time WebSocket updates
+    - Composition API with `<script setup>`
+    - Pinia for state management
+    - Real-time WebSocket updates
 - **`common/`**: Shared TypeScript types and utilities
-  - Type definitions with corresponding type guards
-  - Single source of truth for shared types
+    - Type definitions with corresponding type guards
+    - Single source of truth for shared types
 - **`infra/`**: AWS infrastructure as code (Terraform)
-  - Serverless architecture (Lambda, API Gateway, DynamoDB)
-  - Authentication with Cognito
-  - CloudFront for global distribution
+    - Serverless architecture (Lambda, API Gateway, DynamoDB)
+    - Authentication with Cognito
+    - CloudFront for global distribution
 
 The backend serves as both API and GitHub webhook processor, while the frontend provides the monitoring dashboard.
 
@@ -42,7 +42,7 @@ The backend serves as both API and GitHub webhook processor, while the frontend 
 - **Router Pattern**: Custom router in `src/router/router.ts` handles API Gateway events
 - **Middleware Chain**: Sequential processing with `lowercaseHeaders` → `extractCognitoGroups` → `verifyGithubSign` → route handlers
 - **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in all `tsconfig.*.json` and `vitest.config.ts`
-  - **IMPORTANT**: Never use relative imports like `../../../` - always use `@/` path aliases
+    - **IMPORTANT**: Never use relative imports like `../../../` - always use `@/` path aliases
 - **AWS Client Pattern**: Centralized clients in `src/clients/` (DynamoDB, S3, Cognito, Athena, Firehose)
 - **Type Guards**: All types in `common/types/index.ts` have corresponding `isType()` guards
 - **Logging**: AWS Powertools Logger for structured logging (not pino)

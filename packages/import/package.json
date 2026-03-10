@@ -1,10 +1,5 @@
 {
-  "name": "@gitgazer/import",
-  "version": "1.0.0",
   "description": "Backfill GitHub Actions workflow data into GitGazer database",
-  "scripts": {
-    "backfill": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register src/index.ts"
-  },
   "devDependencies": {
     "@aws-lambda-powertools/logger": "^2.31.0",
     "@aws-sdk/client-rds-data": "3.873.0",
@@ -17,5 +12,12 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.30.3"
+  "name": "@gitgazer/import",
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "backfill": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register src/index.ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write ."
+  },
+  "version": "1.0.0"
 }

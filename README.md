@@ -22,10 +22,10 @@ GitGazer is a comprehensive monitoring and notification system for GitHub workfl
 ### Multi-Module Structure
 
 - **`02_central/`**: AWS Lambda backend (TypeScript, Node.js 24)
-  - API handler for REST endpoints
-  - Alerting handler for notifications
-  - WebSocket handler for real-time updates
-  - Analytics handler for data aggregation
+    - API handler for REST endpoints
+    - Alerting handler for notifications
+    - WebSocket handler for real-time updates
+    - Analytics handler for data aggregation
 - **`04_frontend/`**: Vue 3 + Vuetify SPA
 - **`common/`**: Shared TypeScript types and utilities
 - **`infra/`**: Terraform infrastructure as code
@@ -160,16 +160,16 @@ aws s3 sync dist/. s3://<UI_BUCKET_NAME>/ --cache-control max-age=60 --include "
 3. Go to the **Integrations** page and click **Add**
 4. Copy the generated **Webhook payload URL** and **Secret**
 5. Create a GitHub webhook:
-   - For a [repository webhook](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-a-repository-webhook)
-   - For an [organization webhook](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-an-organization-webhook)
-   - Set **Payload URL** to the URL from step 4
-   - Set **Content type** to `application/json`
-   - Set **Secret** to the secret from step 4
-   - Select **Workflow jobs** and **Workflow runs** events
+    - For a [repository webhook](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-a-repository-webhook)
+    - For an [organization webhook](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-an-organization-webhook)
+    - Set **Payload URL** to the URL from step 4
+    - Set **Content type** to `application/json`
+    - Set **Secret** to the secret from step 4
+    - Select **Workflow jobs** and **Workflow runs** events
 6. (Optional) Create notification rules:
-   - Go to **Notifications** page
-   - Click **Add** and configure your notification preferences
-   - Set filters for specific repositories, branches, or workflow statuses
+    - Go to **Notifications** page
+    - Click **Add** and configure your notification preferences
+    - Set filters for specific repositories, branches, or workflow statuses
 
 ## Development
 

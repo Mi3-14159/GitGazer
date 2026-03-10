@@ -1,5 +1,5 @@
 import {insertEvent} from '@/controllers/imports/index';
-import {fetchAllWorkflowRuns, fetchRepo, fetchWorkflow, fetchWorkflowJobs} from './github';
+import {fetchAllWorkflowRuns, fetchRepo, fetchWorkflowJobs} from './github';
 import {transformWorkflowJob, transformWorkflowRun} from './transform';
 
 const required = (name: string): string => {
@@ -22,6 +22,7 @@ const main = async () => {
     const until = process.env.UNTIL; // e.g. "2025-12-31"
 
     const dryRun = process.env.DRY_RUN === 'true';
+    const concurrency = parseInt(process.env.CONCURRENCY || '1', 10);
 
     // Build the `created` filter for the GitHub API
     // Format: ">=2025-01-01..<=2025-12-31" or ">=2025-01-01" or "<=2025-12-31"
@@ -39,6 +40,7 @@ const main = async () => {
     console.log(`Repository:     ${owner}/${repo}`);
     console.log(`Integration ID: ${integrationId}`);
     console.log(`Date filter:    ${createdFilter ?? 'none (all runs)'}`);
+    console.log(`Concurrency:    ${concurrency} run(s) in parallel`);
     console.log(`Dry run:        ${dryRun}`);
     console.log();
 
@@ -52,28 +54,19 @@ const main = async () => {
     const runs = await fetchAllWorkflowRuns(owner, repo, createdFilter);
     console.log(`  Total runs: ${runs.length}`);
 
-    // Cache workflow metadata to avoid redundant API calls
-    const workflowCache = new Map<number, any>();
-
     let runSuccessCount = 0;
     let runErrorCount = 0;
     let jobSuccessCount = 0;
     let jobErrorCount = 0;
 
-    // Step 3: Process each workflow run
-    for (let i = 0; i < runs.length; i++) {
-        const run = runs[i];
-        const runLabel = `[${i + 1}/${runs.length}] Run #${run.id} (${run.name})`;
+    // Helper function to process a single workflow run
+    const processRun = async (run: any, index: number, total: number) => {
+        const runLabel = `[${index + 1}/${total}] Run #${run.id} (${run.name})`;
 
         try {
-            // Fetch workflow metadata (cached)
-            let workflowMeta = workflowCache.get(run.workflow_id);
-            if (!workflowMeta) {
-                workflowMeta = await fetchWorkflow(owner, repo, run.workflow_id);
-                workflowCache.set(run.workflow_id, workflowMeta);
-            }
-
             // Transform and insert workflow_run event
+            // The run already contains workflow_id, name, and path — no need for a separate API call
+            const workflowMeta = {id: run.workflow_id, name: run.name, path: run.path};
             const runEvent = transformWorkflowRun(run, fullRepo, workflowMeta);
 
             if (dryRun) {
@@ -82,15 +75,14 @@ const main = async () => {
                 await insertEvent(integrationId, 'workflow_run', runEvent);
                 console.log(`${runLabel} - inserted workflow_run`);
             }
-            runSuccessCount++;
 
             // Fetch and process jobs for this run
             const jobs = await fetchWorkflowJobs(owner, repo, run.id);
             const sender = run.triggering_actor ?? run.actor;
 
-            for (let j = 0; j < jobs.length; j++) {
-                const job = jobs[j];
-                try {
+            // Process all jobs in parallel
+            const jobResults = await Promise.allSettled(
+                jobs.map(async (job, j) => {
                     const jobEvent = transformWorkflowJob(job, fullRepo, sender);
 
                     if (dryRun) {
@@ -99,16 +91,46 @@ const main = async () => {
                         await insertEvent(integrationId, 'workflow_job', jobEvent);
                         console.log(`  Job ${j + 1}/${jobs.length} #${job.id} (${job.name}) - inserted`);
                     }
-                    jobSuccessCount++;
-                } catch (jobError) {
-                    jobErrorCount++;
-                    console.error(`  Job ${j + 1}/${jobs.length} #${job.id} (${job.name}) - ERROR: ${jobError}`);
+                    return job;
+                }),
+            );
+
+            // Count job successes and failures
+            const jobStats = {successCount: 0, errorCount: 0};
+            jobResults.forEach((result, j) => {
+                if (result.status === 'fulfilled') {
+                    jobStats.successCount++;
+                } else {
+                    jobStats.errorCount++;
+                    console.error(`  Job ${j + 1}/${jobs.length} #${jobs[j].id} (${jobs[j].name}) - ERROR: ${result.reason}`);
                 }
-            }
+            });
+
+            return {runSuccess: true, ...jobStats};
         } catch (runError) {
-            runErrorCount++;
             console.error(`${runLabel} - ERROR: ${runError}`);
+            return {runSuccess: false, successCount: 0, errorCount: 0};
         }
+    };
+
+    // Step 3: Process workflow runs in batches
+    for (let i = 0; i < runs.length; i += concurrency) {
+        const batch = runs.slice(i, i + concurrency);
+        console.log(`\nProcessing runs ${i + 1} to ${Math.min(i + batch.length, runs.length)}...`);
+        const results = await Promise.allSettled(batch.map((run, batchIndex) => processRun(run, i + batchIndex, runs.length)));
+
+        // Aggregate results
+        results.forEach((result) => {
+            if (result.status === 'fulfilled') {
+                const {runSuccess, successCount, errorCount} = result.value;
+                if (runSuccess) runSuccessCount++;
+                else runErrorCount++;
+                jobSuccessCount += successCount;
+                jobErrorCount += errorCount;
+            } else {
+                runErrorCount++;
+            }
+        });
     }
 
     // Summary

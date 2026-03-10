@@ -24,16 +24,28 @@ const handleRateLimit = async (response: Response): Promise<void> => {
     }
 };
 
-const fetchJson = async <T>(url: string): Promise<T> => {
-    const response = await fetch(url, {headers: getHeaders()});
-    await handleRateLimit(response);
+const fetchJson = async <T>(url: string, maxRetries = 5): Promise<T> => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const response = await fetch(url, {headers: getHeaders()});
+        await handleRateLimit(response);
 
-    if (!response.ok) {
+        if (response.ok) {
+            return response.json() as Promise<T>;
+        }
+
         const body = await response.text();
+
+        if (response.status >= 500 && attempt < maxRetries) {
+            const backoffMs = Math.min(1000 * 2 ** attempt, 30000);
+            console.log(`GitHub API ${response.status} for ${url}. Retrying in ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            continue;
+        }
+
         throw new Error(`GitHub API error ${response.status} for ${url}: ${body}`);
     }
 
-    return response.json() as Promise<T>;
+    throw new Error(`GitHub API failed after ${maxRetries} retries for ${url}`);
 };
 
 export interface GitHubWorkflowRunsResponse {
