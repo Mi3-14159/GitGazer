@@ -1,5 +1,5 @@
-import {getDoraMetrics, getSpaceMetrics} from '@/controllers/metrics';
 import {getCustomQuerySchema, runCustomQuery} from '@/controllers/customMetrics';
+import {getDoraMetrics, getSpaceMetrics} from '@/controllers/metrics';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';

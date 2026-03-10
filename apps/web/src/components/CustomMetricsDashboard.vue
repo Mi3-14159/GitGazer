@@ -122,8 +122,8 @@
             >
             <h3 class="text-h6 text-medium-emphasis">No custom widgets yet</h3>
             <p class="text-body-2 text-medium-emphasis mt-2 mb-4">
-                Create custom widgets by writing SQL queries against your GitHub data. Choose from charts, tables, and gauges to visualize
-                results. Drag and resize widgets to build your dashboard.
+                Create custom widgets by writing SQL queries against your GitHub data. Choose from charts, tables, and gauges to visualize results.
+                Drag and resize widgets to build your dashboard.
             </p>
             <v-btn
                 color="primary"
