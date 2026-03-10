@@ -126,3 +126,59 @@ export const fetchWorkflowJobs = async (owner: string, repo: string, runId: numb
 export const fetchWorkflow = async (owner: string, repo: string, workflowId: number): Promise<any> => {
     return fetchJson(`${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${workflowId}`);
 };
+
+export interface GitHubPullRequestsResponse {
+    total_count: number;
+    items: any[];
+}
+
+export const fetchPullRequests = async (
+    owner: string,
+    repo: string,
+    options: {state?: string; sort?: string; direction?: string; page?: number; per_page?: number} = {},
+): Promise<any[]> => {
+    const params = new URLSearchParams();
+    params.set('state', options.state ?? 'all');
+    params.set('sort', options.sort ?? 'updated');
+    params.set('direction', options.direction ?? 'desc');
+    params.set('page', String(options.page ?? 1));
+    params.set('per_page', String(options.per_page ?? 100));
+
+    const url = `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls?${params}`;
+    return fetchJson<any[]>(url);
+};
+
+export const fetchAllPullRequests = async (owner: string, repo: string, since?: string, until?: string): Promise<any[]> => {
+    const allPRs: any[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+        const prs = await fetchPullRequests(owner, repo, {
+            state: 'all',
+            sort: 'updated',
+            direction: 'desc',
+            page,
+            per_page: perPage,
+        });
+        if (prs.length === 0) break;
+
+        // Filter by date range based on updated_at
+        const filtered = prs.filter((pr) => {
+            const updatedAt = pr.updated_at;
+            if (since && updatedAt < since) return false;
+            if (until && updatedAt > until + 'T23:59:59Z') return false;
+            return true;
+        });
+        allPRs.push(...filtered);
+
+        console.log(`  Fetched page ${page} of PRs (${allPRs.length} matching so far)`);
+
+        // If the oldest PR on this page is before our `since` date, stop paginating
+        if (since && prs[prs.length - 1].updated_at < since) break;
+        if (prs.length < perPage) break;
+        page++;
+    }
+
+    return allPRs;
+};

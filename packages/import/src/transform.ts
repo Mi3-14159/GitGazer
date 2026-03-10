@@ -1,4 +1,4 @@
-import type {WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import type {PullRequestEvent, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
 /**
  * Derives the webhook `action` field from the status/conclusion of a run or job.
@@ -47,4 +47,33 @@ export const transformWorkflowJob = (apiJob: any, fullRepo: any, sender: any): W
         sender,
         organization: fullRepo.organization ?? undefined,
     } as unknown as WorkflowJobEvent;
+};
+
+/**
+ * Derives the webhook `action` field from the state of a pull request.
+ */
+const derivePullRequestAction = (pr: any): string => {
+    if (pr.merged_at) return 'closed';
+    if (pr.state === 'closed') return 'closed';
+    return 'opened';
+};
+
+/**
+ * Transform a GitHub API pull request response + full repo
+ * into the webhook `PullRequestEvent` format expected by `insertEvent`.
+ */
+export const transformPullRequest = (apiPR: any, fullRepo: any): PullRequestEvent => {
+    const action = derivePullRequestAction(apiPR);
+
+    return {
+        action,
+        number: apiPR.number,
+        pull_request: {
+            ...apiPR,
+            merged: !!apiPR.merged_at,
+        },
+        repository: fullRepo,
+        sender: apiPR.user,
+        organization: fullRepo.organization ?? undefined,
+    } as unknown as PullRequestEvent;
 };
