@@ -21,11 +21,6 @@ const router = createRouter({
             component: Default,
         },
         {
-            path: '/analytics',
-            name: 'analytics',
-            component: Default,
-        },
-        {
             path: '/metrics',
             name: 'metrics',
             component: Default,

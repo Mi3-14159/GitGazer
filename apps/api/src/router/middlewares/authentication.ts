@@ -1,9 +1,9 @@
-import {db} from '@gitgazer/db/client';
-import {users} from '@gitgazer/db/schema/gitgazer';
 import {getLogger} from '@/logger';
 import {AppRequestContext} from '@/types';
 import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
+import {db} from '@gitgazer/db/client';
+import {users} from '@gitgazer/db/schema/gitgazer';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
 import {CognitoIdTokenPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
@@ -61,6 +61,7 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         '/api/auth/callback',
         '/api/auth/refresh',
         '/api/import/', // Webhook endpoints
+        '/api/github/', // GitHub App webhook endpoint
         '/fe-failover/',
     ];
 

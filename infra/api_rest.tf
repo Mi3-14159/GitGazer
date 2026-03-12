@@ -18,6 +18,15 @@ locals {
     "integrations/{integrationId}/notifications/{notificationId}" = {
       methods = ["DELETE", "PUT"]
     },
+    "integrations/{integrationId}/github-app" = {
+      methods = ["GET", "POST"]
+    },
+    "integrations/{integrationId}/github-app/{installationId}" = {
+      methods = ["DELETE"]
+    },
+    "integrations/{integrationId}/github-app/{installationId}/events" = {
+      methods = ["PATCH"]
+    },
     "auth/cognito/public" = {
       methods = ["GET"]
     },
@@ -59,6 +68,9 @@ locals {
     },
     "metrics/custom/schema" = {
       methods = ["GET"]
+    },
+    "github/webhook" = {
+      methods = ["POST"]
     },
   }
 

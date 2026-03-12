@@ -186,6 +186,10 @@ resource "aws_lambda_function" "api" {
       RDS_DATABASE                         = "postgres"
       RDS_SECRET_ARN                       = module.db.cluster_master_user_secret[0].secret_arn
       RDS_RESOURCE_ARN                     = module.db.cluster_arn
+      GH_APP_ID                            = var.gh_app.id
+      GH_APP_PRIVATE_KEY                   = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]
+      GH_APP_WEBHOOK_SECRET                = data.aws_kms_secrets.this.plaintext["gh_app_webhook_secret"]
+      IMPORT_URL_BASE                      = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
       NODE_OPTIONS                         = "--enable-source-maps"
     }
   }

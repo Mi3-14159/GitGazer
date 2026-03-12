@@ -190,6 +190,13 @@
       "when": 1773174466723,
       "tag": "0026_grant_permissions_to_analyst",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1773269374543,
+      "tag": "0027_github_app_installations",
+      "breakpoints": true
     }
   ]
 }

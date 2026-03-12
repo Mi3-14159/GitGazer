@@ -1,5 +1,4 @@
 <script setup lang="ts">
-    import AnalyticsOverview from '@/components/AnalyticsOverview.vue';
     import IntegrationsOverview from '@/components/IntegrationsOverview.vue';
     import MetricsOverview from '@/components/MetricsOverview.vue';
     import Navigation from '@/components/Navigation.vue';
@@ -28,6 +27,5 @@
     <WorkflowOverview v-if="router.currentRoute.value.name === 'dashboard'" />
     <NotificationsOveview v-else-if="router.currentRoute.value.name === 'notifications'" />
     <IntegrationsOverview v-else-if="router.currentRoute.value.name === 'integrations'" />
-    <AnalyticsOverview v-else-if="router.currentRoute.value.name === 'analytics'" />
     <MetricsOverview v-else-if="router.currentRoute.value.name === 'metrics'" />
 </template>

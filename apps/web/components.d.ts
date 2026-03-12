@@ -11,7 +11,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AnalyticsOverview: typeof import('./src/components/AnalyticsOverview.vue')['default']
     BooleanChip: typeof import('./src/components/BooleanChip.vue')['default']
     CodeMirrorEditor: typeof import('./src/components/CodeMirrorEditor.vue')['default']
     ColumnHeader: typeof import('./src/components/ColumnHeader.vue')['default']

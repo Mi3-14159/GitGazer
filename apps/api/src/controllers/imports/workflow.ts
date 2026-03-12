@@ -1,7 +1,7 @@
 import {RdsTransaction} from '@gitgazer/db/client';
-import {enterprises, organizations, repositories} from '@gitgazer/db/schema/github/workflows';
+import {enterprises, organizations, repositories, user} from '@gitgazer/db/schema/github/workflows';
 import {WorkflowJobEvent, WorkflowRunEvent} from '@gitgazer/db/types';
-import {eq, InferSelectModel} from 'drizzle-orm';
+import {eq, inArray, InferSelectModel} from 'drizzle-orm';
 
 export const importWorkflow = async (
     integrationId: string,
@@ -11,6 +11,9 @@ export const importWorkflow = async (
     enterprise: InferSelectModel<typeof enterprises>;
     organization: InferSelectModel<typeof organizations>;
     repository: InferSelectModel<typeof repositories>;
+    owner: InferSelectModel<typeof user>;
+    sender: InferSelectModel<typeof user>;
+    actor?: InferSelectModel<typeof user>;
 }> => {
     // Insert/Update Enterprise (if present)
     let enterpriseId: number | null = null;
@@ -64,6 +67,46 @@ export const importWorkflow = async (
         }
     }
 
+    // Deduplicate users by id before bulk insert
+    const userMap = new Map<number, InferSelectModel<typeof user>>();
+    userMap.set(event.repository.owner.id, {
+        integrationId,
+        id: event.repository.owner.id,
+        login: event.repository.owner.login,
+        type: event.repository.owner.type,
+    });
+    userMap.set(event.sender.id, {
+        integrationId,
+        id: event.sender.id,
+        login: event.sender.login,
+        type: event.sender.type,
+    });
+    if ('workflow_run' in event) {
+        userMap.set(event.workflow_run.actor.id, {
+            integrationId,
+            id: event.workflow_run.actor.id,
+            login: event.workflow_run.actor.login,
+            type: event.workflow_run.actor.type,
+        });
+    }
+
+    // Insert/Update Users in bulk
+    const users = await tx.insert(user).values(Array.from(userMap.values())).onConflictDoNothing().returning();
+
+    if (users.length < userMap.size) {
+        // If some users were not inserted, it means they already exist. Fetch them to get their data.
+        const existingUsers = await tx
+            .select()
+            .from(user)
+            .where(inArray(user.id, Array.from(userMap.keys())));
+
+        existingUsers.forEach((user) => {
+            if (!userMap.has(user.id)) {
+                userMap.set(user.id, user);
+            }
+        });
+    }
+
     // Insert/Update Repository
     let repository = await tx
         .insert(repositories)
@@ -88,5 +131,12 @@ export const importWorkflow = async (
         }
     }
 
-    return {enterprise: enterprise[0], organization: organization[0], repository: repository[0]};
+    return {
+        enterprise: enterprise[0],
+        organization: organization[0],
+        repository: repository[0],
+        owner: users.find((u) => u.id === event.repository.owner.id)!,
+        sender: users.find((u) => u.id === event.sender.id)!,
+        actor: 'workflow_run' in event ? users.find((u) => u.id === event.workflow_run.actor.id)! : undefined,
+    };
 };

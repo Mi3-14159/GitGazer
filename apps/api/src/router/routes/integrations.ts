@@ -1,7 +1,12 @@
 import {deleteIntegration, getIntegrations, upsertIntegration} from '@/controllers/integrations';
+import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/controllers/webhookProvisioning';
+import {getLogger} from '@/logger';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {db} from '@gitgazer/db/client';
+import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
+import {and, eq} from 'drizzle-orm';
 
 const router = new Router();
 
@@ -70,6 +75,162 @@ router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], as
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,
     });
+});
+
+router.get('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const integrationId = reqCtx.params.integrationId;
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
+
+    if (!integrationIds.includes(integrationId)) {
+        throw new BadRequestError('Integration not accessible');
+    }
+
+    const installations = await db.select().from(githubAppInstallations).where(eq(githubAppInstallations.integrationId, integrationId));
+
+    const webhooks = await db.select().from(githubAppWebhooks).where(eq(githubAppWebhooks.integrationId, integrationId));
+
+    return {
+        installations: installations.map((i) => ({
+            installationId: i.installationId,
+            accountType: i.accountType,
+            accountLogin: i.accountLogin,
+            accountId: i.accountId,
+            repositorySelection: i.repositorySelection,
+            webhookEvents: i.webhookEvents,
+            createdAt: i.createdAt.toISOString(),
+            updatedAt: i.updatedAt.toISOString(),
+        })),
+        webhooks: webhooks.map((w) => ({
+            webhookId: w.webhookId,
+            targetType: w.targetType,
+            targetName: w.targetName,
+            events: w.events,
+            createdAt: w.createdAt.toISOString(),
+        })),
+    };
+});
+
+router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const logger = getLogger();
+    const integrationId = reqCtx.params.integrationId;
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
+
+    if (!integrationIds.includes(integrationId)) {
+        throw new BadRequestError('Integration not accessible');
+    }
+
+    if (!reqCtx.event.body) {
+        throw new BadRequestError('Missing request body');
+    }
+
+    let requestBody;
+    try {
+        requestBody = await reqCtx.req.json();
+    } catch {
+        throw new BadRequestError('Invalid request body');
+    }
+
+    const installationId = requestBody.installation_id;
+    if (typeof installationId !== 'number') {
+        throw new BadRequestError('Invalid installation_id');
+    }
+
+    // Verify installation exists and is unlinked
+    const [installation] = await db.select().from(githubAppInstallations).where(eq(githubAppInstallations.installationId, installationId));
+
+    if (!installation) {
+        throw new BadRequestError('Installation not found. The GitHub App may not have been installed yet.');
+    }
+
+    if (installation.integrationId) {
+        throw new BadRequestError('Installation is already linked to an integration');
+    }
+
+    // Link installation to integration
+    await db
+        .update(githubAppInstallations)
+        .set({integrationId, updatedAt: new Date()})
+        .where(eq(githubAppInstallations.installationId, installationId));
+
+    // Provision webhooks
+    let webhookCount = 0;
+    try {
+        webhookCount = await provisionWebhooks(integrationId, installationId);
+    } catch (error) {
+        logger.error('Failed to provision webhooks', {error});
+    }
+
+    return {
+        installationId: installation.installationId,
+        accountLogin: installation.accountLogin,
+        accountType: installation.accountType,
+        webhookCount,
+    };
+});
+
+router.delete('/api/integrations/:integrationId/github-app/:installationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const integrationId = reqCtx.params.integrationId;
+    const installationId = parseInt(reqCtx.params.installationId, 10);
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
+
+    if (!integrationIds.includes(integrationId)) {
+        throw new BadRequestError('Integration not accessible');
+    }
+
+    if (isNaN(installationId)) {
+        throw new BadRequestError('Invalid installation ID');
+    }
+
+    // Delete webhooks from GitHub (app is still installed, webhooks won't auto-delete)
+    try {
+        await deprovisionAllWebhooks(integrationId, installationId);
+    } catch (error) {
+        getLogger().error('Failed to deprovision webhooks', {error});
+    }
+
+    // Unlink installation (set integration_id back to NULL)
+    await db
+        .update(githubAppInstallations)
+        .set({integrationId: null, updatedAt: new Date()})
+        .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
+
+    return new Response(null, {
+        status: HttpStatusCodes.NO_CONTENT,
+    });
+});
+
+router.patch('/api/integrations/:integrationId/github-app/:installationId/events', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const integrationId = reqCtx.params.integrationId;
+    const installationId = parseInt(reqCtx.params.installationId, 10);
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
+
+    if (!integrationIds.includes(integrationId)) {
+        throw new BadRequestError('Integration not accessible');
+    }
+
+    if (isNaN(installationId)) {
+        throw new BadRequestError('Invalid installation ID');
+    }
+
+    if (!reqCtx.event.body) {
+        throw new BadRequestError('Missing request body');
+    }
+
+    let requestBody;
+    try {
+        requestBody = await reqCtx.req.json();
+    } catch {
+        throw new BadRequestError('Invalid request body');
+    }
+
+    const allowedEvents = ['workflow_run', 'workflow_job', 'pull_request'];
+    if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
+        throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
+    }
+
+    await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
+
+    return {events: requestBody.events};
 });
 
 export default router;

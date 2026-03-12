@@ -65,12 +65,6 @@
                     @click.stop="router.push('/integrations')"
                 ></v-list-item>
                 <v-list-item
-                    prepend-icon="mdi-chart-bar"
-                    title="Analytics"
-                    value="analytics"
-                    @click.stop="router.push('/analytics')"
-                ></v-list-item>
-                <v-list-item
                     prepend-icon="mdi-chart-box-outline"
                     title="Metrics"
                     value="metrics"

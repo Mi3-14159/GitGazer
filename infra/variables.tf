@@ -37,6 +37,16 @@ variable "gh_oauth_app_client_secret_encrypted" {
   description = "GitHub OAuth app client secret, encrypted with KMS"
 }
 
+variable "gh_app" {
+  type = object({
+    id                       = string
+    private_key_encrypted    = string
+    webhook_secret_encrypted = string
+  })
+  sensitive   = true
+  description = "GitHub App configuration (ID, KMS-encrypted private key and webhook secret)"
+}
+
 variable "callback_uls" {
   type        = list(string)
   description = "List of callback URLs for the Cognito User Pool Client"

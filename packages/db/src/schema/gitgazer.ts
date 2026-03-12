@@ -1,6 +1,6 @@
 import {bigint, boolean, index, jsonb, pgSchema, primaryKey, text, timestamp, uuid} from 'drizzle-orm/pg-core';
 import type {NotificationRuleChannel, NotificationRuleRule} from '../types';
-import {integrations, tenantSeparationPolicy} from './github';
+import {integrations, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
 
@@ -22,7 +22,8 @@ export const wsConnections = gitgazerSchema.table(
         connectedAt: timestamp('connected_at', {withTimezone: true}).notNull().defaultNow(),
     },
     (table) => [
-        ...tenantSeparationPolicy(),
+        writerTenantSeparationPolicy(),
+        readerTenantSeparationPolicy(),
         primaryKey({
             columns: [table.integrationId, table.connectionId, table.userId],
         }),
@@ -45,6 +46,6 @@ export const notificationRules = gitgazerSchema
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
             updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.integrationId, table.id]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
     )
     .enableRLS();

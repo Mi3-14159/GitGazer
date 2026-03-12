@@ -1,7 +1,7 @@
 import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {users} from '../gitgazer';
-import {githubSchema, tenantSeparationPolicy} from './misc';
+import {analystTenantSeparationPolicy, githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
 export const integrations = githubSchema
     .table(
@@ -15,7 +15,7 @@ export const integrations = githubSchema
             secret: uuid('secret').notNull().defaultRandom(),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        () => [...tenantSeparationPolicy()],
+        () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -31,7 +31,7 @@ export const userAssignments = githubSchema
                 .references(() => users.id),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        (table) => [primaryKey({columns: [table.userId, table.integrationId]}), ...tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.userId, table.integrationId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -44,7 +44,7 @@ export const events = githubSchema
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
             event: jsonb('event').notNull(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
+        (table) => [primaryKey({columns: [table.integrationId, table.id]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -56,7 +56,12 @@ export const enterprises = githubSchema
             id: bigint('id', {mode: 'number'}).notNull(),
             name: varchar('name', {length: 255}).notNull(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.id]}),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
+        ],
     )
     .enableRLS();
 
@@ -80,7 +85,9 @@ export const organizations = githubSchema
                 columns: [table.integrationId, table.enterpriseId],
                 foreignColumns: [enterprises.integrationId, enterprises.id],
             }).onDelete('set null'),
-            ...tenantSeparationPolicy(),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -116,7 +123,9 @@ export const repositories = githubSchema
                 columns: [table.integrationId, table.organizationId],
                 foreignColumns: [organizations.integrationId, organizations.id],
             }).onDelete('set null'),
-            ...tenantSeparationPolicy(),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
             foreignKey({
                 columns: [table.integrationId, table.ownerId],
                 foreignColumns: [user.integrationId, user.id],
@@ -147,7 +156,12 @@ export const user = githubSchema
             login: varchar('login', {length: 255}).notNull(),
             type: varchar('type', {length: 255}).notNull(),
         },
-        (table) => [primaryKey({columns: [table.integrationId, table.id]}), ...tenantSeparationPolicy()],
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.id]}),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
+        ],
     )
     .enableRLS();
 
@@ -185,7 +199,9 @@ export const workflowJobs = githubSchema
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),
-            ...tenantSeparationPolicy(),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
@@ -249,7 +265,9 @@ export const workflowRuns = githubSchema
                 columns: [table.integrationId, table.actorId],
                 foreignColumns: [user.integrationId, user.id],
             }).onDelete('set null'),
-            ...tenantSeparationPolicy(),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
             index('workflow_runs_created_id').on(table.integrationId, table.createdAt, table.id),
         ],
     )
@@ -301,7 +319,9 @@ export const pullRequests = githubSchema
                 columns: [table.integrationId, table.authorId],
                 foreignColumns: [user.integrationId, user.id],
             }),
-            ...tenantSeparationPolicy(),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -334,7 +354,9 @@ export const workflowRunPullRequests = githubSchema
                 columns: [table.integrationId, table.workflowRunId],
                 foreignColumns: [workflowRuns.integrationId, workflowRuns.id],
             }).onDelete('cascade'),
-            ...tenantSeparationPolicy(),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
             // no foreign key to pull requests, because pull request events are optional
         ],
     )
@@ -348,5 +370,66 @@ export const workflowRunPullRequestsRelations = relations(workflowRunPullRequest
     pullRequest: one(pullRequests, {
         fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.pullRequestId],
         references: [pullRequests.integrationId, pullRequests.id],
+    }),
+}));
+
+export const githubAppInstallations = githubSchema.table(
+    'github_app_installations',
+    {
+        installationId: bigint('installation_id', {mode: 'number'}).primaryKey().notNull(),
+        integrationId: uuid('integration_id').references(() => integrations.integrationId, {onDelete: 'cascade'}),
+        accountType: varchar('account_type', {length: 50}).notNull(),
+        accountLogin: varchar('account_login', {length: 255}).notNull(),
+        accountId: bigint('account_id', {mode: 'number'}).notNull(),
+        repositorySelection: varchar('repository_selection', {length: 50}).notNull(),
+        senderId: bigint('sender_id', {mode: 'number'}).notNull(),
+        webhookEvents: jsonb('webhook_events').$type<string[]>().notNull().default(['workflow_run', 'workflow_job']),
+        createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+        updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),
+    },
+    (table) => [
+        index('github_app_installations_integration_id_idx').on(table.integrationId),
+        writerTenantSeparationPolicy(),
+        readerTenantSeparationPolicy(),
+    ],
+);
+
+export const githubAppInstallationsRelations = relations(githubAppInstallations, ({one, many}) => ({
+    integration: one(integrations, {
+        fields: [githubAppInstallations.integrationId],
+        references: [integrations.integrationId],
+    }),
+    webhooks: many(githubAppWebhooks),
+}));
+
+export const githubAppWebhooks = githubSchema
+    .table(
+        'github_app_webhooks',
+        {
+            integrationId: uuid('integration_id')
+                .references(() => integrations.integrationId, {onDelete: 'cascade'})
+                .notNull(),
+            installationId: bigint('installation_id', {mode: 'number'})
+                .references(() => githubAppInstallations.installationId, {onDelete: 'cascade'})
+                .notNull(),
+            webhookId: bigint('webhook_id', {mode: 'number'}).notNull(),
+            targetType: varchar('target_type', {length: 50}).notNull(),
+            targetId: bigint('target_id', {mode: 'number'}).notNull(),
+            targetName: varchar('target_name', {length: 255}).notNull(),
+            events: jsonb('events').$type<string[]>().notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        (table) => [primaryKey({columns: [table.integrationId, table.webhookId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
+    )
+    .enableRLS();
+
+export const githubAppWebhooksRelations = relations(githubAppWebhooks, ({one}) => ({
+    integration: one(integrations, {
+        fields: [githubAppWebhooks.integrationId],
+        references: [integrations.integrationId],
+    }),
+    installation: one(githubAppInstallations, {
+        fields: [githubAppWebhooks.installationId],
+        references: [githubAppInstallations.installationId],
     }),
 }));

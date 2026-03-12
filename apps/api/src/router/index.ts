@@ -2,6 +2,7 @@ import {getLogger} from '@/logger';
 import {authenticate} from '@/router/middlewares/authentication';
 import authCognitoRoutes from '@/router/routes/authCognito';
 import feFailover from '@/router/routes/feFailover';
+import githubAppRoutes from '@/router/routes/githubApp';
 import importRoutes from '@/router/routes/import';
 import integrationsRoutes from '@/router/routes/integrations';
 import metricsRoutes from '@/router/routes/metrics';
@@ -32,6 +33,7 @@ app.use(
 app.use(authenticate);
 
 app.includeRouter(authCognitoRoutes);
+app.includeRouter(githubAppRoutes);
 app.includeRouter(importRoutes);
 app.includeRouter(feFailover);
 app.includeRouter(notificationsRoutes);

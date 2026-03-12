@@ -2,9 +2,10 @@ import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {Integration} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
+import {deprovisionAllWebhooks} from './webhookProvisioning';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
     const logger = getLogger();
@@ -116,6 +117,26 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
     logger.info(`User ${userId} is attempting to delete integration ${id}`);
 
     try {
+        // Remove any leftover webhooks from GitHub (e.g. from a previously unlinked GitHub App)
+        const webhooks = await withRlsTransaction({
+            integrationIds,
+            callback: async (tx: RdsTransaction) => {
+                return await tx
+                    .select({installationId: githubAppWebhooks.installationId})
+                    .from(githubAppWebhooks)
+                    .where(eq(githubAppWebhooks.integrationId, id))
+                    .groupBy(githubAppWebhooks.installationId);
+            },
+        });
+
+        for (const {installationId} of webhooks) {
+            try {
+                await deprovisionAllWebhooks(id, installationId);
+            } catch (error) {
+                logger.warn(`Failed to deprovision webhooks for installation ${installationId}`, {error});
+            }
+        }
+
         await withRlsTransaction({
             integrationIds,
             userName: gitgazerWriter.name,

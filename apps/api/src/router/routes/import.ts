@@ -1,14 +1,13 @@
 import {handleEvent} from '@/controllers/imports';
 import {getLogger} from '@/logger';
-import {verifyGithubSign} from '@/router/middlewares/verifyGithubSign';
 
-import {EventPayloadMap} from '@gitgazer/db/types';
 import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
+import {EventPayloadMap} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 const router = new Router();
 
-router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => {
+router.post('/api/import/:integrationId', [], async (reqCtx) => {
     const logger = getLogger();
 
     const githubEventType = reqCtx.event?.headers?.['x-github-event'];
@@ -19,6 +18,10 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
     if (!validateEventName(githubEventType)) {
         logger.error('Invalid GitHub event name', {githubEventType});
         throw new BadRequestError('Invalid X-GitHub-Event header');
+    }
+
+    if (githubEventType === 'ping') {
+        return {message: 'ok'};
     }
 
     if (!reqCtx.event.body) {
@@ -49,7 +52,7 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
 // TODO: use the validateEventName from @octokit/webhooks package
 // currently it's not used because it requires type: module in package.json which causes issues
 const validateEventName = (eventName: string): boolean => {
-    const validEventNames: EmitterWebhookEventName[] = ['workflow_job', 'workflow_run', 'pull_request'];
+    const validEventNames: EmitterWebhookEventName[] = ['workflow_job', 'workflow_run', 'pull_request', 'ping'];
 
     return validEventNames.includes(eventName as EmitterWebhookEventName);
 };
