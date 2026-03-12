@@ -3,11 +3,11 @@
     import NotificationDetailsCard from '@/components/NotificationDetailsCard.vue';
     import {useIntegration} from '@/composables/useIntegration';
     import {useNotification} from '@/composables/useNotification';
-    import {IntegrationWithRelations, NotificationRule, NotificationRuleUpdate} from '@common/types';
+    import {NotificationRule, NotificationRuleUpdate} from '@common/types';
     import {computed, reactive, ref} from 'vue';
 
     const notificationRules = reactive(new Map<string, NotificationRule>());
-    const integrations = reactive(new Array<IntegrationWithRelations>());
+    const integrations = reactive(new Array());
     const dialog = ref(false);
     const editingRule = ref<NotificationRule | null>(null);
 
@@ -73,7 +73,7 @@
     };
 
     const getIntegrationLabel = (integrationId: string): string => {
-        const integration = integrations.find((i) => i.integrationId === integrationId);
+        const integration = integrations.find((i) => i.id === integrationId);
         return integration ? integration.label : integrationId;
     };
 
