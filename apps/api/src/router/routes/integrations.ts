@@ -5,15 +5,22 @@ import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
-import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
+import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {and, eq} from 'drizzle-orm';
 
 const router = new Router();
 
 router.get('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-    return await getIntegrations({
+    const integrations = await getIntegrations({
         integrationIds: integrationIds,
+    });
+
+    return new Response(JSON.stringify(integrations), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Content-Type': 'application/json',
+        },
     });
 });
 
@@ -35,11 +42,18 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
 
     const {userId, integrations = []} = reqCtx.appContext ?? {};
 
-    return await upsertIntegration({
+    const integration = await upsertIntegration({
         id: requestBody.id,
         label: requestBody.label,
         userId,
         integrationIds: integrations,
+    });
+
+    return new Response(JSON.stringify(integration), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Content-Type': 'application/json',
+        },
     });
 });
 
@@ -61,10 +75,17 @@ router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async
 
     const integration = reqCtx.appContext?.integrations ?? [];
 
-    return await upsertIntegration({
+    const updatedIntegration = await upsertIntegration({
         id: reqCtx.params.integrationId,
         label: requestBody.label,
         integrationIds: integration,
+    });
+
+    return new Response(JSON.stringify(updatedIntegration), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Content-Type': 'application/json',
+        },
     });
 });
 
@@ -75,39 +96,6 @@ router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], as
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,
     });
-});
-
-router.get('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new BadRequestError('Integration not accessible');
-    }
-
-    const installations = await db.select().from(githubAppInstallations).where(eq(githubAppInstallations.integrationId, integrationId));
-
-    const webhooks = await db.select().from(githubAppWebhooks).where(eq(githubAppWebhooks.integrationId, integrationId));
-
-    return {
-        installations: installations.map((i) => ({
-            installationId: i.installationId,
-            accountType: i.accountType,
-            accountLogin: i.accountLogin,
-            accountId: i.accountId,
-            repositorySelection: i.repositorySelection,
-            webhookEvents: i.webhookEvents,
-            createdAt: i.createdAt.toISOString(),
-            updatedAt: i.updatedAt.toISOString(),
-        })),
-        webhooks: webhooks.map((w) => ({
-            webhookId: w.webhookId,
-            targetType: w.targetType,
-            targetName: w.targetName,
-            events: w.events,
-            createdAt: w.createdAt.toISOString(),
-        })),
-    };
 });
 
 router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {

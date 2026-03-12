@@ -19,6 +19,10 @@ export const integrations = githubSchema
     )
     .enableRLS();
 
+export const integrationsRelations = relations(integrations, ({many}) => ({
+    githubAppInstallations: many(githubAppInstallations),
+}));
+
 export const userAssignments = githubSchema
     .table(
         'user-assignments',

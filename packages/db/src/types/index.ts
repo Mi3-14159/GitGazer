@@ -6,7 +6,7 @@ export type {EmitterWebhookEventName} from '@octokit/webhooks';
 export type * from '@octokit/webhooks-types';
 export * from './metrics';
 
-import type {workflowRunRelations} from '../queries';
+import type {integrationsQueryRelations, workflowRunRelations} from '../queries';
 import * as schema from '../schema';
 
 export type NotificationRule = {
@@ -72,22 +72,6 @@ export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpd
         typeof rule.enabled === 'boolean' &&
         typeof rule.ignore_dependabot === 'boolean' &&
         isNotificationRuleRule(rule.rule)
-    );
-};
-
-export type Integration = {
-    id: string;
-    label: string;
-    owner: number;
-    secret: string;
-};
-
-export const isIntegration = (integration: any): integration is Integration => {
-    return (
-        typeof integration.id === 'string' &&
-        typeof integration.label === 'string' &&
-        typeof integration.owner === 'string' &&
-        typeof integration.secret === 'string'
     );
 };
 
@@ -186,3 +170,4 @@ export type GithubAppInstallation = typeof schema.githubAppInstallations.$inferS
 export type GithubAppWebhook = typeof schema.githubAppWebhooks.$inferSelect;
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
+export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;

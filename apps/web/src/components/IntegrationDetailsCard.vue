@@ -14,7 +14,7 @@
     const handleSave = async () => {
         const {valid} = await form.value.validate();
         if (valid) {
-            props.onSave(label.value, props.integration?.id);
+            props.onSave(label.value, props.integration?.integrationId);
         }
     };
 </script>

@@ -3,26 +3,6 @@ import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
-export type GithubAppInstallationStatus = {
-    installations: Array<{
-        installationId: number;
-        accountType: string;
-        accountLogin: string;
-        accountId: number;
-        repositorySelection: string;
-        webhookEvents: string[];
-        createdAt: string;
-        updatedAt: string;
-    }>;
-    webhooks: Array<{
-        webhookId: number;
-        targetType: string;
-        targetName: string;
-        events: string[];
-        createdAt: string;
-    }>;
-};
-
 export type LinkInstallationResponse = {
     installationId: number;
     accountLogin: string;
@@ -33,14 +13,6 @@ export type LinkInstallationResponse = {
 export const useGithubApp = () => {
     const {fetchWithAuth} = useAuth();
     const isLoading = ref(false);
-
-    const getInstallationStatus = async (integrationId: string): Promise<GithubAppInstallationStatus> => {
-        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/github-app`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch installation status: ${response.status}`);
-        }
-        return (await response.json()) as GithubAppInstallationStatus;
-    };
 
     const linkInstallation = async (integrationId: string, installationId: number): Promise<LinkInstallationResponse> => {
         isLoading.value = true;
@@ -82,7 +54,6 @@ export const useGithubApp = () => {
 
     return {
         isLoading,
-        getInstallationStatus,
         linkInstallation,
         unlinkInstallation,
         updateWebhookEvents,

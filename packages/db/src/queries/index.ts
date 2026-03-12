@@ -1,6 +1,14 @@
 export * from './customQuery';
 export * from './metrics';
 
+export const integrationsQueryRelations = {
+    githubAppInstallations: {
+        with: {
+            webhooks: true,
+        },
+    },
+} as const;
+
 export const workflowRunRelations = {
     workflowJobs: true,
     repository: {

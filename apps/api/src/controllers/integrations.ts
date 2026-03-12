@@ -19,16 +19,19 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
     const results = await withRlsTransaction({
         integrationIds,
         callback: async (tx: RdsTransaction) => {
-            return await tx.select().from(integrations);
+            return await tx.query.integrations.findMany({
+                with: {
+                    githubAppInstallations: {
+                        with: {
+                            webhooks: true,
+                        },
+                    },
+                },
+            });
         },
     });
 
-    return results.map((r) => ({
-        id: r.integrationId,
-        label: r.label,
-        owner: r.ownerId,
-        secret: r.secret,
-    }));
+    return results;
 };
 
 export const upsertIntegration = async (params: {id?: string; label?: string; userId?: number; integrationIds: string[]}): Promise<Integration> => {
@@ -55,13 +58,12 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
             throw new UnauthorizedError('Integration not found or access denied');
         }
 
-        const result = results[0];
-        return {
-            id: result.integrationId,
-            label: result.label,
-            owner: result.ownerId,
-            secret: result.secret,
-        };
+        // Fetch the updated integration with relations
+        const fullIntegrations = await getIntegrations({integrationIds: [id]});
+        if (!fullIntegrations[0]) {
+            throw new InternalServerError('Failed to fetch updated integration');
+        }
+        return fullIntegrations[0];
     }
 
     if (!label || !userId) {
@@ -81,8 +83,8 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
 
     try {
         // Insert integration and user assignment in a transaction
-        const integration = await db.transaction(async (tx) => {
-            const integration = await tx
+        const insertedIntegration = await db.transaction(async (tx) => {
+            const [integration] = await tx
                 .insert(integrations)
                 .values({
                     label,
@@ -91,21 +93,19 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
                 .returning();
 
             await tx.insert(userAssignments).values({
-                integrationId: integration[0].integrationId,
+                integrationId: integration.integrationId,
                 userId: ownerId,
             });
 
-            return integration[0];
+            return integration;
         });
 
-        logger.info(`Successfully created integration '${label}:${integration.integrationId}'`);
+        logger.info(`Successfully created integration '${label}:${insertedIntegration.integrationId}'`);
 
-        return {
-            id: integration.integrationId,
-            label: integration.label,
-            owner: integration.ownerId,
-            secret: integration.secret,
-        };
+        // Fetch the created integration with relations
+        const fullIntegrations = await getIntegrations({integrationIds: [insertedIntegration.integrationId]});
+        const created = fullIntegrations[0] ?? {...insertedIntegration, githubAppInstallations: []};
+        return created;
     } catch (error: any) {
         logger.error(`Failed to create integration '${label}'`, {error: error?.message});
         throw new InternalServerError('Failed to create integration');

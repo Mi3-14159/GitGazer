@@ -60,7 +60,7 @@
                         <v-autocomplete
                             :items="integrations"
                             item-title="label"
-                            item-value="id"
+                            item-value="integrationId"
                             label="Integrations *"
                             auto-select-first
                             v-model="notificationRule.integrationId"

@@ -49,7 +49,7 @@
     onMounted(async () => {
         integrations.value = (await getIntegrations()) ?? [];
         if (integrations.value.length > 0) {
-            selectedIntegration.value = integrations.value[0].id;
+            selectedIntegration.value = integrations.value[0].integrationId;
         }
     });
 
@@ -232,7 +232,7 @@
                         v-model="selectedIntegration"
                         :items="integrations"
                         item-title="label"
-                        item-value="id"
+                        item-value="integrationId"
                         label="Integration"
                         variant="outlined"
                         density="compact"

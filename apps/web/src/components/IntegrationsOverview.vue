@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {GithubAppInstallationStatus, useGithubApp} from '@/composables/useGithubApp';
+    import {useGithubApp} from '@/composables/useGithubApp';
     import {useIntegration} from '@/composables/useIntegration';
     import {Integration} from '@common/types';
     import {computed, onMounted, reactive, ref} from 'vue';
@@ -9,7 +9,7 @@
 
     const {getUserAttributes} = useAuth();
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration} = useIntegration();
-    const {linkInstallation, getInstallationStatus, unlinkInstallation, updateWebhookEvents, isLoading: isLinkingApp} = useGithubApp();
+    const {linkInstallation, unlinkInstallation, updateWebhookEvents, isLoading: isLinkingApp} = useGithubApp();
     const route = useRoute();
     const router = useRouter();
 
@@ -30,31 +30,27 @@
     const linkResult = ref<{accountLogin: string; webhookCount: number} | null>(null);
     const linkError = ref<string | null>(null);
 
-    // GitHub App status per integration
-    const appStatus = reactive(new Map<string, GithubAppInstallationStatus>());
-
     const handleListIntegrations = async () => {
         const response = await getIntegrations();
         response.forEach((integration: Integration) => {
-            integrations.set(integration.id, integration);
+            integrations.set(integration.integrationId, integration);
         });
     };
 
     const handlePutIntegration = async (label: string) => {
         const integration = await createIntegration(label);
-        integrations.set(integration.id, integration);
+        integrations.set(integration.integrationId, integration);
         return integration;
     };
 
     const handleUpdateIntegration = async (id: string, label: string) => {
         const integration = await updateIntegration(id, label);
-        integrations.set(integration.id, integration);
+        integrations.set(integration.integrationId, integration);
     };
 
     const handleDeleteIntegration = async (id: string) => {
         await deleteIntegration(id);
         integrations.delete(id);
-        appStatus.delete(id);
     };
 
     const onSave = async (label: string, id?: string) => {
@@ -107,7 +103,7 @@
                     return;
                 }
                 const integration = await handlePutIntegration(newIntegrationLabel.value.trim());
-                targetIntegrationId = integration.id;
+                targetIntegrationId = integration.integrationId;
             }
 
             if (!targetIntegrationId || !pendingInstallationId.value) {
@@ -118,8 +114,8 @@
             const result = await linkInstallation(targetIntegrationId, pendingInstallationId.value);
             linkResult.value = {accountLogin: result.accountLogin, webhookCount: result.webhookCount};
 
-            // Refresh status for the linked integration
-            await loadAppStatus(targetIntegrationId);
+            // Refresh integrations to get updated status
+            await handleListIntegrations();
         } catch (err: any) {
             linkError.value = err.message || 'Failed to link installation';
         }
@@ -138,28 +134,13 @@
         router.replace({query: {}});
     };
 
-    const loadAppStatus = async (integrationId: string) => {
-        try {
-            const status = await getInstallationStatus(integrationId);
-            appStatus.set(integrationId, status);
-        } catch {
-            // Silently fail — integration may not have app linked
-        }
-    };
-
-    const loadAllAppStatuses = async () => {
-        for (const [id] of integrations) {
-            await loadAppStatus(id);
-        }
-    };
-
     const getAppBadge = (integrationId: string) => {
-        const status = appStatus.get(integrationId);
-        if (!status || status.installations.length === 0) return null;
-        const inst = status.installations[0];
+        const integration = integrations.get(integrationId);
+        if (!integration || integration.githubAppInstallations.length === 0) return null;
+        const inst = integration.githubAppInstallations[0];
         return {
             accountLogin: inst.accountLogin,
-            webhookCount: status.webhooks.length,
+            webhookCount: inst.webhooks.length,
             webhookEvents: inst.webhookEvents,
             installationId: inst.installationId,
         };
@@ -167,14 +148,17 @@
 
     const handleUnlink = async (integrationId: string, installationId: number) => {
         await unlinkInstallation(integrationId, installationId);
-        appStatus.delete(integrationId);
+        const integration = integrations.get(integrationId);
+        if (integration) {
+            integration.githubAppInstallations = [];
+        }
     };
 
     const handleToggleEvent = async (integrationId: string, installationId: number, currentEvents: string[], event: string) => {
         const newEvents = currentEvents.includes(event) ? currentEvents.filter((e) => e !== event) : [...currentEvents, event];
         if (newEvents.length === 0) return; // Must have at least one event
         await updateWebhookEvents(integrationId, installationId, newEvents);
-        await loadAppStatus(integrationId);
+        await handleListIntegrations();
     };
 
     const headers = [
@@ -182,7 +166,7 @@
         {title: 'Webhook URL', key: 'webhookUrl', sortable: false},
         {title: 'Secret', key: 'secret', sortable: false},
         {title: 'GitHub App', key: 'githubApp', sortable: false},
-        {title: 'Owner', key: 'owner', sortable: true},
+        {title: 'Owner', key: 'ownerId', sortable: true},
         {title: 'Actions', key: 'actions', sortable: false, align: 'end' as const},
     ];
 
@@ -194,9 +178,6 @@
         const userAttrs = await getUserAttributes();
         userId.value = userAttrs.userId;
         await handleListIntegrations();
-
-        // Load GitHub App status for all integrations
-        await loadAllAppStatuses();
 
         // Check for GitHub App callback
         const installationId = route.query.installation_id;
@@ -270,7 +251,7 @@
                         v-model="selectedIntegrationId"
                         :items="integrationsArray"
                         item-title="label"
-                        item-value="id"
+                        item-value="integrationId"
                         label="Select integration"
                         variant="outlined"
                         density="compact"
@@ -304,7 +285,7 @@
         <v-data-table-virtual
             :headers="headers"
             :items="integrationsArray"
-            item-value="id"
+            item-value="integrationId"
             class="elevation-1"
             hide-default-footer
             fixed-header
@@ -343,11 +324,11 @@
 
             <template v-slot:item.webhookUrl="{item}">
                 <a
-                    :href="getIntegrationUrl(item.id)"
+                    :href="getIntegrationUrl(item.integrationId)"
                     target="_blank"
                     class="text-decoration-none"
                 >
-                    {{ getIntegrationUrl(item.id) }}
+                    {{ getIntegrationUrl(item.integrationId) }}
                 </a>
             </template>
 
@@ -359,7 +340,7 @@
                             mode="out-in"
                         >
                             <span
-                                v-if="showSecret.get(item.id)"
+                                v-if="showSecret.get(item.integrationId)"
                                 key="visible"
                             >
                                 {{ item.secret }}
@@ -375,16 +356,16 @@
                     <v-btn
                         variant="text"
                         density="compact"
-                        @click="toggleSecret(item.id)"
+                        @click="toggleSecret(item.integrationId)"
                         class="ml-2"
-                        :color="showSecret.get(item.id) ? 'warning' : undefined"
-                        :icon="showSecret.get(item.id) ? 'mdi-eye-off' : 'mdi-eye'"
+                        :color="showSecret.get(item.integrationId) ? 'warning' : undefined"
+                        :icon="showSecret.get(item.integrationId) ? 'mdi-eye-off' : 'mdi-eye'"
                     ></v-btn>
                 </div>
             </template>
 
             <template v-slot:item.githubApp="{item}">
-                <template v-if="getAppBadge(item.id)">
+                <template v-if="getAppBadge(item.integrationId)">
                     <v-menu location="bottom">
                         <template v-slot:activator="{props}">
                             <v-chip
@@ -393,9 +374,9 @@
                                 size="small"
                                 prepend-icon="mdi-github"
                             >
-                                {{ getAppBadge(item.id)!.accountLogin }}
+                                {{ getAppBadge(item.integrationId)!.accountLogin }}
                                 <v-badge
-                                    :content="getAppBadge(item.id)!.webhookCount"
+                                    :content="getAppBadge(item.integrationId)!.webhookCount"
                                     color="info"
                                     inline
                                     class="ml-1"
@@ -405,8 +386,8 @@
                         <v-card min-width="280">
                             <v-card-title class="text-subtitle-1">GitHub App</v-card-title>
                             <v-card-text>
-                                <div class="mb-2"><strong>Account:</strong> {{ getAppBadge(item.id)!.accountLogin }}</div>
-                                <div class="mb-2"><strong>Webhooks:</strong> {{ getAppBadge(item.id)!.webhookCount }}</div>
+                                <div class="mb-2"><strong>Account:</strong> {{ getAppBadge(item.integrationId)!.accountLogin }}</div>
+                                <div class="mb-2"><strong>Webhooks:</strong> {{ getAppBadge(item.integrationId)!.webhookCount }}</div>
                                 <div class="mb-3">
                                     <strong>Events:</strong>
                                     <div class="d-flex flex-wrap ga-1 mt-1">
@@ -414,13 +395,13 @@
                                             v-for="event in ['workflow_run', 'workflow_job', 'pull_request']"
                                             :key="event"
                                             size="x-small"
-                                            :color="getAppBadge(item.id)!.webhookEvents.includes(event) ? 'primary' : 'default'"
-                                            :variant="getAppBadge(item.id)!.webhookEvents.includes(event) ? 'flat' : 'outlined'"
+                                            :color="getAppBadge(item.integrationId)!.webhookEvents.includes(event) ? 'primary' : 'default'"
+                                            :variant="getAppBadge(item.integrationId)!.webhookEvents.includes(event) ? 'flat' : 'outlined'"
                                             @click="
                                                 handleToggleEvent(
-                                                    item.id,
-                                                    getAppBadge(item.id)!.installationId,
-                                                    getAppBadge(item.id)!.webhookEvents,
+                                                    item.integrationId,
+                                                    getAppBadge(item.integrationId)!.installationId,
+                                                    getAppBadge(item.integrationId)!.webhookEvents,
                                                     event,
                                                 )
                                             "
@@ -437,7 +418,7 @@
                                     color="error"
                                     size="small"
                                     variant="text"
-                                    @click="handleUnlink(item.id, getAppBadge(item.id)!.installationId)"
+                                    @click="handleUnlink(item.integrationId, getAppBadge(item.integrationId)!.installationId)"
                                 />
                             </v-card-actions>
                         </v-card>
@@ -450,10 +431,10 @@
                 >
             </template>
 
-            <template v-slot:item.owner="{item}">{{ getOwnerAnnotation(item.owner) }}</template>
+            <template v-slot:item.ownerId="{item}">{{ getOwnerAnnotation(item.ownerId) }}</template>
 
             <template v-slot:item.actions="{item}">
-                <div v-if="userIsOwner(item.owner)">
+                <div v-if="userIsOwner(item.ownerId)">
                     <v-btn
                         color="primary"
                         variant="text"
@@ -489,7 +470,7 @@
                                         text="Yes, delete"
                                         color="error"
                                         @click="
-                                            handleDeleteIntegration(item.id);
+                                            handleDeleteIntegration(item.integrationId);
                                             isActive.value = false;
                                         "
                                     ></v-btn>

@@ -73,7 +73,7 @@
     };
 
     const getIntegrationLabel = (integrationId: string): string => {
-        const integration = integrations.find((i) => i.id === integrationId);
+        const integration = integrations.find((i) => i.integrationId === integrationId);
         return integration ? integration.label : integrationId;
     };
 
