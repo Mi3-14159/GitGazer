@@ -42,7 +42,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         try {
             const parts = token.split('.');
             if (parts.length < 2) return 0;
-            const payloadEncoded = parts[1];
+            const payloadEncoded = parts[0];
             const payloadJson = atob(payloadEncoded.replace(/-/g, '+').replace(/_/g, '/'));
             const payload = JSON.parse(payloadJson) as WSToken;
             return payload.exp;
