@@ -28,10 +28,18 @@ const router = createRouter({
                     meta: {title: 'Integrations'},
                 },
                 {
+                    path: 'analytics',
+                    redirect: '/analytics/system-dora',
+                },
+                {
+                    path: 'analytics/:id',
+                    name: 'analytics-dashboard',
+                    component: () => import('@/components/AnalyticsShell.vue'),
+                    meta: {title: 'Analytics'},
+                },
+                {
                     path: 'metrics',
-                    name: 'metrics',
-                    component: () => import('@/components/MetricsOverview.vue'),
-                    meta: {title: 'Metrics'},
+                    redirect: '/analytics/system-dora',
                 },
                 {
                     path: '',

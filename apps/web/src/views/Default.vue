@@ -22,7 +22,10 @@
         class="d-flex flex-column overflow-hidden"
         style="height: 100vh"
     >
-        <div class="page-header px-6 pt-5 pb-2">
+        <div
+            v-if="$route.meta.title && $route.name !== 'analytics-dashboard'"
+            class="page-header px-6 pt-5 pb-2"
+        >
             <h1 class="text-h5 font-weight-medium">{{ $route.meta.title }}</h1>
         </div>
         <div

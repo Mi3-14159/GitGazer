@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import ThemeToggle from '@/components/ThemeToggle.vue';
     import {useAuth} from '@/composables/useAuth';
+    import {useSidebarHover} from '@/composables/useSidebarHover';
     import {computed, ref} from 'vue';
     import {useRoute} from 'vue-router';
 
@@ -14,6 +15,8 @@
 
     const drawer = ref(true);
     const rail = ref(true);
+
+    const {requestExpand, requestCollapse} = useSidebarHover();
 
     const activeRoute = computed(() => {
         const name = route.name as string;
@@ -77,10 +80,12 @@
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-chart-box-outline"
-                    title="Metrics"
-                    value="metrics"
-                    to="/metrics"
+                    title="Analytics"
+                    value="analytics-dashboard"
+                    to="/analytics"
                     @click.stop
+                    @mouseenter="requestExpand"
+                    @mouseleave="requestCollapse"
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-logout"

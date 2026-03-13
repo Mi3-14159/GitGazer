@@ -11,12 +11,14 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AnalyticsShell: typeof import('./src/components/AnalyticsShell.vue')['default']
     BooleanChip: typeof import('./src/components/BooleanChip.vue')['default']
     CodeMirrorEditor: typeof import('./src/components/CodeMirrorEditor.vue')['default']
     ColumnHeader: typeof import('./src/components/ColumnHeader.vue')['default']
     CustomMetricsDashboard: typeof import('./src/components/CustomMetricsDashboard.vue')['default']
     CustomWidgetCard: typeof import('./src/components/CustomWidgetCard.vue')['default']
     CustomWidgetDialog: typeof import('./src/components/CustomWidgetDialog.vue')['default']
+    DashboardSidebar: typeof import('./src/components/DashboardSidebar.vue')['default']
     EChart: typeof import('./src/components/charts/EChart.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']
