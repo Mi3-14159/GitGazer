@@ -95,7 +95,7 @@
 </script>
 
 <template>
-    <div>
+    <div style="height: 100%">
         <v-dialog
             v-model="dialog"
             max-width="600"
@@ -117,7 +117,7 @@
             hide-default-footer
             fixed-header
             :loading="isLoadingNotifications"
-            height="calc(100vh - 132px)"
+            height="100%"
             :items-per-page="-1"
         >
             <template v-slot:loading>

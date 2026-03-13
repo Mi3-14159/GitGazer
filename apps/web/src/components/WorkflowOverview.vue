@@ -129,6 +129,6 @@
 
 <style scoped>
     .workflow-table {
-        height: 100vh;
+        height: 100%;
     }
 </style>

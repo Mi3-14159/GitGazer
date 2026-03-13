@@ -216,7 +216,7 @@
 </script>
 
 <template>
-    <div>
+    <div style="height: 100%">
         <!-- Integration edit/create dialog -->
         <v-dialog
             v-model="dialog"
@@ -315,7 +315,7 @@
             hide-default-footer
             fixed-header
             :loading="isLoadingIntegrations"
-            height="calc(100vh - 132px)"
+            height="100%"
             :items-per-page="-1"
         >
             <template v-slot:top>
