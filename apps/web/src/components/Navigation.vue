@@ -2,10 +2,9 @@
     import ThemeToggle from '@/components/ThemeToggle.vue';
     import {useAuth} from '@/composables/useAuth';
     import {computed, ref} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
+    import {useRoute} from 'vue-router';
 
     const {signOut} = useAuth();
-    const router = useRouter();
     const route = useRoute();
 
     const props = defineProps<{
