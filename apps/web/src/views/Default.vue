@@ -18,11 +18,17 @@
         :username="user?.nickname"
         :picture-url="user?.picture"
     />
-    <v-main class="d-flex flex-column overflow-hidden" style="height: 100vh;">
+    <v-main
+        class="d-flex flex-column overflow-hidden"
+        style="height: 100vh"
+    >
         <div class="page-header px-6 pt-5 pb-2">
             <h1 class="text-h5 font-weight-medium">{{ $route.meta.title }}</h1>
         </div>
-        <div class="flex-grow-1" style="min-height: 0; overflow: auto;">
+        <div
+            class="flex-grow-1"
+            style="min-height: 0; overflow: auto"
+        >
             <router-view v-slot="{Component}">
                 <transition
                     name="fade"
