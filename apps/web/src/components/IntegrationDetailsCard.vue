@@ -20,7 +20,7 @@
 </script>
 <template>
     <v-card
-        prepend-icon="mdi-account-cog"
+        prepend-icon="mdi-connection"
         :title="integration ? 'Edit Integration' : 'Create Integration'"
     >
         <v-form ref="form">

@@ -23,7 +23,7 @@ declare module 'vue' {
     MetricsOverview: typeof import('./src/components/MetricsOverview.vue')['default']
     Navigation: typeof import('./src/components/Navigation.vue')['default']
     NotificationDetailsCard: typeof import('./src/components/NotificationDetailsCard.vue')['default']
-    NotificationsOveview: typeof import('./src/components/NotificationsOveview.vue')['default']
+    NotificationsOverview: typeof import('./src/components/NotificationsOverview.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     ThemeToggle: typeof import('./src/components/ThemeToggle.vue')['default']

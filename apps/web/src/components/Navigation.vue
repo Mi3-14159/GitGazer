@@ -1,11 +1,12 @@
 <script setup lang="ts">
     import ThemeToggle from '@/components/ThemeToggle.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {ref} from 'vue';
-    import {useRouter} from 'vue-router';
+    import {computed, ref} from 'vue';
+    import {useRoute, useRouter} from 'vue-router';
 
     const {signOut} = useAuth();
     const router = useRouter();
+    const route = useRoute();
 
     const props = defineProps<{
         username?: string;
@@ -14,6 +15,11 @@
 
     const drawer = ref(true);
     const rail = ref(true);
+
+    const activeRoute = computed(() => {
+        const name = route.name as string;
+        return name ? [name] : [];
+    });
 </script>
 
 <template>
@@ -43,32 +49,39 @@
 
         <nav>
             <v-list
+                v-model:selected="activeRoute"
                 density="compact"
                 nav
+                mandatory
+                color="primary"
             >
                 <v-list-item
                     prepend-icon="mdi-view-dashboard"
                     title="Dashboard"
                     value="dashboard"
-                    @click.stop="router.push('/dashboard')"
+                    to="/dashboard"
+                    @click.stop
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-bell-ring"
                     title="Notifications"
                     value="notifications"
-                    @click.stop="router.push('/notifications')"
+                    to="/notifications"
+                    @click.stop
                 ></v-list-item>
                 <v-list-item
-                    prepend-icon="mdi-account-cog"
+                    prepend-icon="mdi-connection"
                     title="Integrations"
                     value="integrations"
-                    @click.stop="router.push('/integrations')"
+                    to="/integrations"
+                    @click.stop
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-chart-box-outline"
                     title="Metrics"
                     value="metrics"
-                    @click.stop="router.push('/metrics')"
+                    to="/metrics"
+                    @click.stop
                 ></v-list-item>
                 <v-list-item
                     prepend-icon="mdi-logout"

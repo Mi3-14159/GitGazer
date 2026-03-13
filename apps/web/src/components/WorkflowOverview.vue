@@ -96,7 +96,7 @@
 </script>
 
 <template>
-    <v-main class="fill-height">
+    <div class="fill-height">
         <VirtualTable
             :items="workflows.filter((run) => run.workflowJobs?.length > 0)"
             :loading="isLoading"
@@ -124,7 +124,7 @@
             :run="getRunOfSelectedJob()"
             @update:job="selectedJob = $event"
         />
-    </v-main>
+    </div>
 </template>
 
 <style scoped>

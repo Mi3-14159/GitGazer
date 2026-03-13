@@ -209,7 +209,7 @@
 </script>
 
 <template>
-    <v-main>
+    <div>
         <v-container
             fluid
             class="pa-6"
@@ -220,8 +220,7 @@
                 class="mb-4"
             >
                 <v-col cols="auto">
-                    <h1 class="text-h4 font-weight-bold">Metrics</h1>
-                    <p class="text-subtitle-2 text-medium-emphasis mt-1">DORA &amp; SPACE framework metrics for your engineering organization</p>
+                    <p class="text-subtitle-2 text-medium-emphasis">DORA &amp; SPACE framework metrics for your engineering organization</p>
                 </v-col>
                 <v-spacer />
                 <v-col
@@ -941,5 +940,5 @@
                 </v-tabs-window-item>
             </v-tabs-window>
         </v-container>
-    </v-main>
+    </div>
 </template>

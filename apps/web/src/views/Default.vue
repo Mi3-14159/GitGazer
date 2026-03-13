@@ -1,16 +1,10 @@
 <script setup lang="ts">
-    import IntegrationsOverview from '@/components/IntegrationsOverview.vue';
-    import MetricsOverview from '@/components/MetricsOverview.vue';
     import Navigation from '@/components/Navigation.vue';
-    import NotificationsOveview from '@/components/NotificationsOveview.vue';
-    import WorkflowOverview from '@/components/WorkflowOverview.vue';
     import {useAuth} from '@/composables/useAuth';
     import {UserAttributes} from '@common/types';
     import {onMounted, ref} from 'vue';
-    import {useRouter} from 'vue-router';
 
     const {getUserAttributes} = useAuth();
-    const router = useRouter();
 
     const user = ref<UserAttributes>();
 
@@ -24,8 +18,28 @@
         :username="user?.nickname"
         :picture-url="user?.picture"
     />
-    <WorkflowOverview v-if="router.currentRoute.value.name === 'dashboard'" />
-    <NotificationsOveview v-else-if="router.currentRoute.value.name === 'notifications'" />
-    <IntegrationsOverview v-else-if="router.currentRoute.value.name === 'integrations'" />
-    <MetricsOverview v-else-if="router.currentRoute.value.name === 'metrics'" />
+    <v-main>
+        <div class="page-header px-6 pt-5 pb-2">
+            <h1 class="text-h5 font-weight-medium">{{ $route.meta.title }}</h1>
+        </div>
+        <router-view v-slot="{Component}">
+            <transition
+                name="fade"
+                mode="out-in"
+            >
+                <component :is="Component" />
+            </transition>
+        </router-view>
+    </v-main>
 </template>
+
+<style scoped>
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity 0.15s ease;
+    }
+    .fade-enter-from,
+    .fade-leave-to {
+        opacity: 0;
+    }
+</style>

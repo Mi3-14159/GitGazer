@@ -20,6 +20,27 @@
     const dialog = ref(false);
     const editingIntegration = ref<Integration | undefined>(undefined);
     const showSecret = reactive(new Map<string, boolean>());
+    const confirmInput = ref('');
+    const confirmAction = ref<{type: 'unlink' | 'delete'; integrationId: string; label: string; installationId?: number} | null>(null);
+    const confirmDialog = ref(false);
+
+    const openConfirmDialog = (type: 'unlink' | 'delete', integrationId: string, label: string, installationId?: number) => {
+        confirmInput.value = '';
+        confirmAction.value = {type, integrationId, label, installationId};
+        confirmDialog.value = true;
+    };
+
+    const executeConfirmAction = async () => {
+        if (!confirmAction.value || confirmInput.value !== confirmAction.value.label) return;
+        if (confirmAction.value.type === 'delete') {
+            await handleDeleteIntegration(confirmAction.value.integrationId);
+        } else if (confirmAction.value.type === 'unlink' && confirmAction.value.installationId) {
+            await handleUnlink(confirmAction.value.integrationId, confirmAction.value.installationId);
+        }
+        confirmDialog.value = false;
+        confirmAction.value = null;
+        confirmInput.value = '';
+    };
 
     // GitHub App linking state
     const linkDialog = ref(false);
@@ -79,6 +100,10 @@
 
     const getIntegrationUrl = (id: string) => {
         return `${import.meta.env.VITE_IMPORT_URL_BASE}/${id}`;
+    };
+
+    const copyToClipboard = async (text: string) => {
+        await navigator.clipboard.writeText(text);
     };
 
     const userIsOwner = (owner: number) => {
@@ -191,7 +216,7 @@
 </script>
 
 <template>
-    <v-main>
+    <div>
         <!-- Integration edit/create dialog -->
         <v-dialog
             v-model="dialog"
@@ -290,12 +315,11 @@
             hide-default-footer
             fixed-header
             :loading="isLoadingIntegrations"
-            height="calc(100vh - 64px)"
+            height="calc(100vh - 132px)"
             :items-per-page="-1"
         >
             <template v-slot:top>
                 <v-toolbar flat>
-                    <v-toolbar-title>Integrations</v-toolbar-title>
                     <v-spacer></v-spacer>
                     <v-btn
                         class="me-2"
@@ -308,7 +332,7 @@
                         class="me-2"
                         prepend-icon="mdi-plus"
                         rounded="lg"
-                        text="Add a integration"
+                        text="Add an integration"
                         @click="dialog = true"
                     ></v-btn>
                 </v-toolbar>
@@ -323,13 +347,32 @@
             </template>
 
             <template v-slot:item.webhookUrl="{item}">
-                <a
-                    :href="getIntegrationUrl(item.integrationId)"
-                    target="_blank"
-                    class="text-decoration-none"
-                >
-                    {{ getIntegrationUrl(item.integrationId) }}
-                </a>
+                <div class="d-flex align-center">
+                    <a
+                        :href="getIntegrationUrl(item.integrationId)"
+                        target="_blank"
+                        class="text-decoration-none text-truncate"
+                        style="max-width: 280px; display: inline-block"
+                        :title="getIntegrationUrl(item.integrationId)"
+                    >
+                        {{ getIntegrationUrl(item.integrationId) }}
+                    </a>
+                    <v-btn
+                        variant="text"
+                        density="compact"
+                        icon="mdi-content-copy"
+                        size="small"
+                        class="ml-1"
+                        @click="copyToClipboard(getIntegrationUrl(item.integrationId))"
+                    >
+                        <v-icon size="small">mdi-content-copy</v-icon>
+                        <v-tooltip
+                            activator="parent"
+                            location="top"
+                            >Copy URL</v-tooltip
+                        >
+                    </v-btn>
+                </div>
             </template>
 
             <template v-slot:item.secret="{item}">
@@ -407,6 +450,12 @@
                                             "
                                         >
                                             {{ event }}
+                                            <v-tooltip
+                                                activator="parent"
+                                                location="top"
+                                                >Click to
+                                                {{ getAppBadge(item.integrationId)!.webhookEvents.includes(event) ? 'disable' : 'enable' }}</v-tooltip
+                                            >
                                         </v-chip>
                                     </div>
                                 </div>
@@ -418,7 +467,9 @@
                                     color="error"
                                     size="small"
                                     variant="text"
-                                    @click="handleUnlink(item.integrationId, getAppBadge(item.integrationId)!.installationId)"
+                                    @click="
+                                        openConfirmDialog('unlink', item.integrationId, item.label, getAppBadge(item.integrationId)!.installationId)
+                                    "
                                 />
                             </v-card-actions>
                         </v-card>
@@ -434,7 +485,10 @@
             <template v-slot:item.ownerId="{item}">{{ getOwnerAnnotation(item.ownerId) }}</template>
 
             <template v-slot:item.actions="{item}">
-                <div v-if="userIsOwner(item.ownerId)">
+                <div
+                    v-if="userIsOwner(item.ownerId)"
+                    class="d-flex flex-nowrap"
+                >
                     <v-btn
                         color="primary"
                         variant="text"
@@ -442,46 +496,82 @@
                         density="compact"
                         @click="onEdit(item)"
                         class="mr-1"
-                    ></v-btn>
-                    <v-dialog max-width="500">
-                        <template v-slot:activator="{props: activatorProps}">
-                            <v-btn
-                                v-bind="activatorProps"
-                                color="error"
-                                variant="text"
-                                icon="mdi-delete"
-                                density="compact"
-                            ></v-btn>
-                        </template>
-
-                        <template v-slot:default="{isActive}">
-                            <v-card>
-                                <v-card-title>Delete Integration</v-card-title>
-                                <v-card-text>
-                                    Do you really want to delete this integration? This is irreversible and will break your current import workflows!
-                                </v-card-text>
-                                <v-card-actions>
-                                    <v-spacer></v-spacer>
-                                    <v-btn
-                                        text="Cancel"
-                                        @click="isActive.value = false"
-                                    ></v-btn>
-                                    <v-btn
-                                        text="Yes, delete"
-                                        color="error"
-                                        @click="
-                                            handleDeleteIntegration(item.integrationId);
-                                            isActive.value = false;
-                                        "
-                                    ></v-btn>
-                                </v-card-actions>
-                            </v-card>
-                        </template>
-                    </v-dialog>
+                    >
+                        <v-icon>mdi-pencil</v-icon>
+                        <v-tooltip
+                            activator="parent"
+                            location="top"
+                            >Edit</v-tooltip
+                        >
+                    </v-btn>
+                    <v-btn
+                        color="error"
+                        variant="text"
+                        icon="mdi-delete"
+                        density="compact"
+                        @click="openConfirmDialog('delete', item.integrationId, item.label)"
+                    >
+                        <v-icon>mdi-delete</v-icon>
+                        <v-tooltip
+                            activator="parent"
+                            location="top"
+                            >Delete</v-tooltip
+                        >
+                    </v-btn>
                 </div>
             </template>
         </v-data-table-virtual>
-    </v-main>
+
+        <!-- Confirm unlink/delete dialog -->
+        <v-dialog
+            v-model="confirmDialog"
+            max-width="500"
+            @after-leave="
+                confirmInput = '';
+                confirmAction = null;
+            "
+        >
+            <v-card v-if="confirmAction">
+                <v-card-title>{{ confirmAction.type === 'delete' ? 'Delete' : 'Unlink' }} Integration</v-card-title>
+                <v-card-text>
+                    <p class="mb-4">
+                        <template v-if="confirmAction.type === 'delete'">
+                            This will permanently delete the integration and break any import workflows using it. This action cannot be undone.
+                        </template>
+                        <template v-else>
+                            This will unlink the GitHub App from this integration. Webhook events will no longer be forwarded.
+                        </template>
+                    </p>
+                    <p class="mb-2">
+                        To confirm, type <strong>{{ confirmAction.label }}</strong> below:
+                    </p>
+                    <v-text-field
+                        v-model="confirmInput"
+                        :placeholder="confirmAction.label"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        autofocus
+                        @keyup.enter="executeConfirmAction"
+                    />
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn
+                        text="Cancel"
+                        @click="confirmDialog = false"
+                    />
+                    <v-btn
+                        :text="confirmAction.type === 'delete' ? 'Delete' : 'Unlink'"
+                        color="error"
+                        variant="flat"
+                        :disabled="confirmInput !== confirmAction.label"
+                        @click="executeConfirmAction"
+                    />
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+    </div>
 </template>
 
 <style scoped>

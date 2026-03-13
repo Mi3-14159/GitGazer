@@ -6,24 +6,38 @@ const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
-            path: '/dashboard',
-            name: 'dashboard',
+            path: '/',
             component: Default,
-        },
-        {
-            path: '/notifications',
-            name: 'notifications',
-            component: Default,
-        },
-        {
-            path: '/integrations',
-            name: 'integrations',
-            component: Default,
-        },
-        {
-            path: '/metrics',
-            name: 'metrics',
-            component: Default,
+            children: [
+                {
+                    path: 'dashboard',
+                    name: 'dashboard',
+                    component: () => import('@/components/WorkflowOverview.vue'),
+                    meta: {title: 'Dashboard'},
+                },
+                {
+                    path: 'notifications',
+                    name: 'notifications',
+                    component: () => import('@/components/NotificationsOverview.vue'),
+                    meta: {title: 'Notifications'},
+                },
+                {
+                    path: 'integrations',
+                    name: 'integrations',
+                    component: () => import('@/components/IntegrationsOverview.vue'),
+                    meta: {title: 'Integrations'},
+                },
+                {
+                    path: 'metrics',
+                    name: 'metrics',
+                    component: () => import('@/components/MetricsOverview.vue'),
+                    meta: {title: 'Metrics'},
+                },
+                {
+                    path: '',
+                    redirect: '/dashboard',
+                },
+            ],
         },
         {
             path: '/login',
@@ -32,10 +46,15 @@ const router = createRouter({
         },
         {
             path: '/:pathMatch(.*)*',
-            name: 'dashboard',
-            component: Default,
+            name: 'not-found',
+            redirect: '/dashboard',
         },
     ],
+});
+
+router.afterEach((to) => {
+    const title = to.meta?.title as string | undefined;
+    document.title = title ? `${title} | GitGazer` : 'GitGazer';
 });
 
 export default router;

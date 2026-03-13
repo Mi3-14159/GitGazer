@@ -95,7 +95,7 @@
 </script>
 
 <template>
-    <v-main>
+    <div>
         <v-dialog
             v-model="dialog"
             max-width="600"
@@ -117,7 +117,7 @@
             hide-default-footer
             fixed-header
             :loading="isLoadingNotifications"
-            height="calc(100vh - 64px)"
+            height="calc(100vh - 132px)"
             :items-per-page="-1"
         >
             <template v-slot:loading>
@@ -126,7 +126,6 @@
 
             <template v-slot:top>
                 <v-toolbar flat>
-                    <v-toolbar-title>Notifications</v-toolbar-title>
                     <v-spacer></v-spacer>
                     <v-btn
                         class="me-2"
@@ -213,7 +212,7 @@
                 </v-dialog>
             </template>
         </v-data-table-virtual>
-    </v-main>
+    </div>
 </template>
 
 <style scoped></style>
