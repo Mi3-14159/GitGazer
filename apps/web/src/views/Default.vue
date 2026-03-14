@@ -34,6 +34,7 @@
     });
 
     function navigateTab(tab: (typeof tabs)[number]) {
+        if (route.path === tab.path) return;
         router.push(tab.path);
     }
 

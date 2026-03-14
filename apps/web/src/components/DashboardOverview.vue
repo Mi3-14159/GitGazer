@@ -10,7 +10,7 @@
     import type {OverviewResponse, WorkflowRunWithRelations} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
     import {Activity, Ban, CheckCircle2, Clock, XCircle} from 'lucide-vue-next';
-    import {computed, onMounted, ref, watch} from 'vue';
+    import {computed, ref, watch} from 'vue';
 
     const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
@@ -39,8 +39,6 @@
             isLoading.value = false;
         }
     }
-
-    onMounted(() => fetchOverview());
 
     watch(dateRange, () => fetchOverview(), {deep: true});
 
