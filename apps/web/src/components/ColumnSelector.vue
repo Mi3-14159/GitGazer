@@ -39,13 +39,13 @@
             </Button>
         </template>
 
-        <p class="font-semibold text-sm mb-3">Show/Hide Columns</p>
+        <p class="font-semibold text-xs mb-2">Show/Hide Columns</p>
 
-        <div class="space-y-1">
+        <div class="space-y-0">
             <button
                 v-for="column in columns"
                 :key="column.id"
-                class="w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer"
+                class="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent cursor-pointer"
                 @click="toggleColumn(column.id)"
             >
                 <span class="font-medium">{{ column.label }}</span>

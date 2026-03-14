@@ -82,13 +82,13 @@
                 </Button>
             </template>
 
-            <p class="font-semibold text-sm mb-3">Saved Views</p>
+            <p class="font-semibold text-xs mb-2">Saved Views</p>
 
-            <div class="space-y-1">
+            <div class="space-y-0">
                 <button
                     v-for="view in savedViews"
                     :key="view.id"
-                    class="w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                    class="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                     :class="view.id === currentView.id ? 'bg-accent/50' : ''"
                     @click="selectView(view)"
                 >
@@ -110,7 +110,7 @@
             </div>
 
             <button
-                class="w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground mt-1"
+                class="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground mt-0.5"
                 @click="openSaveDialog(false)"
             >
                 <Plus class="h-4 w-4" />
