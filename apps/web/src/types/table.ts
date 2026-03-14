@@ -17,7 +17,18 @@ export interface TableView {
     filters: FilterValue[];
 }
 
-export type WorkflowColumnId = 'workflow' | 'repository' | 'branch' | 'status' | 'jobs' | 'actor' | 'duration' | 'started' | 'commit' | 'run_number';
+export type WorkflowColumnId =
+    | 'workflow'
+    | 'repository'
+    | 'branch'
+    | 'status'
+    | 'jobs'
+    | 'actor'
+    | 'duration'
+    | 'created'
+    | 'started'
+    | 'commit'
+    | 'run_number';
 
 export const defaultColumns: ColumnConfig[] = [
     {id: 'workflow', label: 'Workflow', visible: true},
@@ -27,7 +38,8 @@ export const defaultColumns: ColumnConfig[] = [
     {id: 'jobs', label: 'Jobs', visible: true},
     {id: 'actor', label: 'Actor', visible: true},
     {id: 'duration', label: 'Duration', visible: true},
-    {id: 'started', label: 'Started', visible: true},
+    {id: 'created', label: 'Created', visible: true},
+    {id: 'started', label: 'Started', visible: false},
     {id: 'commit', label: 'Commit', visible: false},
     {id: 'run_number', label: 'Run #', visible: false},
 ];

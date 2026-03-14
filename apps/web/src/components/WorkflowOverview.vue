@@ -298,6 +298,12 @@
                                 <template v-else-if="column.id === 'duration'">
                                     <div class="text-xs font-mono">{{ formatDuration(run.runStartedAt, run.updatedAt) }}</div>
                                 </template>
+                                <!-- Created -->
+                                <template v-else-if="column.id === 'created'">
+                                    <div class="text-xs text-muted-foreground whitespace-nowrap">
+                                        {{ run.createdAt ? formatDistanceToNow(new Date(run.createdAt), {addSuffix: true}) : '' }}
+                                    </div>
+                                </template>
                                 <!-- Started -->
                                 <template v-else-if="column.id === 'started'">
                                     <div class="text-xs text-muted-foreground whitespace-nowrap">
@@ -354,6 +360,11 @@
                                     </template>
                                     <template v-else-if="column.id === 'duration'">
                                         <span class="font-mono">{{ formatDuration(job.startedAt, job.completedAt) }}</span>
+                                    </template>
+                                    <template v-else-if="column.id === 'created'">
+                                        <span class="text-muted-foreground whitespace-nowrap">
+                                            {{ job.createdAt ? formatDistanceToNow(new Date(job.createdAt), {addSuffix: true}) : '' }}
+                                        </span>
                                     </template>
                                     <template v-else-if="column.id === 'started'">
                                         <span class="text-muted-foreground whitespace-nowrap">
