@@ -48,7 +48,7 @@ export const useNotification = () => {
             method: 'DELETE',
         });
 
-        return response.status === 204;
+        return response.ok;
     };
 
     return {
