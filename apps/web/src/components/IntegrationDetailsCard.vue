@@ -22,7 +22,16 @@
 
     const isEdit = !!props.integration;
     const label = ref(props.integration?.label ?? '');
+    const selectedEvents = ref<Set<string>>(new Set(props.enabledEvents ?? []));
     const errorMsg = ref('');
+
+    function toggleEvent(event: string) {
+        if (selectedEvents.value.has(event)) {
+            selectedEvents.value.delete(event);
+        } else {
+            selectedEvents.value.add(event);
+        }
+    }
 
     const handleSave = () => {
         if (!label.value.trim()) {
@@ -122,9 +131,9 @@
                     >
                         <input
                             type="checkbox"
-                            :checked="enabledEvents?.includes(event.value)"
-                            disabled
-                            class="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                            :checked="selectedEvents.has(event.value)"
+                            class="mt-0.5 h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                            @change="toggleEvent(event.value)"
                         />
                         <div>
                             <span class="text-sm font-medium">{{ event.label }}</span>

@@ -178,16 +178,10 @@
 </script>
 
 <template>
-    <div class="space-y-6 p-4 md:p-6">
+    <div class="space-y-4">
         <!-- Header -->
         <div class="flex items-start justify-between">
-            <div>
-                <div class="flex items-center gap-2">
-                    <Plug class="h-5 w-5 text-muted-foreground" />
-                    <h2 class="text-lg font-semibold">Integrations</h2>
-                </div>
-                <p class="text-sm text-muted-foreground mt-1">Manage webhook endpoints, secrets, and GitHub App installations</p>
-            </div>
+            <p class="text-sm text-muted-foreground">Manage webhook endpoints, secrets, and GitHub App installations</p>
             <div class="flex items-center gap-2">
                 <a
                     href="https://github.com/apps/gitgazer-integration/installations/new"
