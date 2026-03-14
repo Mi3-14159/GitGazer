@@ -1,0 +1,31 @@
+{
+  "chat.mcp.serverSampling": {
+    "GitGazer/.vscode/mcp.json: com.figma.mcp/mcp": {
+      "allowedModels": [
+        "copilot/auto",
+        "copilotcli/claude-sonnet-4.5",
+        "copilotcli/claude-opus-4.5",
+        "claude-code/claude-opus-4.5",
+        "copilot/claude-opus-4.5",
+        "copilotcli/claude-opus-4.6",
+        "claude-code/claude-opus-4.6",
+        "copilot/claude-opus-4.6",
+        "claude-code/claude-sonnet-4.5",
+        "copilot/claude-sonnet-4.5",
+        "copilotcli/gemini-3-pro-preview",
+        "copilot/gemini-3-pro-preview",
+        "copilotcli/gpt-4.1",
+        "copilot/gpt-4.1",
+        "copilot/gpt-4o",
+        "copilotcli/gpt-5.1-codex",
+        "copilot/gpt-5.1-codex",
+        "copilotcli/gpt-5.1-codex-max",
+        "copilot/gpt-5.1-codex-max",
+        "copilotcli/gpt-5.2",
+        "copilot/gpt-5.2",
+        "copilotcli/gpt-5.3-codex",
+        "copilot/gpt-5.3-codex"
+      ]
+    }
+  }
+}
