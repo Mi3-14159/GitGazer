@@ -10,24 +10,7 @@
     import {useGithubApp, type LinkInstallationResponse} from '@/composables/useGithubApp';
     import {useIntegration} from '@/composables/useIntegration';
     import type {Integration} from '@common/types';
-    import {
-        Calendar,
-        Check,
-        CheckCircle2,
-        Copy,
-        ExternalLink,
-        Eye,
-        EyeOff,
-        Github,
-        Key,
-        Pencil,
-        Plug,
-        Plus,
-        Trash2,
-        Webhook,
-        XCircle,
-        Zap,
-    } from 'lucide-vue-next';
+    import {Calendar, Check, Copy, ExternalLink, Eye, EyeOff, Github, Key, Pencil, Plug, Plus, Trash2, Webhook, Zap} from 'lucide-vue-next';
     import {onMounted, ref} from 'vue';
 
     const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
@@ -242,22 +225,6 @@
                             <!-- Header Row -->
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-semibold text-base">{{ integration.label }}</h3>
-                                <Badge
-                                    v-if="getStatus(integration) === 'active'"
-                                    variant="success"
-                                    class="gap-1 h-5 text-xs"
-                                >
-                                    <CheckCircle2 class="h-3 w-3" />
-                                    Active
-                                </Badge>
-                                <Badge
-                                    v-else
-                                    variant="secondary"
-                                    class="gap-1 h-5 text-xs"
-                                >
-                                    <XCircle class="h-3 w-3" />
-                                    Inactive
-                                </Badge>
                                 <span class="text-xs text-muted-foreground">
                                     <span v-if="getEnabledEvents(integration).length > 0">{{ getEnabledEvents(integration).length }} events</span>
                                     · ↗ {{ formatDate(integration.createdAt) }}
