@@ -44,7 +44,7 @@ locals {
   lambda_application_log_level = "INFO"
   lambda_enable_event_logging  = true
   cors_allowed_origins = compact([
-    "https://app.gitgazer.local:5173",
+    "https://app.gitgazer.localhost:5173",
     try("https://${var.custom_domain_config.domain_name}", null),
   ])
 }

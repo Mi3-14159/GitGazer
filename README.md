@@ -214,7 +214,7 @@ cd apps/web
 npm ci
 
 # Create .env.local with appropriate API endpoint
-# For local backend: VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"
+# For local backend: VITE_REST_API_ENDPOINT="https://app.gitgazer.localhost:5173/api"
 # For production backend: VITE_REST_API_ENDPOINT="https://<GITGAZER_DOMAIN>/api"
 # See docs/local-development.md for full configuration
 

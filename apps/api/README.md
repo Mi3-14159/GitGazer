@@ -28,7 +28,7 @@ aws-vault exec <profile> --no-session -- npm run dev:api
 npm run test:unit
 ```
 
-**Note:** When running the frontend locally (`cd ../web && npm run dev`), it can proxy API requests to this local backend server via Vite's built-in proxy. Configure the frontend's `.env.local` with `VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"` to enable this. See [../../docs/local-development.md](../../docs/local-development.md) for details.
+**Note:** When running the frontend locally (`cd ../web && npm run dev`), it can proxy API requests to this local backend server via Vite's built-in proxy. Configure the frontend's `.env.local` with `VITE_REST_API_ENDPOINT="https://app.gitgazer.localhost:5173/api"` to enable this. See [../../docs/local-development.md](../../docs/local-development.md) for details.
 
 ## Build Commands
 

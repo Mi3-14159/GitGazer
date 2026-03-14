@@ -32,20 +32,20 @@ The key to switching between these modes is configuring the `VITE_REST_API_ENDPO
 
 ### Hosts File Configuration
 
-The frontend development server runs on `app.gitgazer.local` for proper cookie handling and OAuth redirects. Add this to your hosts file:
+The frontend development server runs on `app.gitgazer.localhost` for proper cookie handling and OAuth redirects. Add this to your hosts file:
 
 **macOS/Linux:**
 
 ```bash
 sudo nano /etc/hosts
-# Add: 127.0.0.1 app.gitgazer.local
+# Add: 127.0.0.1 app.gitgazer.localhost
 ```
 
 **Windows:**
 
 ```powershell
 # Run as Administrator, edit: C:\Windows\System32\drivers\etc\hosts
-# Add: 127.0.0.1 app.gitgazer.local
+# Add: 127.0.0.1 app.gitgazer.localhost
 ```
 
 ## Development Scenarios
@@ -59,17 +59,17 @@ sudo nano /etc/hosts
 Create `apps/web/.env.local`:
 
 ```bash
-VITE_HOST_URL="https://app.gitgazer.local:5173"
+VITE_HOST_URL="https://app.gitgazer.localhost:5173"
 VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
 VITE_COGNITO_USER_POOL_ID="<USER_POOL_ID>"
 VITE_COGNITO_USER_POOL_CLIENT_ID="<USER_POOL_CLIENT_ID>"
-VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"
-VITE_IMPORT_URL_BASE="https://app.gitgazer.local:5173/api/import"
+VITE_REST_API_ENDPOINT="https://app.gitgazer.localhost:5173/api"
+VITE_IMPORT_URL_BASE="https://app.gitgazer.localhost:5173/api/import"
 VITE_REST_API_REGION="us-east-1"
 VITE_WEBSOCKET_API_ENDPOINT="<WEBSOCKET_ENDPOINT>"
 ```
 
-**Key setting**: `VITE_REST_API_ENDPOINT` points to `https://app.gitgazer.local:5173/api`
+**Key setting**: `VITE_REST_API_ENDPOINT` points to `https://app.gitgazer.localhost:5173/api`
 
 #### How it Works
 
@@ -87,7 +87,7 @@ proxy: {
 
 **Request flow:**
 
-1. Frontend makes request to `https://app.gitgazer.local:5173/api/integrations`
+1. Frontend makes request to `https://app.gitgazer.localhost:5173/api/integrations`
 2. Vite proxy intercepts and forwards to `http://localhost:8080/api/integrations`
 3. Local backend processes the request
 4. Response flows back through proxy to frontend
@@ -124,10 +124,10 @@ npm ci
 npm run dev
 ```
 
-**Access:** Open `https://app.gitgazer.local:5173` in your browser
+**Access:** Open `https://app.gitgazer.localhost:5173` in your browser
 
 - You'll see a browser warning about the self-signed SSL certificate - this is expected
-- Click "Advanced" → "Proceed to app.gitgazer.local" (or equivalent in your browser)
+- Click "Advanced" → "Proceed to app.gitgazer.localhost" (or equivalent in your browser)
 
 ### Scenario 2: Local Frontend + Production Backend
 
@@ -138,7 +138,7 @@ npm run dev
 Create `apps/web/.env.local`:
 
 ```bash
-VITE_HOST_URL="https://app.gitgazer.local:5173"
+VITE_HOST_URL="https://app.gitgazer.localhost:5173"
 VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
 VITE_COGNITO_USER_POOL_ID="<USER_POOL_ID>"
 VITE_COGNITO_USER_POOL_CLIENT_ID="<USER_POOL_CLIENT_ID>"
@@ -163,7 +163,7 @@ Requests bypass the Vite proxy and go directly to the production backend via COR
 
 **Requirements:**
 
-- Production backend must have `https://app.gitgazer.local:5173` in `ALLOWED_FRONTEND_ORIGINS`
+- Production backend must have `https://app.gitgazer.localhost:5173` in `ALLOWED_FRONTEND_ORIGINS`
 - Cognito must allow the local URL as a callback URL
 
 #### Running - Frontend Only
@@ -176,7 +176,7 @@ npm ci
 npm run dev
 ```
 
-**Access:** Open `https://app.gitgazer.local:5173` in your browser
+**Access:** Open `https://app.gitgazer.localhost:5173` in your browser
 
 **Note:** Backend is not required - all API calls go to production.
 
@@ -184,15 +184,15 @@ npm run dev
 
 ### Frontend Variables
 
-| Variable                           | Local Dev                                    | Hybrid                            | Description                   |
-| ---------------------------------- | -------------------------------------------- | --------------------------------- | ----------------------------- |
-| `VITE_REST_API_ENDPOINT`           | `https://app.gitgazer.local:5173/api`        | `https://<DOMAIN>/api`            | REST API endpoint             |
-| `VITE_IMPORT_URL_BASE`             | `https://app.gitgazer.local:5173/api/import` | `https://<DOMAIN>/v1/api/import/` | Webhook import URL            |
-| `VITE_HOST_URL`                    | `https://app.gitgazer.local:5173`            | `https://app.gitgazer.local:5173` | Frontend URL                  |
-| `VITE_COGNITO_DOMAIN`              | Same for both                                | Same for both                     | Cognito authentication domain |
-| `VITE_COGNITO_USER_POOL_ID`        | Same for both                                | Same for both                     | Cognito user pool ID          |
-| `VITE_COGNITO_USER_POOL_CLIENT_ID` | Same for both                                | Same for both                     | Cognito app client ID         |
-| `VITE_WEBSOCKET_API_ENDPOINT`      | Same for both                                | Same for both                     | WebSocket API endpoint        |
+| Variable                           | Local Dev                                        | Hybrid                                | Description                   |
+| ---------------------------------- | ------------------------------------------------ | ------------------------------------- | ----------------------------- |
+| `VITE_REST_API_ENDPOINT`           | `https://app.gitgazer.localhost:5173/api`        | `https://<DOMAIN>/api`                | REST API endpoint             |
+| `VITE_IMPORT_URL_BASE`             | `https://app.gitgazer.localhost:5173/api/import` | `https://<DOMAIN>/v1/api/import/`     | Webhook import URL            |
+| `VITE_HOST_URL`                    | `https://app.gitgazer.localhost:5173`            | `https://app.gitgazer.localhost:5173` | Frontend URL                  |
+| `VITE_COGNITO_DOMAIN`              | Same for both                                    | Same for both                         | Cognito authentication domain |
+| `VITE_COGNITO_USER_POOL_ID`        | Same for both                                    | Same for both                         | Cognito user pool ID          |
+| `VITE_COGNITO_USER_POOL_CLIENT_ID` | Same for both                                    | Same for both                         | Cognito app client ID         |
+| `VITE_WEBSOCKET_API_ENDPOINT`      | Same for both                                    | Same for both                         | WebSocket API endpoint        |
 
 ### Backend Variables
 
@@ -203,7 +203,7 @@ Key variables:
 - `AWS_REGION`: AWS region for services
 - `RDS_*`: RDS connection configuration
 - `S3_*`: S3 bucket names
-- `ALLOWED_FRONTEND_ORIGINS`: Comma-separated list of allowed origins (must include `https://app.gitgazer.local:5173` for local dev)
+- `ALLOWED_FRONTEND_ORIGINS`: Comma-separated list of allowed origins (must include `https://app.gitgazer.localhost:5173` for local dev)
 
 ## How the Proxy Works
 
@@ -213,7 +213,7 @@ The frontend's Vite development server includes a proxy configuration that inter
 // apps/web/vite.config.ts
 server: {
     port: 5173,
-    host: 'app.gitgazer.local',
+    host: 'app.gitgazer.localhost',
     proxy: {
         '/api': {
             target: 'http://localhost:8080',
@@ -229,7 +229,7 @@ server: {
 The proxy **only activates** when:
 
 1. Running the frontend dev server (`npm run dev`)
-2. `VITE_REST_API_ENDPOINT` contains the frontend's own host (`app.gitgazer.local:5173`)
+2. `VITE_REST_API_ENDPOINT` contains the frontend's own host (`app.gitgazer.localhost:5173`)
 
 ### When the Proxy is Bypassed
 
@@ -254,7 +254,7 @@ The proxy is **not used** when:
 
 1. Verify backend is running: `ps aux | grep "npm run dev:api"`
 2. Check backend is on port 8080: `lsof -i :8080`
-3. Verify `.env.local` has `VITE_REST_API_ENDPOINT="https://app.gitgazer.local:5173/api"`
+3. Verify `.env.local` has `VITE_REST_API_ENDPOINT="https://app.gitgazer.localhost:5173/api"`
 4. Check browser console for proxy errors
 5. Restart both frontend and backend
 
@@ -264,7 +264,7 @@ The proxy is **not used** when:
 
 **Solution**:
 
-1. Verify production backend's `ALLOWED_FRONTEND_ORIGINS` includes `https://app.gitgazer.local:5173`
+1. Verify production backend's `ALLOWED_FRONTEND_ORIGINS` includes `https://app.gitgazer.localhost:5173`
 2. Check that `.env.local` has the correct production domain in `VITE_REST_API_ENDPOINT`
 3. Clear browser cache and cookies
 4. Ensure you're logged in to production (not local cookies)
@@ -275,9 +275,9 @@ The proxy is **not used** when:
 
 **Solution**:
 
-1. Verify `app.gitgazer.local` is in your hosts file
-2. Check Cognito app client has `https://app.gitgazer.local:5173` as allowed callback URL
-3. Ensure `VITE_HOST_URL="https://app.gitgazer.local:5173"` in `.env.local`
+1. Verify `app.gitgazer.localhost` is in your hosts file
+2. Check Cognito app client has `https://app.gitgazer.localhost:5173` as allowed callback URL
+3. Ensure `VITE_HOST_URL="https://app.gitgazer.localhost:5173"` in `.env.local`
 4. Clear all browser cookies for `gitgazer.local` domain
 5. Try in incognito/private browsing mode
 

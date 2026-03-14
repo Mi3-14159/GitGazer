@@ -15,8 +15,8 @@ export default defineConfig({
         tailwindcss(),
         Components(),
         basicSsl({
-            name: 'app.gitgazer.local',
-            domains: ['app.gitgazer.local'],
+            name: 'app.gitgazer.localhost',
+            domains: ['app.gitgazer.localhost'],
             certDir: resolve(__dirname, 'certs'),
         }),
     ],
@@ -30,8 +30,8 @@ export default defineConfig({
     },
     server: {
         port: 5173,
-        host: 'app.gitgazer.local',
-        allowedHosts: ['app.gitgazer.local'],
+        host: 'app.gitgazer.localhost',
+        allowedHosts: ['app.gitgazer.localhost'],
         proxy: {
             '/api': {
                 target: 'http://localhost:8080',
