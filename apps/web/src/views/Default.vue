@@ -3,7 +3,7 @@
     import Badge from '@/components/ui/Badge.vue';
     import {useAuth} from '@/composables/useAuth';
     import {UserAttributes} from '@common/types';
-    import {Activity, Bell, GitBranch, LayoutDashboard, LogOut, PlayCircle, Webhook} from 'lucide-vue-next';
+    import {Activity, Bell, GitBranch, LogOut, PlayCircle, Webhook} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
@@ -19,7 +19,6 @@
 
     const tabs = [
         {value: 'overview', label: 'Overview', icon: Activity, path: '/overview'},
-        {value: 'dashboards', label: 'Dashboards', icon: LayoutDashboard, path: '/analytics/system-dora'},
         {value: 'workflows', label: 'Workflows', icon: PlayCircle, path: '/workflows'},
         {value: 'integrations', label: 'Integrations', icon: Webhook, path: '/integrations'},
         {value: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications'},
@@ -28,7 +27,6 @@
     const activeTab = computed(() => {
         const path = route.path;
         if (path.startsWith('/overview')) return 'overview';
-        if (path.startsWith('/analytics')) return 'dashboards';
         if (path.startsWith('/workflows')) return 'workflows';
         if (path.startsWith('/integrations')) return 'integrations';
         if (path.startsWith('/notifications')) return 'notifications';
@@ -99,7 +97,7 @@
 
         <!-- Tab Navigation -->
         <div class="container mx-auto px-4 py-2">
-            <nav class="grid w-full grid-cols-5 rounded-lg bg-muted p-1">
+            <nav class="grid w-full grid-cols-4 rounded-lg bg-muted p-1">
                 <button
                     v-for="tab in tabs"
                     :key="tab.value"

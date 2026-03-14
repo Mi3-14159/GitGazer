@@ -11,7 +11,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AnalyticsShell: typeof import('./src/components/AnalyticsShell.vue')['default']
     Badge: typeof import('./src/components/ui/Badge.vue')['default']
     Button: typeof import('./src/components/ui/Button.vue')['default']
     Card: typeof import('./src/components/ui/Card.vue')['default']
@@ -21,14 +20,9 @@ declare module 'vue' {
     CardHeader: typeof import('./src/components/ui/CardHeader.vue')['default']
     CardTitle: typeof import('./src/components/ui/CardTitle.vue')['default']
     Checkbox: typeof import('./src/components/ui/Checkbox.vue')['default']
-    CodeMirrorEditor: typeof import('./src/components/CodeMirrorEditor.vue')['default']
     ColumnHeaderFilter: typeof import('./src/components/ColumnHeaderFilter.vue')['default']
     ColumnSelector: typeof import('./src/components/ColumnSelector.vue')['default']
-    CustomMetricsDashboard: typeof import('./src/components/CustomMetricsDashboard.vue')['default']
-    CustomWidgetCard: typeof import('./src/components/CustomWidgetCard.vue')['default']
-    CustomWidgetDialog: typeof import('./src/components/CustomWidgetDialog.vue')['default']
     DashboardOverview: typeof import('./src/components/DashboardOverview.vue')['default']
-    DashboardSidebar: typeof import('./src/components/DashboardSidebar.vue')['default']
     DateTimeRangePicker: typeof import('./src/components/DateTimeRangePicker.vue')['default']
     Dialog: typeof import('./src/components/ui/Dialog.vue')['default']
     DialogDescription: typeof import('./src/components/ui/DialogDescription.vue')['default']
@@ -36,7 +30,6 @@ declare module 'vue' {
     DialogHeader: typeof import('./src/components/ui/DialogHeader.vue')['default']
     DialogTitle: typeof import('./src/components/ui/DialogTitle.vue')['default']
     DropdownMenu: typeof import('./src/components/ui/DropdownMenu.vue')['default']
-    EChart: typeof import('./src/components/charts/EChart.vue')['default']
     Input: typeof import('./src/components/ui/Input.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']

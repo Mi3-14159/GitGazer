@@ -33,20 +33,7 @@ const router = createRouter({
                     component: () => import('@/components/IntegrationsOverview.vue'),
                     meta: {title: 'Integrations'},
                 },
-                {
-                    path: 'analytics',
-                    redirect: '/analytics/system-dora',
-                },
-                {
-                    path: 'analytics/:id',
-                    name: 'analytics-dashboard',
-                    component: () => import('@/components/AnalyticsShell.vue'),
-                    meta: {title: 'Analytics'},
-                },
-                {
-                    path: 'metrics',
-                    redirect: '/analytics/system-dora',
-                },
+
                 {
                     path: '',
                     redirect: '/overview',
