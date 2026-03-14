@@ -49,7 +49,10 @@
     const dateRange = ref<DateTimeRange>({from: subHours(new Date(), 1), to: new Date(), rollingWindow: '1h'});
 
     onMounted(async () => {
-        await initializeStore(Object.keys(initialApiFilters).length > 0 ? initialApiFilters : undefined);
+        // Sync initial filters (including default date range) to URL
+        const {apiFilters, query} = buildApiFilters();
+        router.replace({query});
+        await initializeStore(Object.keys(apiFilters).length > 0 ? apiFilters : undefined);
         window.addEventListener('scroll', handleScroll);
     });
 

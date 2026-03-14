@@ -188,7 +188,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
             // Append active filters as comma-separated values
             for (const [column, values] of Object.entries(activeFilters)) {
-                if (column === 'created_from' || column === 'created_to') {
+                if (column === 'created_from' || column === 'created_to' || column === 'window') {
                     if (typeof values === 'string' && values.length > 0) {
                         queryParams.append(column, values);
                     }
