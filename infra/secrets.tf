@@ -20,9 +20,6 @@ data "aws_kms_secrets" "this" {
   }
 }
 
-# Secrets Manager secret that holds all convict-managed Lambda application config.
-# Sensitive values (Cognito client secret, GitHub App private key & webhook secret)
-# are stored here instead of plain Lambda environment variables.
 resource "aws_secretsmanager_secret" "lambda_config" {
   name                    = "${var.name_prefix}-lambda-config-${terraform.workspace}"
   description             = "Application configuration for ${var.name_prefix} Lambda functions (${terraform.workspace})"

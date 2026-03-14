@@ -6,7 +6,7 @@ import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
-import {CognitoIdTokenPayload, CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
+import {CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 type TokenVerifiers = {
