@@ -171,11 +171,6 @@ resource "aws_lambda_function" "api" {
       ENVIRONMENT                         = terraform.workspace
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      KMS_KEY_ID                          = aws_kms_key.this.id
-      AWS_ACCOUNT_ID                      = data.aws_caller_identity.current.account_id
-      QUERY_GENERATOR_BEDROCK_MODEL_ID    = awscc_bedrock_prompt.query_generation.arn
-      QUERY_GENERATOR_GUARDRAIL_IDENTIFIER = aws_bedrock_guardrail.query_generation.guardrail_id
-      QUERY_GENERATOR_GUARDRAIL_VERSION   = "DRAFT"
       RDS_DATABASE                        = "postgres"
       RDS_SECRET_ARN                      = module.db.cluster_master_user_secret[0].secret_arn
       RDS_RESOURCE_ARN                    = module.db.cluster_arn
