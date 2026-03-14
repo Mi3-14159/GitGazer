@@ -10,6 +10,7 @@
     export interface DateTimeRange {
         from: Date | undefined;
         to: Date | undefined;
+        rollingWindow?: string;
     }
 
     const props = defineProps<{
@@ -29,6 +30,10 @@
         {label: 'Past 7 days', value: '7d', getRange: () => ({from: subDays(new Date(), 7), to: new Date()})},
         {label: 'Past 30 days', value: '30d', getRange: () => ({from: subDays(new Date(), 30), to: new Date()})},
     ] as const;
+
+    const activeShortcut = ref<(typeof shortcuts)[number] | null>(
+        props.modelValue?.rollingWindow ? (shortcuts.find((s) => s.value === props.modelValue!.rollingWindow) ?? null) : null,
+    );
 
     const fromDate = ref(props.modelValue?.from ? format(props.modelValue.from, 'yyyy-MM-dd') : '');
     const toDate = ref(props.modelValue?.to ? format(props.modelValue.to, 'yyyy-MM-dd') : '');
@@ -50,6 +55,7 @@
     );
 
     function emitRange() {
+        activeShortcut.value = null;
         if (!fromDate.value) {
             emit('update:modelValue', {from: undefined, to: undefined});
             return;
@@ -68,15 +74,17 @@
     }
 
     function applyShortcut(shortcut: (typeof shortcuts)[number]) {
+        activeShortcut.value = shortcut;
         const range = shortcut.getRange();
         fromDate.value = format(range.from, 'yyyy-MM-dd');
         toDate.value = format(range.to, 'yyyy-MM-dd');
         fromTime.value = format(range.from, 'HH:mm');
         toTime.value = format(range.to, 'HH:mm');
-        emit('update:modelValue', range);
+        emit('update:modelValue', {from: range.from, to: range.to, rollingWindow: shortcut.value});
     }
 
     function clearRange() {
+        activeShortcut.value = null;
         fromDate.value = '';
         toDate.value = '';
         fromTime.value = '00:00';
@@ -85,6 +93,7 @@
     }
 
     const displayText = computed(() => {
+        if (activeShortcut.value) return activeShortcut.value.label;
         if (!props.modelValue?.from) return 'Pick a date range';
         const f = props.modelValue.from;
         const t = props.modelValue.to;

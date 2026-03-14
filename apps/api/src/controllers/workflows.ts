@@ -2,7 +2,7 @@ import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {workflowRunRelations} from '@gitgazer/db/queries';
 import {repositories, workflowRuns} from '@gitgazer/db/schema';
 import {GetWorkflowsResponse, PaginationCursor, WorkflowFilters} from '@gitgazer/db/types';
-import {and, desc, eq, inArray, lt, or, SQL} from 'drizzle-orm';
+import {and, desc, eq, gte, inArray, lt, lte, or, SQL} from 'drizzle-orm';
 
 type WorkflowsParams = {
     integrationIds: string[];
@@ -58,6 +58,35 @@ export const getWorkflows = async ({integrationIds, limit, cursor, filters}: Wor
                 const nums = filters.run_number.map(Number).filter((n) => !isNaN(n));
                 if (nums.length) {
                     conditions.push(inArray(workflowRuns.runAttempt, nums));
+                }
+            }
+
+            // Date range filter
+            if (filters?.window) {
+                const now = new Date();
+                let from: Date;
+                switch (filters.window) {
+                    case '1h':
+                        from = new Date(now.getTime() - 60 * 60 * 1000);
+                        break;
+                    case '24h':
+                        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                        break;
+                    case '7d':
+                        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case '30d':
+                        from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        break;
+                }
+                conditions.push(gte(workflowRuns.createdAt, from));
+                conditions.push(lte(workflowRuns.createdAt, now));
+            } else {
+                if (filters?.created_from) {
+                    conditions.push(gte(workflowRuns.createdAt, new Date(filters.created_from)));
+                }
+                if (filters?.created_to) {
+                    conditions.push(lte(workflowRuns.createdAt, new Date(filters.created_to)));
                 }
             }
 

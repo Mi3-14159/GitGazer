@@ -38,6 +38,20 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
             delete queryStringParameters![column];
         }
     }
+    // Extract date range filters
+    if (queryStringParameters?.window) {
+        filters.window = queryStringParameters.window as WorkflowFilters['window'];
+        delete queryStringParameters.window;
+    } else {
+        if (queryStringParameters?.created_from) {
+            filters.created_from = queryStringParameters.created_from;
+            delete queryStringParameters.created_from;
+        }
+        if (queryStringParameters?.created_to) {
+            filters.created_to = queryStringParameters.created_to;
+            delete queryStringParameters.created_to;
+        }
+    }
 
     if (!isWorkflowsRequestParameters(queryStringParameters)) {
         throw new BadRequestError('Invalid query parameters');

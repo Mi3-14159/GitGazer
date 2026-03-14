@@ -99,7 +99,15 @@ export const WORKFLOW_FILTER_COLUMNS = ['workflow', 'repository', 'branch', 'sta
 
 export type WorkflowFilterColumn = (typeof WORKFLOW_FILTER_COLUMNS)[number];
 
-export type WorkflowFilters = Partial<Record<WorkflowFilterColumn, string[]>>;
+export const ROLLING_WINDOWS = ['1h', '24h', '7d', '30d'] as const;
+
+export type RollingWindow = (typeof ROLLING_WINDOWS)[number];
+
+export type WorkflowFilters = Partial<Record<WorkflowFilterColumn, string[]>> & {
+    created_from?: string;
+    created_to?: string;
+    window?: RollingWindow;
+};
 
 export type WorkflowsRequestParameters = {
     limit?: number;
@@ -132,6 +140,18 @@ export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRe
             return false;
         }
         for (const [key, values] of Object.entries(params.filters)) {
+            if (key === 'created_from' || key === 'created_to') {
+                if (typeof values !== 'string') {
+                    return false;
+                }
+                continue;
+            }
+            if (key === 'window') {
+                if (!ROLLING_WINDOWS.includes(values as RollingWindow)) {
+                    return false;
+                }
+                continue;
+            }
             if (!WORKFLOW_FILTER_COLUMNS.includes(key as WorkflowFilterColumn)) {
                 return false;
             }
