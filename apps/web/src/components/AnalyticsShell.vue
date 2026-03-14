@@ -1,973 +1,524 @@
 <script setup lang="ts">
-    import EChart from '@/components/charts/EChart.vue';
     import CustomMetricsDashboard from '@/components/CustomMetricsDashboard.vue';
     import DashboardSidebar from '@/components/DashboardSidebar.vue';
+    import EChart from '@/components/charts/EChart.vue';
+    import Skeleton from '@/components/ui/Skeleton.vue';
     import {useChartTheme} from '@/composables/useChartTheme';
     import {useIntegration} from '@/composables/useIntegration';
     import {useMetrics} from '@/composables/useMetrics';
     import {useDashboardsStore} from '@/stores/dashboards';
-    import type {Integration} from '@common/types';
-    import type {Granularity, MetricResult, MetricsFilter} from '@common/types/metrics';
+    import type {Granularity, MetricsFilter} from '@common/types/metrics';
+    import {AlertCircle, BarChart3, Clock, Info, Lock, Minus, Rocket, Smile, TrendingDown, TrendingUp, Users, Wrench, Zap} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
     import {useRoute} from 'vue-router';
 
     const route = useRoute();
-    const dashboardsStore = useDashboardsStore();
+    const store = useDashboardsStore();
+    const {getIntegrations} = useIntegration();
+    const {doraMetrics, spaceMetrics, isLoadingDora, isLoadingSpace, fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories} = useMetrics();
+    const chart = useChartTheme();
 
-    const dashboardId = computed(() => (route.params.id as string) || 'system-dora');
-    const dashboard = computed(() => dashboardsStore.getDashboard(dashboardId.value));
+    const dashboardId = computed(() => route.params.id as string);
+    const dashboard = computed(() => store.getDashboard(dashboardId.value));
+    const isSystem = computed(() => dashboardId.value.startsWith('system-'));
     const isDora = computed(() => dashboardId.value === 'system-dora');
     const isSpace = computed(() => dashboardId.value === 'system-space');
-    const isSystemDashboard = computed(() => dashboard.value?.type === 'system');
-    const isUserDashboard = computed(() => dashboard.value?.type === 'user');
 
-    // --- Metrics composables ---
-    const {getIntegrations} = useIntegration();
-    const {doraMetrics, spaceMetrics, isLoadingDora, isLoadingSpace, error, fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories} = useMetrics();
-    const {palette, buildLineChart, buildBarChart, buildGaugeChart, buildMultiLineChart} = useChartTheme();
-
-    // --- Filter state ---
-    const integrations = ref<Integration[]>([]);
-    const selectedIntegration = ref<string | null>(null);
-    const repositoryOptions = ref<{id: number; name: string}[]>([]);
-    const selectedRepository = ref<number | null>(null);
-    const granularity = ref<Granularity>('week');
-    const dateRange = ref<'30' | '90' | '180' | '365'>('90');
-
-    const isLoading = computed(() => isLoadingDora.value || isLoadingSpace.value);
-
-    const filter = computed<MetricsFilter>(() => {
-        const to = new Date();
-        const from = new Date(to.getTime() - Number(dateRange.value) * 24 * 60 * 60 * 1000);
-        return {
-            from: from.toISOString(),
-            to: to.toISOString(),
-            granularity: granularity.value,
-            repositoryId: selectedRepository.value ?? undefined,
-        };
-    });
-
-    async function loadMetrics() {
-        if (!selectedIntegration.value) return;
-        if (isDora.value) {
-            await fetchDoraMetrics(selectedIntegration.value, filter.value);
-        } else if (isSpace.value) {
-            await fetchSpaceMetrics(selectedIntegration.value, filter.value);
-        }
-    }
-
-    async function loadFilterOptions(integrationId: string) {
-        repositoryOptions.value = await fetchRepositories(integrationId);
-    }
+    const integrations = ref<{integrationId: string; label: string}[]>([]);
+    const selectedIntegration = ref('');
+    const repositories = ref<{id: number; name: string}[]>([]);
+    const filter = ref<MetricsFilter>({granularity: 'week'});
 
     onMounted(async () => {
-        integrations.value = (await getIntegrations()) ?? [];
-        if (integrations.value.length > 0) {
-            selectedIntegration.value = integrations.value[0].integrationId;
+        const data = await getIntegrations();
+        if (data) {
+            integrations.value = data.map((i) => ({integrationId: i.integrationId, label: i.label}));
+            if (integrations.value.length > 0) {
+                selectedIntegration.value = integrations.value[0].integrationId;
+            }
         }
     });
 
-    watch(selectedIntegration, async (newId) => {
-        selectedRepository.value = null;
-        if (newId) {
-            await loadFilterOptions(newId);
-        }
-        loadMetrics();
-    });
+    watch(
+        [selectedIntegration, filter, dashboardId],
+        async () => {
+            if (!selectedIntegration.value || !isSystem.value) return;
+            if (isDora.value) {
+                await fetchDoraMetrics(selectedIntegration.value, filter.value);
+            }
+            if (isSpace.value) {
+                await fetchSpaceMetrics(selectedIntegration.value, filter.value);
+            }
+            repositories.value = await fetchRepositories(selectedIntegration.value);
+        },
+        {immediate: true},
+    );
 
-    watch([granularity, dateRange, selectedRepository], () => {
-        loadMetrics();
-    });
-
-    watch(dashboardId, () => {
-        loadMetrics();
-    });
-
-    // --- Helpers ---
+    const granularityOptions: {value: Granularity; label: string}[] = [
+        {value: 'day', label: 'Daily'},
+        {value: 'week', label: 'Weekly'},
+        {value: 'month', label: 'Monthly'},
+    ];
 
     function trendIcon(trend: string) {
-        if (trend === 'up') return 'mdi-trending-up';
-        if (trend === 'down') return 'mdi-trending-down';
-        return 'mdi-trending-neutral';
+        if (trend === 'up') return TrendingUp;
+        if (trend === 'down') return TrendingDown;
+        return Minus;
     }
 
-    function trendColor(trend: string, invertGood = false) {
-        if (trend === 'up') return invertGood ? 'error' : 'success';
-        if (trend === 'down') return invertGood ? 'success' : 'error';
-        return 'grey';
+    function trendColor(trend: string, invert = false) {
+        const isGood = invert ? trend === 'down' : trend === 'up';
+        if (isGood) return 'text-green-500';
+        if (trend === 'stable') return 'text-muted-foreground';
+        return 'text-red-500';
     }
 
-    function formatSummary(m: MetricResult) {
-        if (m.unit === '%') return `${m.summary.current}%`;
-        if (m.unit === 'hours') return `${m.summary.current}h`;
-        if (m.unit === 'minutes') return `${m.summary.current}m`;
-        return String(m.summary.current);
-    }
-
-    // --- DORA charts ---
-
+    // DORA chart options
     const deployFreqChart = computed(() => {
-        if (!doraMetrics.value) return {};
-        return buildBarChart({
+        if (!doraMetrics.value) return null;
+        return chart.buildBarChart({
             title: 'Deployment Frequency',
             data: doraMetrics.value.deploymentFrequency.data,
-            unit: 'deployments',
-            granularity: granularity.value,
-            color: palette.value.success,
+            unit: doraMetrics.value.deploymentFrequency.unit,
+            granularity: filter.value.granularity ?? 'week',
+            color: undefined,
         });
     });
 
     const leadTimeChart = computed(() => {
-        if (!doraMetrics.value) return {};
-        return buildLineChart({
+        if (!doraMetrics.value) return null;
+        return chart.buildLineChart({
             title: 'Lead Time for Changes',
             data: doraMetrics.value.leadTimeForChanges.data,
-            unit: 'hours',
-            granularity: granularity.value,
-            color: palette.value.info,
+            unit: doraMetrics.value.leadTimeForChanges.unit,
+            granularity: filter.value.granularity ?? 'week',
             areaStyle: true,
         });
     });
 
     const changeFailureChart = computed(() => {
-        if (!doraMetrics.value) return {};
-        return buildLineChart({
+        if (!doraMetrics.value) return null;
+        return chart.buildLineChart({
             title: 'Change Failure Rate',
             data: doraMetrics.value.changeFailureRate.data,
-            unit: '%',
-            granularity: granularity.value,
-            color: palette.value.warning,
-            areaStyle: true,
-            markLines: [
-                {value: 15, label: 'High', color: palette.value.error},
-                {value: 5, label: 'Elite', color: palette.value.success},
-            ],
+            unit: doraMetrics.value.changeFailureRate.unit,
+            granularity: filter.value.granularity ?? 'week',
+            color: undefined,
+            markLines: [{value: 15, label: 'Target', color: '#EF5350'}],
         });
     });
 
     const mttrChart = computed(() => {
-        if (!doraMetrics.value) return {};
-        return buildLineChart({
+        if (!doraMetrics.value) return null;
+        return chart.buildLineChart({
             title: 'Mean Time to Recovery',
             data: doraMetrics.value.meanTimeToRecovery.data,
-            unit: 'hours',
-            granularity: granularity.value,
-            color: palette.value.error,
+            unit: doraMetrics.value.meanTimeToRecovery.unit,
+            granularity: filter.value.granularity ?? 'week',
             areaStyle: true,
         });
     });
 
-    // --- SPACE charts ---
-
+    // SPACE chart options
     const mergeRateGauge = computed(() => {
-        if (!spaceMetrics.value) return {};
-        return buildGaugeChart({
+        if (!spaceMetrics.value) return null;
+        return chart.buildGaugeChart({
             value: spaceMetrics.value.prMergeRate.summary.current,
-            title: 'Merge Rate',
-            color: palette.value.success,
+            title: 'PR Merge Rate',
         });
     });
 
     const activityChart = computed(() => {
-        if (!spaceMetrics.value) return {};
-        return buildBarChart({
+        if (!spaceMetrics.value) return null;
+        return chart.buildBarChart({
             title: 'Activity Volume',
             data: spaceMetrics.value.activityVolume.data,
-            unit: 'events',
-            granularity: granularity.value,
-            color: palette.value.primary,
+            unit: spaceMetrics.value.activityVolume.unit,
+            granularity: filter.value.granularity ?? 'week',
         });
     });
 
     const contributorChart = computed(() => {
-        if (!spaceMetrics.value) return {};
-        return buildLineChart({
-            title: 'Contributors',
+        if (!spaceMetrics.value) return null;
+        return chart.buildLineChart({
+            title: 'Active Contributors',
             data: spaceMetrics.value.contributorCount.data,
-            unit: 'contributors',
-            granularity: granularity.value,
-            color: palette.value.info,
+            unit: spaceMetrics.value.contributorCount.unit,
+            granularity: filter.value.granularity ?? 'week',
             areaStyle: true,
         });
     });
 
     const efficiencyChart = computed(() => {
-        if (!spaceMetrics.value) return {};
-        const c = palette.value;
-        return buildMultiLineChart({
+        if (!spaceMetrics.value) return null;
+        const g = filter.value.granularity ?? 'week';
+        return chart.buildMultiLineChart({
             series: [
-                {name: 'CI Duration (min)', data: spaceMetrics.value.ciDuration.data, color: c.series[0], unit: 'min'},
-                {name: 'PR Cycle Time (hrs)', data: spaceMetrics.value.prCycleTime.data, color: c.series[1], unit: 'hrs'},
-                {name: 'Queue Time (min)', data: spaceMetrics.value.workflowQueueTime.data, color: c.series[2], unit: 'min'},
+                {name: 'CI Duration', data: spaceMetrics.value.ciDuration.data, color: '#42A5F5', unit: spaceMetrics.value.ciDuration.unit},
+                {name: 'PR Cycle Time', data: spaceMetrics.value.prCycleTime.data, color: '#66BB6A', unit: spaceMetrics.value.prCycleTime.unit},
+                {
+                    name: 'Queue Time',
+                    data: spaceMetrics.value.workflowQueueTime.data,
+                    color: '#FFA726',
+                    unit: spaceMetrics.value.workflowQueueTime.unit,
+                },
             ],
-            granularity: granularity.value,
+            granularity: g,
         });
     });
 
-    const dateRangeOptions = [
-        {title: '30 days', value: '30'},
-        {title: '90 days', value: '90'},
-        {title: '6 months', value: '180'},
-        {title: '1 year', value: '365'},
-    ];
+    const doraCards = computed(() => {
+        if (!doraMetrics.value) return [];
+        const m = doraMetrics.value;
+        return [
+            {
+                title: 'Deploy Frequency',
+                icon: Rocket,
+                value: m.deploymentFrequency.summary.current,
+                unit: m.deploymentFrequency.unit,
+                trend: m.deploymentFrequency.summary.trend,
+            },
+            {
+                title: 'Lead Time',
+                icon: Clock,
+                value: m.leadTimeForChanges.summary.current,
+                unit: m.leadTimeForChanges.unit,
+                trend: m.leadTimeForChanges.summary.trend,
+                invertTrend: true,
+            },
+            {
+                title: 'Change Failure',
+                icon: AlertCircle,
+                value: m.changeFailureRate.summary.current,
+                unit: m.changeFailureRate.unit,
+                trend: m.changeFailureRate.summary.trend,
+                invertTrend: true,
+            },
+            {
+                title: 'MTTR',
+                icon: Wrench,
+                value: m.meanTimeToRecovery.summary.current,
+                unit: m.meanTimeToRecovery.unit,
+                trend: m.meanTimeToRecovery.summary.trend,
+                invertTrend: true,
+            },
+        ];
+    });
 
-    const granularityOptions = [
-        {title: 'Day', value: 'day'},
-        {title: 'Week', value: 'week'},
-        {title: 'Month', value: 'month'},
-    ];
-
-    const doraDescriptions: Record<string, string> = {
-        deploymentFrequency: 'How often code is deployed to production. Proxied from successful workflow runs on the default branch.',
-        leadTimeForChanges: 'Time from PR creation to merge. Measures how long it takes for code to go from development to production.',
-        changeFailureRate: 'Percentage of deployments that result in failure. Lower is better.',
-        meanTimeToRecovery: 'Average time between a failed deployment and the next successful one on the same workflow.',
-    };
+    const spaceCards = computed(() => {
+        if (!spaceMetrics.value) return [];
+        const m = spaceMetrics.value;
+        return [
+            {title: 'PR Merge Rate', icon: Zap, value: m.prMergeRate.summary.current, unit: m.prMergeRate.unit, trend: m.prMergeRate.summary.trend},
+            {
+                title: 'Activity',
+                icon: BarChart3,
+                value: m.activityVolume.summary.current,
+                unit: m.activityVolume.unit,
+                trend: m.activityVolume.summary.trend,
+            },
+            {
+                title: 'Contributors',
+                icon: Users,
+                value: m.contributorCount.summary.current,
+                unit: m.contributorCount.unit,
+                trend: m.contributorCount.summary.trend,
+            },
+            {
+                title: 'CI Duration',
+                icon: Clock,
+                value: m.ciDuration.summary.current,
+                unit: m.ciDuration.unit,
+                trend: m.ciDuration.summary.trend,
+                invertTrend: true,
+            },
+        ];
+    });
 </script>
 
 <template>
-    <div
-        class="d-flex"
-        style="height: 100%"
-    >
+    <div class="flex h-full">
         <DashboardSidebar />
 
-        <div
-            class="flex-grow-1 d-flex flex-column"
-            style="min-width: 0; overflow-y: auto"
-        >
-            <!-- Dashboard not found -->
-            <div
-                v-if="!dashboard"
-                class="d-flex flex-column align-center justify-center pa-12"
-                style="flex: 1"
-            >
-                <v-icon
-                    size="64"
-                    color="grey"
-                    class="mb-4"
-                    >mdi-alert-circle-outline</v-icon
-                >
-                <h3 class="text-h6 text-medium-emphasis">Dashboard not found</h3>
-                <p class="text-body-2 text-medium-emphasis mt-2">The requested dashboard does not exist.</p>
-            </div>
-
-            <template v-else>
-                <!-- Dashboard Header + Filters -->
-                <div class="px-6 pt-5 pb-0">
-                    <div class="d-flex align-center ga-3 mb-1">
-                        <v-icon
-                            :icon="dashboard.icon"
-                            size="small"
-                            :color="isDora ? 'success' : isSpace ? 'info' : 'secondary'"
-                        />
-                        <span class="text-h6 font-weight-medium">{{ dashboard.title }}</span>
-                        <v-chip
-                            v-if="isSystemDashboard"
-                            size="x-small"
-                            color="grey"
-                            variant="tonal"
-                        >
-                            <v-icon
-                                start
-                                size="x-small"
-                                >mdi-lock-outline</v-icon
-                            >
-                            System
-                        </v-chip>
-                    </div>
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-xl font-bold">{{ dashboard?.title ?? 'Dashboard' }}</h1>
                     <p
-                        v-if="dashboard.description"
-                        class="text-body-2 text-medium-emphasis mb-4"
+                        v-if="dashboard?.description"
+                        class="text-sm text-muted-foreground mt-0.5"
                     >
                         {{ dashboard.description }}
                     </p>
+                </div>
 
-                    <!-- Filters row -->
-                    <div class="d-flex ga-3 align-center mb-4 flex-wrap">
-                        <v-select
-                            v-model="selectedIntegration"
-                            :items="integrations"
-                            item-title="label"
-                            item-value="integrationId"
-                            label="Integration"
-                            variant="outlined"
-                            density="compact"
-                            hide-details
-                            style="min-width: 180px; max-width: 220px"
-                        />
-                        <template v-if="isSystemDashboard">
-                            <v-select
-                                v-model="selectedRepository"
-                                :items="repositoryOptions"
-                                item-title="name"
-                                item-value="id"
-                                label="Repository"
-                                variant="outlined"
-                                density="compact"
-                                hide-details
-                                clearable
-                                style="min-width: 180px; max-width: 220px"
-                            />
-                            <v-select
-                                v-model="dateRange"
-                                :items="dateRangeOptions"
-                                label="Time Range"
-                                variant="outlined"
-                                density="compact"
-                                hide-details
-                                style="min-width: 140px; max-width: 160px"
-                            />
-                            <v-btn-toggle
-                                v-model="granularity"
-                                mandatory
-                                density="compact"
-                                variant="outlined"
-                                divided
-                            >
-                                <v-btn
-                                    v-for="opt in granularityOptions"
-                                    :key="opt.value"
-                                    :value="opt.value"
-                                    size="small"
-                                >
-                                    {{ opt.title }}
-                                </v-btn>
-                            </v-btn-toggle>
-                        </template>
+                <div
+                    v-if="isSystem"
+                    class="flex flex-wrap gap-2"
+                >
+                    <!-- Integration picker -->
+                    <select
+                        v-model="selectedIntegration"
+                        class="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                        <option
+                            value=""
+                            disabled
+                        >
+                            Integration
+                        </option>
+                        <option
+                            v-for="i in integrations"
+                            :key="i.integrationId"
+                            :value="i.integrationId"
+                        >
+                            {{ i.label }}
+                        </option>
+                    </select>
+
+                    <!-- Repository picker -->
+                    <select
+                        v-model="filter.repositoryId"
+                        class="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                        <option :value="undefined">All repos</option>
+                        <option
+                            v-for="r in repositories"
+                            :key="r.id"
+                            :value="r.id"
+                        >
+                            {{ r.name }}
+                        </option>
+                    </select>
+
+                    <!-- Granularity -->
+                    <div class="inline-flex rounded-lg border border-border overflow-hidden">
+                        <button
+                            v-for="g in granularityOptions"
+                            :key="g.value"
+                            :class="[
+                                'px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
+                                filter.granularity === g.value
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background text-muted-foreground hover:bg-muted',
+                            ]"
+                            @click="filter.granularity = g.value"
+                        >
+                            {{ g.label }}
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- Error Alert -->
-                <v-alert
-                    v-if="error && isSystemDashboard"
-                    type="error"
-                    variant="tonal"
-                    closable
-                    class="mx-6 mb-4"
+            <!-- No integration -->
+            <div
+                v-if="isSystem && integrations.length === 0 && !isLoadingDora && !isLoadingSpace"
+                class="rounded-xl border bg-card p-8 text-center"
+            >
+                <Lock class="mx-auto h-10 w-10 text-muted-foreground/40" />
+                <p class="mt-2 text-sm text-muted-foreground">Create an integration first to view metrics.</p>
+            </div>
+
+            <!-- DORA Dashboard -->
+            <template v-if="isDora && selectedIntegration">
+                <!-- Loading -->
+                <div
+                    v-if="isLoadingDora"
+                    class="grid grid-cols-2 lg:grid-cols-4 gap-4"
                 >
-                    {{ error }}
-                </v-alert>
+                    <Skeleton
+                        v-for="n in 4"
+                        :key="n"
+                        class="h-24 rounded-xl"
+                    />
+                </div>
 
-                <!-- Loading State -->
-                <v-progress-linear
-                    v-if="isLoading && isSystemDashboard"
-                    indeterminate
-                    color="primary"
-                    class="mx-6 mb-4"
+                <template v-else-if="doraMetrics">
+                    <!-- Summary cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div
+                            v-for="card in doraCards"
+                            :key="card.title"
+                            class="rounded-xl border bg-card p-4"
+                        >
+                            <div class="flex items-center gap-2 text-muted-foreground mb-2">
+                                <component
+                                    :is="card.icon"
+                                    class="h-4 w-4"
+                                />
+                                <span class="text-xs font-medium">{{ card.title }}</span>
+                            </div>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-bold">{{
+                                    typeof card.value === 'number' ? Math.round(card.value * 10) / 10 : card.value
+                                }}</span>
+                                <span class="text-xs text-muted-foreground">{{ card.unit }}</span>
+                            </div>
+                            <div
+                                class="flex items-center gap-1 mt-1"
+                                :class="trendColor(card.trend, card.invertTrend)"
+                            >
+                                <component
+                                    :is="trendIcon(card.trend)"
+                                    class="h-3 w-3"
+                                />
+                                <span class="text-xs capitalize">{{ card.trend }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Deployment Frequency</h3>
+                            <EChart
+                                v-if="deployFreqChart"
+                                :option="deployFreqChart"
+                                height="280px"
+                            />
+                        </div>
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Lead Time for Changes</h3>
+                            <EChart
+                                v-if="leadTimeChart"
+                                :option="leadTimeChart"
+                                height="280px"
+                            />
+                        </div>
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Change Failure Rate</h3>
+                            <EChart
+                                v-if="changeFailureChart"
+                                :option="changeFailureChart"
+                                height="280px"
+                            />
+                        </div>
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Mean Time to Recovery</h3>
+                            <EChart
+                                v-if="mttrChart"
+                                :option="mttrChart"
+                                height="280px"
+                            />
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Empty state -->
+                <div
+                    v-else
+                    class="rounded-xl border bg-card p-8 text-center"
+                >
+                    <Info class="mx-auto h-10 w-10 text-muted-foreground/40" />
+                    <p class="mt-2 text-sm text-muted-foreground">No DORA metrics available for this integration yet.</p>
+                </div>
+            </template>
+
+            <!-- SPACE Dashboard -->
+            <template v-if="isSpace && selectedIntegration">
+                <div
+                    v-if="isLoadingSpace"
+                    class="grid grid-cols-2 lg:grid-cols-4 gap-4"
+                >
+                    <Skeleton
+                        v-for="n in 4"
+                        :key="n"
+                        class="h-24 rounded-xl"
+                    />
+                </div>
+
+                <template v-else-if="spaceMetrics">
+                    <!-- Summary cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div
+                            v-for="card in spaceCards"
+                            :key="card.title"
+                            class="rounded-xl border bg-card p-4"
+                        >
+                            <div class="flex items-center gap-2 text-muted-foreground mb-2">
+                                <component
+                                    :is="card.icon"
+                                    class="h-4 w-4"
+                                />
+                                <span class="text-xs font-medium">{{ card.title }}</span>
+                            </div>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-bold">{{
+                                    typeof card.value === 'number' ? Math.round(card.value * 10) / 10 : card.value
+                                }}</span>
+                                <span class="text-xs text-muted-foreground">{{ card.unit }}</span>
+                            </div>
+                            <div
+                                class="flex items-center gap-1 mt-1"
+                                :class="trendColor(card.trend, card.invertTrend)"
+                            >
+                                <component
+                                    :is="trendIcon(card.trend)"
+                                    class="h-3 w-3"
+                                />
+                                <span class="text-xs capitalize">{{ card.trend }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">
+                                <div class="flex items-center gap-2">
+                                    <Smile class="h-4 w-4 text-muted-foreground" />
+                                    PR Merge Rate
+                                </div>
+                            </h3>
+                            <EChart
+                                v-if="mergeRateGauge"
+                                :option="mergeRateGauge"
+                                height="220px"
+                            />
+                        </div>
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Activity Volume</h3>
+                            <EChart
+                                v-if="activityChart"
+                                :option="activityChart"
+                                height="280px"
+                            />
+                        </div>
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Active Contributors</h3>
+                            <EChart
+                                v-if="contributorChart"
+                                :option="contributorChart"
+                                height="280px"
+                            />
+                        </div>
+                        <div class="rounded-xl border bg-card p-4">
+                            <h3 class="text-sm font-medium mb-3">Efficiency (CI / PR Cycle / Queue)</h3>
+                            <EChart
+                                v-if="efficiencyChart"
+                                :option="efficiencyChart"
+                                height="280px"
+                            />
+                        </div>
+                    </div>
+                </template>
+
+                <div
+                    v-else
+                    class="rounded-xl border bg-card p-8 text-center"
+                >
+                    <Info class="mx-auto h-10 w-10 text-muted-foreground/40" />
+                    <p class="mt-2 text-sm text-muted-foreground">No SPACE metrics available for this integration yet.</p>
+                </div>
+            </template>
+
+            <!-- User Dashboard (custom widgets) -->
+            <template v-if="!isSystem && dashboard">
+                <CustomMetricsDashboard
+                    :dashboard-id="dashboardId"
+                    :integration-id="selectedIntegration"
                 />
-
-                <!-- ====== DORA Dashboard ====== -->
-                <div
-                    v-if="isDora"
-                    class="px-6 pb-6"
-                >
-                    <v-row v-if="doraMetrics">
-                        <!-- Deployment Frequency -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="success"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-rocket-launch</v-icon
-                                            >
-                                            Deployment Frequency
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                {{ doraDescriptions.deploymentFrequency }}
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex align-center mt-1">
-                                            <span class="text-h5 font-weight-bold mr-2">{{ formatSummary(doraMetrics.deploymentFrequency) }}</span>
-                                            <span class="text-caption text-medium-emphasis">per {{ granularity }}</span>
-                                            <v-icon
-                                                :icon="trendIcon(doraMetrics.deploymentFrequency.summary.trend)"
-                                                :color="trendColor(doraMetrics.deploymentFrequency.summary.trend)"
-                                                size="small"
-                                                class="ml-2"
-                                            />
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="deployFreqChart"
-                                        height="240px"
-                                        :loading="isLoadingDora"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Lead Time for Changes -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="info"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-clock-fast</v-icon
-                                            >
-                                            Lead Time for Changes
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                {{ doraDescriptions.leadTimeForChanges }}
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex align-center mt-1">
-                                            <span class="text-h5 font-weight-bold mr-2">{{ formatSummary(doraMetrics.leadTimeForChanges) }}</span>
-                                            <span class="text-caption text-medium-emphasis">avg</span>
-                                            <v-icon
-                                                :icon="trendIcon(doraMetrics.leadTimeForChanges.summary.trend)"
-                                                :color="trendColor(doraMetrics.leadTimeForChanges.summary.trend, true)"
-                                                size="small"
-                                                class="ml-2"
-                                            />
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="leadTimeChart"
-                                        height="240px"
-                                        :loading="isLoadingDora"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Change Failure Rate -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="warning"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-alert-circle</v-icon
-                                            >
-                                            Change Failure Rate
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                {{ doraDescriptions.changeFailureRate }}
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex align-center mt-1">
-                                            <span class="text-h5 font-weight-bold mr-2">{{ formatSummary(doraMetrics.changeFailureRate) }}</span>
-                                            <v-icon
-                                                :icon="trendIcon(doraMetrics.changeFailureRate.summary.trend)"
-                                                :color="trendColor(doraMetrics.changeFailureRate.summary.trend, true)"
-                                                size="small"
-                                                class="ml-2"
-                                            />
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="changeFailureChart"
-                                        height="240px"
-                                        :loading="isLoadingDora"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Mean Time to Recovery -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="error"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-wrench-clock</v-icon
-                                            >
-                                            Mean Time to Recovery
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                {{ doraDescriptions.meanTimeToRecovery }}
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex align-center mt-1">
-                                            <span class="text-h5 font-weight-bold mr-2">{{ formatSummary(doraMetrics.meanTimeToRecovery) }}</span>
-                                            <span class="text-caption text-medium-emphasis">avg</span>
-                                            <v-icon
-                                                :icon="trendIcon(doraMetrics.meanTimeToRecovery.summary.trend)"
-                                                :color="trendColor(doraMetrics.meanTimeToRecovery.summary.trend, true)"
-                                                size="small"
-                                                class="ml-2"
-                                            />
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="mttrChart"
-                                        height="240px"
-                                        :loading="isLoadingDora"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-                    </v-row>
-
-                    <!-- DORA empty state -->
-                    <v-card
-                        v-else-if="!isLoadingDora"
-                        variant="outlined"
-                        class="rounded-lg pa-8 text-center"
-                    >
-                        <v-icon
-                            size="64"
-                            color="grey"
-                            class="mb-4"
-                            >mdi-chart-line</v-icon
-                        >
-                        <h3 class="text-h6 text-medium-emphasis">No DORA metrics available</h3>
-                        <p class="text-body-2 text-medium-emphasis mt-2">
-                            Select an integration and ensure workflow data has been imported to view DORA metrics.
-                        </p>
-                    </v-card>
-                </div>
-
-                <!-- ====== SPACE Dashboard ====== -->
-                <div
-                    v-else-if="isSpace"
-                    class="px-6 pb-6"
-                >
-                    <v-row v-if="spaceMetrics">
-                        <!-- Satisfaction (placeholder) -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                                style="height: 450px; display: flex; flex-direction: column"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="pink"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-emoticon-happy</v-icon
-                                            >
-                                            Satisfaction &amp; Well-being
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text>
-                                    <div
-                                        class="d-flex flex-column align-center justify-center"
-                                        style="min-height: 240px"
-                                    >
-                                        <v-icon
-                                            size="48"
-                                            color="grey"
-                                            class="mb-3"
-                                            >mdi-chart-timeline-variant-shimmer</v-icon
-                                        >
-                                        <p class="text-body-2 text-medium-emphasis text-center px-4">
-                                            Coming soon — Requires developer survey integration to measure satisfaction, work-life balance, and
-                                            developer experience.
-                                        </p>
-                                        <v-chip
-                                            color="info"
-                                            variant="tonal"
-                                            size="small"
-                                            class="mt-3"
-                                            >Planned</v-chip
-                                        >
-                                    </div>
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Performance: PR Merge Rate -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                                style="height: 450px; display: flex; flex-direction: column"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="success"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-speedometer</v-icon
-                                            >
-                                            Performance
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                PR merge rate — percentage of closed PRs that were merged vs. closed without merge.
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex align-center mt-1">
-                                            <span class="text-h5 font-weight-bold mr-2">{{ formatSummary(spaceMetrics.prMergeRate) }}</span>
-                                            <span class="text-caption text-medium-emphasis">merge rate</span>
-                                            <v-icon
-                                                :icon="trendIcon(spaceMetrics.prMergeRate.summary.trend)"
-                                                :color="trendColor(spaceMetrics.prMergeRate.summary.trend)"
-                                                size="small"
-                                                class="ml-2"
-                                            />
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="mergeRateGauge"
-                                        height="240px"
-                                        :loading="isLoadingSpace"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Activity -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                                style="height: 450px; display: flex; flex-direction: column"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="primary"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-pulse</v-icon
-                                            >
-                                            Activity
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                Combined count of PRs and workflow runs per period — a measure of development velocity.
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex align-center mt-1">
-                                            <span class="text-h5 font-weight-bold mr-2">{{ formatSummary(spaceMetrics.activityVolume) }}</span>
-                                            <span class="text-caption text-medium-emphasis">events/{{ granularity }}</span>
-                                            <v-icon
-                                                :icon="trendIcon(spaceMetrics.activityVolume.summary.trend)"
-                                                :color="trendColor(spaceMetrics.activityVolume.summary.trend)"
-                                                size="small"
-                                                class="ml-2"
-                                            />
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="activityChart"
-                                        height="240px"
-                                        :loading="isLoadingSpace"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Communication (placeholder) -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                                style="height: 450px; display: flex; flex-direction: column"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="deep-purple"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-forum</v-icon
-                                            >
-                                            Communication &amp; Collaboration
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text>
-                                    <div
-                                        class="d-flex flex-column"
-                                        style="min-height: 240px"
-                                    >
-                                        <div class="d-flex flex-column align-center justify-center flex-grow-1">
-                                            <v-icon
-                                                size="40"
-                                                color="grey"
-                                                class="mb-2"
-                                                >mdi-message-text-clock</v-icon
-                                            >
-                                            <p class="text-body-2 text-medium-emphasis text-center px-4">
-                                                Limited data — Full metrics require PR review data.
-                                            </p>
-                                            <v-chip
-                                                color="warning"
-                                                variant="tonal"
-                                                size="small"
-                                                class="mt-2"
-                                                >Limited</v-chip
-                                            >
-                                        </div>
-                                        <div class="mt-2">
-                                            <p class="text-caption text-medium-emphasis mb-1">Contributors as proxy:</p>
-                                            <EChart
-                                                :option="contributorChart"
-                                                height="140px"
-                                                :loading="isLoadingSpace"
-                                            />
-                                        </div>
-                                    </div>
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Efficiency -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                                style="height: 450px; display: flex; flex-direction: column"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="teal"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-lightning-bolt</v-icon
-                                            >
-                                            Efficiency &amp; Flow
-                                            <v-tooltip location="top">
-                                                <template #activator="{props: tp}">
-                                                    <v-icon
-                                                        v-bind="tp"
-                                                        size="x-small"
-                                                        class="ml-2 text-medium-emphasis"
-                                                        >mdi-information-outline</v-icon
-                                                    >
-                                                </template>
-                                                CI job duration, PR cycle time (created → merged), and workflow queue time — key indicators of
-                                                development efficiency.
-                                            </v-tooltip>
-                                        </div>
-                                    </template>
-                                    <template #subtitle>
-                                        <div class="d-flex ga-4 mt-1 flex-wrap">
-                                            <div>
-                                                <span class="text-caption text-medium-emphasis">CI Duration:</span>
-                                                <span class="text-body-2 font-weight-bold ml-1">{{ formatSummary(spaceMetrics.ciDuration) }}</span>
-                                            </div>
-                                            <div>
-                                                <span class="text-caption text-medium-emphasis">PR Cycle:</span>
-                                                <span class="text-body-2 font-weight-bold ml-1">{{ formatSummary(spaceMetrics.prCycleTime) }}</span>
-                                            </div>
-                                            <div>
-                                                <span class="text-caption text-medium-emphasis">Queue Time:</span>
-                                                <span class="text-body-2 font-weight-bold ml-1">{{
-                                                    formatSummary(spaceMetrics.workflowQueueTime)
-                                                }}</span>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text class="pt-0">
-                                    <EChart
-                                        :option="efficiencyChart"
-                                        height="240px"
-                                        :loading="isLoadingSpace"
-                                    />
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-
-                        <!-- Additional Metrics placeholder -->
-                        <v-col
-                            cols="12"
-                            md="6"
-                        >
-                            <v-card
-                                variant="outlined"
-                                class="rounded-lg"
-                                style="height: 450px; display: flex; flex-direction: column"
-                            >
-                                <v-card-item>
-                                    <template #title>
-                                        <div class="d-flex align-center">
-                                            <v-icon
-                                                color="grey"
-                                                size="small"
-                                                class="mr-2"
-                                                >mdi-dots-horizontal-circle</v-icon
-                                            >
-                                            Additional Metrics
-                                        </div>
-                                    </template>
-                                </v-card-item>
-                                <v-card-text>
-                                    <div
-                                        class="d-flex flex-column align-center justify-center"
-                                        style="min-height: 240px"
-                                    >
-                                        <v-icon
-                                            size="48"
-                                            color="grey"
-                                            class="mb-3"
-                                            >mdi-chart-box-plus-outline</v-icon
-                                        >
-                                        <p class="text-body-2 text-medium-emphasis text-center px-4">
-                                            More SPACE metrics coming soon — code review depth, handoff patterns, and cross-team collaboration.
-                                        </p>
-                                        <v-chip
-                                            color="info"
-                                            variant="tonal"
-                                            size="small"
-                                            class="mt-3"
-                                            >Planned</v-chip
-                                        >
-                                    </div>
-                                </v-card-text>
-                            </v-card>
-                        </v-col>
-                    </v-row>
-
-                    <!-- SPACE empty state -->
-                    <v-card
-                        v-else-if="!isLoadingSpace"
-                        variant="outlined"
-                        class="rounded-lg pa-8 text-center"
-                    >
-                        <v-icon
-                            size="64"
-                            color="grey"
-                            class="mb-4"
-                            >mdi-account-group</v-icon
-                        >
-                        <h3 class="text-h6 text-medium-emphasis">No SPACE metrics available</h3>
-                        <p class="text-body-2 text-medium-emphasis mt-2">
-                            Select an integration and ensure workflow and PR data has been imported to view SPACE metrics.
-                        </p>
-                    </v-card>
-                </div>
-
-                <!-- ====== User Dashboard (Custom Widgets) ====== -->
-                <div
-                    v-else-if="isUserDashboard"
-                    class="px-6 pb-6"
-                >
-                    <CustomMetricsDashboard :integration-id="selectedIntegration" />
-                </div>
             </template>
         </div>
     </div>

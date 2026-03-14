@@ -1,9 +1,8 @@
 // Plugins
+import tailwindcss from '@tailwindcss/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import Vue from '@vitejs/plugin-vue';
-import ViteFonts from 'unplugin-fonts/vite';
 import Components from 'unplugin-vue-components/vite';
-import Vuetify, {transformAssetUrls} from 'vite-plugin-vuetify';
 
 // Utilities
 import {resolve} from 'path';
@@ -12,23 +11,9 @@ import {defineConfig} from 'vite';
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
-        Vue({
-            template: {transformAssetUrls},
-        }),
-        // https://github.com/vuetifyjs/vuetify-loader/tree/master/packages/vite-plugin#readme
-        Vuetify(),
+        Vue(),
+        tailwindcss(),
         Components(),
-        ViteFonts({
-            google: {
-                families: [
-                    {
-                        name: 'Roboto',
-                        styles: 'wght@100;300;400;500;700;900',
-                        defer: true,
-                    },
-                ],
-            },
-        }),
         basicSsl({
             name: 'app.gitgazer.local',
             domains: ['app.gitgazer.local'],

@@ -61,16 +61,16 @@
                 EditorView.theme({
                     '&': {
                         fontSize: '14px',
-                        border: '1px solid rgba(var(--v-border-color), var(--v-border-opacity))',
-                        borderRadius: '4px',
+                        border: '1px solid oklch(var(--border))',
+                        borderRadius: 'calc(var(--radius) - 2px)',
                         backgroundColor: 'transparent',
                     },
                     '.cm-scroller': {
-                        fontFamily: '"Roboto Mono", monospace',
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
                     },
                     '.cm-gutters': {
                         backgroundColor: 'transparent',
-                        borderRight: '1px solid rgba(var(--v-border-color), var(--v-border-opacity))',
+                        borderRight: '1px solid oklch(var(--border))',
                     },
                 }),
                 editableCompartment.of(EditorView.editable.of(!props.disabled)),
@@ -147,34 +147,20 @@
 <template>
     <div
         ref="editorContainer"
-        class="codemirror-wrapper"
-        :style="{
-            maxHeight: maxHeight,
-        }"
+        class="codemirror-wrapper overflow-auto min-h-[200px] rounded-md bg-card"
+        :style="{maxHeight}"
     ></div>
 </template>
 
 <style scoped>
-    .codemirror-wrapper {
-        background-color: rgb(var(--v-theme-surface));
-        overflow: auto;
-        min-height: 200px;
-    }
-
     .codemirror-wrapper :deep(.cm-editor) {
         height: 100%;
         background-color: transparent;
     }
-
     .codemirror-wrapper :deep(.cm-scroller) {
         overflow: auto !important;
     }
-
     .codemirror-wrapper :deep(.cm-editor.cm-focused) {
         outline: none;
-    }
-
-    .codemirror-wrapper :deep(.cm-content) {
-        caret-color: rgb(var(--v-theme-on-surface));
     }
 </style>

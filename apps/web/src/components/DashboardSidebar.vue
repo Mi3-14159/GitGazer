@@ -1,355 +1,310 @@
 <script setup lang="ts">
+    import Button from '@/components/ui/Button.vue';
+    import Dialog from '@/components/ui/Dialog.vue';
+    import Input from '@/components/ui/Input.vue';
+    import Label from '@/components/ui/Label.vue';
+    import Textarea from '@/components/ui/Textarea.vue';
     import {useSidebarHover} from '@/composables/useSidebarHover';
-    import {useDashboardsStore} from '@/stores/dashboards';
+    import {useDashboardsStore, type Dashboard} from '@/stores/dashboards';
+    import {BarChart3, ChevronLeft, ChevronRight, LayoutDashboard, Pencil, Plus, Rocket, Trash2, Users} from 'lucide-vue-next';
     import {computed, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
-    const store = useDashboardsStore();
     const router = useRouter();
     const route = useRoute();
+    const store = useDashboardsStore();
     const {expanded, requestExpand, requestCollapse} = useSidebarHover();
 
-    const activeDashboardId = computed(() => (route.params.id as string) || 'system-dora');
-
-    const renamingId = ref<string | null>(null);
-    const renameValue = ref('');
-    const deleteConfirmId = ref<string | null>(null);
-
-    function selectDashboard(id: string) {
-        router.push({name: 'analytics-dashboard', params: {id}});
-    }
-
-    function startRename(dashboard: {id: string; title: string}) {
-        renamingId.value = dashboard.id;
-        renameValue.value = dashboard.title;
-    }
-
-    function confirmRename() {
-        if (renamingId.value && renameValue.value.trim()) {
-            store.updateDashboard(renamingId.value, {title: renameValue.value.trim()});
-        }
-        renamingId.value = null;
-    }
-
-    function confirmDelete(id: string) {
-        deleteConfirmId.value = id;
-    }
-
-    function executeDelete() {
-        if (!deleteConfirmId.value) return;
-        const wasActive = activeDashboardId.value === deleteConfirmId.value;
-        store.deleteDashboard(deleteConfirmId.value);
-        deleteConfirmId.value = null;
-        if (wasActive) {
-            router.push({name: 'analytics-dashboard', params: {id: 'system-dora'}});
-        }
-    }
-
-    // Create dashboard dialog
-    const showDeleteDialog = computed({
-        get: () => deleteConfirmId.value !== null,
-        set: (val: boolean) => {
-            if (!val) deleteConfirmId.value = null;
-        },
-    });
-
-    // Create dashboard dialog
     const showCreateDialog = ref(false);
+    const showRenameDialog = ref(false);
+    const showDeleteDialog = ref(false);
+    const editingDashboard = ref<Dashboard | null>(null);
+
     const newTitle = ref('');
     const newDescription = ref('');
-    const newIcon = ref('mdi-chart-box-plus-outline');
 
-    const iconOptions = [
-        'mdi-chart-box-plus-outline',
-        'mdi-chart-timeline-variant',
-        'mdi-chart-bar',
-        'mdi-chart-areaspline',
-        'mdi-speedometer',
-        'mdi-target',
-        'mdi-fire',
-        'mdi-bug',
-    ];
+    const currentId = computed(() => route.params.id as string);
 
-    function openCreateDialog() {
+    function iconForDashboard(d: Dashboard) {
+        if (d.id === 'system-dora') return Rocket;
+        if (d.id === 'system-space') return Users;
+        return LayoutDashboard;
+    }
+
+    function navigateTo(d: Dashboard) {
+        router.push({name: 'analytics-dashboard', params: {id: d.id}});
+    }
+
+    function openCreate() {
         newTitle.value = '';
         newDescription.value = '';
-        newIcon.value = 'mdi-chart-box-plus-outline';
         showCreateDialog.value = true;
     }
 
-    function createDashboard() {
+    function handleCreate() {
         if (!newTitle.value.trim()) return;
-        const dashboard = store.createDashboard({
-            title: newTitle.value.trim(),
-            description: newDescription.value.trim() || undefined,
-            icon: newIcon.value,
-        });
+        const created = store.createDashboard({title: newTitle.value.trim(), description: newDescription.value.trim(), icon: 'custom'});
         showCreateDialog.value = false;
-        router.push({name: 'analytics-dashboard', params: {id: dashboard.id}});
+        router.push({name: 'analytics-dashboard', params: {id: created.id}});
+    }
+
+    function openRename(d: Dashboard) {
+        editingDashboard.value = d;
+        newTitle.value = d.title;
+        newDescription.value = d.description ?? '';
+        showRenameDialog.value = true;
+    }
+
+    function handleRename() {
+        if (!editingDashboard.value || !newTitle.value.trim()) return;
+        store.updateDashboard(editingDashboard.value.id, {title: newTitle.value.trim(), description: newDescription.value.trim()});
+        showRenameDialog.value = false;
+    }
+
+    function openDelete(d: Dashboard) {
+        editingDashboard.value = d;
+        showDeleteDialog.value = true;
+    }
+
+    function handleDelete() {
+        if (!editingDashboard.value) return;
+        const id = editingDashboard.value.id;
+        store.deleteDashboard(id);
+        showDeleteDialog.value = false;
+        if (currentId.value === id) {
+            router.push({name: 'analytics-dashboard', params: {id: 'system-dora'}});
+        }
     }
 </script>
 
 <template>
-    <div
-        class="dashboard-sidebar d-flex flex-column"
-        :class="{expanded}"
+    <aside
+        :class="['flex flex-col border-r bg-card transition-all duration-300 overflow-hidden shrink-0', expanded ? 'w-60' : 'w-12']"
         @mouseenter="requestExpand"
         @mouseleave="requestCollapse"
     >
-        <!-- System dashboards -->
-        <div class="px-3 pt-3 pb-1">
+        <!-- Toggle -->
+        <div class="flex items-center justify-between px-2 py-2 border-b">
+            <span
+                v-if="expanded"
+                class="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1"
+                >Dashboards</span
+            >
+            <button
+                class="p-1 rounded hover:bg-muted transition-colors cursor-pointer"
+                @click="expanded ? requestCollapse() : requestExpand()"
+            >
+                <ChevronRight
+                    v-if="!expanded"
+                    class="h-4 w-4 text-muted-foreground"
+                />
+                <ChevronLeft
+                    v-else
+                    class="h-4 w-4 text-muted-foreground"
+                />
+            </button>
+        </div>
+
+        <!-- System Dashboards -->
+        <nav class="flex-1 overflow-y-auto py-1">
             <div
-                class="text-overline text-medium-emphasis px-2"
-                style="font-size: 0.6875rem !important"
+                v-if="expanded"
+                class="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
             >
                 System
             </div>
-        </div>
-        <v-list
-            density="compact"
-            nav
-            class="px-2 pt-0"
-        >
-            <v-list-item
+            <button
                 v-for="d in store.systemDashboards"
                 :key="d.id"
-                :active="activeDashboardId === d.id"
-                color="primary"
-                rounded="lg"
-                @click="selectDashboard(d.id)"
+                :class="[
+                    'flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors cursor-pointer',
+                    currentId === d.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                ]"
+                @click="navigateTo(d)"
             >
-                <template #prepend>
-                    <v-icon
-                        :icon="d.icon"
-                        size="small"
-                        :color="d.id === 'system-dora' ? 'success' : 'info'"
-                    />
-                </template>
-                <v-list-item-title class="text-body-2">{{ d.title }}</v-list-item-title>
-                <template #append>
-                    <v-icon
-                        size="x-small"
-                        color="grey"
-                        >mdi-lock-outline</v-icon
-                    >
-                </template>
-            </v-list-item>
-        </v-list>
-
-        <v-divider class="mx-4 my-1" />
-
-        <!-- User dashboards -->
-        <div class="px-3 pt-2 pb-1">
-            <div
-                class="text-overline text-medium-emphasis px-2"
-                style="font-size: 0.6875rem !important"
-            >
-                My Dashboards
-            </div>
-        </div>
-        <v-list
-            density="compact"
-            nav
-            class="px-2 pt-0 flex-grow-1"
-            style="min-height: 0; overflow-y: auto"
-        >
-            <v-list-item
-                v-for="d in store.userDashboards"
-                :key="d.id"
-                :active="activeDashboardId === d.id"
-                color="primary"
-                rounded="lg"
-                @click="selectDashboard(d.id)"
-            >
-                <template #prepend>
-                    <v-icon
-                        :icon="d.icon"
-                        size="small"
-                        color="secondary"
-                    />
-                </template>
-                <v-list-item-title
-                    v-if="renamingId !== d.id"
-                    class="text-body-2"
-                    >{{ d.title }}</v-list-item-title
-                >
-                <v-text-field
-                    v-else
-                    v-model="renameValue"
-                    density="compact"
-                    variant="underlined"
-                    hide-details
-                    autofocus
-                    class="text-body-2"
-                    @keyup.enter="confirmRename"
-                    @blur="confirmRename"
-                    @click.stop
+                <component
+                    :is="iconForDashboard(d)"
+                    class="h-4 w-4 shrink-0"
                 />
-                <template
-                    v-if="renamingId !== d.id"
-                    #append
+                <span
+                    v-if="expanded"
+                    class="truncate"
+                    >{{ d.title }}</span
                 >
-                    <div class="d-flex ga-0 dashboard-actions">
-                        <v-btn
-                            icon
-                            variant="text"
-                            size="x-small"
-                            @click.stop="startRename(d)"
-                        >
-                            <v-icon size="14">mdi-pencil-outline</v-icon>
-                        </v-btn>
-                        <v-btn
-                            icon
-                            variant="text"
-                            size="x-small"
-                            @click.stop="confirmDelete(d.id)"
-                        >
-                            <v-icon size="14">mdi-delete-outline</v-icon>
-                        </v-btn>
-                    </div>
-                </template>
-            </v-list-item>
-        </v-list>
+            </button>
 
-        <!-- New dashboard button -->
-        <div class="px-3 pb-3">
-            <v-btn
-                variant="outlined"
-                size="small"
-                block
-                class="text-none"
-                style="border-style: dashed"
-                @click="openCreateDialog"
-            >
-                <v-icon
-                    start
-                    size="small"
-                    >mdi-plus</v-icon
+            <!-- User Dashboards -->
+            <template v-if="store.userDashboards.length > 0">
+                <div
+                    v-if="expanded"
+                    class="px-3 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
                 >
+                    Custom
+                </div>
+                <div
+                    v-for="d in store.userDashboards"
+                    :key="d.id"
+                    class="group flex items-center"
+                >
+                    <button
+                        :class="[
+                            'flex items-center gap-2 flex-1 min-w-0 px-3 py-2 text-sm transition-colors cursor-pointer',
+                            currentId === d.id
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ]"
+                        @click="navigateTo(d)"
+                    >
+                        <BarChart3 class="h-4 w-4 shrink-0" />
+                        <span
+                            v-if="expanded"
+                            class="truncate"
+                            >{{ d.title }}</span
+                        >
+                    </button>
+                    <div
+                        v-if="expanded"
+                        class="opacity-0 group-hover:opacity-100 flex gap-0.5 pr-1 transition-opacity"
+                    >
+                        <button
+                            class="p-1 rounded hover:bg-muted cursor-pointer"
+                            @click.stop="openRename(d)"
+                        >
+                            <Pencil class="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button
+                            class="p-1 rounded hover:bg-muted cursor-pointer"
+                            @click.stop="openDelete(d)"
+                        >
+                            <Trash2 class="h-3 w-3 text-destructive" />
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </nav>
+
+        <!-- Create button -->
+        <div class="border-t p-2">
+            <Button
+                v-if="expanded"
+                variant="outline"
+                size="sm"
+                class="w-full"
+                @click="openCreate"
+            >
+                <Plus class="h-4 w-4" />
                 New Dashboard
-            </v-btn>
+            </Button>
+            <button
+                v-else
+                class="p-2 rounded hover:bg-muted w-full flex justify-center cursor-pointer"
+                @click="openCreate"
+            >
+                <Plus class="h-4 w-4 text-muted-foreground" />
+            </button>
         </div>
 
-        <!-- Delete confirmation -->
-        <v-dialog
-            v-model="showDeleteDialog"
-            max-width="400"
+        <!-- Create Dialog -->
+        <Dialog
+            :open="showCreateDialog"
+            @update:open="showCreateDialog = $event"
         >
-            <v-card v-if="deleteConfirmId">
-                <v-card-title>Delete Dashboard</v-card-title>
-                <v-card-text> This will permanently delete this dashboard and all its widgets. This action cannot be undone. </v-card-text>
-                <v-card-actions>
-                    <v-spacer />
-                    <v-btn
-                        text="Cancel"
-                        @click="deleteConfirmId = null"
-                    />
-                    <v-btn
-                        text="Delete"
-                        color="error"
-                        variant="flat"
-                        @click="executeDelete"
-                    />
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- Create dashboard dialog -->
-        <v-dialog
-            v-model="showCreateDialog"
-            max-width="480"
-        >
-            <v-card>
-                <v-card-title class="d-flex align-center ga-2">
-                    <v-icon
-                        size="small"
-                        color="primary"
-                        >mdi-chart-box-plus-outline</v-icon
-                    >
-                    Create Dashboard
-                </v-card-title>
-                <v-card-text>
-                    <v-text-field
-                        v-model="newTitle"
-                        label="Dashboard Name"
-                        placeholder="e.g. Team Performance, Release Velocity"
-                        variant="outlined"
-                        density="compact"
-                        autofocus
-                        :rules="[(v: string) => !!v.trim() || 'Required']"
-                        class="mb-3"
-                    />
-                    <v-textarea
-                        v-model="newDescription"
-                        label="Description"
-                        placeholder="Optional description for this dashboard"
-                        variant="outlined"
-                        density="compact"
-                        rows="2"
-                        class="mb-3"
-                    />
-                    <div class="text-caption text-medium-emphasis mb-2">Icon</div>
-                    <div class="d-flex ga-2 flex-wrap">
-                        <v-btn
-                            v-for="icon in iconOptions"
-                            :key="icon"
-                            :icon="icon"
-                            size="small"
-                            :variant="newIcon === icon ? 'flat' : 'outlined'"
-                            :color="newIcon === icon ? 'primary' : undefined"
-                            @click="newIcon = icon"
+            <template #default="{close}">
+                <h3 class="text-lg font-semibold mb-4">New Dashboard</h3>
+                <div class="space-y-3">
+                    <div class="space-y-2">
+                        <Label>Title</Label>
+                        <Input
+                            v-model="newTitle"
+                            placeholder="Dashboard name"
+                            @keydown.enter="handleCreate"
                         />
                     </div>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer />
-                    <v-btn
-                        text="Cancel"
-                        @click="showCreateDialog = false"
-                    />
-                    <v-btn
-                        text="Create"
-                        color="primary"
-                        variant="flat"
+                    <div class="space-y-2">
+                        <Label>Description</Label>
+                        <Textarea
+                            v-model="newDescription"
+                            placeholder="Optional description"
+                        />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <Button
+                        variant="outline"
+                        @click="close"
+                        >Cancel</Button
+                    >
+                    <Button
+                        @click="handleCreate"
                         :disabled="!newTitle.trim()"
-                        @click="createDashboard"
-                    />
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-    </div>
+                        >Create</Button
+                    >
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Rename Dialog -->
+        <Dialog
+            :open="showRenameDialog"
+            @update:open="showRenameDialog = $event"
+        >
+            <template #default="{close}">
+                <h3 class="text-lg font-semibold mb-4">Rename Dashboard</h3>
+                <div class="space-y-3">
+                    <div class="space-y-2">
+                        <Label>Title</Label>
+                        <Input
+                            v-model="newTitle"
+                            placeholder="Dashboard name"
+                            @keydown.enter="handleRename"
+                        />
+                    </div>
+                    <div class="space-y-2">
+                        <Label>Description</Label>
+                        <Textarea
+                            v-model="newDescription"
+                            placeholder="Optional description"
+                        />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <Button
+                        variant="outline"
+                        @click="close"
+                        >Cancel</Button
+                    >
+                    <Button
+                        @click="handleRename"
+                        :disabled="!newTitle.trim()"
+                        >Save</Button
+                    >
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Delete Dialog -->
+        <Dialog
+            :open="showDeleteDialog"
+            @update:open="showDeleteDialog = $event"
+        >
+            <template #default="{close}">
+                <h3 class="text-lg font-semibold">Delete Dashboard</h3>
+                <p class="mt-2 text-sm text-muted-foreground">
+                    Delete "{{ editingDashboard?.title }}"? All custom widgets on this dashboard will be removed.
+                </p>
+                <div class="flex justify-end gap-2 mt-6">
+                    <Button
+                        variant="outline"
+                        @click="close"
+                        >Cancel</Button
+                    >
+                    <Button
+                        variant="destructive"
+                        @click="handleDelete"
+                        >Delete</Button
+                    >
+                </div>
+            </template>
+        </Dialog>
+    </aside>
 </template>
-
-<style scoped>
-    .dashboard-sidebar {
-        width: 0;
-        min-width: 0;
-        flex-shrink: 0;
-        border-right: none;
-        background: rgb(var(--v-theme-surface));
-        opacity: 0;
-        overflow: hidden;
-        transition:
-            width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-            opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-            border-right-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-        pointer-events: none;
-    }
-
-    .dashboard-sidebar.expanded {
-        width: 240px;
-        min-width: 240px;
-        opacity: 1;
-        border-right: 1px solid rgb(var(--v-border-color), var(--v-border-opacity));
-        pointer-events: auto;
-    }
-
-    .dashboard-actions {
-        opacity: 0;
-        transition: opacity 0.15s ease;
-    }
-
-    .v-list-item:hover .dashboard-actions {
-        opacity: 1;
-    }
-</style>

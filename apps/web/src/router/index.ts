@@ -10,10 +10,16 @@ const router = createRouter({
             component: Default,
             children: [
                 {
+                    path: 'overview',
+                    name: 'overview',
+                    component: () => import('@/components/DashboardOverview.vue'),
+                    meta: {title: 'Overview'},
+                },
+                {
                     path: 'dashboard',
                     name: 'dashboard',
                     component: () => import('@/components/WorkflowOverview.vue'),
-                    meta: {title: 'Dashboard'},
+                    meta: {title: 'Workflows'},
                 },
                 {
                     path: 'notifications',
@@ -43,7 +49,7 @@ const router = createRouter({
                 },
                 {
                     path: '',
-                    redirect: '/dashboard',
+                    redirect: '/overview',
                 },
             ],
         },
@@ -55,7 +61,7 @@ const router = createRouter({
         {
             path: '/:pathMatch(.*)*',
             name: 'not-found',
-            redirect: '/dashboard',
+            redirect: '/overview',
         },
     ],
 });

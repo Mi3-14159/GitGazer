@@ -1,4 +1,9 @@
 <script setup lang="ts">
+    import Button from '@/components/ui/Button.vue';
+    import Checkbox from '@/components/ui/Checkbox.vue';
+    import Input from '@/components/ui/Input.vue';
+    import Label from '@/components/ui/Label.vue';
+    import Switch from '@/components/ui/Switch.vue';
     import {Integration, NotificationRule, NotificationRuleChannelType} from '@common/types';
     import {onMounted, ref} from 'vue';
 
@@ -9,8 +14,6 @@
         existingRule?: NotificationRule | null;
     }>();
 
-    const form = ref<any>(null);
-
     const notificationRule = ref<NotificationRule>({
         id: '',
         integrationId: '',
@@ -18,155 +21,133 @@
         createdAt: '',
         updatedAt: '',
         ignore_dependabot: false,
-        rule: {
-            owner: '',
-            repository_name: '',
-            workflow_name: '',
-            head_branch: '',
-        },
-        channels: [
-            {
-                type: NotificationRuleChannelType.SLACK,
-                webhook_url: '',
-            },
-        ],
+        rule: {owner: '', repository_name: '', workflow_name: '', head_branch: ''},
+        channels: [{type: NotificationRuleChannelType.SLACK, webhook_url: ''}],
     });
 
-    // Populate form with existing data if editing
     onMounted(() => {
         if (props.existingRule) {
-            notificationRule.value = {
-                ...props.existingRule,
-            };
+            notificationRule.value = {...props.existingRule};
         }
     });
 
-    const handleSave = async () => {
-        const {valid} = await form.value.validate();
-        if (valid) {
-            props.onSave(notificationRule.value);
+    const errorMsg = ref('');
+
+    const handleSave = () => {
+        if (!notificationRule.value.integrationId) {
+            errorMsg.value = 'Integration is required';
+            return;
         }
+        if (notificationRule.value.channels[0]?.type === NotificationRuleChannelType.SLACK && !notificationRule.value.channels[0].webhook_url) {
+            errorMsg.value = 'Slack Webhook URL is required';
+            return;
+        }
+        errorMsg.value = '';
+        props.onSave(notificationRule.value);
     };
 </script>
+
 <template>
-    <v-card
-        prepend-icon="mdi-bell"
-        :title="props.existingRule ? 'Edit Notification Rule' : 'New Notification Rule'"
-    >
-        <v-form ref="form">
-            <v-card-text>
-                <v-row dense>
-                    <v-col sm="12">
-                        <v-autocomplete
-                            :items="integrations"
-                            item-title="label"
-                            item-value="integrationId"
-                            label="Integrations *"
-                            auto-select-first
-                            v-model="notificationRule.integrationId"
-                            :rules="[(v) => !!v || 'Integration is required']"
-                            required
-                        ></v-autocomplete>
-                    </v-col>
-
-                    <v-col
-                        cols="12"
-                        md="4"
-                        sm="6"
+    <div>
+        <h3 class="text-lg font-semibold mb-4">{{ props.existingRule ? 'Edit Notification Rule' : 'New Notification Rule' }}</h3>
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <Label>Integration *</Label>
+                <select
+                    v-model="notificationRule.integrationId"
+                    class="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    <option
+                        value=""
+                        disabled
                     >
-                        <v-text-field
-                            label="Owner"
-                            v-model="notificationRule.rule.owner"
-                        ></v-text-field>
-                    </v-col>
-
-                    <v-col
-                        cols="12"
-                        md="4"
-                        sm="6"
+                        Select integration
+                    </option>
+                    <option
+                        v-for="i in integrations"
+                        :key="i.integrationId"
+                        :value="i.integrationId"
                     >
-                        <v-text-field
-                            label="Repository name"
-                            v-model="notificationRule.rule.repository_name"
-                        ></v-text-field>
-                    </v-col>
+                        {{ i.label }}
+                    </option>
+                </select>
+            </div>
 
-                    <v-col
-                        cols="12"
-                        md="4"
-                        sm="6"
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-2">
+                    <Label>Owner</Label>
+                    <Input
+                        v-model="notificationRule.rule.owner"
+                        placeholder="e.g., org-name"
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label>Repository name</Label>
+                    <Input
+                        v-model="notificationRule.rule.repository_name"
+                        placeholder="e.g., my-repo"
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label>Workflow name</Label>
+                    <Input
+                        v-model="notificationRule.rule.workflow_name"
+                        placeholder="e.g., CI"
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label>Head branch</Label>
+                    <Input
+                        v-model="notificationRule.rule.head_branch"
+                        placeholder="e.g., main, feature/*"
+                    />
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <Checkbox
+                    v-model="notificationRule.ignore_dependabot"
+                    id="ignore-dep"
+                >
+                    <Label
+                        for="ignore-dep"
+                        class="cursor-pointer"
+                        >Ignore Dependabot</Label
                     >
-                        <v-text-field
-                            label="Workflow name"
-                            v-model="notificationRule.rule.workflow_name"
-                        ></v-text-field>
-                    </v-col>
+                </Checkbox>
+            </div>
 
-                    <v-col
-                        cols="12"
-                        md="4"
-                        sm="6"
-                    >
-                        <v-text-field
-                            label="Head branch"
-                            v-model="notificationRule.rule.head_branch"
-                            placeholder="e.g., main, master, feature/*"
-                        ></v-text-field>
-                    </v-col>
+            <div
+                v-if="notificationRule.channels[0]?.type === NotificationRuleChannelType.SLACK"
+                class="space-y-2"
+            >
+                <Label>Slack Webhook URL *</Label>
+                <Input
+                    v-model="notificationRule.channels[0].webhook_url"
+                    placeholder="https://hooks.slack.com/..."
+                />
+            </div>
 
-                    <v-col
-                        cols="12"
-                        md="4"
-                        sm="6"
-                    >
-                        <v-checkbox
-                            label="Ignore Dependabot"
-                            v-model="notificationRule.ignore_dependabot"
-                        ></v-checkbox>
-                    </v-col>
+            <div class="flex items-center gap-3">
+                <Switch v-model="notificationRule.enabled" />
+                <Label>Enabled</Label>
+            </div>
 
-                    <v-col sm="12">
-                        <v-text-field
-                            v-if="notificationRule.channels[0]?.type === NotificationRuleChannelType.SLACK"
-                            label="Slack Webhook URL *"
-                            v-model="notificationRule.channels[0].webhook_url"
-                            :rules="[(v) => !!v || 'Slack Webhook URL is required']"
-                            required
-                        ></v-text-field>
-                    </v-col>
-
-                    <v-col
-                        cols="12"
-                        md="4"
-                        sm="6"
-                    >
-                        <v-switch
-                            label="Enabled"
-                            v-model="notificationRule.enabled"
-                            color="success"
-                            density="comfortable"
-                            hide-details
-                        ></v-switch>
-                    </v-col>
-                </v-row>
-
-                <small class="text-caption text-medium-emphasis">*indicates required field</small>
-            </v-card-text>
-        </v-form>
-        <v-divider></v-divider>
-        <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn
-                text="Close"
-                variant="plain"
+            <p
+                v-if="errorMsg"
+                class="text-xs text-destructive"
+            >
+                {{ errorMsg }}
+            </p>
+            <p class="text-xs text-muted-foreground">* indicates required field</p>
+        </div>
+        <div class="flex justify-end gap-2 mt-6 pt-4 border-t">
+            <Button
+                variant="outline"
                 @click="props.onClose"
-            ></v-btn>
-            <v-btn
-                color="primary"
-                text="Save"
-                variant="tonal"
-                @click="handleSave"
-            ></v-btn>
-        </v-card-actions>
-    </v-card>
+                >Close</Button
+            >
+            <Button @click="handleSave">Save</Button>
+        </div>
+    </div>
 </template>
