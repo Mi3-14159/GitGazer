@@ -45,7 +45,7 @@
 </script>
 
 <template>
-    <div class="min-h-screen bg-background flex flex-col">
+    <div class="h-screen bg-background flex flex-col overflow-hidden">
         <!-- Header -->
         <header class="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 sticky top-0 z-40">
             <div class="container mx-auto px-4 py-2">
@@ -98,7 +98,7 @@
         </header>
 
         <!-- Tab Navigation -->
-        <div class="container mx-auto px-4 py-3">
+        <div class="container mx-auto px-4 py-2">
             <nav class="grid w-full grid-cols-5 rounded-lg bg-muted p-1">
                 <button
                     v-for="tab in tabs"
@@ -119,19 +119,22 @@
         </div>
 
         <!-- Main Content -->
-        <main class="flex-1 container mx-auto px-4 py-6">
+        <main class="flex-1 container mx-auto px-4 pt-2 pb-4 flex flex-col min-h-0">
             <router-view v-slot="{Component}">
                 <transition
                     name="fade"
                     mode="out-in"
                 >
-                    <component :is="Component" />
+                    <component
+                        :is="Component"
+                        class="flex-1 min-h-0 flex flex-col"
+                    />
                 </transition>
             </router-view>
         </main>
 
         <!-- Footer -->
-        <footer class="border-t mt-auto">
+        <footer class="border-t shrink-0">
             <div class="container mx-auto px-4 py-4">
                 <div class="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
                     <span>&copy; 2026 GitGazer &bull; GitHub App &amp; webhook integrations</span>
