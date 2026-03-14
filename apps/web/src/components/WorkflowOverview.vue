@@ -9,14 +9,14 @@
     import {useTableViews} from '@/composables/useTableViews';
     import {useWorkflowsStore} from '@/stores/workflows';
     import {filterableColumnIds} from '@/types/table';
-    import type {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
+    import type {WorkflowFilters, WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
     import {AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, GitBranch, GitCommit, Server, User, XCircle} from 'lucide-vue-next';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, onUnmounted, ref} from 'vue';
+    import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
 
     const workflowsStore = useWorkflowsStore();
-    const {initializeStore, handleListWorkflows} = workflowsStore;
+    const {initializeStore, handleListWorkflows, setFilters} = workflowsStore;
     const {workflows, isLoading, hasMore} = storeToRefs(workflowsStore);
 
     const {savedViews, currentView, updateColumns, updateFilters, saveView, deleteView, changeView} = useTableViews();
@@ -47,17 +47,8 @@
         });
     });
 
-    // Apply column filters
-    const runs = computed(() => {
-        const filters = currentView.value.filters;
-        if (filters.length === 0) return dateFilteredRuns.value;
-        return dateFilteredRuns.value.filter((run) => {
-            return filters.every((filter) => {
-                const value = getColumnValue(run, filter.column);
-                return filter.values.includes(value);
-            });
-        });
-    });
+    // Apply column filters server-side
+    const runs = computed(() => dateFilteredRuns.value);
 
     const visibleColumns = computed(() => currentView.value.columns.filter((c) => c.visible));
 
@@ -96,6 +87,19 @@
             updateFilters([...otherFilters, {column: columnId, values}]);
         }
     }
+
+    // Convert view filters to API WorkflowFilters and refetch
+    watch(
+        () => currentView.value.filters,
+        (viewFilters) => {
+            const apiFilters: WorkflowFilters = {};
+            for (const f of viewFilters) {
+                apiFilters[f.column as keyof WorkflowFilters] = f.values;
+            }
+            setFilters(apiFilters);
+        },
+        {deep: true},
+    );
 
     function toggleRun(id: number) {
         const s = new Set(expandedRuns.value);

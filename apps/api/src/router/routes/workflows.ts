@@ -1,8 +1,8 @@
-import {isWorkflowsRequestParameters} from '@gitgazer/db/types';
 import {getWorkflows} from '@/controllers/workflows';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {isWorkflowsRequestParameters, WORKFLOW_FILTER_COLUMNS, WorkflowFilters} from '@gitgazer/db/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
@@ -29,6 +29,16 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         throw new BadRequestError('Invalid cursor parameter');
     }
 
+    // Extract column filters from query params
+    const filters: WorkflowFilters = {};
+    for (const column of WORKFLOW_FILTER_COLUMNS) {
+        const value = queryStringParameters?.[column];
+        if (typeof value === 'string' && value.length > 0) {
+            filters[column] = value.split(',');
+            delete queryStringParameters![column];
+        }
+    }
+
     if (!isWorkflowsRequestParameters(queryStringParameters)) {
         throw new BadRequestError('Invalid query parameters');
     }
@@ -39,6 +49,7 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         integrationIds,
         limit,
         cursor,
+        filters: Object.keys(filters).length > 0 ? filters : undefined,
     });
 
     return new Response(JSON.stringify(workflows), {

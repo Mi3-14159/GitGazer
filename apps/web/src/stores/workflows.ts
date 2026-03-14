@@ -4,6 +4,7 @@ import {
     GetWorkflowsResponse,
     PaginationCursor,
     StreamEvent,
+    WorkflowFilters,
     WorkflowJob,
     WorkflowRunWithRelations,
     WorkflowsRequestParameters,
@@ -25,6 +26,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     let tokenRenewalTimer: ReturnType<typeof setTimeout> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let cursor: PaginationCursor | undefined;
+    let activeFilters: WorkflowFilters = {};
 
     const fetchWebSocketToken = async (): Promise<string> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/auth/ws-token`);
@@ -184,6 +186,13 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 }
             });
 
+            // Append active filters as comma-separated values
+            for (const [column, values] of Object.entries(activeFilters)) {
+                if (values && values.length > 0) {
+                    queryParams.append(column, values.join(','));
+                }
+            }
+
             if (cursor) {
                 queryParams.append('cursor', JSON.stringify(cursor));
             }
@@ -255,6 +264,14 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         }
     };
 
+    const setFilters = async (filters: WorkflowFilters) => {
+        activeFilters = filters;
+        cursor = undefined;
+        hasMore.value = true;
+        workflowsArray.value = [];
+        await handleListWorkflows();
+    };
+
     const initializeStore = async () => {
         // Reset pagination state
         cursor = undefined;
@@ -274,5 +291,6 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         hasMore,
         initializeStore,
         handleListWorkflows,
+        setFilters,
     };
 });

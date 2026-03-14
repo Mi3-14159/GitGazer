@@ -95,9 +95,16 @@ export type PaginatedResponse<T> = {
 
 export type GetWorkflowsResponse = PaginatedResponse<WorkflowRunWithRelations>;
 
+export const WORKFLOW_FILTER_COLUMNS = ['workflow', 'repository', 'branch', 'status', 'actor', 'commit', 'run_number'] as const;
+
+export type WorkflowFilterColumn = (typeof WORKFLOW_FILTER_COLUMNS)[number];
+
+export type WorkflowFilters = Partial<Record<WorkflowFilterColumn, string[]>>;
+
 export type WorkflowsRequestParameters = {
     limit?: number;
     cursor?: PaginationCursor;
+    filters?: WorkflowFilters;
 };
 
 export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRequestParameters => {
@@ -117,6 +124,20 @@ export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRe
             typeof params.cursor.id !== 'number'
         ) {
             return false;
+        }
+    }
+
+    if (params.filters !== undefined) {
+        if (typeof params.filters !== 'object' || params.filters === null) {
+            return false;
+        }
+        for (const [key, values] of Object.entries(params.filters)) {
+            if (!WORKFLOW_FILTER_COLUMNS.includes(key as WorkflowFilterColumn)) {
+                return false;
+            }
+            if (!Array.isArray(values) || !values.every((v: unknown) => typeof v === 'string')) {
+                return false;
+            }
         }
     }
 
