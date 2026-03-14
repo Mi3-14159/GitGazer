@@ -181,14 +181,16 @@ router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
 
     logger.debug('Exchanging authorization code for tokens', {state});
 
+    const {domain, clientId, clientSecret, redirectUri} = config.get('cognito');
+
     // Exchange code for tokens at Cognito token endpoint
-    const tokenEndpoint = `https://${config.get('cognito.domain')}/oauth2/token`;
+    const tokenEndpoint = `https://${domain}/oauth2/token`;
 
     const params = new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: config.get('cognito.clientId'),
+        client_id: clientId,
         code: code,
-        redirect_uri: config.get('cognito.redirectUri'),
+        redirect_uri: redirectUri,
     });
 
     // Build headers with optional client secret for confidential client
@@ -196,7 +198,7 @@ router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
         'Content-Type': 'application/x-www-form-urlencoded',
     };
 
-    headers['Authorization'] = `Basic ${Buffer.from(`${config.get('cognito.clientId')}:${config.get('cognito.clientSecret')}`).toString('base64')}`;
+    headers['Authorization'] = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
 
     const tokenResponse = await fetch(tokenEndpoint, {
         method: 'POST',
@@ -280,18 +282,20 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
 
     logger.debug('Refreshing tokens using refresh token');
 
+    const {domain, clientId, clientSecret} = config.get('cognito');
+
     // Exchange refresh token for new access and ID tokens
-    const tokenEndpoint = `https://${config.get('cognito.domain')}/oauth2/token`;
+    const tokenEndpoint = `https://${domain}/oauth2/token`;
 
     const params = new URLSearchParams({
         grant_type: 'refresh_token',
-        client_id: config.get('cognito.clientId'),
+        client_id: clientId,
         refresh_token: refreshToken,
     });
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${Buffer.from(`${config.get('cognito.clientId')}:${config.get('cognito.clientSecret')}`).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
     };
 
     const tokenResponse = await fetch(tokenEndpoint, {
@@ -373,9 +377,10 @@ router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
     ];
 
     // Build Cognito logout URL
-    const logoutUrl = `https://${config.get('cognito.domain')}/logout`;
+    const {domain, clientId} = config.get('cognito');
+    const logoutUrl = `https://${domain}/logout`;
     const params = new URLSearchParams({
-        client_id: config.get('cognito.clientId'),
+        client_id: clientId,
         logout_uri: validatedRedirectUrl,
     });
 
@@ -417,8 +422,9 @@ router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppR
 
     // Sign the token using HMAC with the Cognito client secret
     // This prevents tampering and allows validation on the WebSocket handler
+    const {clientSecret} = config.get('cognito');
     const payload = Buffer.from(JSON.stringify(tokenPayload)).toString('base64url');
-    const signature = createHmac('sha256', config.get('cognito.clientSecret')).update(payload).digest('base64url');
+    const signature = createHmac('sha256', clientSecret).update(payload).digest('base64url');
     const token = `${payload}.${signature}`;
 
     logger.info('Generated WebSocket token', {userId, integrations: integrations.length});

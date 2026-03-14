@@ -18,8 +18,7 @@ let verifiers: TokenVerifiers | null = null;
 
 const getVerifiers = (): TokenVerifiers => {
     if (!verifiers) {
-        const userPoolId = config.get('cognito.userPoolId');
-        const clientId = config.get('cognito.clientId');
+        const {userPoolId, clientId} = config.get('cognito');
 
         verifiers = {
             accessTokenVerifier: CognitoJwtVerifier.create({

@@ -3,8 +3,7 @@ import {createAppAuth} from '@octokit/auth-app';
 import {Octokit} from '@octokit/rest';
 
 export const getInstallationOctokit = (installationId: number): Octokit => {
-    const appId = config.get('githubApp.id');
-    const privateKey = config.get('githubApp.privateKey');
+    const {id: appId, privateKey} = config.get('githubApp');
 
     if (!appId || !privateKey) {
         throw new Error('GitHub App credentials not configured');

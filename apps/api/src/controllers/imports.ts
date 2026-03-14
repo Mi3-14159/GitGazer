@@ -17,11 +17,10 @@ let apiClient: ApiGatewayManagementApiClient | null = null;
 
 const getApiClient = (): ApiGatewayManagementApiClient => {
     if (!apiClient) {
-        const domain = config.get('websocket.apiDomainName');
-        const stage = config.get('websocket.apiStage');
+        const {apiDomainName, apiStage} = config.get('websocket');
         apiClient = new ApiGatewayManagementApiClient({
             region: process.env.AWS_REGION,
-            endpoint: `https://${domain}/${stage}`,
+            endpoint: `https://${apiDomainName}/${apiStage}`,
         });
     }
     return apiClient;

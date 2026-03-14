@@ -9,7 +9,7 @@ export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
     const logger = getLogger();
     logger.debug('running verifyGithubAppSignature middleware');
 
-    const webhookSecret = config.get('githubApp.webhookSecret');
+    const {webhookSecret} = config.get('githubApp');
     if (!webhookSecret) {
         throw new Error('GH_APP_WEBHOOK_SECRET is not configured');
     }

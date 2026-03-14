@@ -28,7 +28,8 @@ const validateWebSocketToken = (token: string): WSToken => {
     const [payloadEncoded, signatureEncoded] = parts;
 
     // Verify signature
-    const expectedSignature = createHmac('sha256', config.get('cognito.clientSecret')).update(payloadEncoded).digest('base64url');
+    const {clientSecret} = config.get('cognito');
+    const expectedSignature = createHmac('sha256', clientSecret).update(payloadEncoded).digest('base64url');
 
     if (signatureEncoded !== expectedSignature) {
         throw new Error('Invalid token signature');
