@@ -5,22 +5,23 @@
     import {cn} from '@/lib/utils';
     import {format, subDays, subHours} from 'date-fns';
     import {Calendar as CalendarIcon} from 'lucide-vue-next';
-    import {computed, ref, watch} from 'vue';
+    import {computed, onMounted, ref} from 'vue';
+    import {useRoute, useRouter} from 'vue-router';
 
-    export interface DateTimeRange {
-        from: Date | undefined;
-        to: Date | undefined;
-        rollingWindow?: string;
+    export interface DateRange {
+        from?: Date;
+        to?: Date;
+        window?: string;
     }
 
+    const dateRange = defineModel<DateRange>('dateRange', {default: () => ({})});
+
     const props = defineProps<{
-        modelValue?: DateTimeRange;
         class?: string;
     }>();
 
-    const emit = defineEmits<{
-        'update:modelValue': [range: DateTimeRange];
-    }>();
+    const route = useRoute();
+    const router = useRouter();
 
     const open = ref(false);
 
@@ -31,33 +32,86 @@
         {label: 'Past 30 days', value: '30d', getRange: () => ({from: subDays(new Date(), 30), to: new Date()})},
     ] as const;
 
-    const activeShortcut = ref<(typeof shortcuts)[number] | null>(
-        props.modelValue?.rollingWindow ? (shortcuts.find((s) => s.value === props.modelValue!.rollingWindow) ?? null) : null,
-    );
+    const defaultShortcut = shortcuts[0]; // Past 1 hour
 
-    const fromDate = ref(props.modelValue?.from ? format(props.modelValue.from, 'yyyy-MM-dd') : '');
-    const toDate = ref(props.modelValue?.to ? format(props.modelValue.to, 'yyyy-MM-dd') : '');
-    const fromTime = ref(props.modelValue?.from ? format(props.modelValue.from, 'HH:mm') : '00:00');
-    const toTime = ref(props.modelValue?.to ? format(props.modelValue.to, 'HH:mm') : '23:59');
+    // Resolve initial state from URL > model props > default
+    function resolveInitialState() {
+        const urlWindow = route.query.window as string | undefined;
+        const urlFrom = route.query.created_from as string | undefined;
+        const urlTo = route.query.created_to as string | undefined;
 
-    watch(
-        () => props.modelValue,
-        (val) => {
-            if (val?.from) {
-                fromDate.value = format(val.from, 'yyyy-MM-dd');
-                fromTime.value = format(val.from, 'HH:mm');
+        if (urlWindow) {
+            const match = shortcuts.find((s) => s.value === urlWindow);
+            if (match) {
+                const range = match.getRange();
+                return {shortcut: match, from: range.from, to: range.to, window: match.value};
             }
-            if (val?.to) {
-                toDate.value = format(val.to, 'yyyy-MM-dd');
-                toTime.value = format(val.to, 'HH:mm');
+        }
+
+        if (urlFrom || urlTo) {
+            const from = urlFrom ? new Date(urlFrom) : undefined;
+            const to = urlTo ? new Date(urlTo) : undefined;
+            return {shortcut: null, from, to, window: undefined};
+        }
+
+        if (dateRange.value.window) {
+            const match = shortcuts.find((s) => s.value === dateRange.value.window);
+            if (match) {
+                const range = match.getRange();
+                return {shortcut: match, from: range.from, to: range.to, window: match.value};
             }
-        },
-    );
+        }
+
+        if (dateRange.value.from) {
+            return {shortcut: null, from: dateRange.value.from, to: dateRange.value.to, window: undefined};
+        }
+
+        // Default
+        const range = defaultShortcut.getRange();
+        return {shortcut: defaultShortcut, from: range.from, to: range.to, window: defaultShortcut.value};
+    }
+
+    const initial = resolveInitialState();
+
+    const activeShortcut = ref<(typeof shortcuts)[number] | null>(initial.shortcut);
+    const fromDate = ref(initial.from ? format(initial.from, 'yyyy-MM-dd') : '');
+    const toDate = ref(initial.to ? format(initial.to, 'yyyy-MM-dd') : '');
+    const fromTime = ref(initial.from ? format(initial.from, 'HH:mm') : '00:00');
+    const toTime = ref(initial.to ? format(initial.to, 'HH:mm') : '23:59');
+
+    function syncToUrl(from: Date | undefined, to: Date | undefined, win?: string) {
+        const query: Record<string, string> = {};
+        // Preserve unrelated query params
+        for (const [key, val] of Object.entries(route.query)) {
+            if (key !== 'window' && key !== 'created_from' && key !== 'created_to' && typeof val === 'string') {
+                query[key] = val;
+            }
+        }
+
+        if (win) {
+            query.window = win;
+        } else {
+            if (from) query.created_from = from.toISOString();
+            if (to) query.created_to = to.toISOString();
+        }
+
+        router.replace({query});
+    }
+
+    function update(from: Date | undefined, to: Date | undefined, win?: string) {
+        dateRange.value = {from, to, window: win};
+        syncToUrl(from, to, win);
+    }
+
+    // Emit initial state on mount and sync to URL
+    onMounted(() => {
+        update(initial.from, initial.to, initial.window);
+    });
 
     function emitRange() {
         activeShortcut.value = null;
         if (!fromDate.value) {
-            emit('update:modelValue', {from: undefined, to: undefined});
+            update(undefined, undefined);
             return;
         }
 
@@ -70,7 +124,7 @@
         const to = toDate.value ? new Date(toDate.value) : new Date(fromDate.value);
         to.setHours(tH, tM, 59, 999);
 
-        emit('update:modelValue', {from, to});
+        update(from, to);
     }
 
     function applyShortcut(shortcut: (typeof shortcuts)[number]) {
@@ -80,7 +134,7 @@
         toDate.value = format(range.to, 'yyyy-MM-dd');
         fromTime.value = format(range.from, 'HH:mm');
         toTime.value = format(range.to, 'HH:mm');
-        emit('update:modelValue', {from: range.from, to: range.to, rollingWindow: shortcut.value});
+        update(range.from, range.to, shortcut.value);
     }
 
     function clearRange() {
@@ -89,14 +143,14 @@
         toDate.value = '';
         fromTime.value = '00:00';
         toTime.value = '23:59';
-        emit('update:modelValue', {from: undefined, to: undefined});
+        update(undefined, undefined);
     }
 
     const displayText = computed(() => {
         if (activeShortcut.value) return activeShortcut.value.label;
-        if (!props.modelValue?.from) return 'Pick a date range';
-        const f = props.modelValue.from;
-        const t = props.modelValue.to;
+        if (!dateRange.value.from) return 'Pick a date range';
+        const f = dateRange.value.from;
+        const t = dateRange.value.to;
         if (!t) return `${format(f, 'MMM dd, yyyy')} at ${fromTime.value}`;
         return `${format(f, 'MMM dd')} ${fromTime.value} – ${format(t, 'MMM dd, yyyy')} ${toTime.value}`;
     });
@@ -113,7 +167,7 @@
             <Button
                 variant="outline"
                 size="sm"
-                :class="cn('justify-start text-left font-normal', !modelValue?.from && 'text-muted-foreground', props.class)"
+                :class="cn('justify-start text-left font-normal', !dateRange.from && 'text-muted-foreground', props.class)"
             >
                 <CalendarIcon class="mr-2 h-3.5 w-3.5" />
                 {{ displayText }}
@@ -182,7 +236,7 @@
             </div>
 
             <div
-                v-if="modelValue?.from"
+                v-if="dateRange.from"
                 class="border-t pt-2"
             >
                 <Button

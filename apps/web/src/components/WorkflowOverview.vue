@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import ColumnHeaderFilter from '@/components/ColumnHeaderFilter.vue';
     import ColumnSelector from '@/components/ColumnSelector.vue';
-    import DateTimeRangePicker, {type DateTimeRange} from '@/components/DateTimeRangePicker.vue';
+    import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import ViewManager from '@/components/ViewManager.vue';
@@ -10,7 +10,7 @@
     import {useWorkflowsStore} from '@/stores/workflows';
     import {filterableColumnIds} from '@/types/table';
     import type {WorkflowFilters, WorkflowJob, WorkflowRunWithRelations} from '@common/types';
-    import {formatDistanceToNow, subDays, subHours} from 'date-fns';
+    import {formatDistanceToNow} from 'date-fns';
     import {AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, GitBranch, GitCommit, Server, User, XCircle} from 'lucide-vue-next';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
@@ -41,18 +41,13 @@
             (initialApiFilters as Record<string, string[]>)[f.column] = f.values;
         }
     }
-    // Include default date range in initial API filters
-    initialApiFilters.window = '1h';
 
     const selectedJob = ref<WorkflowJob | null>(null);
     const expandedRuns = ref<Set<number>>(new Set());
-    const dateRange = ref<DateTimeRange>({from: subHours(new Date(), 1), to: new Date(), rollingWindow: '1h'});
+    const dateRange = ref<DateRange>({});
 
     onMounted(async () => {
-        // Sync initial filters (including default date range) to URL
-        const {apiFilters, query} = buildApiFilters();
-        router.replace({query});
-        await initializeStore(Object.keys(apiFilters).length > 0 ? apiFilters : undefined);
+        await initializeStore(Object.keys(initialApiFilters).length > 0 ? initialApiFilters : undefined);
         window.addEventListener('scroll', handleScroll);
     });
 
@@ -61,25 +56,6 @@
     });
 
     const allRuns = computed(() => workflows.value.filter((run) => run.workflowJobs?.length > 0));
-
-    // Compute effective date range, supporting rolling windows
-    const effectiveDateRange = computed(() => {
-        const range = dateRange.value;
-        if (!range.rollingWindow) return range;
-        const now = new Date();
-        switch (range.rollingWindow) {
-            case '1h':
-                return {from: subHours(now, 1), to: now, rollingWindow: range.rollingWindow};
-            case '24h':
-                return {from: subDays(now, 1), to: now, rollingWindow: range.rollingWindow};
-            case '7d':
-                return {from: subDays(now, 7), to: now, rollingWindow: range.rollingWindow};
-            case '30d':
-                return {from: subDays(now, 30), to: now, rollingWindow: range.rollingWindow};
-            default:
-                return range;
-        }
-    });
 
     // All filtering is server-side
     const runs = computed(() => allRuns.value);
@@ -132,31 +108,38 @@
             query[f.column] = f.values.join(',');
         }
 
-        // Date range filter
-        const range = effectiveDateRange.value;
-        if (range.rollingWindow) {
-            apiFilters.window = range.rollingWindow as WorkflowFilters['window'];
-            query.window = range.rollingWindow;
+        // Date range filter (URL is managed by DateTimeRangePicker)
+        if (dateRange.value.window) {
+            apiFilters.window = dateRange.value.window as WorkflowFilters['window'];
         } else {
-            if (range.from) {
-                apiFilters.created_from = range.from.toISOString();
-                query.created_from = range.from.toISOString();
-            }
-            if (range.to) {
-                apiFilters.created_to = range.to.toISOString();
-                query.created_to = range.to.toISOString();
-            }
+            if (dateRange.value.from) apiFilters.created_from = dateRange.value.from.toISOString();
+            if (dateRange.value.to) apiFilters.created_to = dateRange.value.to.toISOString();
         }
 
         return {apiFilters, query};
     }
 
-    // Convert view filters + date range to API WorkflowFilters and refetch
+    // Column filter changes → sync to URL + refetch
     watch(
-        [() => currentView.value.filters, dateRange],
+        () => currentView.value.filters,
         () => {
             const {apiFilters, query} = buildApiFilters();
-            router.replace({query});
+            const newQuery = {...route.query};
+            for (const col of filterableColumnIds) {
+                delete newQuery[col];
+            }
+            Object.assign(newQuery, query);
+            router.replace({query: newQuery});
+            setFilters(apiFilters);
+        },
+        {deep: true},
+    );
+
+    // Date range changes → refetch only (URL managed by DateTimeRangePicker)
+    watch(
+        dateRange,
+        () => {
+            const {apiFilters} = buildApiFilters();
             setFilters(apiFilters);
         },
         {deep: true},
@@ -233,7 +216,7 @@
         <!-- Description + Date Range -->
         <div class="flex items-center justify-between gap-4 shrink-0">
             <p class="text-muted-foreground">Complete workflow history with infinite scrolling</p>
-            <DateTimeRangePicker v-model="dateRange" />
+            <DateTimeRangePicker v-model:date-range="dateRange" />
         </div>
 
         <!-- Toolbar: ViewManager + ColumnSelector -->

@@ -95,6 +95,19 @@ export type PaginatedResponse<T> = {
 
 export type GetWorkflowsResponse = PaginatedResponse<WorkflowRunWithRelations>;
 
+export type OverviewStats = {
+    total: number;
+    success: number;
+    failure: number;
+    inProgress: number;
+    other: number;
+};
+
+export type OverviewResponse = {
+    stats: OverviewStats;
+    recentWorkflows: WorkflowRunWithRelations[];
+};
+
 export const WORKFLOW_FILTER_COLUMNS = ['workflow', 'repository', 'branch', 'status', 'actor', 'commit', 'run_number'] as const;
 
 export type WorkflowFilterColumn = (typeof WORKFLOW_FILTER_COLUMNS)[number];

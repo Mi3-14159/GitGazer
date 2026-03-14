@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import DateTimeRangePicker, {type DateTimeRange} from '@/components/DateTimeRangePicker.vue';
+    import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Card from '@/components/ui/Card.vue';
     import CardContent from '@/components/ui/CardContent.vue';
@@ -7,49 +7,46 @@
     import CardHeader from '@/components/ui/CardHeader.vue';
     import CardTitle from '@/components/ui/CardTitle.vue';
     import {useAuth} from '@/composables/useAuth';
-    import type {GetWorkflowsResponse, WorkflowRunWithRelations} from '@common/types';
+    import type {OverviewResponse, WorkflowRunWithRelations} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
     import {Activity, Ban, CheckCircle2, Clock, XCircle} from 'lucide-vue-next';
-    import {computed, onMounted, ref} from 'vue';
+    import {computed, onMounted, ref, watch} from 'vue';
 
     const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
     const {fetchWithAuth} = useAuth();
-    const workflows = ref<WorkflowRunWithRelations[]>([]);
+    const overview = ref<OverviewResponse | null>(null);
     const isLoading = ref(true);
-    const dateRange = ref<DateTimeRange>({from: undefined, to: undefined});
+    const dateRange = ref<DateRange>({});
 
-    onMounted(async () => {
+    async function fetchOverview() {
+        isLoading.value = true;
         try {
-            const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?limit=20`);
+            const params = new URLSearchParams();
+            if (dateRange.value.window) {
+                params.set('window', dateRange.value.window);
+            } else {
+                if (dateRange.value.from) params.set('created_from', dateRange.value.from.toISOString());
+                if (dateRange.value.to) params.set('created_to', dateRange.value.to.toISOString());
+            }
+            const response = await fetchWithAuth(`${API_ENDPOINT}/overview?${params.toString()}`);
             if (response.ok) {
-                const data = (await response.json()) as GetWorkflowsResponse;
-                workflows.value = data.items;
+                overview.value = (await response.json()) as OverviewResponse;
             }
         } catch {
             // Silently handle errors
         } finally {
             isLoading.value = false;
         }
-    });
+    }
 
-    const filteredWorkflows = computed(() => {
-        if (!dateRange.value.from) return workflows.value;
-        return workflows.value.filter((w) => {
-            const created = new Date(w.createdAt);
-            if (dateRange.value.from && created < dateRange.value.from) return false;
-            if (dateRange.value.to && created > dateRange.value.to) return false;
-            return true;
-        });
-    });
+    onMounted(() => fetchOverview());
 
-    const totalWorkflows = computed(() => filteredWorkflows.value.length);
-    const successCount = computed(() => filteredWorkflows.value.filter((w) => w.conclusion === 'success').length);
-    const failureCount = computed(() => filteredWorkflows.value.filter((w) => w.conclusion === 'failure').length);
-    const inProgressCount = computed(() => filteredWorkflows.value.filter((w) => w.status === 'in_progress').length);
-    const successRate = computed(() => (totalWorkflows.value > 0 ? ((successCount.value / totalWorkflows.value) * 100).toFixed(1) : '0.0'));
+    watch(dateRange, () => fetchOverview(), {deep: true});
 
-    const recentWorkflows = computed(() => filteredWorkflows.value.slice(0, 4));
+    const stats = computed(() => overview.value?.stats ?? {total: 0, success: 0, failure: 0, inProgress: 0, other: 0});
+    const successRate = computed(() => (stats.value.total > 0 ? ((stats.value.success / stats.value.total) * 100).toFixed(1) : '0.0'));
+    const recentWorkflows = computed(() => overview.value?.recentWorkflows ?? []);
 
     const statusConfig: Record<string, {icon: any; color: string; label: string}> = {
         success: {icon: CheckCircle2, color: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Success'},
@@ -77,10 +74,10 @@
 
     // Pie chart using CSS conic-gradient
     const pieGradient = computed(() => {
-        const total = totalWorkflows.value || 1;
-        const s = (successCount.value / total) * 100;
-        const f = (failureCount.value / total) * 100;
-        const p = (inProgressCount.value / total) * 100;
+        const total = stats.value.total || 1;
+        const s = (stats.value.success / total) * 100;
+        const f = (stats.value.failure / total) * 100;
+        const p = (stats.value.inProgress / total) * 100;
         const sEnd = s;
         const fEnd = sEnd + f;
         const pEnd = fEnd + p;
@@ -92,7 +89,7 @@
     <div class="space-y-6 p-4 md:p-6">
         <div class="flex items-center justify-between gap-4">
             <p class="text-muted-foreground">Real-time CI/CD pipeline monitoring and engineering metrics</p>
-            <DateTimeRangePicker v-model="dateRange" />
+            <DateTimeRangePicker v-model:date-range="dateRange" />
         </div>
 
         <!-- Stat cards -->
@@ -103,7 +100,7 @@
                     <Activity class="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-2xl font-bold">{{ totalWorkflows }}</div>
+                    <div class="text-2xl font-bold">{{ stats.total }}</div>
                     <p class="text-xs text-muted-foreground">Active pipelines</p>
                 </CardContent>
             </Card>
@@ -113,7 +110,7 @@
                     <CheckCircle2 class="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-2xl font-bold">{{ successCount }}</div>
+                    <div class="text-2xl font-bold">{{ stats.success }}</div>
                     <p class="text-xs text-muted-foreground">{{ successRate }}% success rate</p>
                 </CardContent>
             </Card>
@@ -123,7 +120,7 @@
                     <XCircle class="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-2xl font-bold">{{ failureCount }}</div>
+                    <div class="text-2xl font-bold">{{ stats.failure }}</div>
                     <p class="text-xs text-muted-foreground">Requires attention</p>
                 </CardContent>
             </Card>
@@ -133,7 +130,7 @@
                     <Clock class="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-2xl font-bold">{{ inProgressCount }}</div>
+                    <div class="text-2xl font-bold">{{ stats.inProgress }}</div>
                     <p class="text-xs text-muted-foreground">Currently running</p>
                 </CardContent>
             </Card>
@@ -154,19 +151,19 @@
                     <div class="mt-4 flex flex-wrap gap-3 justify-center text-xs">
                         <span class="flex items-center gap-1">
                             <span class="w-2 h-2 rounded-full bg-green-500" />
-                            Success {{ successCount }}
+                            Success {{ stats.success }}
                         </span>
                         <span class="flex items-center gap-1">
                             <span class="w-2 h-2 rounded-full bg-red-500" />
-                            Failed {{ failureCount }}
+                            Failed {{ stats.failure }}
                         </span>
                         <span class="flex items-center gap-1">
                             <span class="w-2 h-2 rounded-full bg-blue-500" />
-                            In Progress {{ inProgressCount }}
+                            In Progress {{ stats.inProgress }}
                         </span>
                         <span class="flex items-center gap-1">
                             <span class="w-2 h-2 rounded-full bg-gray-400" />
-                            Other {{ totalWorkflows - successCount - failureCount - inProgressCount }}
+                            Other {{ stats.other }}
                         </span>
                     </div>
                 </div>
