@@ -86,7 +86,10 @@
             </div>
 
             <!-- Webhook URL -->
-            <div class="space-y-2">
+            <div
+                v-if="isEdit"
+                class="space-y-2"
+            >
                 <Label>Webhook URL</Label>
                 <div class="flex items-center gap-1">
                     <Input
@@ -109,7 +112,10 @@
             </div>
 
             <!-- Webhook Secret -->
-            <div class="space-y-2">
+            <div
+                v-if="isEdit"
+                class="space-y-2"
+            >
                 <Label>Webhook Secret</Label>
                 <Input
                     :model-value="(integration as any)?.secret ?? ''"
@@ -121,7 +127,10 @@
             </div>
 
             <!-- Webhook Events -->
-            <div class="space-y-3">
+            <div
+                v-if="isEdit"
+                class="space-y-3"
+            >
                 <Label>Webhook Events</Label>
                 <div class="space-y-2">
                     <label
