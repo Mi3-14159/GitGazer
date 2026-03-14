@@ -6,7 +6,7 @@ import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
-import {CognitoIdTokenPayload} from 'aws-jwt-verify/jwt-model';
+import {CognitoIdTokenPayload, CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 type TokenVerifiers = {
@@ -96,7 +96,7 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         throw new UnauthorizedError('Missing authentication tokens');
     }
 
-    let idPayload: CognitoIdTokenPayload;
+    let idPayload: CognitoJwtPayload;
     try {
         const {accessTokenVerifier, idTokenVerifier} = getVerifiers();
         const accessPayload = await accessTokenVerifier.verify(accessToken);
