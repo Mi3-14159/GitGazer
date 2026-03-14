@@ -3,7 +3,6 @@ import {
     EmitterWebhookEventName,
     GetWorkflowsResponse,
     PaginationCursor,
-    ProjectionType,
     StreamEvent,
     WorkflowJob,
     WorkflowRunWithRelations,
@@ -211,7 +210,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const handleListWorkflows = async () => {
         if (!hasMore.value || isLoading.value) return;
 
-        workflowsArray.value.push(...(await getJobs({limit: 100, projection: ProjectionType.minimal})));
+        workflowsArray.value.push(...(await getJobs({limit: 100})));
     };
 
     const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRunWithRelations | WorkflowJob) => {

@@ -83,10 +83,6 @@ export type Event<Subtype> = {
     event: Subtype;
 };
 
-export enum ProjectionType {
-    minimal = 'minimal',
-}
-
 export type PaginationCursor = {
     createdAt: string;
     id: number;
@@ -101,7 +97,6 @@ export type GetWorkflowsResponse = PaginatedResponse<WorkflowRunWithRelations>;
 
 export type WorkflowsRequestParameters = {
     limit?: number;
-    projection?: ProjectionType;
     cursor?: PaginationCursor;
 };
 
@@ -111,10 +106,6 @@ export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRe
     }
 
     if (params.limit && isNaN(parseInt(params.limit, 10))) {
-        return false;
-    }
-
-    if (params.projection && !Object.values(ProjectionType).includes(params.projection)) {
         return false;
     }
 
