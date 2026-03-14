@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import DateTimeRangePicker, {type DateTimeRange} from '@/components/DateTimeRangePicker.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Card from '@/components/ui/Card.vue';
     import CardContent from '@/components/ui/CardContent.vue';
@@ -8,7 +9,7 @@
     import {useAuth} from '@/composables/useAuth';
     import type {GetWorkflowsResponse, WorkflowRunWithRelations} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
-    import {Activity, Ban, CheckCircle2, Clock, GitBranch, XCircle} from 'lucide-vue-next';
+    import {Activity, Ban, CheckCircle2, Clock, XCircle} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -16,6 +17,7 @@
     const {fetchWithAuth} = useAuth();
     const workflows = ref<WorkflowRunWithRelations[]>([]);
     const isLoading = ref(true);
+    const dateRange = ref<DateTimeRange>({from: undefined, to: undefined});
 
     onMounted(async () => {
         try {
@@ -31,13 +33,23 @@
         }
     });
 
-    const totalWorkflows = computed(() => workflows.value.length);
-    const successCount = computed(() => workflows.value.filter((w) => w.conclusion === 'success').length);
-    const failureCount = computed(() => workflows.value.filter((w) => w.conclusion === 'failure').length);
-    const inProgressCount = computed(() => workflows.value.filter((w) => w.status === 'in_progress').length);
+    const filteredWorkflows = computed(() => {
+        if (!dateRange.value.from) return workflows.value;
+        return workflows.value.filter((w) => {
+            const created = new Date(w.createdAt);
+            if (dateRange.value.from && created < dateRange.value.from) return false;
+            if (dateRange.value.to && created > dateRange.value.to) return false;
+            return true;
+        });
+    });
+
+    const totalWorkflows = computed(() => filteredWorkflows.value.length);
+    const successCount = computed(() => filteredWorkflows.value.filter((w) => w.conclusion === 'success').length);
+    const failureCount = computed(() => filteredWorkflows.value.filter((w) => w.conclusion === 'failure').length);
+    const inProgressCount = computed(() => filteredWorkflows.value.filter((w) => w.status === 'in_progress').length);
     const successRate = computed(() => (totalWorkflows.value > 0 ? ((successCount.value / totalWorkflows.value) * 100).toFixed(1) : '0.0'));
 
-    const recentWorkflows = computed(() => workflows.value.slice(0, 4));
+    const recentWorkflows = computed(() => filteredWorkflows.value.slice(0, 4));
 
     const statusConfig: Record<string, {icon: any; color: string; label: string}> = {
         success: {icon: CheckCircle2, color: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Success'},
@@ -78,8 +90,9 @@
 
 <template>
     <div class="space-y-6 p-4 md:p-6">
-        <div>
+        <div class="flex items-center justify-between gap-4">
             <p class="text-muted-foreground">Real-time CI/CD pipeline monitoring and engineering metrics</p>
+            <DateTimeRangePicker v-model="dateRange" />
         </div>
 
         <!-- Stat cards -->
@@ -126,87 +139,39 @@
             </Card>
         </div>
 
-        <!-- Two-column cards -->
-        <div class="grid gap-4 md:grid-cols-2">
-            <!-- Workflow Status Distribution -->
-            <Card>
-                <CardHeader>
-                    <CardTitle>Workflow Status Distribution</CardTitle>
-                    <CardDescription>Overview of all workflow statuses</CardDescription>
-                </CardHeader>
-                <CardContent class="flex justify-center">
-                    <div class="relative">
-                        <div
-                            class="w-48 h-48 rounded-full"
-                            :style="{background: pieGradient}"
-                        />
-                        <div class="mt-4 flex flex-wrap gap-3 justify-center text-xs">
-                            <span class="flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-green-500" />
-                                Success {{ successCount }}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-red-500" />
-                                Failed {{ failureCount }}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-blue-500" />
-                                In Progress {{ inProgressCount }}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-gray-400" />
-                                Other {{ totalWorkflows - successCount - failureCount - inProgressCount }}
-                            </span>
-                        </div>
+        <!-- Workflow Status Distribution -->
+        <Card>
+            <CardHeader>
+                <CardTitle>Workflow Status Distribution</CardTitle>
+                <CardDescription>Overview of all workflow statuses</CardDescription>
+            </CardHeader>
+            <CardContent class="flex justify-center">
+                <div class="relative">
+                    <div
+                        class="w-48 h-48 rounded-full"
+                        :style="{background: pieGradient}"
+                    />
+                    <div class="mt-4 flex flex-wrap gap-3 justify-center text-xs">
+                        <span class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-green-500" />
+                            Success {{ successCount }}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-red-500" />
+                            Failed {{ failureCount }}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-blue-500" />
+                            In Progress {{ inProgressCount }}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-gray-400" />
+                            Other {{ totalWorkflows - successCount - failureCount - inProgressCount }}
+                        </span>
                     </div>
-                </CardContent>
-            </Card>
-
-            <!-- Key Metrics Summary -->
-            <Card>
-                <CardHeader>
-                    <CardTitle>Key Metrics Summary</CardTitle>
-                    <CardDescription>DORA and SPACE metrics at a glance</CardDescription>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <GitBranch class="h-4 w-4 text-muted-foreground" />
-                                <span class="text-sm font-medium">Deploy Frequency</span>
-                            </div>
-                            <div class="text-2xl font-bold">—</div>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <Clock class="h-4 w-4 text-muted-foreground" />
-                                <span class="text-sm font-medium">Lead Time</span>
-                            </div>
-                            <div class="text-2xl font-bold">—</div>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <Activity class="h-4 w-4 text-muted-foreground" />
-                                <span class="text-sm font-medium">Team Activity</span>
-                            </div>
-                            <div class="text-2xl font-bold">—</div>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <CheckCircle2 class="h-4 w-4 text-muted-foreground" />
-                                <span class="text-sm font-medium">Satisfaction</span>
-                            </div>
-                            <div class="text-2xl font-bold">—</div>
-                        </div>
-                    </div>
-                    <div class="pt-4 border-t">
-                        <p class="text-sm text-muted-foreground">
-                            Connect an integration and configure DORA/SPACE metrics in the Dashboards tab to see real-time performance data here.
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                </div>
+            </CardContent>
+        </Card>
 
         <!-- Recent Workflow Runs -->
         <Card>
