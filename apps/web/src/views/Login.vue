@@ -19,7 +19,7 @@
     const checkAuthAndRedirect = async () => {
         try {
             if (await isAuthenticated()) {
-                await router.push('/dashboard');
+                await router.push('/workflows');
             }
         } catch (error) {
             console.debug('User not authenticated, showing login page');

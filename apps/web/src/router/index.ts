@@ -16,8 +16,8 @@ const router = createRouter({
                     meta: {title: 'Overview'},
                 },
                 {
-                    path: 'dashboard',
-                    name: 'dashboard',
+                    path: 'workflows',
+                    name: 'workflows',
                     component: () => import('@/components/WorkflowOverview.vue'),
                     meta: {title: 'Workflows'},
                 },

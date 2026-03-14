@@ -13,7 +13,7 @@
     import {formatDistanceToNow} from 'date-fns';
     import {AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, GitBranch, GitCommit, Server, User, XCircle} from 'lucide-vue-next';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, ref} from 'vue';
+    import {computed, onMounted, onUnmounted, ref} from 'vue';
 
     const workflowsStore = useWorkflowsStore();
     const {initializeStore, handleListWorkflows} = workflowsStore;
@@ -27,6 +27,11 @@
 
     onMounted(async () => {
         await initializeStore();
+        window.addEventListener('scroll', handleScroll);
+    });
+
+    onUnmounted(() => {
+        window.removeEventListener('scroll', handleScroll);
     });
 
     const allRuns = computed(() => workflows.value.filter((run) => run.workflowJobs?.length > 0));
@@ -146,9 +151,11 @@
         return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     }
 
-    function handleScroll(e: Event) {
-        const el = e.target as HTMLElement;
-        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+    function handleScroll() {
+        const scrollY = window.scrollY;
+        const windowHeight = window.innerHeight;
+        const docHeight = document.documentElement.scrollHeight;
+        if (scrollY + windowHeight >= docHeight - 200) {
             if (!isLoading.value && hasMore.value) {
                 handleListWorkflows();
             }
@@ -194,9 +201,7 @@
         <!-- Table -->
         <div
             v-else
-            ref="scrollContainer"
-            class="border rounded-lg overflow-auto flex-1 min-h-0"
-            @scroll="handleScroll"
+            class="border rounded-lg overflow-visible"
         >
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b sticky top-0 z-10">

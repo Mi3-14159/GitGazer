@@ -20,7 +20,7 @@
     const tabs = [
         {value: 'overview', label: 'Overview', icon: Activity, path: '/overview'},
         {value: 'dashboards', label: 'Dashboards', icon: LayoutDashboard, path: '/analytics/system-dora'},
-        {value: 'workflows', label: 'Workflows', icon: PlayCircle, path: '/dashboard'},
+        {value: 'workflows', label: 'Workflows', icon: PlayCircle, path: '/workflows'},
         {value: 'integrations', label: 'Integrations', icon: Webhook, path: '/integrations'},
         {value: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications'},
     ];
@@ -29,7 +29,7 @@
         const path = route.path;
         if (path.startsWith('/overview')) return 'overview';
         if (path.startsWith('/analytics')) return 'dashboards';
-        if (path.startsWith('/dashboard')) return 'workflows';
+        if (path.startsWith('/workflows')) return 'workflows';
         if (path.startsWith('/integrations')) return 'integrations';
         if (path.startsWith('/notifications')) return 'notifications';
         return 'overview';
@@ -45,7 +45,7 @@
 </script>
 
 <template>
-    <div class="h-screen bg-background flex flex-col overflow-hidden">
+    <div class="min-h-screen bg-background flex flex-col">
         <!-- Header -->
         <header class="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 sticky top-0 z-40">
             <div class="container mx-auto px-4 py-2">
@@ -119,7 +119,7 @@
         </div>
 
         <!-- Main Content -->
-        <main class="flex-1 container mx-auto px-4 pt-2 pb-4 flex flex-col min-h-0">
+        <main class="flex-1 container mx-auto px-4 pt-2 pb-4 flex flex-col">
             <router-view v-slot="{Component}">
                 <transition
                     name="fade"
