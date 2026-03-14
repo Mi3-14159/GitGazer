@@ -272,10 +272,13 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         await handleListWorkflows();
     };
 
-    const initializeStore = async () => {
+    const initializeStore = async (initialFilters?: WorkflowFilters) => {
         // Reset pagination state
         cursor = undefined;
         hasMore.value = true;
+        if (initialFilters) {
+            activeFilters = initialFilters;
+        }
 
         // Connect to WebSocket for real-time updates
         if (WS_ENDPOINT) {

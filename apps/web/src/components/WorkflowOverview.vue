@@ -14,19 +14,40 @@
     import {AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, GitBranch, GitCommit, Server, User, XCircle} from 'lucide-vue-next';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
+    import {useRoute, useRouter} from 'vue-router';
 
     const workflowsStore = useWorkflowsStore();
     const {initializeStore, handleListWorkflows, setFilters} = workflowsStore;
     const {workflows, isLoading, hasMore} = storeToRefs(workflowsStore);
 
+    const route = useRoute();
+    const router = useRouter();
+
     const {savedViews, currentView, updateColumns, updateFilters, saveView, deleteView, changeView} = useTableViews();
+
+    // Restore filters from URL query params on setup
+    const initialFilters: typeof currentView.value.filters = [];
+    for (const columnId of filterableColumnIds) {
+        const param = route.query[columnId];
+        if (typeof param === 'string' && param.length > 0) {
+            initialFilters.push({column: columnId, values: param.split(',')});
+        }
+    }
+    // Build initial API filters from URL
+    const initialApiFilters: WorkflowFilters = {};
+    if (initialFilters.length > 0) {
+        updateFilters(initialFilters);
+        for (const f of initialFilters) {
+            initialApiFilters[f.column as keyof WorkflowFilters] = f.values;
+        }
+    }
 
     const selectedJob = ref<WorkflowJob | null>(null);
     const expandedRuns = ref<Set<number>>(new Set());
     const dateRange = ref<DateTimeRange>({from: undefined, to: undefined});
 
     onMounted(async () => {
-        await initializeStore();
+        await initializeStore(Object.keys(initialApiFilters).length > 0 ? initialApiFilters : undefined);
         window.addEventListener('scroll', handleScroll);
     });
 
@@ -93,9 +114,13 @@
         () => currentView.value.filters,
         (viewFilters) => {
             const apiFilters: WorkflowFilters = {};
+            const query: Record<string, string> = {};
             for (const f of viewFilters) {
                 apiFilters[f.column as keyof WorkflowFilters] = f.values;
+                query[f.column] = f.values.join(',');
             }
+            // Sync filters to URL query params
+            router.replace({query});
             setFilters(apiFilters);
         },
         {deep: true},
