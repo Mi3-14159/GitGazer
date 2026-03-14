@@ -133,6 +133,12 @@ data "aws_iam_policy_document" "api" {
       module.db.cluster_master_user_secret[0].secret_arn,
     ]
   }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.lambda_config.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "api" {
@@ -165,32 +171,11 @@ resource "aws_lambda_function" "api" {
       ENVIRONMENT                         = terraform.workspace
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      UI_BUCKET_NAME                      = module.ui_bucket.s3_bucket_id
-      KMS_KEY_ID                          = aws_kms_key.this.id
-      COGNITO_USER_POOL_ID                = aws_cognito_user_pool.this.id
-      WEBSOCKET_API_DOMAIN_NAME           = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
-      WEBSOCKET_API_STAGE                 = aws_apigatewayv2_stage.websocket_ws.name
-      CORS_ORIGINS                        = jsonencode(local.cors_allowed_origins)
-      # OAuth callback configuration
-      COGNITO_DOMAIN    = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
-      COGNITO_CLIENT_ID = aws_cognito_user_pool_client.this.id
-      # TODO!: i know this is not safe to expose the client secret in the lambda env vars
-      # it needs refactoring to use a secure backend for the api config
-      COGNITO_CLIENT_SECRET                = aws_cognito_user_pool_client.this.client_secret
-      COGNITO_REDIRECT_URI                 = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
-      ALLOWED_FRONTEND_ORIGINS             = jsonencode(compact(concat(["https://${aws_cloudfront_distribution.this.domain_name}"], local.cors_allowed_origins)))
-      AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
-      QUERY_GENERATOR_BEDROCK_MODEL_ID     = awscc_bedrock_prompt.query_generation.arn
-      QUERY_GENERATOR_GUARDRAIL_IDENTIFIER = aws_bedrock_guardrail.query_generation.guardrail_id
-      QUERY_GENERATOR_GUARDRAIL_VERSION    = "DRAFT"
-      RDS_DATABASE                         = "postgres"
-      RDS_SECRET_ARN                       = module.db.cluster_master_user_secret[0].secret_arn
-      RDS_RESOURCE_ARN                     = module.db.cluster_arn
-      GH_APP_ID                            = var.gh_app.id
-      GH_APP_PRIVATE_KEY                   = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]
-      GH_APP_WEBHOOK_SECRET                = data.aws_kms_secrets.this.plaintext["gh_app_webhook_secret"]
-      IMPORT_URL_BASE                      = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
-      NODE_OPTIONS                         = "--enable-source-maps"
+      RDS_DATABASE                        = "postgres"
+      RDS_SECRET_ARN                      = module.db.cluster_master_user_secret[0].secret_arn
+      RDS_RESOURCE_ARN                    = module.db.cluster_arn
+      CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
+      NODE_OPTIONS                        = "--enable-source-maps"
     }
   }
   layers = local.lambda_layers

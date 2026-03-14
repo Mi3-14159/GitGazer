@@ -1,3 +1,4 @@
+import config, {loadConfig} from '@/config';
 import {db} from '@gitgazer/db/client';
 import {WSToken} from '@gitgazer/db/types';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
@@ -8,11 +9,11 @@ import {eq} from 'drizzle-orm';
 
 const logger = getLogger();
 
-const cognitoClientSecret = process.env.COGNITO_CLIENT_SECRET;
+let initPromise: Promise<void> | null = null;
 
-if (!cognitoClientSecret) {
-    throw new Error('COGNITO_CLIENT_SECRET is not defined');
-}
+const init = async (): Promise<void> => {
+    await loadConfig();
+};
 
 type WebsocketEvent = APIGatewayProxyWebsocketEventV2 & {
     queryStringParameters?: Record<string, string | undefined> | null;
@@ -27,7 +28,8 @@ const validateWebSocketToken = (token: string): WSToken => {
     const [payloadEncoded, signatureEncoded] = parts;
 
     // Verify signature
-    const expectedSignature = createHmac('sha256', cognitoClientSecret).update(payloadEncoded).digest('base64url');
+    const {clientSecret} = config.get('cognito');
+    const expectedSignature = createHmac('sha256', clientSecret).update(payloadEncoded).digest('base64url');
 
     if (signatureEncoded !== expectedSignature) {
         throw new Error('Invalid token signature');
@@ -52,6 +54,11 @@ const validateWebSocketToken = (token: string): WSToken => {
 };
 
 export const handler = async (event: WebsocketEvent, context: Context): Promise<APIGatewayProxyResultV2<string>> => {
+    if (!initPromise) {
+        initPromise = init();
+    }
+    await initPromise;
+
     logger.resetKeys();
     logger.addContext(context);
     logger.logEventIfEnabled(event);

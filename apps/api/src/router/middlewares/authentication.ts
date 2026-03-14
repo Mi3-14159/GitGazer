@@ -1,3 +1,4 @@
+import config from '@/config';
 import {getLogger} from '@/logger';
 import {AppRequestContext} from '@/types';
 import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
@@ -5,31 +6,35 @@ import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
-import {CognitoIdTokenPayload} from 'aws-jwt-verify/jwt-model';
+import {CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
-const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
-if (!COGNITO_USER_POOL_ID) {
-    throw new Error('COGNITO_USER_POOL_ID environment variable is not set');
-}
+type TokenVerifiers = {
+    accessTokenVerifier: ReturnType<typeof CognitoJwtVerifier.create>;
+    idTokenVerifier: ReturnType<typeof CognitoJwtVerifier.create>;
+};
 
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
-if (!COGNITO_CLIENT_ID) {
-    throw new Error('COGNITO_CLIENT_ID environment variable is not set');
-}
+let verifiers: TokenVerifiers | null = null;
 
-// Create JWT verifiers for both access and ID tokens
-const accessTokenVerifier = CognitoJwtVerifier.create({
-    userPoolId: COGNITO_USER_POOL_ID,
-    clientId: COGNITO_CLIENT_ID,
-    tokenUse: 'access',
-});
+const getVerifiers = (): TokenVerifiers => {
+    if (!verifiers) {
+        const {userPoolId, clientId} = config.get('cognito');
 
-const idTokenVerifier = CognitoJwtVerifier.create({
-    userPoolId: COGNITO_USER_POOL_ID,
-    clientId: COGNITO_CLIENT_ID,
-    tokenUse: 'id',
-});
+        verifiers = {
+            accessTokenVerifier: CognitoJwtVerifier.create({
+                userPoolId,
+                clientId,
+                tokenUse: 'access',
+            }),
+            idTokenVerifier: CognitoJwtVerifier.create({
+                userPoolId,
+                clientId,
+                tokenUse: 'id',
+            }),
+        };
+    }
+    return verifiers;
+};
 
 function extractTokenFromCookies(cookies: string[] | undefined, tokenName: string): string | null {
     if (!cookies || cookies.length === 0) {
@@ -91,8 +96,9 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         throw new UnauthorizedError('Missing authentication tokens');
     }
 
-    let idPayload: CognitoIdTokenPayload;
+    let idPayload: CognitoJwtPayload;
     try {
+        const {accessTokenVerifier, idTokenVerifier} = getVerifiers();
         const accessPayload = await accessTokenVerifier.verify(accessToken);
         idPayload = await idTokenVerifier.verify(idToken);
 

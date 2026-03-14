@@ -1,3 +1,4 @@
+import config from '@/config';
 import {
     createOrgWebhook,
     createRepoWebhook,
@@ -15,11 +16,10 @@ import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppInstallations, githubAppWebhooks, integrations} from '@gitgazer/db/schema/github/workflows';
 import {and, eq} from 'drizzle-orm';
 
-const importUrlBase = process.env.IMPORT_URL_BASE;
-
 const getWebhookUrl = (integrationId: string): string => {
+    const importUrlBase = config.get('importUrlBase');
     if (!importUrlBase) {
-        throw new Error('IMPORT_URL_BASE environment variable is not set');
+        throw new Error('IMPORT_URL_BASE is not configured');
     }
     return `${importUrlBase}/${integrationId}`;
 };

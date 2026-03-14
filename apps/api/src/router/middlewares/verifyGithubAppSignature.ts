@@ -1,15 +1,15 @@
+import config from '@/config';
 import {getLogger} from '@/logger';
 import {BadRequestError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
 
-const webhookSecret = process.env.GH_APP_WEBHOOK_SECRET;
-
 export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
     const logger = getLogger();
     logger.debug('running verifyGithubAppSignature middleware');
 
+    const {webhookSecret} = config.get('githubApp');
     if (!webhookSecret) {
         throw new Error('GH_APP_WEBHOOK_SECRET is not configured');
     }

@@ -79,6 +79,12 @@ data "aws_iam_policy_document" "api_websocket" {
   }
 
   statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.lambda_config.arn]
+  }
+
+  statement {
     effect = "Allow"
     actions = [
       "kms:Decrypt",
@@ -86,6 +92,7 @@ data "aws_iam_policy_document" "api_websocket" {
       "kms:Encrypt",
     ]
     resources = distinct([
+      aws_kms_key.this.arn,
       module.db.cluster_master_user_secret[0].kms_key_id
     ])
   }
@@ -121,11 +128,10 @@ resource "aws_lambda_function" "api_websocket" {
       ENVIRONMENT                         = terraform.workspace
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      COGNITO_CLIENT_ID                   = aws_cognito_user_pool_client.this.id
-      COGNITO_CLIENT_SECRET               = aws_cognito_user_pool_client.this.client_secret
       RDS_DATABASE                        = "postgres"
       RDS_SECRET_ARN                      = module.db.cluster_master_user_secret[0].secret_arn
       RDS_RESOURCE_ARN                    = module.db.cluster_arn
+      CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
     }
   }

@@ -1,17 +1,13 @@
+import config from '@/config';
 import {GetObjectCommand, GetObjectCommandOutput, S3Client} from '@aws-sdk/client-s3';
 import {getSignedUrl as S3getSignedUrl} from '@aws-sdk/s3-request-presigner';
 
 const client = new S3Client();
 
-const uiBucketName = process.env.UI_BUCKET_NAME;
-if (!uiBucketName) {
-    throw new Error('UI_BUCKET_NAME is not defined');
-}
-
 export const getIndexHtml = async (): Promise<GetObjectCommandOutput> => {
     const data = await client.send(
         new GetObjectCommand({
-            Bucket: uiBucketName,
+            Bucket: config.get('uiBucketName'),
             Key: 'index.html',
         }),
     );
