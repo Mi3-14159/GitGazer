@@ -1,3 +1,4 @@
+import config from '@/config';
 import {getLogger} from '@/logger';
 import {createHmac, randomBytes} from 'crypto';
 
@@ -15,38 +16,12 @@ import {
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 const router = new Router();
 
-const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN;
-if (!COGNITO_DOMAIN) {
-    throw new Error('COGNITO_DOMAIN environment variable is not set');
-}
-
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
-if (!COGNITO_CLIENT_ID) {
-    throw new Error('COGNITO_CLIENT_ID environment variable is not set');
-}
-
-const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
-if (!COGNITO_CLIENT_SECRET) {
-    throw new Error('COGNITO_CLIENT_SECRET environment variable is not set');
-}
-
-const COGNITO_REDIRECT_URI = process.env.COGNITO_REDIRECT_URI;
-if (!COGNITO_REDIRECT_URI) {
-    throw new Error('COGNITO_REDIRECT_URI environment variable is not set');
-}
-
-const ALLOWED_FRONTEND_ORIGINS = process.env.ALLOWED_FRONTEND_ORIGINS;
-if (!ALLOWED_FRONTEND_ORIGINS) {
-    throw new Error('ALLOWED_FRONTEND_ORIGINS environment variable is not set');
-}
-
-const ALLOWED_FRONTEND_ORIGINS_ARRAY = JSON.parse(ALLOWED_FRONTEND_ORIGINS) as string[];
-
 // Helper to validate redirect URL against allowlist
 const validateRedirectUrl = (url: string): string | null => {
     try {
         const parsed = new URL(url);
-        const isAllowed = ALLOWED_FRONTEND_ORIGINS_ARRAY.some((origin) => {
+        const allowedOrigins = JSON.parse(config.get('allowedFrontendOrigins')) as string[];
+        const isAllowed = allowedOrigins.some((origin) => {
             const allowedOrigin = new URL(origin);
             return parsed.origin === allowedOrigin.origin;
         });
@@ -207,13 +182,13 @@ router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
     logger.debug('Exchanging authorization code for tokens', {state});
 
     // Exchange code for tokens at Cognito token endpoint
-    const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
+    const tokenEndpoint = `https://${config.get('cognito.domain')}/oauth2/token`;
 
     const params = new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: COGNITO_CLIENT_ID,
+        client_id: config.get('cognito.clientId'),
         code: code,
-        redirect_uri: COGNITO_REDIRECT_URI,
+        redirect_uri: config.get('cognito.redirectUri'),
     });
 
     // Build headers with optional client secret for confidential client
@@ -221,7 +196,7 @@ router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
         'Content-Type': 'application/x-www-form-urlencoded',
     };
 
-    headers['Authorization'] = `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`;
+    headers['Authorization'] = `Basic ${Buffer.from(`${config.get('cognito.clientId')}:${config.get('cognito.clientSecret')}`).toString('base64')}`;
 
     const tokenResponse = await fetch(tokenEndpoint, {
         method: 'POST',
@@ -306,17 +281,17 @@ router.post('/api/auth/refresh', async (reqCtx: AppRequestContext) => {
     logger.debug('Refreshing tokens using refresh token');
 
     // Exchange refresh token for new access and ID tokens
-    const tokenEndpoint = `https://${COGNITO_DOMAIN}/oauth2/token`;
+    const tokenEndpoint = `https://${config.get('cognito.domain')}/oauth2/token`;
 
     const params = new URLSearchParams({
         grant_type: 'refresh_token',
-        client_id: COGNITO_CLIENT_ID,
+        client_id: config.get('cognito.clientId'),
         refresh_token: refreshToken,
     });
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${config.get('cognito.clientId')}:${config.get('cognito.clientSecret')}`).toString('base64')}`,
     };
 
     const tokenResponse = await fetch(tokenEndpoint, {
@@ -398,9 +373,9 @@ router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
     ];
 
     // Build Cognito logout URL
-    const logoutUrl = `https://${COGNITO_DOMAIN}/logout`;
+    const logoutUrl = `https://${config.get('cognito.domain')}/logout`;
     const params = new URLSearchParams({
-        client_id: COGNITO_CLIENT_ID,
+        client_id: config.get('cognito.clientId'),
         logout_uri: validatedRedirectUrl,
     });
 
@@ -443,7 +418,7 @@ router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppR
     // Sign the token using HMAC with the Cognito client secret
     // This prevents tampering and allows validation on the WebSocket handler
     const payload = Buffer.from(JSON.stringify(tokenPayload)).toString('base64url');
-    const signature = createHmac('sha256', COGNITO_CLIENT_SECRET).update(payload).digest('base64url');
+    const signature = createHmac('sha256', config.get('cognito.clientSecret')).update(payload).digest('base64url');
     const token = `${payload}.${signature}`;
 
     logger.info('Generated WebSocket token', {userId, integrations: integrations.length});

@@ -1,3 +1,4 @@
+import config from '@/config';
 import {deleteConnection, getConnections} from '@/clients/websocket-connections';
 import {sendWorkflowJobAlerts} from '@/controllers/alerting';
 import {insertEvent} from '@/controllers/imports/index';
@@ -12,20 +13,19 @@ import {
 import {EventPayloadMap, StreamEvent, WorkflowJobEvent} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
-const websocketApiDomain = process.env.WEBSOCKET_API_DOMAIN_NAME;
-if (!websocketApiDomain) {
-    throw new Error('Missing WEBSOCKET_API_DOMAIN_NAME environment variable');
-}
+let apiClient: ApiGatewayManagementApiClient | null = null;
 
-const stage = process.env.WEBSOCKET_API_STAGE;
-if (!stage) {
-    throw new Error('Missing WEBSOCKET_API_STAGE environment variable');
-}
-
-const apiClient = new ApiGatewayManagementApiClient({
-    region: process.env.AWS_REGION,
-    endpoint: `https://${websocketApiDomain}/${stage}`,
-});
+const getApiClient = (): ApiGatewayManagementApiClient => {
+    if (!apiClient) {
+        const domain = config.get('websocket.apiDomainName');
+        const stage = config.get('websocket.apiStage');
+        apiClient = new ApiGatewayManagementApiClient({
+            region: process.env.AWS_REGION,
+            endpoint: `https://${domain}/${stage}`,
+        });
+    }
+    return apiClient;
+};
 
 export const handleEvent = async <T extends EmitterWebhookEventName & keyof EventPayloadMap>(
     integrationId: string,
@@ -65,7 +65,7 @@ const postToConnections = async <T>(params: StreamEvent<T>) => {
             ConnectionId: connection.connectionId,
             Data: JSON.stringify(params),
         });
-        promises.push(apiClient.send(apiCommand));
+        promises.push(getApiClient().send(apiCommand));
     }
 
     const results = await Promise.allSettled(promises);

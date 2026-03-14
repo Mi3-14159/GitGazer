@@ -1,15 +1,11 @@
-import {getLogger} from '@/logger';
+import config from '@/config';
 import {createAppAuth} from '@octokit/auth-app';
 import {Octokit} from '@octokit/rest';
 
-const appId = process.env.GH_APP_ID;
-const privateKey = process.env.GH_APP_PRIVATE_KEY;
-
-if (!appId || !privateKey) {
-    getLogger().warn('GH_APP_ID or GH_APP_PRIVATE_KEY not set — GitHub App client will not be available');
-}
-
 export const getInstallationOctokit = (installationId: number): Octokit => {
+    const appId = config.get('githubApp.id');
+    const privateKey = config.get('githubApp.privateKey');
+
     if (!appId || !privateKey) {
         throw new Error('GitHub App credentials not configured');
     }
