@@ -9,6 +9,8 @@ const shared: Options = {
     treeshake: true,
     // Bundle all dependencies except @aws-sdk (provided by Lambda runtime)
     external: [/^@aws-sdk/],
+    // Explicitly bundle these packages to avoid runtime import errors
+    noExternal: ['convict'],
     esbuildOptions(options) {
         options.alias = {
             '@gitgazer/db': '../../packages/db/src',
