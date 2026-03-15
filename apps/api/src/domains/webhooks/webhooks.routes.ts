@@ -1,4 +1,5 @@
 import {handleEvent} from '@/domains/webhooks/webhooks.controller';
+import {verifyGithubSign} from '@/domains/webhooks/webhooks.middleware';
 import {isValidImportEvent} from '@/shared/helpers/validation';
 import {getLogger} from '@/shared/logger';
 import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
@@ -7,7 +8,7 @@ import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 const router = new Router();
 
-router.post('/api/import/:integrationId', [], async (reqCtx) => {
+router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => {
     const logger = getLogger();
 
     const githubEventType = reqCtx.event?.headers?.['x-github-event'];

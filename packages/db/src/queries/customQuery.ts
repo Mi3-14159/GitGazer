@@ -3,15 +3,21 @@ import {gitgazerAnalyst} from '..';
 import {withRlsTransaction} from '../client';
 import type {CustomQueryColumn, CustomQueryResponse, TableSchema} from '../types/metrics';
 
-const FORBIDDEN_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL)\b/i;
+const FORBIDDEN_KEYWORDS =
+    /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL|SET|RESET|DISCARD|LISTEN|NOTIFY|LOAD|VACUUM|CLUSTER|REINDEX|LOCK|PREPARE|DEALLOCATE|SAVEPOINT|RELEASE|ROLLBACK|COMMIT|BEGIN|DO)\b/i;
 const MAX_ROWS = 1000;
+
+/** Strip SQL comments (block and line) so keywords can't be hidden inside them. */
+const stripSqlComments = (q: string): string => q.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ');
 
 const validateQuery = (query: string): void => {
     const trimmed = query.trim().replace(/;+$/, '').trim();
     if (!trimmed) {
         throw new Error('Query cannot be empty');
     }
-    if (FORBIDDEN_KEYWORDS.test(trimmed)) {
+    // Strip comments before checking for forbidden keywords so they cannot be hidden
+    const cleaned = stripSqlComments(trimmed);
+    if (FORBIDDEN_KEYWORDS.test(cleaned)) {
         throw new Error('Only SELECT queries are allowed. DDL and DML statements are not permitted.');
     }
 };

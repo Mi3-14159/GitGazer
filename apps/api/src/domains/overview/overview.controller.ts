@@ -28,8 +28,11 @@ function buildDateConditions(filters?: OverviewParams['filters']): SQL[] {
             case '30d':
                 from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
                 break;
+            default:
+                from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                break;
         }
-        conditions.push(gte(workflowRuns.createdAt, from!));
+        conditions.push(gte(workflowRuns.createdAt, from));
         conditions.push(lte(workflowRuns.createdAt, now));
     } else {
         if (filters?.created_from) {

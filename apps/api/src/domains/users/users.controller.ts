@@ -24,9 +24,13 @@ export const parseOAuthTokenBody = (body: string, isBase64Encoded: boolean): OAu
  * Exchange an OAuth code for a GitHub access token.
  */
 export const exchangeGitHubOAuthToken = async (clientId: string, clientSecret: string, code: string): Promise<unknown> => {
-    const response = await fetch(`https://github.com/login/oauth/access_token?client_id=${clientId}&client_secret=${clientSecret}&code=${code}`, {
+    const response = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
-        headers: {accept: 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+        },
+        body: JSON.stringify({client_id: clientId, client_secret: clientSecret, code}),
     });
     return response.json();
 };

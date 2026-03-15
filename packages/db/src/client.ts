@@ -19,12 +19,22 @@ export const db = drizzle(rdsClient, {
 
 export type RdsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+const INTEGRATION_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
     userName?: string;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
     const {integrationIds, userName = gitgazerReader.name, callback} = params;
+
+    // Validate integration IDs to prevent SQL injection via the raw SET LOCAL
+    for (const id of integrationIds) {
+        if (!INTEGRATION_ID_PATTERN.test(id)) {
+            throw new Error(`Invalid integration ID: ${id}`);
+        }
+    }
+
     return await db.transaction(async (tx) => {
         await tx.execute(sql`SET ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
