@@ -12,25 +12,25 @@ const router = createRouter({
                 {
                     path: 'overview',
                     name: 'overview',
-                    component: () => import('@/components/DashboardOverview.vue'),
+                    component: () => import('@/views/OverviewPage.vue'),
                     meta: {title: 'Overview'},
                 },
                 {
                     path: 'workflows',
                     name: 'workflows',
-                    component: () => import('@/components/WorkflowOverview.vue'),
+                    component: () => import('@/views/WorkflowsPage.vue'),
                     meta: {title: 'Workflows'},
                 },
                 {
                     path: 'notifications',
                     name: 'notifications',
-                    component: () => import('@/components/NotificationsOverview.vue'),
+                    component: () => import('@/views/NotificationsPage.vue'),
                     meta: {title: 'Notifications'},
                 },
                 {
                     path: 'integrations',
                     name: 'integrations',
-                    component: () => import('@/components/IntegrationsOverview.vue'),
+                    component: () => import('@/views/IntegrationsPage.vue'),
                     meta: {title: 'Integrations'},
                 },
 
