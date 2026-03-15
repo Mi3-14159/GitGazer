@@ -35,7 +35,7 @@
     const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
 
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
-    const {linkInstallation, updateWebhookEvents} = useGithubApp();
+    const {linkInstallation, unlinkInstallation, updateWebhookEvents} = useGithubApp();
 
     function getWebhookUrl(integrationId: string): string {
         return `${IMPORT_URL_BASE}/${integrationId}`;
@@ -64,6 +64,12 @@
     // Rotate secret confirmation
     const showRotateConfirm = ref(false);
     const rotatingIntegrationId = ref<string | null>(null);
+
+    // Unlink installation confirmation
+    const showUnlinkConfirm = ref(false);
+    const unlinkingIntegrationId = ref<string | null>(null);
+    const unlinkingInstallationId = ref<number | null>(null);
+    const isUnlinking = ref(false);
 
     // Delete type-to-confirm
     const deleteConfirmText = ref('');
@@ -153,6 +159,27 @@
             isRotating.value = false;
             showRotateConfirm.value = false;
             rotatingIntegrationId.value = null;
+        }
+    }
+
+    function confirmUnlink(integrationId: string, installationId: number) {
+        unlinkingIntegrationId.value = integrationId;
+        unlinkingInstallationId.value = installationId;
+        showUnlinkConfirm.value = true;
+    }
+
+    async function handleUnlink() {
+        if (!unlinkingIntegrationId.value || !unlinkingInstallationId.value) return;
+        isUnlinking.value = true;
+        try {
+            await unlinkInstallation(unlinkingIntegrationId.value, unlinkingInstallationId.value);
+            const data = await getIntegrations();
+            if (data) integrations.value = data;
+        } finally {
+            isUnlinking.value = false;
+            showUnlinkConfirm.value = false;
+            unlinkingIntegrationId.value = null;
+            unlinkingInstallationId.value = null;
         }
     }
 
@@ -606,6 +633,7 @@
                                         variant="ghost"
                                         size="sm"
                                         class="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                        @click="confirmUnlink(integration.integrationId, inst.installationId)"
                                     >
                                         <Unlink class="h-3 w-3 mr-1" />
                                         Unlink
@@ -794,6 +822,33 @@
                         :disabled="deleteConfirmText !== deletingIntegration?.label"
                         @click="handleDelete"
                         >Delete Integration</Button
+                    >
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Unlink Installation Confirmation Dialog -->
+        <Dialog
+            :open="showUnlinkConfirm"
+            @update:open="showUnlinkConfirm = $event"
+        >
+            <template #default="{close}">
+                <h3 class="text-lg font-semibold">Unlink GitHub App?</h3>
+                <p class="mt-2 text-sm text-muted-foreground">
+                    This will remove the link between this integration and the GitHub App installation. Existing webhooks for this installation will
+                    be deleted.
+                </p>
+                <div class="flex justify-end gap-2 mt-6">
+                    <Button
+                        variant="outline"
+                        @click="close"
+                        >Cancel</Button
+                    >
+                    <Button
+                        variant="destructive"
+                        :disabled="isUnlinking"
+                        @click="handleUnlink"
+                        >{{ isUnlinking ? 'Unlinking…' : 'Unlink' }}</Button
                     >
                 </div>
             </template>
