@@ -7,7 +7,7 @@
     import {GraphicComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
     import {use} from 'echarts/core';
     import {CanvasRenderer} from 'echarts/renderers';
-    import {computed, shallowRef} from 'vue';
+    import {computed} from 'vue';
     import VChart from 'vue-echarts';
 
     use([CanvasRenderer, BarChart, GraphicComponent, GridComponent, TitleComponent, TooltipComponent]);
@@ -23,8 +23,6 @@
         }>(),
         {color: undefined, description: undefined},
     );
-
-    const popupOpen = shallowRef(false);
 
     const sizeClass = computed(() => {
         const map: Record<WidgetSize, string> = {
