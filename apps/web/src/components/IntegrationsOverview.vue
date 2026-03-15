@@ -523,7 +523,10 @@
 
                         <!-- Enabled Webhook Events -->
                         <div
-                            v-if="getEnabledEvents(integration).length > 0 || (integration.githubAppInstallations && integration.githubAppInstallations.length > 0)"
+                            v-if="
+                                getEnabledEvents(integration).length > 0 ||
+                                (integration.githubAppInstallations && integration.githubAppInstallations.length > 0)
+                            "
                             class="border-t pt-2"
                         >
                             <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-2">
@@ -531,20 +534,31 @@
                                 Webhook Events
                             </div>
                             <div class="flex flex-wrap gap-1.5">
-                                <template v-for="inst in integration.githubAppInstallations" :key="inst.installationId">
+                                <template
+                                    v-for="inst in integration.githubAppInstallations"
+                                    :key="inst.installationId"
+                                >
                                     <!-- Editing mode -->
                                     <template v-if="editingEvents[inst.installationId]">
                                         <button
                                             v-for="event in SUPPORTED_EVENTS"
                                             :key="event"
                                             class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer"
-                                            :class="editingEvents[inst.installationId]?.has(event)
-                                                ? 'bg-primary/10 border-primary text-primary'
-                                                : 'bg-muted/50 border-border text-muted-foreground hover:border-primary/50'"
+                                            :class="
+                                                editingEvents[inst.installationId]?.has(event)
+                                                    ? 'bg-primary/10 border-primary text-primary'
+                                                    : 'bg-muted/50 border-border text-muted-foreground hover:border-primary/50'
+                                            "
                                             @click="toggleEvent(inst.installationId, event)"
                                         >
-                                            <CheckCircle2 v-if="editingEvents[inst.installationId]?.has(event)" class="h-3 w-3" />
-                                            <XCircle v-else class="h-3 w-3" />
+                                            <CheckCircle2
+                                                v-if="editingEvents[inst.installationId]?.has(event)"
+                                                class="h-3 w-3"
+                                            />
+                                            <XCircle
+                                                v-else
+                                                class="h-3 w-3"
+                                            />
                                             {{ formatEventName(event) }}
                                         </button>
                                         <div class="flex items-center gap-1 ml-1">
