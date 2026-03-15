@@ -66,11 +66,24 @@ export const useIntegration = () => {
         }
     };
 
+    const rotateSecret = async (id: string): Promise<Integration> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${id}/rotate-secret`, {
+            method: 'POST',
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to rotate secret: ${response.status}`);
+        }
+
+        return (await response.json()) as Integration;
+    };
+
     return {
         getIntegrations,
         isLoadingIntegrations,
         createIntegration,
         updateIntegration,
         deleteIntegration,
+        rotateSecret,
     };
 };

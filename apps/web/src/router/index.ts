@@ -10,10 +10,16 @@ const router = createRouter({
             component: Default,
             children: [
                 {
-                    path: 'dashboard',
-                    name: 'dashboard',
+                    path: 'overview',
+                    name: 'overview',
+                    component: () => import('@/components/DashboardOverview.vue'),
+                    meta: {title: 'Overview'},
+                },
+                {
+                    path: 'workflows',
+                    name: 'workflows',
                     component: () => import('@/components/WorkflowOverview.vue'),
-                    meta: {title: 'Dashboard'},
+                    meta: {title: 'Workflows'},
                 },
                 {
                     path: 'notifications',
@@ -27,23 +33,10 @@ const router = createRouter({
                     component: () => import('@/components/IntegrationsOverview.vue'),
                     meta: {title: 'Integrations'},
                 },
-                {
-                    path: 'analytics',
-                    redirect: '/analytics/system-dora',
-                },
-                {
-                    path: 'analytics/:id',
-                    name: 'analytics-dashboard',
-                    component: () => import('@/components/AnalyticsShell.vue'),
-                    meta: {title: 'Analytics'},
-                },
-                {
-                    path: 'metrics',
-                    redirect: '/analytics/system-dora',
-                },
+
                 {
                     path: '',
-                    redirect: '/dashboard',
+                    redirect: '/overview',
                 },
             ],
         },
@@ -55,7 +48,7 @@ const router = createRouter({
         {
             path: '/:pathMatch(.*)*',
             name: 'not-found',
-            redirect: '/dashboard',
+            redirect: '/overview',
         },
     ],
 });

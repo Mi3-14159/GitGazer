@@ -1,26 +1,16 @@
 <script setup lang="ts">
     import {useAuth} from '@/composables/useAuth';
     import {useSettingsStore} from '@/stores/settings';
-    import {onMounted, watch} from 'vue';
+    import {onMounted} from 'vue';
     import {RouterView, useRouter} from 'vue-router';
-    import {useTheme} from 'vuetify';
 
     const {isAuthenticated} = useAuth();
     const router = useRouter();
-    const theme = useTheme();
-    const settingsStore = useSettingsStore();
 
-    // Set document title
+    // Initialize settings store (triggers theme application to DOM)
+    useSettingsStore();
+
     document.title = 'GitGazer';
-
-    // Apply theme changes
-    watch(
-        () => settingsStore.resolvedTheme,
-        (newTheme) => {
-            theme.change(newTheme);
-        },
-        {immediate: true},
-    );
 
     const initializeAuth = async () => {
         try {
@@ -40,7 +30,7 @@
 </script>
 
 <template>
-    <v-app>
+    <div class="min-h-screen bg-background text-foreground">
         <RouterView />
-    </v-app>
+    </div>
 </template>

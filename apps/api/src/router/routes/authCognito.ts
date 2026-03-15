@@ -2,7 +2,6 @@ import config from '@/config';
 import {getLogger} from '@/logger';
 import {createHmac, randomBytes} from 'crypto';
 
-import {State, UserAttributes, WSToken} from '@gitgazer/db/types';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
 import {AppRequestContext} from '@/types';
 import {
@@ -13,6 +12,7 @@ import {
     Router,
     UnauthorizedError,
 } from '@aws-lambda-powertools/event-handler/http';
+import {State, UserAttributes, WSToken} from '@gitgazer/db/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 const router = new Router();
 
@@ -20,7 +20,7 @@ const router = new Router();
 const validateRedirectUrl = (url: string): string | null => {
     try {
         const parsed = new URL(url);
-        const allowedOrigins = JSON.parse(config.get('allowedFrontendOrigins')) as string[];
+        const allowedOrigins = config.get('allowedFrontendOrigins');
         const isAllowed = allowedOrigins.some((origin) => {
             const allowedOrigin = new URL(origin);
             return parsed.origin === allowedOrigin.origin;

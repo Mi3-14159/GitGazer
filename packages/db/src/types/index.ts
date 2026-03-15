@@ -83,10 +83,6 @@ export type Event<Subtype> = {
     event: Subtype;
 };
 
-export enum ProjectionType {
-    minimal = 'minimal',
-}
-
 export type PaginationCursor = {
     createdAt: string;
     id: number;
@@ -99,10 +95,37 @@ export type PaginatedResponse<T> = {
 
 export type GetWorkflowsResponse = PaginatedResponse<WorkflowRunWithRelations>;
 
+export type OverviewStats = {
+    total: number;
+    success: number;
+    failure: number;
+    inProgress: number;
+    other: number;
+};
+
+export type OverviewResponse = {
+    stats: OverviewStats;
+    recentWorkflows: WorkflowRunWithRelations[];
+};
+
+export const WORKFLOW_FILTER_COLUMNS = ['workflow', 'repository', 'branch', 'status', 'actor', 'commit', 'run_number'] as const;
+
+export type WorkflowFilterColumn = (typeof WORKFLOW_FILTER_COLUMNS)[number];
+
+export const ROLLING_WINDOWS = ['1h', '24h', '7d', '30d'] as const;
+
+export type RollingWindow = (typeof ROLLING_WINDOWS)[number];
+
+export type WorkflowFilters = Partial<Record<WorkflowFilterColumn, string[]>> & {
+    created_from?: string;
+    created_to?: string;
+    window?: RollingWindow;
+};
+
 export type WorkflowsRequestParameters = {
     limit?: number;
-    projection?: ProjectionType;
     cursor?: PaginationCursor;
+    filters?: WorkflowFilters;
 };
 
 export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRequestParameters => {
@@ -114,10 +137,6 @@ export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRe
         return false;
     }
 
-    if (params.projection && !Object.values(ProjectionType).includes(params.projection)) {
-        return false;
-    }
-
     if (params.cursor !== undefined) {
         if (
             typeof params.cursor !== 'object' ||
@@ -126,6 +145,32 @@ export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRe
             typeof params.cursor.id !== 'number'
         ) {
             return false;
+        }
+    }
+
+    if (params.filters !== undefined) {
+        if (typeof params.filters !== 'object' || params.filters === null) {
+            return false;
+        }
+        for (const [key, values] of Object.entries(params.filters)) {
+            if (key === 'created_from' || key === 'created_to') {
+                if (typeof values !== 'string') {
+                    return false;
+                }
+                continue;
+            }
+            if (key === 'window') {
+                if (!ROLLING_WINDOWS.includes(values as RollingWindow)) {
+                    return false;
+                }
+                continue;
+            }
+            if (!WORKFLOW_FILTER_COLUMNS.includes(key as WorkflowFilterColumn)) {
+                return false;
+            }
+            if (!Array.isArray(values) || !values.every((v: unknown) => typeof v === 'string')) {
+                return false;
+            }
         }
     }
 

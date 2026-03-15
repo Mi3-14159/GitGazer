@@ -8,6 +8,7 @@ import importRoutes from '@/router/routes/import';
 import integrationsRoutes from '@/router/routes/integrations';
 import metricsRoutes from '@/router/routes/metrics';
 import notificationsRoutes from '@/router/routes/notifications';
+import overviewRoutes from '@/router/routes/overview';
 import workflowsRoutes from '@/router/routes/workflows';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {compress, cors} from '@aws-lambda-powertools/event-handler/http/middleware';
@@ -16,7 +17,7 @@ export const createApp = (): Router => {
     const logger = getLogger();
     logger.info('Setting up routes');
 
-    const corsOrigins = JSON.parse(config.get('corsOrigins')) as string[];
+    const corsOrigins = config.get('corsOrigins');
 
     const app = new Router({logger});
     app.use(compress());
@@ -36,6 +37,7 @@ export const createApp = (): Router => {
     app.includeRouter(feFailover);
     app.includeRouter(notificationsRoutes);
     app.includeRouter(workflowsRoutes);
+    app.includeRouter(overviewRoutes);
     app.includeRouter(integrationsRoutes);
     app.includeRouter(metricsRoutes);
 

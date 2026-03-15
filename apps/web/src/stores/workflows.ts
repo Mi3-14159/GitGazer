@@ -3,8 +3,8 @@ import {
     EmitterWebhookEventName,
     GetWorkflowsResponse,
     PaginationCursor,
-    ProjectionType,
     StreamEvent,
+    WorkflowFilters,
     WorkflowJob,
     WorkflowRunWithRelations,
     WorkflowsRequestParameters,
@@ -26,6 +26,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     let tokenRenewalTimer: ReturnType<typeof setTimeout> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let cursor: PaginationCursor | undefined;
+    let activeFilters: WorkflowFilters = {};
 
     const fetchWebSocketToken = async (): Promise<string> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/auth/ws-token`);
@@ -185,6 +186,19 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 }
             });
 
+            // Append active filters as comma-separated values
+            for (const [column, values] of Object.entries(activeFilters)) {
+                if (column === 'created_from' || column === 'created_to' || column === 'window') {
+                    if (typeof values === 'string' && values.length > 0) {
+                        queryParams.append(column, values);
+                    }
+                    continue;
+                }
+                if (Array.isArray(values) && values.length > 0) {
+                    queryParams.append(column, values.join(','));
+                }
+            }
+
             if (cursor) {
                 queryParams.append('cursor', JSON.stringify(cursor));
             }
@@ -211,7 +225,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const handleListWorkflows = async () => {
         if (!hasMore.value || isLoading.value) return;
 
-        workflowsArray.value.push(...(await getJobs({limit: 100, projection: ProjectionType.minimal})));
+        workflowsArray.value.push(...(await getJobs({limit: 100})));
     };
 
     const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRunWithRelations | WorkflowJob) => {
@@ -256,10 +270,21 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         }
     };
 
-    const initializeStore = async () => {
+    const setFilters = async (filters: WorkflowFilters) => {
+        activeFilters = filters;
+        cursor = undefined;
+        hasMore.value = true;
+        workflowsArray.value = [];
+        await handleListWorkflows();
+    };
+
+    const initializeStore = async (initialFilters?: WorkflowFilters) => {
         // Reset pagination state
         cursor = undefined;
         hasMore.value = true;
+        if (initialFilters) {
+            activeFilters = initialFilters;
+        }
 
         // Connect to WebSocket for real-time updates
         if (WS_ENDPOINT) {
@@ -275,5 +300,6 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         hasMore,
         initializeStore,
         handleListWorkflows,
+        setFilters,
     };
 });

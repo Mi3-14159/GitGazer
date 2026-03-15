@@ -31,8 +31,8 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
   secret_id = aws_secretsmanager_secret.lambda_config.id
   secret_string = jsonencode({
     environment            = terraform.workspace
-    corsOrigins            = jsonencode(local.cors_allowed_origins)
-    allowedFrontendOrigins = jsonencode(compact(concat(["https://${aws_cloudfront_distribution.this.domain_name}"], local.cors_allowed_origins)))
+    corsOrigins            = local.cors_allowed_origins
+    allowedFrontendOrigins = compact(concat(["https://${aws_cloudfront_distribution.this.domain_name}"], local.cors_allowed_origins))
     cognito = {
       userPoolId   = aws_cognito_user_pool.this.id
       clientId     = aws_cognito_user_pool_client.this.id

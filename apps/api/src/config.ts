@@ -24,14 +24,14 @@ const config = convict({
     },
     corsOrigins: {
         doc: 'CORS allowed origins serialised as a JSON array string',
-        format: String,
-        default: '[]',
+        format: Array,
+        default: [],
         env: 'CORS_ORIGINS',
     },
     allowedFrontendOrigins: {
         doc: 'Frontend origins allowed for redirects, serialised as a JSON array string',
-        format: String,
-        default: '[]',
+        format: Array,
+        default: [],
         env: 'ALLOWED_FRONTEND_ORIGINS',
     },
     cognito: {
