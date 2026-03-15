@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import GitHubAppLinkDialog from '@/components/GitHubAppLinkDialog.vue';
     import IntegrationDetailsCard from '@/components/IntegrationDetailsCard.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
@@ -31,11 +32,18 @@
         Zap,
     } from 'lucide-vue-next';
     import {nextTick, onMounted, reactive, ref} from 'vue';
+    import {useRoute, useRouter} from 'vue-router';
 
     const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
+    const route = useRoute();
+    const router = useRouter();
 
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
     const {linkInstallation, unlinkInstallation, updateWebhookEvents} = useGithubApp();
+
+    // GitHub App callback linking dialog
+    const showAppLinkDialog = ref(false);
+    const callbackInstallationId = ref<number | null>(null);
 
     function getWebhookUrl(integrationId: string): string {
         return `${IMPORT_URL_BASE}/${integrationId}`;
@@ -102,6 +110,16 @@
     onMounted(async () => {
         const data = await getIntegrations();
         if (data) integrations.value = data;
+
+        // Handle GitHub App installation callback
+        const installationIdParam = route.query.installation_id;
+        const setupAction = route.query.setup_action;
+        if (installationIdParam && (setupAction === 'install' || setupAction === 'update')) {
+            callbackInstallationId.value = Number(installationIdParam);
+            showAppLinkDialog.value = true;
+            // Clean up query params without triggering navigation
+            router.replace({path: route.path, query: {}});
+        }
     });
 
     function getEnabledEvents(integration: Integration): string[] {
@@ -212,6 +230,35 @@
             if (data) integrations.value = data;
         } catch (e) {
             linkError.value = e instanceof Error ? e.message : 'Failed to link installation';
+        }
+    }
+
+    const appLinkError = ref('');
+
+    async function handleLinkToExisting(integrationId: string, installationId: number) {
+        appLinkError.value = '';
+        try {
+            await linkInstallation(integrationId, installationId);
+            const data = await getIntegrations();
+            if (data) integrations.value = data;
+            showAppLinkDialog.value = false;
+            callbackInstallationId.value = null;
+        } catch (e) {
+            appLinkError.value = e instanceof Error ? e.message : 'Failed to link installation';
+        }
+    }
+
+    async function handleCreateAndLink(label: string, installationId: number) {
+        appLinkError.value = '';
+        try {
+            const created = await createIntegration(label);
+            await linkInstallation(created.integrationId, installationId);
+            const data = await getIntegrations();
+            if (data) integrations.value = data;
+            showAppLinkDialog.value = false;
+            callbackInstallationId.value = null;
+        } catch (e) {
+            appLinkError.value = e instanceof Error ? e.message : 'Failed to link installation';
         }
     }
 
@@ -877,5 +924,16 @@
                 </div>
             </template>
         </Dialog>
+
+        <!-- GitHub App Link Dialog (callback flow) -->
+        <GitHubAppLinkDialog
+            :open="showAppLinkDialog"
+            :installation-id="callbackInstallationId"
+            :integrations="integrations"
+            :error="appLinkError"
+            @update:open="showAppLinkDialog = $event"
+            @link-to-existing="handleLinkToExisting"
+            @create-and-link="handleCreateAndLink"
+        />
     </div>
 </template>

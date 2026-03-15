@@ -30,6 +30,7 @@ declare module 'vue' {
     DialogHeader: typeof import('./src/components/ui/DialogHeader.vue')['default']
     DialogTitle: typeof import('./src/components/ui/DialogTitle.vue')['default']
     DropdownMenu: typeof import('./src/components/ui/DropdownMenu.vue')['default']
+    GitHubAppLinkDialog: typeof import('./src/components/GitHubAppLinkDialog.vue')['default']
     Input: typeof import('./src/components/ui/Input.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/IntegrationDetailsCard.vue')['default']
     IntegrationsOverview: typeof import('./src/components/IntegrationsOverview.vue')['default']
