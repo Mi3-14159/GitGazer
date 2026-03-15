@@ -63,6 +63,7 @@ declare module 'vue' {
     TabsTrigger: typeof import('./src/components/ui/TabsTrigger.vue')['default']
     Textarea: typeof import('./src/components/ui/Textarea.vue')['default']
     ThemeToggle: typeof import('./src/components/ThemeToggle.vue')['default']
+    Tooltip: typeof import('./src/components/ui/Tooltip.vue')['default']
     UnlinkInstallationDialog: typeof import('./src/components/integrations/UnlinkInstallationDialog.vue')['default']
     ViewManager: typeof import('./src/components/workflows/ViewManager.vue')['default']
     WebhookCredentials: typeof import('./src/components/integrations/WebhookCredentials.vue')['default']

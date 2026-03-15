@@ -1,34 +1,39 @@
 <script setup lang="ts">
-    import type { MetricResult } from '@common/types';
-import { format, parseISO } from 'date-fns';
-import { BarChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
-import { use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { ArrowDown, ArrowUp, Minus } from 'lucide-vue-next';
-import { computed } from 'vue';
-import VChart from 'vue-echarts';
+    import Card from '@/components/ui/Card.vue';
+    import type {WidgetSize} from '@/types/analytics';
+    import type {MetricResult} from '@common/types';
+    import {format, parseISO} from 'date-fns';
+    import {BarChart} from 'echarts/charts';
+    import {GraphicComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
+    import {use} from 'echarts/core';
+    import {CanvasRenderer} from 'echarts/renderers';
+    import {computed, shallowRef} from 'vue';
+    import VChart from 'vue-echarts';
 
-    use([CanvasRenderer, BarChart, GridComponent, TooltipComponent]);
+    use([CanvasRenderer, BarChart, GraphicComponent, GridComponent, TitleComponent, TooltipComponent]);
 
-    const props = defineProps<{
-        metric: MetricResult | null;
-        isLoading: boolean;
-        color?: string;
-    }>();
+    const props = withDefaults(
+        defineProps<{
+            title: string;
+            size: WidgetSize;
+            metric: MetricResult | null;
+            isLoading: boolean;
+            color?: string;
+            description?: string;
+        }>(),
+        {color: undefined, description: undefined},
+    );
 
-    const trendIcon = computed(() => {
-        if (!props.metric) return Minus;
-        if (props.metric.summary.trend === 'up') return ArrowUp;
-        if (props.metric.summary.trend === 'down') return ArrowDown;
-        return Minus;
-    });
+    const popupOpen = shallowRef(false);
 
-    const trendClass = computed(() => {
-        if (!props.metric) return 'text-muted-foreground';
-        if (props.metric.summary.trend === 'up') return 'text-green-600 dark:text-green-400';
-        if (props.metric.summary.trend === 'down') return 'text-red-600 dark:text-red-400';
-        return 'text-muted-foreground';
+    const sizeClass = computed(() => {
+        const map: Record<WidgetSize, string> = {
+            small: 'col-span-1',
+            medium: 'col-span-1 md:col-span-2',
+            large: 'col-span-1 md:col-span-3',
+            full: 'col-span-1 md:col-span-4',
+        };
+        return map[props.size];
     });
 
     const changePercent = computed(() => {
@@ -49,9 +54,21 @@ import VChart from 'vue-echarts';
         return val % 1 === 0 ? String(val) : val.toFixed(1);
     });
 
+    const trendText = computed(() => {
+        if (changePercent.value === null) return '';
+        const arrow = props.metric?.summary.trend === 'up' ? '▲' : props.metric?.summary.trend === 'down' ? '▼' : '—';
+        return `${arrow} ${Math.abs(changePercent.value)}%`;
+    });
+
+    const trendColor = computed(() => {
+        if (!props.metric) return '#9ca3af';
+        if (props.metric.summary.trend === 'up') return '#22c55e';
+        if (props.metric.summary.trend === 'down') return '#ef4444';
+        return '#9ca3af';
+    });
+
     const HOUR_MS = 3_600_000;
 
-    /** Detect data step in ms for date format selection. */
     const dataInfo = computed(() => {
         const data = props.metric?.data;
         if (!data || data.length < 2) return {stepMs: 0};
@@ -59,7 +76,6 @@ import VChart from 'vue-echarts';
         return {stepMs};
     });
 
-    /** Pick a date format string based on the time interval between data points. */
     function dateFormatForStep(stepMs: number): string {
         if (stepMs <= HOUR_MS) return 'MMM d, HH:mm';
         if (stepMs <= HOUR_MS * 24) return 'MMM d';
@@ -75,17 +91,86 @@ import VChart from 'vue-echarts';
         }
     }
 
+    function wrapText(text: string, maxLen = 50): string {
+        const words = text.split(' ');
+        let line = '';
+        const lines: string[] = [];
+        for (const word of words) {
+            if (line && line.length + word.length + 1 > maxLen) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = line ? `${line} ${word}` : word;
+            }
+        }
+        if (line) lines.push(line);
+        return lines.join('<br/>');
+    }
+
     const chartOption = computed(() => {
         const data = props.metric?.data;
-        if (!data?.length) return null;
-
         const barColor = props.color ?? '#6366f1';
+
+        const titles: Record<string, unknown>[] = [
+            {
+                text: props.title,
+                left: 12,
+                top: 8,
+                textStyle: {fontSize: 14, fontWeight: 600, color: '#374151'},
+            },
+        ];
+
+        if (props.metric) {
+            titles.push({
+                text: formattedValue.value,
+                subtext: trendText.value,
+                right: -48,
+                top: 8,
+                textAlign: 'right' as const,
+                textStyle: {fontSize: 22, fontWeight: 700, color: '#111827'},
+                subtextStyle: {fontSize: 11, fontWeight: 500, color: trendColor.value},
+            });
+        }
+
+        // Info icon + click-toggled description popup
+        const graphic: Record<string, unknown>[] = [];
+        if (props.description) {
+            graphic.push({
+                type: 'text',
+                left: 12 + props.title.length * 8.5 + 4,
+                top: 13,
+                style: {
+                    text: 'ⓘ',
+                    fontSize: 16,
+                    fill: '#666',
+                    cursor: 'pointer',
+                },
+                tooltip: {
+                    show: true,
+                    formatter: wrapText(props.description),
+                    confine: true,
+                },
+            });
+        }
+
+        if (!data?.length) {
+            titles.push({
+                text: 'No data available',
+                left: 'center',
+                bottom: 20,
+                textStyle: {fontSize: 12, color: '#9ca3af', fontWeight: 400},
+            });
+            return {title: titles, graphic};
+        }
+
         const {stepMs} = dataInfo.value;
         const labels = data.map((d) => formatPeriod(d.period, stepMs));
         const labelInterval = data.length <= 10 ? 0 : Math.max(0, Math.floor(data.length / 5) - 1);
 
         return {
-            grid: {top: 4, right: 4, bottom: 20, left: 36},
+            title: titles,
+            graphic,
+            grid: {top: 64, right: 12, bottom: 24, left: 40},
             tooltip: {trigger: 'axis' as const},
             xAxis: {
                 type: 'category' as const,
@@ -113,54 +198,26 @@ import VChart from 'vue-echarts';
 </script>
 
 <template>
-    <!-- Loading skeleton -->
-    <div
-        v-if="isLoading && !props.metric"
-        class="space-y-3 animate-pulse"
-    >
-        <div class="flex items-center justify-between">
-            <div>
-                <div class="h-8 w-16 bg-muted rounded" />
-                <div class="h-3 w-12 bg-muted rounded mt-1" />
+    <Card :class="sizeClass">
+        <!-- Loading skeleton -->
+        <div
+            v-if="isLoading && !props.metric"
+            class="p-4 space-y-3 animate-pulse"
+        >
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="h-4 w-32 bg-muted rounded" />
+                    <div class="h-3 w-48 bg-muted rounded mt-1" />
+                </div>
+                <div class="h-6 w-16 bg-muted rounded" />
             </div>
+            <div class="h-28 bg-muted rounded" />
         </div>
-        <div class="h-24 bg-muted rounded" />
-    </div>
-
-    <div
-        v-else
-        class="space-y-3"
-    >
-        <div class="flex items-center justify-between">
-            <div>
-                <div class="text-2xl font-bold">{{ formattedValue }}</div>
-                <p class="text-xs text-muted-foreground">{{ props.metric?.unit ?? '' }}</p>
-            </div>
-            <div
-                v-if="changePercent !== null"
-                class="flex items-center gap-1"
-                :class="trendClass"
-            >
-                <component
-                    :is="trendIcon"
-                    class="h-3 w-3"
-                />
-                <span class="text-xs font-medium">{{ Math.abs(changePercent) }}%</span>
-            </div>
-        </div>
-
-        <!-- ECharts bar chart -->
         <VChart
-            v-if="chartOption"
+            v-else
             :option="chartOption"
             autoresize
-            style="height: 112px; width: 100%"
+            style="height: 200px; width: 100%"
         />
-        <div
-            v-else
-            class="flex items-center justify-center h-24 text-xs text-muted-foreground"
-        >
-            No data available
-        </div>
-    </div>
+    </Card>
 </template>

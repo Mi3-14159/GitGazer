@@ -94,3 +94,21 @@ export const defaultDashboards: Dashboard[] = [
         ],
     },
 ];
+
+export const widgetCalculationInfo: Record<WidgetType, string> = {
+    deployment_frequency:
+        'Number of successful deployments to production per time period. Counted from workflow runs on the default branch that complete successfully.',
+    lead_time:
+        'Median time from first commit in a PR to that code running in production. Measured as commit timestamp → successful deployment workflow completion.',
+    mttr: 'Average elapsed time between a failed deployment and the next successful deployment on the same branch. Only incidents resolved within the window are included.',
+    change_failure_rate:
+        'Percentage of deployments to production that result in a failure (rollback, hotfix, or incident). Calculated as failed deployments ÷ total deployments × 100.',
+    pr_merge_rate:
+        'Percentage of opened pull requests that were merged within the selected time window. Calculated as merged PRs ÷ total opened PRs × 100.',
+    activity_volume: 'Total number of commits pushed and pull requests opened per time period across all tracked repositories.',
+    ci_duration: 'Average wall-clock duration of CI workflow runs from queue to completion. Includes both successful and failed runs.',
+    pr_cycle_time: 'Median elapsed time from when a pull request is opened to when it is merged. Excludes PRs that were closed without merging.',
+    workflow_queue_time:
+        'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
+    contributor_count: 'Number of unique authors who pushed at least one commit or opened at least one PR during the selected time period.',
+};

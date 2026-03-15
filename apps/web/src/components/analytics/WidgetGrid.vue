@@ -1,5 +1,4 @@
 <script setup lang="ts">
-    import WidgetWrapper from '@/components/analytics/WidgetWrapper.vue';
     import MetricWidget from '@/components/analytics/widgets/MetricWidget.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Card from '@/components/ui/Card.vue';
@@ -9,6 +8,7 @@
     import CardTitle from '@/components/ui/CardTitle.vue';
     import {metricFieldMap, useMetrics} from '@/composables/useMetric';
     import type {Dashboard, WidgetType} from '@/types/analytics';
+    import {widgetCalculationInfo} from '@/types/analytics';
     import type {MetricResult, MetricsFilter} from '@common/types';
     import {Lock} from 'lucide-vue-next';
     import {ref, toRef, watch} from 'vue';
@@ -92,19 +92,16 @@
         </CardHeader>
         <CardContent>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <WidgetWrapper
+                <MetricWidget
                     v-for="widget in dashboard.widgets"
                     :key="widget.id"
                     :title="widget.title"
                     :size="widget.size"
-                    :removable="false"
-                >
-                    <MetricWidget
-                        :metric="metrics[widget.type] ?? null"
-                        :is-loading="isLoading"
-                        :color="widgetColorMap[widget.type]"
-                    />
-                </WidgetWrapper>
+                    :description="widgetCalculationInfo[widget.type]"
+                    :metric="metrics[widget.type] ?? null"
+                    :is-loading="isLoading"
+                    :color="widgetColorMap[widget.type]"
+                />
             </div>
         </CardContent>
     </Card>
