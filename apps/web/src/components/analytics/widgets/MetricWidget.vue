@@ -1,8 +1,15 @@
 <script setup lang="ts">
-    import type {MetricResult} from '@common/types';
-    import {format, parseISO} from 'date-fns';
-    import {ArrowDown, ArrowUp, Minus} from 'lucide-vue-next';
-    import {computed} from 'vue';
+    import type { MetricResult } from '@common/types';
+import { format, parseISO } from 'date-fns';
+import { BarChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent } from 'echarts/components';
+import { use } from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
+import { ArrowDown, ArrowUp, Minus } from 'lucide-vue-next';
+import { computed } from 'vue';
+import VChart from 'vue-echarts';
+
+    use([CanvasRenderer, BarChart, GridComponent, TooltipComponent]);
 
     const props = defineProps<{
         metric: MetricResult | null;
@@ -42,46 +49,66 @@
         return val % 1 === 0 ? String(val) : val.toFixed(1);
     });
 
-    const maxDataValue = computed(() => {
-        if (!props.metric?.data?.length) return 1;
-        return Math.max(...props.metric.data.map((d) => d.value), 1);
-    });
+    const HOUR_MS = 3_600_000;
 
-    /** Detect granularity from data density and format period labels accordingly. */
-    const dateFormat = computed(() => {
+    /** Detect data step in ms for date format selection. */
+    const dataInfo = computed(() => {
         const data = props.metric?.data;
-        if (!data || data.length < 2) return 'MMM d';
-        const first = parseISO(data[0].period).getTime();
-        const second = parseISO(data[1].period).getTime();
-        const diffHours = (second - first) / (1000 * 60 * 60);
-        if (diffHours <= 1) return 'MMM d, HH:mm';
-        if (diffHours <= 24) return 'MMM d';
-        if (diffHours <= 24 * 7) return 'MMM d';
-        return 'MMM yyyy';
+        if (!data || data.length < 2) return {stepMs: 0};
+        const stepMs = new Date(data[1].period).getTime() - new Date(data[0].period).getTime();
+        return {stepMs};
     });
 
-    function formatPeriod(period: string): string {
+    /** Pick a date format string based on the time interval between data points. */
+    function dateFormatForStep(stepMs: number): string {
+        if (stepMs <= HOUR_MS) return 'MMM d, HH:mm';
+        if (stepMs <= HOUR_MS * 24) return 'MMM d';
+        if (stepMs <= HOUR_MS * 24 * 7) return 'MMM d';
+        return 'MMM yyyy';
+    }
+
+    function formatPeriod(period: string, stepMs: number): string {
         try {
-            return format(parseISO(period), dateFormat.value);
+            return format(parseISO(period), dateFormatForStep(stepMs));
         } catch {
             return period;
         }
     }
 
-    /** Pick evenly-spaced tick indices including first and last. */
-    const tickIndices = computed(() => {
+    const chartOption = computed(() => {
         const data = props.metric?.data;
-        if (!data || data.length === 0) return [];
-        const len = data.length;
-        if (len <= 5) return data.map((_, i) => i);
-        const tickCount = 5;
-        const indices: number[] = [0];
-        const step = (len - 1) / (tickCount - 1);
-        for (let t = 1; t < tickCount - 1; t++) {
-            indices.push(Math.round(step * t));
-        }
-        indices.push(len - 1);
-        return indices;
+        if (!data?.length) return null;
+
+        const barColor = props.color ?? '#6366f1';
+        const {stepMs} = dataInfo.value;
+        const labels = data.map((d) => formatPeriod(d.period, stepMs));
+        const labelInterval = data.length <= 10 ? 0 : Math.max(0, Math.floor(data.length / 5) - 1);
+
+        return {
+            grid: {top: 4, right: 4, bottom: 20, left: 36},
+            tooltip: {trigger: 'axis' as const},
+            xAxis: {
+                type: 'category' as const,
+                data: labels,
+                axisLabel: {fontSize: 10, color: '#9ca3af', interval: labelInterval},
+                axisLine: {show: false},
+                axisTick: {show: false},
+            },
+            yAxis: {
+                type: 'value' as const,
+                splitNumber: 3,
+                axisLabel: {fontSize: 10, color: '#9ca3af'},
+                splitLine: {lineStyle: {color: '#e5e7eb', type: 'dashed' as const}},
+            },
+            series: [
+                {
+                    type: 'bar' as const,
+                    data: data.map((d) => d.value),
+                    itemStyle: {color: barColor, borderRadius: [2, 2, 0, 0]},
+                    barMaxWidth: 16,
+                },
+            ],
+        };
     });
 </script>
 
@@ -97,7 +124,7 @@
                 <div class="h-3 w-12 bg-muted rounded mt-1" />
             </div>
         </div>
-        <div class="h-20 bg-muted rounded" />
+        <div class="h-24 bg-muted rounded" />
     </div>
 
     <div
@@ -122,44 +149,18 @@
             </div>
         </div>
 
-        <!-- Mini bar chart -->
-        <div
-            v-if="props.metric?.data?.length"
-            class="flex items-end gap-px h-20"
-        >
-            <div
-                v-for="(point, i) in props.metric.data"
-                :key="i"
-                class="flex-1 rounded-t transition-all"
-                :class="color ?? 'bg-primary'"
-                :style="{height: `${Math.max(4, (point.value / maxDataValue) * 100)}%`}"
-                :title="`${point.period}: ${point.value}`"
-            />
-        </div>
+        <!-- ECharts bar chart -->
+        <VChart
+            v-if="chartOption"
+            :option="chartOption"
+            autoresize
+            style="height: 112px; width: 100%"
+        />
         <div
             v-else
-            class="flex items-center justify-center h-20 text-xs text-muted-foreground"
+            class="flex items-center justify-center h-24 text-xs text-muted-foreground"
         >
             No data available
-        </div>
-
-        <!-- Period labels -->
-        <div
-            v-if="props.metric?.data?.length"
-            class="relative h-4 text-[10px] text-muted-foreground"
-        >
-            <span
-                v-for="idx in tickIndices"
-                :key="idx"
-                class="absolute -translate-x-1/2 whitespace-nowrap"
-                :class="{
-                    '!translate-x-0': idx === 0,
-                    '!-translate-x-full': idx === props.metric!.data.length - 1,
-                }"
-                :style="{left: `${(idx / (props.metric!.data.length - 1)) * 100}%`}"
-            >
-                {{ formatPeriod(props.metric!.data[idx].period) }}
-            </span>
         </div>
     </div>
 </template>

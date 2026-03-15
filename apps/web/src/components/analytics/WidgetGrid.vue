@@ -57,16 +57,16 @@
     watch([toRef(props, 'dashboard'), toRef(props, 'filter')], loadMetrics, {deep: true});
 
     const widgetColorMap: Record<string, string> = {
-        deployment_frequency: 'bg-green-500',
-        lead_time: 'bg-blue-500',
-        mttr: 'bg-purple-500',
-        change_failure_rate: 'bg-red-500',
-        pr_merge_rate: 'bg-emerald-500',
-        activity_volume: 'bg-orange-500',
-        ci_duration: 'bg-cyan-500',
-        pr_cycle_time: 'bg-indigo-500',
-        workflow_queue_time: 'bg-amber-500',
-        contributor_count: 'bg-pink-500',
+        deployment_frequency: '#22c55e',
+        lead_time: '#3b82f6',
+        mttr: '#a855f7',
+        change_failure_rate: '#ef4444',
+        pr_merge_rate: '#10b981',
+        activity_volume: '#f97316',
+        ci_duration: '#06b6d4',
+        pr_cycle_time: '#6366f1',
+        workflow_queue_time: '#f59e0b',
+        contributor_count: '#ec4899',
     };
 </script>
 
