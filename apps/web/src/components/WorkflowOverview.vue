@@ -63,17 +63,17 @@
     const visibleColumns = computed(() => currentView.value.columns.filter((c) => c.visible));
 
     const columnWidthClass: Record<string, string> = {
-        workflow: 'w-[17%]',
-        repository: 'w-[15%]',
-        branch: 'w-[11%]',
-        status: 'w-[11%]',
-        jobs: 'w-[7%]',
-        actor: 'w-[13%]',
-        duration: 'w-[8%]',
-        created: 'w-[10%]',
-        started: 'w-[10%]',
-        commit: 'w-[16%]',
-        run_number: 'w-[7%]',
+        workflow: 'w-[180px]',
+        repository: 'w-[160px]',
+        branch: 'w-[120px]',
+        status: 'w-[110px]',
+        jobs: 'w-[80px]',
+        actor: 'w-[140px]',
+        duration: 'w-[90px]',
+        created: 'w-[130px]',
+        started: 'w-[130px]',
+        commit: 'w-[180px]',
+        run_number: 'w-[80px]',
     };
 
     function getColumnValue(workflow: WorkflowRunWithRelations, columnId: string): string {
@@ -265,7 +265,7 @@
             v-else
             class="border rounded-lg overflow-x-auto min-w-0"
         >
-            <table class="w-full table-fixed text-sm">
+            <table class="w-full min-w-[1050px] table-fixed text-sm">
                 <thead class="bg-muted/50 border-b sticky top-0 z-10">
                     <tr>
                         <th class="text-left py-2 px-3 font-medium w-8"></th>
