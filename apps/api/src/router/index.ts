@@ -17,7 +17,7 @@ export const createApp = (): Router => {
     const logger = getLogger();
     logger.info('Setting up routes');
 
-    const corsOrigins = JSON.parse(config.get('corsOrigins')) as string[];
+    const corsOrigins = config.get('corsOrigins');
 
     const app = new Router({logger});
     app.use(compress());
