@@ -27,9 +27,9 @@ const validateWebSocketToken = (token: string): WSToken => {
 
     const [payloadEncoded, signatureEncoded] = parts;
 
-    // Verify signature
-    const {clientSecret} = config.get('cognito');
-    const expectedSignature = createHmac('sha256', clientSecret).update(payloadEncoded).digest('base64url');
+    // Verify signature using the dedicated WS token secret
+    const wsTokenSecret = config.get('wsTokenSecret');
+    const expectedSignature = createHmac('sha256', wsTokenSecret).update(payloadEncoded).digest('base64url');
 
     if (signatureEncoded !== expectedSignature) {
         throw new Error('Invalid token signature');
@@ -72,7 +72,7 @@ export const handler = async (event: WebsocketEvent, context: Context): Promise<
             result = await onConnect(event);
             break;
         default:
-            result = {statusCode: 400, body: `Invalid event type: ${event.requestContext.eventType}`};
+            result = {statusCode: 400, body: 'Invalid event type'};
     }
 
     return result;
@@ -129,9 +129,8 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
 
         logger.info('Connection stored for integrations', {integrations});
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
         logger.error('Failed to store connections', error as Error);
-        return {statusCode: 500, body: `Failed to connect: ${message}`};
+        return {statusCode: 500, body: 'Internal server error'};
     }
 
     return {statusCode: 200, body: 'Connected.'};

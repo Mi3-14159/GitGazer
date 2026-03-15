@@ -19,7 +19,7 @@ export const db = drizzle(rdsClient, {
 
 export type RdsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-const INTEGRATION_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];

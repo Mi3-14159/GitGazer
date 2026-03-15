@@ -43,8 +43,39 @@ export type NotificationRuleChannel = {
     webhook_url: string;
 };
 
+const ALLOWED_WEBHOOK_HOSTS = new Set(['hooks.slack.com']);
+
+const isAllowedWebhookUrl = (url: string): boolean => {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:') return false;
+        // Block private/internal IPs
+        const hostname = parsed.hostname;
+        if (
+            hostname === 'localhost' ||
+            hostname.startsWith('127.') ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            hostname === '169.254.169.254' ||
+            hostname.startsWith('169.254.') ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+            hostname === '[::1]' ||
+            hostname === '0.0.0.0'
+        ) {
+            return false;
+        }
+        return ALLOWED_WEBHOOK_HOSTS.has(parsed.hostname);
+    } catch {
+        return false;
+    }
+};
+
 export const isNotificationRuleChannel = (channel: any): channel is NotificationRuleChannel => {
-    return Object.values(NotificationRuleChannelType).includes(channel.type) && typeof channel.webhook_url === 'string';
+    return (
+        Object.values(NotificationRuleChannelType).includes(channel.type) &&
+        typeof channel.webhook_url === 'string' &&
+        isAllowedWebhookUrl(channel.webhook_url)
+    );
 };
 
 export type NotificationRuleRule = {

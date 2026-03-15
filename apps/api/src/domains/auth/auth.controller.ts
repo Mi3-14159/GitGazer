@@ -104,8 +104,8 @@ export const generateWsToken = (params: {userId: number; username: string; email
         nonce: randomBytes(16).toString('hex'),
     };
 
-    const {clientSecret} = config.get('cognito');
+    const wsTokenSecret = config.get('wsTokenSecret');
     const payload = Buffer.from(JSON.stringify(tokenPayload)).toString('base64url');
-    const signature = createHmac('sha256', clientSecret).update(payload).digest('base64url');
+    const signature = createHmac('sha256', wsTokenSecret).update(payload).digest('base64url');
     return `${payload}.${signature}`;
 };

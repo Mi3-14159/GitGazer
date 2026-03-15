@@ -1,7 +1,6 @@
 import {exchangeCodeForTokens, generateWsToken, refreshTokens} from '@/domains/auth/auth.controller';
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import config from '@/shared/config';
 import {buildClearCookies, extractTokenFromCookies} from '@/shared/helpers/cookies';
 import {getLogger} from '@/shared/logger';
 import {AppRequestContext} from '@/shared/types';
@@ -111,21 +110,14 @@ router.get('/api/auth/logout', async (reqCtx: AppRequestContext) => {
 
     const clearCookies = buildClearCookies();
 
-    const {domain, clientId} = config.get('cognito');
-    const logoutUrl = `https://${domain}/logout`;
-    const params = new URLSearchParams({
-        client_id: clientId,
-        logout_uri: validatedRedirectUrl,
-    });
-
-    logger.info('Logout successful, clearing cookies and redirecting to Cognito', {
+    logger.info('Logout successful, clearing cookies and redirecting', {
         redirectUrl: validatedRedirectUrl,
     });
 
     return new Response(null, {
         status: HttpStatusCodes.FOUND,
         headers: {
-            Location: `${logoutUrl}?${params.toString()}`,
+            Location: validatedRedirectUrl,
             'Set-Cookie': clearCookies.join(', '),
         },
     });

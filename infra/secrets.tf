@@ -20,6 +20,15 @@ data "aws_kms_secrets" "this" {
   }
 }
 
+resource "random_password" "ws_token_secret" {
+  length  = 64
+  special = false
+
+  lifecycle {
+    ignore_changes = [length, special]
+  }
+}
+
 resource "aws_secretsmanager_secret" "lambda_config" {
   name                    = "${var.name_prefix}-lambda-config-${terraform.workspace}"
   description             = "Application configuration for ${var.name_prefix} Lambda functions (${terraform.workspace})"
@@ -56,5 +65,6 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       privateKey    = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]
       webhookSecret = data.aws_kms_secrets.this.plaintext["gh_app_webhook_secret"]
     }
+    wsTokenSecret = random_password.ws_token_secret.result
   })
 }

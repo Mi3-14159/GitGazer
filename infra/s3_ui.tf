@@ -12,7 +12,7 @@ module "ui_bucket" {
   object_ownership         = "ObjectWriter"
 
   versioning = {
-    enabled = false
+    enabled = true
   }
 }
 

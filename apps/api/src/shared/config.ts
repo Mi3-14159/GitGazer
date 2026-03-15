@@ -115,6 +115,13 @@ const config = convict({
             sensitive: true,
         },
     },
+    wsTokenSecret: {
+        doc: 'Dedicated HMAC key for signing WebSocket tokens (separate from Cognito client secret)',
+        format: String,
+        default: '',
+        env: 'WS_TOKEN_SECRET',
+        sensitive: true,
+    },
 });
 
 /**

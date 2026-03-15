@@ -15,6 +15,10 @@ const MAX_ROWS = 1000;
 /** Strip SQL comments (block and line) so keywords can't be hidden inside them. */
 const stripSqlComments = (q: string): string => q.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ');
 
+/**
+ * Validate that the query is a safe, read-only SELECT statement.
+ * Defence-in-depth: keyword blocklist + structural checks + schema restrictions.
+ */
 const validateQuery = (query: string): void => {
     const trimmed = query.trim().replace(/;+$/, '').trim();
     if (!trimmed) {
@@ -28,6 +32,14 @@ const validateQuery = (query: string): void => {
     if (FORBIDDEN_SCHEMA_PATTERN.test(cleaned)) {
         throw new Error('Access to system catalogs and internal functions is not permitted.');
     }
+    // Structural check: after stripping comments & whitespace the query must start with SELECT
+    if (!/^\s*SELECT\b/i.test(cleaned)) {
+        throw new Error('Query must begin with SELECT.');
+    }
+    // Block semicolons inside the query body (prevent statement chaining)
+    if (/;/.test(trimmed.replace(/;+$/, ''))) {
+        throw new Error('Multiple statements are not permitted.');
+    }
 };
 
 export async function executeCustomQuery({integrationIds, query}: {integrationIds: string[]; query: string}): Promise<CustomQueryResponse> {
@@ -39,6 +51,8 @@ export async function executeCustomQuery({integrationIds, query}: {integrationId
         callback: async (tx) => {
             await tx.execute(sql.raw(`SET LOCAL statement_timeout = '10s'`));
             await tx.execute(sql.raw('SET TRANSACTION READ ONLY'));
+            // Restrict search_path to prevent unqualified table names resolving to unexpected schemas
+            await tx.execute(sql.raw(`SET LOCAL search_path = 'github'`));
 
             const wrappedQuery = `SELECT * FROM (${query.trim().replace(/;+$/, '')}) AS _user_query LIMIT ${MAX_ROWS}`;
             const result = await tx.execute(sql.raw(wrappedQuery));
