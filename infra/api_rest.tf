@@ -72,6 +72,9 @@ locals {
     "github/webhook" = {
       methods = ["POST"]
     },
+    "overview" = {
+      methods = ["GET"]
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations
