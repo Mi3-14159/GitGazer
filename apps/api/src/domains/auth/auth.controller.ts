@@ -100,7 +100,7 @@ export const generateWsToken = (params: {userId: number; username: string; email
         username: params.username,
         email: params.email,
         integrations: params.integrations,
-        exp: Math.floor(Date.now() / 1000) + 60 * 10,
+        exp: Math.floor(Date.now() / 1000) + 60,
         nonce: randomBytes(16).toString('hex'),
     };
 

@@ -4,7 +4,12 @@ import {withRlsTransaction} from '../client';
 import type {CustomQueryColumn, CustomQueryResponse, TableSchema} from '../types/metrics';
 
 const FORBIDDEN_KEYWORDS =
-    /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL|SET|RESET|DISCARD|LISTEN|NOTIFY|LOAD|VACUUM|CLUSTER|REINDEX|LOCK|PREPARE|DEALLOCATE|SAVEPOINT|RELEASE|ROLLBACK|COMMIT|BEGIN|DO)\b/i;
+    /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY|EXECUTE|CALL|SET|RESET|DISCARD|LISTEN|NOTIFY|LOAD|VACUUM|CLUSTER|REINDEX|LOCK|PREPARE|DEALLOCATE|SAVEPOINT|RELEASE|ROLLBACK|COMMIT|BEGIN|DO|EXPLAIN|SHOW|IMPORT|RAISE)\b/i;
+
+/** Block access to system catalogs and schemas outside the github schema. */
+const FORBIDDEN_SCHEMA_PATTERN =
+    /\b(pg_catalog|pg_temp|pg_toast|information_schema|pg_read_file|pg_ls_dir|pg_stat_file|lo_import|lo_export|pg_sleep|dblink|copy_to|copy_from)\b/i;
+
 const MAX_ROWS = 1000;
 
 /** Strip SQL comments (block and line) so keywords can't be hidden inside them. */
@@ -19,6 +24,9 @@ const validateQuery = (query: string): void => {
     const cleaned = stripSqlComments(trimmed);
     if (FORBIDDEN_KEYWORDS.test(cleaned)) {
         throw new Error('Only SELECT queries are allowed. DDL and DML statements are not permitted.');
+    }
+    if (FORBIDDEN_SCHEMA_PATTERN.test(cleaned)) {
+        throw new Error('Access to system catalogs and internal functions is not permitted.');
     }
 };
 

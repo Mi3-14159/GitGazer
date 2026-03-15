@@ -24,7 +24,8 @@ module "db" {
   cluster_performance_insights_retention_period = var.db_config.cluster_performance_insights_retention_period
   cluster_monitoring_interval                   = var.db_config.cluster_monitoring_interval
   apply_immediately                             = true
-  skip_final_snapshot                           = true
+  skip_final_snapshot                           = false
+  final_snapshot_identifier                     = "${var.name_prefix}-${terraform.workspace}-final"
   enable_http_endpoint                          = true
   cluster_instance_class                        = var.db_config.instance_class
   serverlessv2_scaling_configuration            = var.db_config.serverlessv2_scaling_configuration

@@ -10,6 +10,7 @@ import workflowsRoutes from '@/domains/workflows/workflows.routes';
 import config from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {authenticate} from '@/shared/middleware/authentication';
+import {originCheck} from '@/shared/middleware/origin-check';
 import feFailover from '@/shared/router/feFailover';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {compress, cors} from '@aws-lambda-powertools/event-handler/http/middleware';
@@ -31,6 +32,9 @@ export const createApp = (): Router => {
 
     // Add authentication middleware globally - it handles route-specific logic internally
     app.use(authenticate);
+
+    // CSRF protection: verify Origin header on state-changing requests
+    app.use(originCheck);
 
     app.includeRouter(authRoutes);
     app.includeRouter(usersRoutes);

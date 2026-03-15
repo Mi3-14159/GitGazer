@@ -69,19 +69,26 @@ data "aws_iam_policy_document" "api_websocket" {
   statement {
     effect = "Allow"
     actions = [
-      "rds-data:*",
-      "secretsmanager:GetSecretValue",
+      "rds-data:ExecuteStatement",
+      "rds-data:BatchExecuteStatement",
+      "rds-data:BeginTransaction",
+      "rds-data:CommitTransaction",
+      "rds-data:RollbackTransaction",
     ]
     resources = [
       module.db.cluster_arn,
-      module.db.cluster_master_user_secret[0].secret_arn,
     ]
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.lambda_config.arn]
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [
+      module.db.cluster_master_user_secret[0].secret_arn,
+      aws_secretsmanager_secret.lambda_config.arn,
+    ]
   }
 
   statement {

@@ -1,8 +1,8 @@
 import config, {loadConfig} from '@/shared/config';
-import {db} from '@gitgazer/db/client';
-import {WSToken} from '@gitgazer/db/types';
-import {wsConnections} from '@gitgazer/db/schema/gitgazer';
 import {getLogger} from '@/shared/logger';
+import {db} from '@gitgazer/db/client';
+import {wsConnections} from '@gitgazer/db/schema/gitgazer';
+import {WSToken} from '@gitgazer/db/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
 import {createHmac} from 'crypto';
 import {eq} from 'drizzle-orm';
@@ -90,12 +90,7 @@ const onDisconnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResul
         return {statusCode: 200, body: `Disconnected. Removed ${count} records.`};
     } catch (error) {
         logger.error('Error during disconnect', error as Error);
-
-        if (error instanceof Error) {
-            return {statusCode: 500, body: `Failed to disconnect: ${error.message}`};
-        }
-
-        return {statusCode: 500, body: 'Failed to disconnect due to an unknown error'};
+        return {statusCode: 500, body: 'Internal server error'};
     }
 };
 

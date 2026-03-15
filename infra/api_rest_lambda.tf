@@ -94,7 +94,8 @@ data "aws_iam_policy_document" "api" {
       "bedrock:InvokeModelWithResponseStream",
     ]
     resources = [
-      "*",
+      "arn:aws:bedrock:${var.aws_region}::foundation-model/*",
+      "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/*",
     ]
   }
 
@@ -125,19 +126,26 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
-      "rds-data:*",
-      "secretsmanager:GetSecretValue",
+      "rds-data:ExecuteStatement",
+      "rds-data:BatchExecuteStatement",
+      "rds-data:BeginTransaction",
+      "rds-data:CommitTransaction",
+      "rds-data:RollbackTransaction",
     ]
     resources = [
       module.db.cluster_arn,
-      module.db.cluster_master_user_secret[0].secret_arn,
     ]
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.lambda_config.arn]
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [
+      module.db.cluster_master_user_secret[0].secret_arn,
+      aws_secretsmanager_secret.lambda_config.arn,
+    ]
   }
 }
 

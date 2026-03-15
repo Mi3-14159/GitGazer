@@ -23,9 +23,10 @@ export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
     }
 
     const hmac = crypto.createHmac('sha256', webhookSecret);
-    const digest = 'sha256=' + hmac.update(payload).digest('hex');
+    const digestBuf = Buffer.from('sha256=' + hmac.update(payload).digest('hex'));
+    const signatureBuf = Buffer.from(signature);
 
-    if (!crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))) {
+    if (digestBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(digestBuf, signatureBuf)) {
         throw new UnauthorizedError('Invalid signature');
     }
 

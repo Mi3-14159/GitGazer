@@ -11,14 +11,6 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
-router.get('/api/auth/cognito/public', async () => {
-    return 'Ok';
-});
-
-router.get('/api/auth/cognito/private', async () => {
-    return 'Ok';
-});
-
 router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     logger.info('OAuth callback handler invoked');

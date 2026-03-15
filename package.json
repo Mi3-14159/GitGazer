@@ -15,5 +15,10 @@
   "scripts": {
     "pretty": "prettier --write ."
   },
-  "type": "module"
+  "type": "module",
+  "pnpm": {
+    "overrides": {
+      "fast-xml-parser": ">=5.3.8"
+    }
+  }
 }

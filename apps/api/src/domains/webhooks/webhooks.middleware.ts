@@ -45,6 +45,8 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
 
 const validateSignature = (payload: string, secret: string, signature: string): boolean => {
     const hmac = crypto.createHmac('sha256', secret);
-    const digest = 'sha256=' + hmac.update(payload).digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
+    const digestBuf = Buffer.from('sha256=' + hmac.update(payload).digest('hex'));
+    const signatureBuf = Buffer.from(signature);
+    if (digestBuf.length !== signatureBuf.length) return false;
+    return crypto.timingSafeEqual(digestBuf, signatureBuf);
 };

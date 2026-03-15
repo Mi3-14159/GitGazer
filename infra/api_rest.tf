@@ -27,12 +27,6 @@ locals {
     "integrations/{integrationId}/github-app/{installationId}/events" = {
       methods = ["PATCH"]
     },
-    "auth/cognito/public" = {
-      methods = ["GET"]
-    },
-    "auth/cognito/private" = {
-      methods = ["GET"]
-    },
     "auth/cognito/user" = {
       methods = ["GET"]
     },
