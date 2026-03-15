@@ -115,6 +115,11 @@
     --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Override Tailwind's breakpoint-based container max-widths with a single fluid value */
+.container {
+    max-width: 1280px;
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;
