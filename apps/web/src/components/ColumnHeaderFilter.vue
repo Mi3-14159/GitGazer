@@ -55,13 +55,6 @@
         emit('filterChange', []);
         searchTerm.value = '';
     }
-
-    function selectAll() {
-        emit(
-            'filterChange',
-            filteredOptions.value.map((opt) => opt.value),
-        );
-    }
 </script>
 
 <template>
@@ -91,23 +84,17 @@
                         class="pl-8 h-9"
                     />
                 </div>
-                <div class="flex gap-2">
+                <div
+                    v-if="hasActiveFilter"
+                    class="flex gap-2"
+                >
                     <Button
-                        v-if="hasActiveFilter"
                         variant="ghost"
                         size="sm"
                         class="flex-1 h-7 text-xs"
                         @click="clearFilter"
                     >
                         Clear
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        class="flex-1 h-7 text-xs"
-                        @click="selectAll"
-                    >
-                        Select All
                     </Button>
                 </div>
             </div>
