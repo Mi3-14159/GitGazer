@@ -62,6 +62,20 @@
 
     const visibleColumns = computed(() => currentView.value.columns.filter((c) => c.visible));
 
+    const columnWidthClass: Record<string, string> = {
+        workflow: 'w-[17%]',
+        repository: 'w-[15%]',
+        branch: 'w-[11%]',
+        status: 'w-[11%]',
+        jobs: 'w-[7%]',
+        actor: 'w-[13%]',
+        duration: 'w-[8%]',
+        created: 'w-[10%]',
+        started: 'w-[10%]',
+        commit: 'w-[16%]',
+        run_number: 'w-[7%]',
+    };
+
     function getColumnValue(workflow: WorkflowRunWithRelations, columnId: string): string {
         switch (columnId) {
             case 'workflow':
@@ -212,7 +226,7 @@
 </script>
 
 <template>
-    <div class="flex flex-col gap-4 h-full min-h-0">
+    <div class="flex flex-col gap-4 h-full min-h-0 min-w-0">
         <!-- Description + Date Range -->
         <div class="flex items-center justify-between gap-4 shrink-0">
             <p class="text-muted-foreground">Complete workflow history with infinite scrolling</p>
@@ -249,16 +263,16 @@
         <!-- Table -->
         <div
             v-else
-            class="border rounded-lg overflow-visible"
+            class="border rounded-lg overflow-x-auto min-w-0"
         >
-            <table class="w-full text-sm">
+            <table class="w-full table-fixed text-sm">
                 <thead class="bg-muted/50 border-b sticky top-0 z-10">
                     <tr>
                         <th class="text-left py-2 px-3 font-medium w-8"></th>
                         <th
                             v-for="column in visibleColumns"
                             :key="column.id"
-                            class="text-left py-2 px-3 font-medium"
+                            :class="['text-left py-2 px-3 font-medium', columnWidthClass[column.id]]"
                         >
                             <div class="flex items-center gap-1">
                                 <span>{{ column.label }}</span>
@@ -293,24 +307,24 @@
                             <td
                                 v-for="column in visibleColumns"
                                 :key="column.id"
-                                class="py-2 px-3"
+                                class="py-2 px-3 truncate"
                             >
                                 <!-- Workflow -->
                                 <template v-if="column.id === 'workflow'">
                                     <div>
-                                        <div class="font-medium truncate max-w-[200px]">{{ run.name }}</div>
+                                        <div class="font-medium truncate">{{ run.name }}</div>
                                         <div class="text-xs text-muted-foreground">#{{ run.runAttempt }}</div>
                                     </div>
                                 </template>
                                 <!-- Repository -->
                                 <template v-else-if="column.id === 'repository'">
-                                    <div class="font-mono text-xs truncate max-w-[180px]">{{ run.repository?.name }}</div>
+                                    <div class="font-mono text-xs truncate">{{ run.repository?.name }}</div>
                                 </template>
                                 <!-- Branch -->
                                 <template v-else-if="column.id === 'branch'">
                                     <div class="flex items-center gap-1 text-xs">
                                         <GitBranch class="h-3 w-3 text-muted-foreground" />
-                                        <span class="truncate max-w-[120px]">{{ run.headBranch }}</span>
+                                        <span class="truncate">{{ run.headBranch }}</span>
                                     </div>
                                 </template>
                                 <!-- Status -->
@@ -339,7 +353,7 @@
                                 <template v-else-if="column.id === 'actor'">
                                     <div class="flex items-center gap-1 text-xs">
                                         <User class="h-3 w-3 text-muted-foreground" />
-                                        <span class="truncate max-w-[100px]">{{ run.headCommitAuthorName }}</span>
+                                        <span class="truncate">{{ run.headCommitAuthorName }}</span>
                                     </div>
                                 </template>
                                 <!-- Duration -->
@@ -348,13 +362,13 @@
                                 </template>
                                 <!-- Created -->
                                 <template v-else-if="column.id === 'created'">
-                                    <div class="text-xs text-muted-foreground whitespace-nowrap">
+                                    <div class="text-xs text-muted-foreground truncate">
                                         {{ run.createdAt ? formatDistanceToNow(new Date(run.createdAt), {addSuffix: true}) : '' }}
                                     </div>
                                 </template>
                                 <!-- Started -->
                                 <template v-else-if="column.id === 'started'">
-                                    <div class="text-xs text-muted-foreground whitespace-nowrap">
+                                    <div class="text-xs text-muted-foreground truncate">
                                         {{ run.runStartedAt ? formatDistanceToNow(new Date(run.runStartedAt), {addSuffix: true}) : '' }}
                                     </div>
                                 </template>
@@ -362,7 +376,7 @@
                                 <template v-else-if="column.id === 'commit'">
                                     <div class="flex items-center gap-1 text-xs font-mono">
                                         <GitCommit class="h-3 w-3 text-muted-foreground" />
-                                        <span class="truncate max-w-[200px]">{{ run.headCommitMessage }}</span>
+                                        <span class="truncate">{{ run.headCommitMessage }}</span>
                                     </div>
                                 </template>
                                 <!-- Run Number -->
