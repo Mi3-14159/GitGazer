@@ -15,8 +15,6 @@
         Calendar,
         Check,
         CheckCircle2,
-        ChevronDown,
-        ChevronUp,
         Copy,
         ExternalLink,
         Eye,
@@ -37,7 +35,7 @@
     const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
 
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
-    const {linkInstallation} = useGithubApp();
+    const {linkInstallation, updateWebhookEvents} = useGithubApp();
 
     function getWebhookUrl(integrationId: string): string {
         return `${IMPORT_URL_BASE}/${integrationId}`;
@@ -59,9 +57,6 @@
     // Secret visibility
     const visibleSecrets = ref<Set<string>>(new Set());
 
-    // Expanded events sections
-    const expandedEvents = reactive<Record<string, boolean>>({});
-
     // Inline label editing
     const editingLabels = reactive<Record<string, string>>({});
     const labelInputRefs = ref<Record<string, HTMLInputElement | null>>({});
@@ -73,9 +68,10 @@
     // Delete type-to-confirm
     const deleteConfirmText = ref('');
 
-    function toggleEventsExpanded(id: string) {
-        expandedEvents[id] = !expandedEvents[id];
-    }
+    // Webhook event editing
+    const SUPPORTED_EVENTS = ['workflow_run', 'workflow_job', 'pull_request'] as const;
+    const editingEvents = reactive<Record<string, Set<string>>>({});
+    const savingEvents = reactive<Record<string, boolean>>({});
 
     function startEditingLabel(id: string, currentLabel: string) {
         editingLabels[id] = currentLabel;
@@ -239,6 +235,50 @@
             if (!latest || d > latest) latest = d;
         }
         return latest ? formatTimeSince(latest) : null;
+    }
+
+    function getInstallationEvents(inst: any): string[] {
+        const events = new Set<string>();
+        inst.webhooks?.forEach((w: any) => {
+            if (Array.isArray(w.events)) {
+                w.events.forEach((e: string) => events.add(e));
+            }
+        });
+        return Array.from(events);
+    }
+
+    function startEditingEvents(instId: number, currentEvents: string[]) {
+        editingEvents[instId] = new Set(currentEvents);
+    }
+
+    function cancelEditingEvents(instId: number) {
+        delete editingEvents[instId];
+    }
+
+    function toggleEvent(instId: number, event: string) {
+        const set = editingEvents[instId];
+        if (!set) return;
+        if (set.has(event)) {
+            set.delete(event);
+        } else {
+            set.add(event);
+        }
+        // Force reactivity by reassigning
+        editingEvents[instId] = new Set(set);
+    }
+
+    async function saveEvents(integrationId: string, instId: number) {
+        const events = editingEvents[instId];
+        if (!events) return;
+        savingEvents[instId] = true;
+        try {
+            await updateWebhookEvents(integrationId, instId, Array.from(events));
+            const data = await getIntegrations();
+            if (data) integrations.value = data;
+            delete editingEvents[instId];
+        } finally {
+            savingEvents[instId] = false;
+        }
     }
 
     function getRepoNames(inst: any): string[] {
@@ -483,53 +523,79 @@
 
                         <!-- Enabled Webhook Events -->
                         <div
-                            v-if="getEnabledEvents(integration).length > 0"
+                            v-if="getEnabledEvents(integration).length > 0 || (integration.githubAppInstallations && integration.githubAppInstallations.length > 0)"
                             class="border-t pt-2"
                         >
-                            <div
-                                class="flex items-center justify-between text-xs font-medium text-muted-foreground mb-2 cursor-pointer hover:text-foreground transition-colors"
-                                @click="toggleEventsExpanded(integration.integrationId)"
-                            >
-                                <div class="flex items-center gap-1">
-                                    <Zap class="h-3 w-3" />
-                                    Enabled Webhook Events ({{ getEnabledEvents(integration).length }})
-                                </div>
-                                <ChevronUp
-                                    v-if="expandedEvents[integration.integrationId]"
-                                    class="h-3 w-3"
-                                />
-                                <ChevronDown
-                                    v-else
-                                    class="h-3 w-3"
-                                />
+                            <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-2">
+                                <Zap class="h-3 w-3" />
+                                Webhook Events
                             </div>
-                            <!-- Expanded: full event list -->
-                            <div
-                                v-if="expandedEvents[integration.integrationId]"
-                                class="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2"
-                            >
-                                <div
-                                    v-for="event in getEnabledEvents(integration)"
-                                    :key="event"
-                                    class="flex items-center gap-2"
-                                >
-                                    <CheckCircle2 class="h-3.5 w-3.5 text-green-500 shrink-0" />
-                                    <span class="text-sm">{{ formatEventName(event) }}</span>
-                                </div>
-                            </div>
-                            <!-- Collapsed: badges -->
-                            <div
-                                v-else
-                                class="flex flex-wrap gap-1"
-                            >
-                                <Badge
-                                    v-for="event in getEnabledEvents(integration)"
-                                    :key="event"
-                                    variant="secondary"
-                                    class="text-xs h-5 px-1.5"
-                                >
-                                    {{ formatEventName(event) }}
-                                </Badge>
+                            <div class="flex flex-wrap gap-1.5">
+                                <template v-for="inst in integration.githubAppInstallations" :key="inst.installationId">
+                                    <!-- Editing mode -->
+                                    <template v-if="editingEvents[inst.installationId]">
+                                        <button
+                                            v-for="event in SUPPORTED_EVENTS"
+                                            :key="event"
+                                            class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer"
+                                            :class="editingEvents[inst.installationId]?.has(event)
+                                                ? 'bg-primary/10 border-primary text-primary'
+                                                : 'bg-muted/50 border-border text-muted-foreground hover:border-primary/50'"
+                                            @click="toggleEvent(inst.installationId, event)"
+                                        >
+                                            <CheckCircle2 v-if="editingEvents[inst.installationId]?.has(event)" class="h-3 w-3" />
+                                            <XCircle v-else class="h-3 w-3" />
+                                            {{ formatEventName(event) }}
+                                        </button>
+                                        <div class="flex items-center gap-1 ml-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="h-6 px-2 text-xs"
+                                                :disabled="savingEvents[inst.installationId]"
+                                                @click="saveEvents(integration.integrationId, inst.installationId)"
+                                            >
+                                                {{ savingEvents[inst.installationId] ? 'Saving…' : 'Save' }}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="h-6 px-2 text-xs"
+                                                :disabled="savingEvents[inst.installationId]"
+                                                @click="cancelEditingEvents(inst.installationId)"
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    </template>
+                                    <!-- Read-only mode -->
+                                    <template v-else>
+                                        <Badge
+                                            v-for="event in getInstallationEvents(inst)"
+                                            :key="event"
+                                            variant="secondary"
+                                            class="text-xs h-5 px-1.5 cursor-pointer hover:bg-accent transition-colors"
+                                            @click="startEditingEvents(inst.installationId, getInstallationEvents(inst))"
+                                        >
+                                            {{ formatEventName(event) }}
+                                        </Badge>
+                                        <Badge
+                                            v-if="getInstallationEvents(inst).length === 0"
+                                            variant="outline"
+                                            class="text-xs h-5 px-1.5 cursor-pointer hover:bg-accent transition-colors text-muted-foreground"
+                                            @click="startEditingEvents(inst.installationId, [])"
+                                        >
+                                            No events — click to configure
+                                        </Badge>
+                                        <button
+                                            v-if="getInstallationEvents(inst).length > 0"
+                                            class="text-xs text-muted-foreground hover:text-foreground transition-colors ml-1"
+                                            @click="startEditingEvents(inst.installationId, getInstallationEvents(inst))"
+                                        >
+                                            Edit
+                                        </button>
+                                    </template>
+                                </template>
                             </div>
                         </div>
 
