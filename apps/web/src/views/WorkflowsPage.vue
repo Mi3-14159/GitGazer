@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
+    import PageHeader from '@/components/PageHeader.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import WorkflowCardDetails from '@/components/workflows/WorkflowCardDetails.vue';
     import WorkflowTable from '@/components/workflows/WorkflowTable.vue';
@@ -161,12 +162,14 @@
 </script>
 
 <template>
-    <div class="flex flex-col gap-4 h-full min-h-0 min-w-0">
+    <div class="space-y-4 p-4">
         <!-- Description + Date Range -->
-        <div class="flex items-center justify-between gap-4 shrink-0">
-            <p class="text-muted-foreground">Complete workflow history with infinite scrolling</p>
+        <PageHeader
+            description="Complete workflow history with infinite scrolling"
+            class="shrink-0"
+        >
             <DateTimeRangePicker v-model:date-range="dateRange" />
-        </div>
+        </PageHeader>
 
         <!-- Toolbar -->
         <WorkflowToolbar

@@ -5,6 +5,7 @@
     import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
     import RotateSecretDialog from '@/components/integrations/RotateSecretDialog.vue';
     import UnlinkInstallationDialog from '@/components/integrations/UnlinkInstallationDialog.vue';
+    import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
@@ -62,30 +63,27 @@
 </script>
 
 <template>
-    <div class="space-y-4">
+    <div class="space-y-4 p-4">
         <!-- Header -->
-        <div class="flex items-start justify-between">
-            <p class="text-sm text-muted-foreground">Manage webhook endpoints, secrets, and GitHub App installations</p>
-            <div class="flex items-center gap-2">
-                <a
-                    href="https://github.com/apps/gitgazer-integration/installations/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-xs font-medium h-8 border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                    <Github class="h-4 w-4" />
-                    Install GitHub App
-                    <ExternalLink class="h-3 w-3" />
-                </a>
-                <Button
-                    size="sm"
-                    @click="openCreate"
-                >
-                    <Plus class="h-4 w-4" />
-                    New Integration
-                </Button>
-            </div>
-        </div>
+        <PageHeader description="Manage webhook endpoints, secrets, and GitHub App installations">
+            <a
+                href="https://github.com/apps/gitgazer-integration/installations/new"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-xs font-medium h-8 border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+                <Github class="h-4 w-4" />
+                Install GitHub App
+                <ExternalLink class="h-3 w-3" />
+            </a>
+            <Button
+                size="sm"
+                @click="openCreate"
+            >
+                <Plus class="h-4 w-4" />
+                New Integration
+            </Button>
+        </PageHeader>
 
         <!-- Loading -->
         <div

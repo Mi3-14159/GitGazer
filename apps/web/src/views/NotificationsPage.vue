@@ -2,6 +2,7 @@
     import DeleteNotificationDialog from '@/components/notifications/DeleteNotificationDialog.vue';
     import NotificationCard from '@/components/notifications/NotificationCard.vue';
     import NotificationDetailsCard from '@/components/notifications/NotificationDetailsCard.vue';
+    import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
@@ -86,13 +87,9 @@
 </script>
 
 <template>
-    <div class="space-y-6 p-4 md:p-6">
+    <div class="space-y-4 p-4">
         <!-- Header -->
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <Bell class="h-5 w-5 text-muted-foreground" />
-                <h2 class="text-lg font-semibold">Notification Rules</h2>
-            </div>
+        <PageHeader description="Configure Slack webhooks to receive alerts about workflow status changes">
             <Button
                 size="sm"
                 @click="openCreate"
@@ -100,7 +97,7 @@
                 <Plus class="h-4 w-4" />
                 Add Rule
             </Button>
-        </div>
+        </PageHeader>
 
         <!-- Loading -->
         <div

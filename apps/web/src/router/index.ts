@@ -16,6 +16,12 @@ const router = createRouter({
                     meta: {title: 'Overview'},
                 },
                 {
+                    path: 'dashboards/:dashboardId?',
+                    name: 'dashboards',
+                    component: () => import('@/views/DashboardsPage.vue'),
+                    meta: {title: 'Dashboards'},
+                },
+                {
                     path: 'workflows',
                     name: 'workflows',
                     component: () => import('@/views/WorkflowsPage.vue'),

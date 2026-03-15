@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
+    import PageHeader from '@/components/PageHeader.vue';
     import RecentWorkflowRuns from '@/components/dashboard/RecentWorkflowRuns.vue';
     import StatCards from '@/components/dashboard/StatCards.vue';
     import StatusDistributionChart from '@/components/dashboard/StatusDistributionChart.vue';
@@ -43,11 +44,10 @@
 </script>
 
 <template>
-    <div class="space-y-6 p-4 md:p-6">
-        <div class="flex items-center justify-between gap-4">
-            <p class="text-muted-foreground">Real-time CI/CD pipeline monitoring and engineering metrics</p>
+    <div class="space-y-4 p-4">
+        <PageHeader description="Real-time CI/CD pipeline monitoring and engineering metrics">
             <DateTimeRangePicker v-model:date-range="dateRange" />
-        </div>
+        </PageHeader>
 
         <StatCards
             :stats="stats"

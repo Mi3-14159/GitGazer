@@ -103,9 +103,13 @@
         syncToUrl(from, to, win);
     }
 
-    // Emit initial state on mount and sync to URL
+    // Set initial state synchronously so downstream watchers (e.g. useMetric)
+    // see the resolved filter immediately and don't fire an empty-params fetch first.
+    dateRange.value = {from: initial.from, to: initial.to, window: initial.window};
+
+    // Sync to URL on mount (router.replace requires the component to be mounted)
     onMounted(() => {
-        update(initial.from, initial.to, initial.window);
+        syncToUrl(initial.from, initial.to, initial.window);
     });
 
     function emitRange() {

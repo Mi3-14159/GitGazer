@@ -1,9 +1,8 @@
 <script setup lang="ts">
     import ThemeToggle from '@/components/ThemeToggle.vue';
-    import Badge from '@/components/ui/Badge.vue';
     import {useAuth} from '@/composables/useAuth';
     import {UserAttributes} from '@common/types';
-    import {Activity, Bell, GitBranch, LogOut, PlayCircle, Webhook} from 'lucide-vue-next';
+    import {Activity, Bell, GitBranch, LayoutDashboard, LogOut, PlayCircle, Webhook} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
@@ -22,11 +21,13 @@
         {value: 'workflows', label: 'Workflows', icon: PlayCircle, path: '/workflows'},
         {value: 'integrations', label: 'Integrations', icon: Webhook, path: '/integrations'},
         {value: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications'},
+        {value: 'dashboards', label: 'Dashboards', icon: LayoutDashboard, path: '/dashboards'},
     ];
 
     const activeTab = computed(() => {
         const path = route.path;
         if (path.startsWith('/overview')) return 'overview';
+        if (path.startsWith('/dashboards')) return 'dashboards';
         if (path.startsWith('/workflows')) return 'workflows';
         if (path.startsWith('/integrations')) return 'integrations';
         if (path.startsWith('/notifications')) return 'notifications';
@@ -59,20 +60,6 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <Badge
-                            variant="outline"
-                            class="gap-1"
-                        >
-                            <Activity class="h-3 w-3" />
-                            Running
-                        </Badge>
-                        <Badge
-                            variant="outline"
-                            class="gap-1"
-                        >
-                            <Bell class="h-3 w-3" />
-                            New
-                        </Badge>
                         <ThemeToggle />
                         <div
                             v-if="user?.picture"
@@ -98,7 +85,7 @@
 
         <!-- Tab Navigation -->
         <div class="container mx-auto px-4 py-2">
-            <nav class="grid w-full grid-cols-4 rounded-lg bg-muted p-1">
+            <nav class="grid w-full grid-cols-5 rounded-lg bg-muted p-1">
                 <button
                     v-for="tab in tabs"
                     :key="tab.value"
