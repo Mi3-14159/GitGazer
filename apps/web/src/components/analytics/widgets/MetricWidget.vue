@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import type {MetricResult} from '@common/types';
+    import {format, parseISO} from 'date-fns';
     import {ArrowDown, ArrowUp, Minus} from 'lucide-vue-next';
     import {computed} from 'vue';
 
@@ -44,6 +45,43 @@
     const maxDataValue = computed(() => {
         if (!props.metric?.data?.length) return 1;
         return Math.max(...props.metric.data.map((d) => d.value), 1);
+    });
+
+    /** Detect granularity from data density and format period labels accordingly. */
+    const dateFormat = computed(() => {
+        const data = props.metric?.data;
+        if (!data || data.length < 2) return 'MMM d';
+        const first = parseISO(data[0].period).getTime();
+        const second = parseISO(data[1].period).getTime();
+        const diffHours = (second - first) / (1000 * 60 * 60);
+        if (diffHours <= 1) return 'MMM d, HH:mm';
+        if (diffHours <= 24) return 'MMM d';
+        if (diffHours <= 24 * 7) return 'MMM d';
+        return 'MMM yyyy';
+    });
+
+    function formatPeriod(period: string): string {
+        try {
+            return format(parseISO(period), dateFormat.value);
+        } catch {
+            return period;
+        }
+    }
+
+    /** Pick evenly-spaced tick indices including first and last. */
+    const tickIndices = computed(() => {
+        const data = props.metric?.data;
+        if (!data || data.length === 0) return [];
+        const len = data.length;
+        if (len <= 5) return data.map((_, i) => i);
+        const tickCount = 5;
+        const indices: number[] = [0];
+        const step = (len - 1) / (tickCount - 1);
+        for (let t = 1; t < tickCount - 1; t++) {
+            indices.push(Math.round(step * t));
+        }
+        indices.push(len - 1);
+        return indices;
     });
 </script>
 
@@ -108,10 +146,20 @@
         <!-- Period labels -->
         <div
             v-if="props.metric?.data?.length"
-            class="flex justify-between text-[10px] text-muted-foreground"
+            class="relative h-4 text-[10px] text-muted-foreground"
         >
-            <span>{{ props.metric.data[0]?.period }}</span>
-            <span>{{ props.metric.data[props.metric.data.length - 1]?.period }}</span>
+            <span
+                v-for="idx in tickIndices"
+                :key="idx"
+                class="absolute -translate-x-1/2 whitespace-nowrap"
+                :class="{
+                    '!translate-x-0': idx === 0,
+                    '!-translate-x-full': idx === props.metric!.data.length - 1,
+                }"
+                :style="{left: `${(idx / (props.metric!.data.length - 1)) * 100}%`}"
+            >
+                {{ formatPeriod(props.metric!.data[idx].period) }}
+            </span>
         </div>
     </div>
 </template>
