@@ -1,6 +1,7 @@
 import {getLogger} from '@/logger';
 import {BadRequestError, ForbiddenError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {Integration} from '@gitgazer/db/types';
@@ -20,13 +21,7 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             return await tx.query.integrations.findMany({
-                with: {
-                    githubAppInstallations: {
-                        with: {
-                            webhooks: true,
-                        },
-                    },
-                },
+                with: integrationsQueryRelations,
             });
         },
     });

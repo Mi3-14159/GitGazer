@@ -402,12 +402,6 @@
                                     </h3>
                                 </template>
                                 <span
-                                    v-if="getEnabledEvents(integration).length > 0"
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    {{ getEnabledEvents(integration).length }} events
-                                </span>
-                                <span
                                     v-if="getLastActivity(integration)"
                                     class="text-xs text-muted-foreground flex items-center gap-1"
                                 >
