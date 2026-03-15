@@ -45,7 +45,7 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
             integrationIds,
             userName: gitgazerWriter.name,
             callback: async (tx: RdsTransaction) => {
-                return await tx.update(integrations).set({label}).where(eq(integrations.integrationId, id)).returning();
+                return await tx.update(integrations).set({label: label.trim()}).where(eq(integrations.integrationId, id)).returning();
             },
         });
 
@@ -82,7 +82,7 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
             const [integration] = await tx
                 .insert(integrations)
                 .values({
-                    label,
+                    label: label.trim(),
                     ownerId,
                 })
                 .returning();
