@@ -10,12 +10,33 @@
     import {useGithubApp, type LinkInstallationResponse} from '@/composables/useGithubApp';
     import {useIntegration} from '@/composables/useIntegration';
     import type {Integration} from '@common/types';
-    import {Calendar, Check, Copy, ExternalLink, Eye, EyeOff, Github, Key, Pencil, Plug, Plus, Trash2, Webhook, Zap} from 'lucide-vue-next';
-    import {onMounted, ref} from 'vue';
+    import {
+        Activity,
+        Calendar,
+        Check,
+        CheckCircle2,
+        ChevronDown,
+        ChevronUp,
+        Copy,
+        ExternalLink,
+        Eye,
+        EyeOff,
+        Github,
+        Key,
+        Plug,
+        Plus,
+        RefreshCw,
+        Trash2,
+        Unlink,
+        Webhook,
+        XCircle,
+        Zap,
+    } from 'lucide-vue-next';
+    import {nextTick, onMounted, reactive, ref} from 'vue';
 
     const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
 
-    const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration} = useIntegration();
+    const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
     const {linkInstallation} = useGithubApp();
 
     function getWebhookUrl(integrationId: string): string {
@@ -38,7 +59,43 @@
     // Secret visibility
     const visibleSecrets = ref<Set<string>>(new Set());
 
-    // Webhook events
+    // Expanded events sections
+    const expandedEvents = reactive<Record<string, boolean>>({});
+
+    // Inline label editing
+    const editingLabels = reactive<Record<string, string>>({});
+    const labelInputRefs = ref<Record<string, HTMLInputElement | null>>({});
+
+    // Rotate secret confirmation
+    const showRotateConfirm = ref(false);
+    const rotatingIntegrationId = ref<string | null>(null);
+
+    // Delete type-to-confirm
+    const deleteConfirmText = ref('');
+
+    function toggleEventsExpanded(id: string) {
+        expandedEvents[id] = !expandedEvents[id];
+    }
+
+    function startEditingLabel(id: string, currentLabel: string) {
+        editingLabels[id] = currentLabel;
+        nextTick(() => {
+            labelInputRefs.value[id]?.focus();
+        });
+    }
+
+    function cancelEditingLabel(id: string) {
+        delete editingLabels[id];
+    }
+
+    async function saveLabel(id: string) {
+        const newLabel = editingLabels[id];
+        if (!newLabel?.trim()) return cancelEditingLabel(id);
+        const updated = await updateIntegration(id, newLabel);
+        const idx = integrations.value.findIndex((i) => i.integrationId === updated.integrationId);
+        if (idx !== -1) integrations.value[idx] = updated;
+        delete editingLabels[id];
+    }
 
     onMounted(async () => {
         const data = await getIntegrations();
@@ -80,14 +137,31 @@
         showDialog.value = true;
     }
 
-    function openEdit(i: Integration) {
-        editingIntegration.value = i;
-        showDialog.value = true;
-    }
-
     function confirmDelete(i: Integration) {
         deletingIntegration.value = i;
+        deleteConfirmText.value = '';
         showDeleteConfirm.value = true;
+    }
+
+    function confirmRotateSecret(integrationId: string) {
+        rotatingIntegrationId.value = integrationId;
+        showRotateConfirm.value = true;
+    }
+
+    const isRotating = ref(false);
+
+    async function handleRotateSecret() {
+        if (!rotatingIntegrationId.value) return;
+        isRotating.value = true;
+        try {
+            const updated = await rotateSecret(rotatingIntegrationId.value);
+            const idx = integrations.value.findIndex((i) => i.integrationId === updated.integrationId);
+            if (idx !== -1) integrations.value[idx] = updated;
+        } finally {
+            isRotating.value = false;
+            showRotateConfirm.value = false;
+            rotatingIntegrationId.value = null;
+        }
     }
 
     async function handleSave(label: string) {
@@ -139,6 +213,32 @@
             .split('_')
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
+    }
+
+    function formatTimeSince(dateStr: string | Date | undefined): string | null {
+        if (!dateStr) return null;
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return 'just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffHours = Math.floor(diffMin / 60);
+        if (diffHours < 24) return `about ${diffHours}h ago`;
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 30) return `${diffDays}d ago`;
+        return formatDate(dateStr);
+    }
+
+    function getLastActivity(integration: Integration): string | null {
+        const installations = integration.githubAppInstallations;
+        if (!installations || installations.length === 0) return null;
+        let latest: Date | null = null;
+        for (const inst of installations) {
+            const d = new Date(inst.updatedAt);
+            if (!latest || d > latest) latest = d;
+        }
+        return latest ? formatTimeSince(latest) : null;
     }
 
     function getRepoNames(inst: any): string[] {
@@ -220,177 +320,288 @@
                 :key="integration.integrationId"
             >
                 <CardContent class="p-4">
-                    <div class="flex items-start justify-between gap-4">
-                        <div class="space-y-3 flex-1 min-w-0">
-                            <!-- Header Row -->
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="font-semibold text-base">{{ integration.label }}</h3>
-                                <span class="text-xs text-muted-foreground">
-                                    <span v-if="getEnabledEvents(integration).length > 0">{{ getEnabledEvents(integration).length }} events</span>
-                                    · ↗ {{ formatDate(integration.createdAt) }}
+                    <div class="space-y-3">
+                        <!-- Header Row -->
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 flex-wrap flex-1">
+                                <!-- Inline label editing -->
+                                <template v-if="editingLabels[integration.integrationId] !== undefined">
+                                    <div class="flex items-center gap-1">
+                                        <Input
+                                            :ref="
+                                                (el: any) => {
+                                                    if (el?.$el) labelInputRefs[integration.integrationId] = el.$el;
+                                                }
+                                            "
+                                            :model-value="editingLabels[integration.integrationId]"
+                                            class="!h-7 text-sm max-w-xs"
+                                            @update:model-value="(v: string) => (editingLabels[integration.integrationId] = v)"
+                                            @keydown.enter="saveLabel(integration.integrationId)"
+                                            @keydown.escape="cancelEditingLabel(integration.integrationId)"
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            class="h-7 px-2"
+                                            @click="saveLabel(integration.integrationId)"
+                                        >
+                                            Save
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            class="h-7 px-2"
+                                            @click="cancelEditingLabel(integration.integrationId)"
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <h3
+                                        class="font-semibold text-base cursor-pointer hover:text-primary transition-colors"
+                                        @click="startEditingLabel(integration.integrationId, integration.label)"
+                                    >
+                                        {{ integration.label }}
+                                    </h3>
+                                </template>
+                                <Badge
+                                    v-if="getStatus(integration) === 'active'"
+                                    variant="default"
+                                    class="gap-1"
+                                >
+                                    <CheckCircle2 class="h-3 w-3" />
+                                    active
+                                </Badge>
+                                <Badge
+                                    v-else
+                                    variant="secondary"
+                                    class="gap-1"
+                                >
+                                    <XCircle class="h-3 w-3" />
+                                    inactive
+                                </Badge>
+                                <span
+                                    v-if="getEnabledEvents(integration).length > 0"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    {{ getEnabledEvents(integration).length }} events
+                                </span>
+                                <span
+                                    v-if="getLastActivity(integration)"
+                                    class="text-xs text-muted-foreground flex items-center gap-1"
+                                >
+                                    <Activity class="h-3 w-3" />
+                                    {{ getLastActivity(integration) }}
                                 </span>
                             </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-8 w-8 p-0 text-destructive hover:text-destructive shrink-0"
+                                @click="confirmDelete(integration)"
+                            >
+                                <Trash2 class="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
 
-                            <!-- Webhook URL & Secret Grid -->
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                                <!-- Webhook URL -->
-                                <div class="space-y-1">
-                                    <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                        <Webhook class="h-3 w-3" />
-                                        Webhook URL
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <Input
-                                            :model-value="getWebhookUrl(integration.integrationId)"
-                                            type="text"
-                                            readonly
-                                            class="font-mono text-xs !h-8 !px-2"
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            class="h-8 w-8 p-0 shrink-0"
-                                            @click="copyToClipboard(getWebhookUrl(integration.integrationId))"
-                                        >
-                                            <Copy class="h-3 w-3" />
-                                        </Button>
-                                    </div>
+                        <!-- Webhook URL & Secret Grid -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <!-- Webhook URL -->
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <Webhook class="h-3 w-3" />
+                                    Webhook URL
                                 </div>
-
-                                <!-- Secret -->
-                                <div class="space-y-1">
-                                    <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                        <Key class="h-3 w-3" />
-                                        Webhook Secret
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <Input
-                                            :model-value="(integration as any).secret ?? ''"
-                                            :type="visibleSecrets.has(integration.integrationId + '-secret') ? 'text' : 'password'"
-                                            readonly
-                                            class="font-mono text-xs !h-8 !px-2"
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            class="h-8 w-8 p-0 shrink-0"
-                                            @click="toggleSecretVisibility(integration.integrationId + '-secret')"
-                                        >
-                                            <EyeOff
-                                                v-if="visibleSecrets.has(integration.integrationId + '-secret')"
-                                                class="h-3 w-3"
-                                            />
-                                            <Eye
-                                                v-else
-                                                class="h-3 w-3"
-                                            />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            class="h-8 w-8 p-0 shrink-0"
-                                            @click="copyToClipboard((integration as any).secret ?? '')"
-                                        >
-                                            <Copy class="h-3 w-3" />
-                                        </Button>
-                                    </div>
+                                <div class="flex items-center gap-1">
+                                    <Input
+                                        :model-value="getWebhookUrl(integration.integrationId)"
+                                        type="text"
+                                        readonly
+                                        class="font-mono text-xs !h-8 !px-2"
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-8 w-8 p-0 shrink-0"
+                                        @click="copyToClipboard(getWebhookUrl(integration.integrationId))"
+                                    >
+                                        <Copy class="h-3 w-3" />
+                                    </Button>
                                 </div>
                             </div>
 
-                            <!-- Enabled Webhook Events -->
+                            <!-- Secret -->
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <Key class="h-3 w-3" />
+                                    Webhook Secret
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <Input
+                                        :model-value="(integration as any).secret ?? ''"
+                                        :type="visibleSecrets.has(integration.integrationId + '-secret') ? 'text' : 'password'"
+                                        readonly
+                                        class="font-mono text-xs !h-8 !px-2"
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-8 w-8 p-0 shrink-0"
+                                        @click="toggleSecretVisibility(integration.integrationId + '-secret')"
+                                    >
+                                        <EyeOff
+                                            v-if="visibleSecrets.has(integration.integrationId + '-secret')"
+                                            class="h-3 w-3"
+                                        />
+                                        <Eye
+                                            v-else
+                                            class="h-3 w-3"
+                                        />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-8 w-8 p-0 shrink-0"
+                                        @click="copyToClipboard((integration as any).secret ?? '')"
+                                    >
+                                        <Copy class="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-8 px-2 shrink-0"
+                                        title="Rotate Secret"
+                                        @click="confirmRotateSecret(integration.integrationId)"
+                                    >
+                                        <RefreshCw class="h-3 w-3 mr-1" />
+                                        <span class="text-xs">Rotate</span>
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enabled Webhook Events -->
+                        <div
+                            v-if="getEnabledEvents(integration).length > 0"
+                            class="border-t pt-2"
+                        >
                             <div
-                                v-if="getEnabledEvents(integration).length > 0"
-                                class="border-t pt-2"
+                                class="flex items-center justify-between text-xs font-medium text-muted-foreground mb-2 cursor-pointer hover:text-foreground transition-colors"
+                                @click="toggleEventsExpanded(integration.integrationId)"
                             >
-                                <div class="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-2">
+                                <div class="flex items-center gap-1">
                                     <Zap class="h-3 w-3" />
                                     Enabled Webhook Events ({{ getEnabledEvents(integration).length }})
                                 </div>
-                                <div class="flex flex-wrap gap-1">
-                                    <Badge
-                                        v-for="event in getEnabledEvents(integration)"
-                                        :key="event"
-                                        variant="secondary"
-                                        class="text-xs h-5 px-1.5"
-                                    >
-                                        {{ formatEventName(event) }}
-                                    </Badge>
-                                </div>
+                                <ChevronUp
+                                    v-if="expandedEvents[integration.integrationId]"
+                                    class="h-3 w-3"
+                                />
+                                <ChevronDown
+                                    v-else
+                                    class="h-3 w-3"
+                                />
                             </div>
-
-                            <!-- GitHub App Installations -->
+                            <!-- Expanded: full event list -->
                             <div
-                                v-if="integration.githubAppInstallations && integration.githubAppInstallations.length > 0"
-                                class="border-t pt-3"
+                                v-if="expandedEvents[integration.integrationId]"
+                                class="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2"
                             >
                                 <div
-                                    v-for="inst in integration.githubAppInstallations"
-                                    :key="inst.installationId"
-                                    class="space-y-2"
+                                    v-for="event in getEnabledEvents(integration)"
+                                    :key="event"
+                                    class="flex items-center gap-2"
                                 >
+                                    <CheckCircle2 class="h-3.5 w-3.5 text-green-500 shrink-0" />
+                                    <span class="text-sm">{{ formatEventName(event) }}</span>
+                                </div>
+                            </div>
+                            <!-- Collapsed: badges -->
+                            <div
+                                v-else
+                                class="flex flex-wrap gap-1"
+                            >
+                                <Badge
+                                    v-for="event in getEnabledEvents(integration)"
+                                    :key="event"
+                                    variant="secondary"
+                                    class="text-xs h-5 px-1.5"
+                                >
+                                    {{ formatEventName(event) }}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <!-- GitHub App Installations -->
+                        <div
+                            v-if="integration.githubAppInstallations && integration.githubAppInstallations.length > 0"
+                            class="border-t pt-2"
+                        >
+                            <div
+                                v-for="inst in integration.githubAppInstallations"
+                                :key="inst.installationId"
+                                class="space-y-2"
+                            >
+                                <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                                         <Github class="h-3 w-3" />
                                         GitHub App: {{ inst.accountLogin }}
                                     </div>
-                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                                        <div>
-                                            <span class="text-muted-foreground">App ID</span>
-                                            <p class="font-medium">{{ inst.accountId }}</p>
-                                        </div>
-                                        <div>
-                                            <span class="text-muted-foreground">Installation</span>
-                                            <p class="font-medium">inst-{{ inst.installationId }}</p>
-                                        </div>
-                                        <div>
-                                            <span class="text-muted-foreground">Repositories</span>
-                                            <p class="font-medium">{{ getRepoNames(inst).length }}</p>
-                                        </div>
-                                        <div>
-                                            <span class="text-muted-foreground">Permissions</span>
-                                            <p class="font-medium">{{ getPermissionCount(inst) }}</p>
-                                        </div>
-                                    </div>
-                                    <div
-                                        v-if="getRepoNames(inst).length > 0"
-                                        class="flex flex-wrap gap-1"
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-7 px-2 text-xs text-destructive hover:text-destructive"
                                     >
-                                        <Badge
-                                            v-for="repo in getRepoNames(inst)"
-                                            :key="repo"
-                                            variant="secondary"
-                                            class="text-xs h-5 px-1.5 font-mono"
-                                        >
-                                            {{ repo }}
-                                        </Badge>
+                                        <Unlink class="h-3 w-3 mr-1" />
+                                        Unlink
+                                    </Button>
+                                </div>
+                                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs mb-2">
+                                    <div>
+                                        <div class="text-muted-foreground">App ID</div>
+                                        <div class="font-mono">{{ inst.accountId }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted-foreground">Installation</div>
+                                        <div class="font-mono">inst-{{ inst.installationId }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted-foreground">Repositories</div>
+                                        <div>{{ getRepoNames(inst).length }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted-foreground">Permissions</div>
+                                        <div>{{ getPermissionCount(inst) }}</div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Created timestamp -->
-                            <div class="text-xs text-muted-foreground flex items-center gap-1">
-                                <Calendar class="h-3 w-3" />
-                                Created {{ formatDate(integration.createdAt) }}
+                                <div
+                                    v-if="getRepoNames(inst).length > 0"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="repo in getRepoNames(inst).slice(0, 3)"
+                                        :key="repo"
+                                        variant="outline"
+                                        class="font-mono text-xs h-5 px-1.5"
+                                    >
+                                        {{ repo }}
+                                    </Badge>
+                                    <Badge
+                                        v-if="getRepoNames(inst).length > 3"
+                                        variant="outline"
+                                        class="text-xs h-5 px-1.5"
+                                    >
+                                        +{{ getRepoNames(inst).length - 3 }} more
+                                    </Badge>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Actions -->
-                        <div class="flex gap-1 flex-shrink-0">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                class="h-8 w-8 p-0"
-                                @click="openEdit(integration)"
-                            >
-                                <Pencil class="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                class="h-8 w-8 p-0"
-                                @click="confirmDelete(integration)"
-                            >
-                                <Trash2 class="h-3.5 w-3.5 text-destructive" />
-                            </Button>
+                        <!-- Created timestamp -->
+                        <div class="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar class="h-3 w-3" />
+                            Created {{ formatDate(integration.createdAt) }}
                         </div>
                     </div>
                 </CardContent>
@@ -486,13 +697,62 @@
         <!-- Delete Confirmation Dialog -->
         <Dialog
             :open="showDeleteConfirm"
-            @update:open="showDeleteConfirm = $event"
+            @update:open="
+                (v: boolean) => {
+                    showDeleteConfirm = v;
+                    if (!v) {
+                        deleteConfirmText = '';
+                    }
+                }
+            "
         >
             <template #default="{close}">
                 <h3 class="text-lg font-semibold">Delete Integration</h3>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    Delete "{{ deletingIntegration?.label }}"? All associated notification rules and linked GitHub Apps will be removed.
+                    This action cannot be undone. This will permanently delete the integration and all associated data.
                 </p>
+                <div
+                    v-if="deletingIntegration"
+                    class="space-y-4 py-4"
+                >
+                    <p class="text-sm">
+                        Please type <span class="font-semibold">{{ deletingIntegration.label }}</span> to confirm.
+                    </p>
+                    <Input
+                        v-model="deleteConfirmText"
+                        placeholder="Type integration label here"
+                        autofocus
+                    />
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
+                    <Button
+                        variant="outline"
+                        @click="
+                            () => {
+                                deleteConfirmText = '';
+                                close();
+                            }
+                        "
+                        >Cancel</Button
+                    >
+                    <Button
+                        variant="destructive"
+                        :disabled="deleteConfirmText !== deletingIntegration?.label"
+                        @click="handleDelete"
+                        >Delete Integration</Button
+                    >
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Rotate Secret Confirmation Dialog -->
+        <Dialog
+            :open="showRotateConfirm"
+            @update:open="showRotateConfirm = $event"
+        >
+            <template #default="{close}">
+                <h3 class="text-lg font-semibold">Are you sure?</h3>
+                <p class="mt-2 text-sm text-muted-foreground">This action will permanently rotate the secret and cannot be undone.</p>
                 <div class="flex justify-end gap-2 mt-6">
                     <Button
                         variant="outline"
@@ -501,8 +761,9 @@
                     >
                     <Button
                         variant="destructive"
-                        @click="handleDelete"
-                        >Delete</Button
+                        :disabled="isRotating"
+                        @click="handleRotateSecret"
+                        >{{ isRotating ? 'Rotating…' : 'Rotate' }}</Button
                     >
                 </div>
             </template>

@@ -4,8 +4,8 @@ import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {Integration} from '@gitgazer/db/types';
-import {and, eq} from 'drizzle-orm';
-import {deprovisionAllWebhooks} from './webhookProvisioning';
+import {and, eq, sql} from 'drizzle-orm';
+import {deprovisionAllWebhooks, updateAllWebhookSecrets} from './webhookProvisioning';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
     const logger = getLogger();
@@ -170,4 +170,57 @@ export const getUserIntegrations = async (userId: number): Promise<string[]> => 
         .where(eq(userAssignments.userId, userId));
 
     return assignments.map((a) => a.integrationId);
+};
+
+export const rotateSecret = async (params: {integrationId: string; integrationIds: string[]}): Promise<Integration> => {
+    const logger = getLogger();
+    const {integrationId, integrationIds} = params;
+
+    logger.info(`Rotating secret for integration ${integrationId}`);
+
+    // Generate a new secret and update the integration
+    const results = await withRlsTransaction({
+        integrationIds,
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            return await tx
+                .update(integrations)
+                .set({secret: sql`gen_random_uuid()`})
+                .where(eq(integrations.integrationId, integrationId))
+                .returning();
+        },
+    });
+
+    if (results.length === 0) {
+        throw new UnauthorizedError('Integration not found or access denied');
+    }
+
+    const newSecret = results[0].secret;
+
+    // Update all linked GitHub App webhooks with the new secret
+    const webhookInstallations = await withRlsTransaction({
+        integrationIds,
+        callback: async (tx: RdsTransaction) => {
+            return await tx
+                .select({installationId: githubAppWebhooks.installationId})
+                .from(githubAppWebhooks)
+                .where(eq(githubAppWebhooks.integrationId, integrationId))
+                .groupBy(githubAppWebhooks.installationId);
+        },
+    });
+
+    for (const {installationId} of webhookInstallations) {
+        try {
+            await updateAllWebhookSecrets(integrationId, installationId, newSecret);
+        } catch (error) {
+            logger.error(`Failed to update webhook secrets for installation ${installationId}`, {error});
+        }
+    }
+
+    // Return the full integration with relations
+    const fullIntegrations = await getIntegrations({integrationIds: [integrationId]});
+    if (!fullIntegrations[0]) {
+        throw new InternalServerError('Failed to fetch updated integration');
+    }
+    return fullIntegrations[0];
 };

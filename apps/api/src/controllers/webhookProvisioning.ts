@@ -1,4 +1,3 @@
-import config from '@/config';
 import {
     createOrgWebhook,
     createRepoWebhook,
@@ -8,8 +7,11 @@ import {
     listInstallationRepos,
     RepoInfo,
     updateOrgWebhookEvents,
+    updateOrgWebhookSecret,
     updateRepoWebhookEvents,
+    updateRepoWebhookSecret,
 } from '@/clients/githubApp';
+import config from '@/config';
 import {getLogger} from '@/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
@@ -244,4 +246,37 @@ export const updateAllWebhookEvents = async (integrationId: string, installation
         .where(eq(githubAppInstallations.installationId, installationId));
 
     logger.info(`Updated webhook events for installation ${installationId}`);
+};
+
+export const updateAllWebhookSecrets = async (integrationId: string, installationId: number, secret: string): Promise<void> => {
+    const logger = getLogger();
+    logger.info(`Updating webhook secrets for integration ${integrationId}, installation ${installationId}`);
+
+    const webhooks = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) => {
+            return await tx
+                .select()
+                .from(githubAppWebhooks)
+                .where(and(eq(githubAppWebhooks.integrationId, integrationId), eq(githubAppWebhooks.installationId, installationId)));
+        },
+    });
+
+    const webhookUrl = getWebhookUrl(integrationId);
+    const octokit = getInstallationOctokit(installationId);
+
+    for (const webhook of webhooks) {
+        try {
+            if (webhook.targetType === 'organization') {
+                await updateOrgWebhookSecret(octokit, webhook.targetName, webhook.webhookId, webhookUrl, secret);
+            } else {
+                const [owner, repo] = webhook.targetName.split('/');
+                await updateRepoWebhookSecret(octokit, owner, repo, webhook.webhookId, webhookUrl, secret);
+            }
+        } catch (error) {
+            logger.error(`Failed to update secret on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
+        }
+    }
+
+    logger.info(`Updated webhook secrets for installation ${installationId}`);
 };

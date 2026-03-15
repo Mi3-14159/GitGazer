@@ -3,7 +3,7 @@
     import Input from '@/components/ui/Input.vue';
     import Label from '@/components/ui/Label.vue';
     import {Integration} from '@common/types';
-    import {Copy, X} from 'lucide-vue-next';
+    import {X} from 'lucide-vue-next';
     import {ref} from 'vue';
 
     const WEBHOOK_EVENT_OPTIONS = [
@@ -21,6 +21,7 @@
     }>();
 
     const isEdit = !!props.integration;
+    const isLinked = !!(props.integration?.githubAppInstallations && props.integration.githubAppInstallations.length > 0);
     const label = ref(props.integration?.label ?? '');
     const selectedEvents = ref<Set<string>>(new Set(props.enabledEvents ?? []));
     const errorMsg = ref('');
@@ -41,10 +42,6 @@
         errorMsg.value = '';
         props.onSave(label.value, props.integration?.integrationId);
     };
-
-    function copyToClipboard(text: string) {
-        navigator.clipboard.writeText(text);
-    }
 </script>
 
 <template>
@@ -86,49 +83,11 @@
             </div>
 
             <!-- Webhook URL -->
-            <div
-                v-if="isEdit"
-                class="space-y-2"
-            >
-                <Label>Webhook URL</Label>
-                <div class="flex items-center gap-1">
-                    <Input
-                        :model-value="webhookUrl ?? ''"
-                        type="text"
-                        readonly
-                        :placeholder="isEdit ? '' : 'Generated after save'"
-                        class="font-mono text-sm"
-                    />
-                    <Button
-                        v-if="webhookUrl"
-                        variant="ghost"
-                        size="sm"
-                        class="h-9 w-9 p-0 shrink-0"
-                        @click="copyToClipboard(webhookUrl!)"
-                    >
-                        <Copy class="h-3.5 w-3.5" />
-                    </Button>
-                </div>
-            </div>
-
             <!-- Webhook Secret -->
-            <div
-                v-if="isEdit"
-                class="space-y-2"
-            >
-                <Label>Webhook Secret</Label>
-                <Input
-                    :model-value="(integration as any)?.secret ?? ''"
-                    type="password"
-                    readonly
-                    :placeholder="isEdit ? '' : 'Generated after save'"
-                    class="font-mono text-sm"
-                />
-            </div>
 
             <!-- Webhook Events -->
             <div
-                v-if="isEdit"
+                v-if="isLinked"
                 class="space-y-3"
             >
                 <Label>Webhook Events</Label>

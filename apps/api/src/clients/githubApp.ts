@@ -102,3 +102,18 @@ export const updateRepoWebhookEvents = async (octokit: Octokit, owner: string, r
 export const updateOrgWebhookEvents = async (octokit: Octokit, org: string, hookId: number, events: string[]): Promise<void> => {
     await octokit.orgs.updateWebhook({org, hook_id: hookId, events, active: true});
 };
+
+export const updateRepoWebhookSecret = async (
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    hookId: number,
+    url: string,
+    secret: string,
+): Promise<void> => {
+    await octokit.repos.updateWebhook({owner, repo, hook_id: hookId, config: {url, content_type: 'json', secret}});
+};
+
+export const updateOrgWebhookSecret = async (octokit: Octokit, org: string, hookId: number, url: string, secret: string): Promise<void> => {
+    await octokit.orgs.updateWebhook({org, hook_id: hookId, config: {url, content_type: 'json', secret}});
+};

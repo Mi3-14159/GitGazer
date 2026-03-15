@@ -1,4 +1,4 @@
-import {deleteIntegration, getIntegrations, upsertIntegration} from '@/controllers/integrations';
+import {deleteIntegration, getIntegrations, rotateSecret, upsertIntegration} from '@/controllers/integrations';
 import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/controllers/webhookProvisioning';
 import {getLogger} from '@/logger';
 import {addUserIntegrationsToCtx} from '@/router/middlewares/integrations';
@@ -95,6 +95,24 @@ router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], as
 
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,
+    });
+});
+
+router.post('/api/integrations/:integrationId/rotate-secret', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const integrationId = reqCtx.params.integrationId;
+    const integrationIds = reqCtx.appContext?.integrations ?? [];
+
+    if (!integrationIds.includes(integrationId)) {
+        throw new BadRequestError('Integration not accessible');
+    }
+
+    const integration = await rotateSecret({integrationId, integrationIds});
+
+    return new Response(JSON.stringify(integration), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Content-Type': 'application/json',
+        },
     });
 });
 
