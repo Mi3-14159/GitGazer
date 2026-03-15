@@ -1,6 +1,6 @@
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {getCustomQuerySchema, runCustomQuery} from '@/domains/metrics/custom-metrics.controller';
 import {getDoraMetrics, getSpaceMetrics} from '@/domains/metrics/metrics.controller';
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {listRepositories} from '@gitgazer/db/queries/metrics';
@@ -19,7 +19,7 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
         from: params.from,
         to: params.to,
         branch: params.branch,
-        granularity: params.granularity as 'day' | 'week' | 'month' | undefined,
+        granularity: params.granularity as 'hour' | 'day' | 'week' | 'month' | undefined,
     };
 }
 

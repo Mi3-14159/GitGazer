@@ -35,6 +35,7 @@ declare module 'vue' {
     DropdownMenu: typeof import('./src/components/ui/DropdownMenu.vue')['default']
     GitHubAppLinkDialog: typeof import('./src/components/integrations/GitHubAppLinkDialog.vue')['default']
     GitHubInstallation: typeof import('./src/components/integrations/GitHubInstallation.vue')['default']
+    GranularitySelector: typeof import('./src/components/GranularitySelector.vue')['default']
     Input: typeof import('./src/components/ui/Input.vue')['default']
     IntegrationCard: typeof import('./src/components/integrations/IntegrationCard.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/integrations/IntegrationDetailsCard.vue')['default']

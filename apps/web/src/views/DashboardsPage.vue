@@ -2,10 +2,11 @@
     import DashboardList from '@/components/analytics/DashboardList.vue';
     import WidgetGrid from '@/components/analytics/WidgetGrid.vue';
     import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
+    import GranularitySelector from '@/components/GranularitySelector.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import {type Dashboard, defaultDashboards} from '@/types/analytics';
-    import type {MetricsFilter} from '@common/types';
+    import type {Granularity, MetricsFilter} from '@common/types';
     import {ArrowLeft} from 'lucide-vue-next';
     import {computed, ref, watch} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
@@ -15,6 +16,7 @@
 
     const selectedDashboardId = ref<string | null>((route.params.dashboardId as string) || null);
     const dateRange = ref<DateRange>({});
+    const granularity = ref<Granularity>('day');
     const dashboards = ref<Dashboard[]>([...defaultDashboards]);
 
     const currentDashboard = computed(() =>
@@ -25,6 +27,7 @@
         const filter: MetricsFilter = {};
         if (dateRange.value.from) filter.from = dateRange.value.from.toISOString();
         if (dateRange.value.to) filter.to = dateRange.value.to.toISOString();
+        filter.granularity = granularity.value;
         return filter;
     });
 
@@ -60,6 +63,7 @@
                         Back to Dashboards
                     </Button>
                 </template>
+                <GranularitySelector v-model:granularity="granularity" />
                 <DateTimeRangePicker v-model:date-range="dateRange" />
             </PageHeader>
 
@@ -72,6 +76,7 @@
         <!-- Dashboard List View -->
         <template v-else>
             <PageHeader description="View built-in DORA &amp; SPACE dashboards">
+                <GranularitySelector v-model:granularity="granularity" />
                 <DateTimeRangePicker v-model:date-range="dateRange" />
             </PageHeader>
 

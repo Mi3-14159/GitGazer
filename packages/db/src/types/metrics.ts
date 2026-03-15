@@ -1,4 +1,4 @@
-export type Granularity = 'day' | 'week' | 'month';
+export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
 export type MetricsFilter = {
     repositoryId?: number;
@@ -10,7 +10,7 @@ export type MetricsFilter = {
 
 export const isMetricsFilter = (params: Record<string, unknown>): params is MetricsFilter & Record<string, unknown> => {
     if (params.repositoryId !== undefined && isNaN(Number(params.repositoryId))) return false;
-    if (params.granularity !== undefined && !['day', 'week', 'month'].includes(String(params.granularity))) return false;
+    if (params.granularity !== undefined && !['hour', 'day', 'week', 'month'].includes(String(params.granularity))) return false;
     return true;
 };
 
