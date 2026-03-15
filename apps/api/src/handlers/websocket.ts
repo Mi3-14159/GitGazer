@@ -1,8 +1,8 @@
-import config, {loadConfig} from '@/config';
+import config, {loadConfig} from '@/shared/config';
 import {db} from '@gitgazer/db/client';
 import {WSToken} from '@gitgazer/db/types';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
-import {getLogger} from '@/logger';
+import {getLogger} from '@/shared/logger';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
 import {createHmac} from 'crypto';
 import {eq} from 'drizzle-orm';
