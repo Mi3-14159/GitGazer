@@ -98,10 +98,6 @@
         if (data) integrations.value = data;
     });
 
-    function getStatus(integration: Integration): 'active' | 'inactive' {
-        return integration.githubAppInstallations && integration.githubAppInstallations.length > 0 ? 'active' : 'inactive';
-    }
-
     function getEnabledEvents(integration: Integration): string[] {
         const events = new Set<string>();
         integration.githubAppInstallations?.forEach((inst: any) => {
@@ -405,22 +401,6 @@
                                         {{ integration.label }}
                                     </h3>
                                 </template>
-                                <Badge
-                                    v-if="getStatus(integration) === 'active'"
-                                    variant="default"
-                                    class="gap-1"
-                                >
-                                    <CheckCircle2 class="h-3 w-3" />
-                                    active
-                                </Badge>
-                                <Badge
-                                    v-else
-                                    variant="secondary"
-                                    class="gap-1"
-                                >
-                                    <XCircle class="h-3 w-3" />
-                                    inactive
-                                </Badge>
                                 <span
                                     v-if="getEnabledEvents(integration).length > 0"
                                     class="text-xs text-muted-foreground"
