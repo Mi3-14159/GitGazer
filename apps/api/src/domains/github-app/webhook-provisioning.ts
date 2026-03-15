@@ -12,11 +12,11 @@ import {
     updateRepoWebhookSecret,
 } from '@/shared/clients/github-app.client';
 import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
-import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {githubAppInstallations, githubAppWebhooks, integrations} from '@gitgazer/db/schema/github/workflows';
-import {and, eq} from 'drizzle-orm';
+import { getLogger } from '@/shared/logger';
+import { db, RdsTransaction, withRlsTransaction } from '@gitgazer/db/client';
+import { gitgazerWriter } from '@gitgazer/db/schema/app';
+import { githubAppInstallations, githubAppWebhooks, integrations } from '@gitgazer/db/schema/github/workflows';
+import { and, eq } from 'drizzle-orm';
 
 const getWebhookUrl = (integrationId: string): string => {
     const importUrlBase = config.get('importUrlBase');
@@ -64,34 +64,36 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
         reposByOrg.set(repo.owner, ownerRepos);
     }
 
-    let webhookCount = 0;
-
-    for (const [owner, orgRepos] of reposByOrg) {
-        // If "all" repos selected and this is an org account, use org-level webhook
-        if (installation.repositorySelection === 'all' && installation.accountType === 'Organization' && owner === installation.accountLogin) {
-            try {
-                const webhookId = await createOrgWebhook(octokit, owner, webhookUrl, integration.secret, events);
-                await db.insert(githubAppWebhooks).values({
-                    integrationId,
-                    installationId,
-                    webhookId,
-                    targetType: 'organization',
-                    targetId: installation.accountId,
-                    targetName: owner,
-                    events,
-                });
-                webhookCount++;
-                logger.info(`Created org-level webhook for ${owner} (ID: ${webhookId})`);
-            } catch (error) {
-                logger.error(`Failed to create org webhook for ${owner}`, {error});
-                // Fall back to per-repo webhooks
-                webhookCount += await createPerRepoWebhooks(integrationId, installationId, octokit, orgRepos, webhookUrl, integration.secret, events);
+    const counts = await Promise.all(
+        Array.from(reposByOrg.entries()).map(async ([owner, orgRepos]) => {
+            // If "all" repos selected and this is an org account, use org-level webhook
+            if (installation.repositorySelection === 'all' && installation.accountType === 'Organization' && owner === installation.accountLogin) {
+                try {
+                    const webhookId = await createOrgWebhook(octokit, owner, webhookUrl, integration.secret, events);
+                    await db.insert(githubAppWebhooks).values({
+                        integrationId,
+                        installationId,
+                        webhookId,
+                        targetType: 'organization',
+                        targetId: installation.accountId,
+                        targetName: owner,
+                        events,
+                    });
+                    logger.info(`Created org-level webhook for ${owner} (ID: ${webhookId})`);
+                    return 1;
+                } catch (error) {
+                    logger.error(`Failed to create org webhook for ${owner}`, {error});
+                    // Fall back to per-repo webhooks
+                    return await createPerRepoWebhooks(integrationId, installationId, octokit, orgRepos, webhookUrl, integration.secret, events);
+                }
+            } else {
+                // Per-repo webhooks
+                return await createPerRepoWebhooks(integrationId, installationId, octokit, orgRepos, webhookUrl, integration.secret, events);
             }
-        } else {
-            // Per-repo webhooks
-            webhookCount += await createPerRepoWebhooks(integrationId, installationId, octokit, orgRepos, webhookUrl, integration.secret, events);
-        }
-    }
+        }),
+    );
+
+    const webhookCount = counts.reduce((sum, n) => sum + n, 0);
 
     logger.info(`Provisioned ${webhookCount} webhooks for integration ${integrationId}`);
     return webhookCount;
@@ -107,28 +109,30 @@ const createPerRepoWebhooks = async (
     events: string[],
 ): Promise<number> => {
     const logger = getLogger();
-    let count = 0;
 
-    for (const repo of repos) {
-        try {
-            const webhookId = await createRepoWebhook(octokit, repo.owner, repo.name, webhookUrl, secret, events);
-            await db.insert(githubAppWebhooks).values({
-                integrationId,
-                installationId,
-                webhookId,
-                targetType: 'repository',
-                targetId: repo.id,
-                targetName: repo.fullName,
-                events,
-            });
-            count++;
-            logger.info(`Created repo webhook for ${repo.fullName} (ID: ${webhookId})`);
-        } catch (error) {
-            logger.error(`Failed to create webhook for ${repo.fullName}`, {error});
-        }
-    }
+    const results = await Promise.all(
+        repos.map(async (repo) => {
+            try {
+                const webhookId = await createRepoWebhook(octokit, repo.owner, repo.name, webhookUrl, secret, events);
+                await db.insert(githubAppWebhooks).values({
+                    integrationId,
+                    installationId,
+                    webhookId,
+                    targetType: 'repository',
+                    targetId: repo.id,
+                    targetName: repo.fullName,
+                    events,
+                });
+                logger.info(`Created repo webhook for ${repo.fullName} (ID: ${webhookId})`);
+                return 1 as number;
+            } catch (error) {
+                logger.error(`Failed to create webhook for ${repo.fullName}`, {error});
+                return 0;
+            }
+        }),
+    );
 
-    return count;
+    return results.reduce((sum, r) => sum + r, 0);
 };
 
 export const provisionWebhooksForRepos = async (integrationId: string, installationId: number, repos: RepoInfo[]): Promise<number> => {
@@ -172,19 +176,21 @@ export const deprovisionAllWebhooks = async (integrationId: string, installation
     logger.debug(`Found ${webhooks.length} webhooks to delete for installation ${installationId}`);
     const octokit = getInstallationOctokit(installationId);
 
-    for (const webhook of webhooks) {
-        logger.debug(`Deleting webhook ${webhook.webhookId} on ${webhook.targetName} (${webhook.targetType})`);
-        try {
-            if (webhook.targetType === 'organization') {
-                await deleteOrgWebhook(octokit, webhook.targetName, webhook.webhookId);
-            } else {
-                const [owner, repo] = webhook.targetName.split('/');
-                await deleteRepoWebhook(octokit, owner, repo, webhook.webhookId);
+    await Promise.all(
+        webhooks.map(async (webhook) => {
+            logger.debug(`Deleting webhook ${webhook.webhookId} on ${webhook.targetName} (${webhook.targetType})`);
+            try {
+                if (webhook.targetType === 'organization') {
+                    await deleteOrgWebhook(octokit, webhook.targetName, webhook.webhookId);
+                } else {
+                    const [owner, repo] = webhook.targetName.split('/');
+                    await deleteRepoWebhook(octokit, owner, repo, webhook.webhookId);
+                }
+            } catch (error) {
+                logger.warn(`Failed to delete webhook ${webhook.webhookId} on ${webhook.targetName} (may already be deleted)`, {error});
             }
-        } catch (error) {
-            logger.warn(`Failed to delete webhook ${webhook.webhookId} on ${webhook.targetName} (may already be deleted)`, {error});
-        }
-    }
+        }),
+    );
 
     // Clean up DB records for all webhooks (including failed ones, as they may already be gone)
     await withRlsTransaction({
@@ -214,30 +220,32 @@ export const updateAllWebhookEvents = async (integrationId: string, installation
 
     const octokit = getInstallationOctokit(installationId);
 
-    for (const webhook of webhooks) {
-        try {
-            if (webhook.targetType === 'organization') {
-                await updateOrgWebhookEvents(octokit, webhook.targetName, webhook.webhookId, events);
-            } else {
-                const [owner, repo] = webhook.targetName.split('/');
-                await updateRepoWebhookEvents(octokit, owner, repo, webhook.webhookId, events);
-            }
+    await Promise.all(
+        webhooks.map(async (webhook) => {
+            try {
+                if (webhook.targetType === 'organization') {
+                    await updateOrgWebhookEvents(octokit, webhook.targetName, webhook.webhookId, events);
+                } else {
+                    const [owner, repo] = webhook.targetName.split('/');
+                    await updateRepoWebhookEvents(octokit, owner, repo, webhook.webhookId, events);
+                }
 
-            // Update events in DB record
-            await withRlsTransaction({
-                integrationIds: [integrationId],
-                userName: gitgazerWriter.name,
-                callback: async (tx: RdsTransaction) => {
-                    await tx
-                        .update(githubAppWebhooks)
-                        .set({events})
-                        .where(and(eq(githubAppWebhooks.integrationId, integrationId), eq(githubAppWebhooks.webhookId, webhook.webhookId)));
-                },
-            });
-        } catch (error) {
-            logger.error(`Failed to update events on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
-        }
-    }
+                // Update events in DB record
+                await withRlsTransaction({
+                    integrationIds: [integrationId],
+                    userName: gitgazerWriter.name,
+                    callback: async (tx: RdsTransaction) => {
+                        await tx
+                            .update(githubAppWebhooks)
+                            .set({events})
+                            .where(and(eq(githubAppWebhooks.integrationId, integrationId), eq(githubAppWebhooks.webhookId, webhook.webhookId)));
+                    },
+                });
+            } catch (error) {
+                logger.error(`Failed to update events on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
+            }
+        }),
+    );
 
     // Update the installation's configured events
     await db
@@ -265,18 +273,20 @@ export const updateAllWebhookSecrets = async (integrationId: string, installatio
     const webhookUrl = getWebhookUrl(integrationId);
     const octokit = getInstallationOctokit(installationId);
 
-    for (const webhook of webhooks) {
-        try {
-            if (webhook.targetType === 'organization') {
-                await updateOrgWebhookSecret(octokit, webhook.targetName, webhook.webhookId, webhookUrl, secret);
-            } else {
-                const [owner, repo] = webhook.targetName.split('/');
-                await updateRepoWebhookSecret(octokit, owner, repo, webhook.webhookId, webhookUrl, secret);
+    await Promise.all(
+        webhooks.map(async (webhook) => {
+            try {
+                if (webhook.targetType === 'organization') {
+                    await updateOrgWebhookSecret(octokit, webhook.targetName, webhook.webhookId, webhookUrl, secret);
+                } else {
+                    const [owner, repo] = webhook.targetName.split('/');
+                    await updateRepoWebhookSecret(octokit, owner, repo, webhook.webhookId, webhookUrl, secret);
+                }
+            } catch (error) {
+                logger.error(`Failed to update secret on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
             }
-        } catch (error) {
-            logger.error(`Failed to update secret on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
-        }
-    }
+        }),
+    );
 
     logger.info(`Updated webhook secrets for installation ${installationId}`);
 };
