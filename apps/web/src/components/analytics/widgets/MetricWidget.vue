@@ -122,7 +122,7 @@
             titles.push({
                 text: formattedValue.value,
                 subtext: trendText.value,
-                right: -48,
+                right: -formattedValue.value.length * 8.5,
                 top: 8,
                 textAlign: 'right' as const,
                 textStyle: {fontSize: 22, fontWeight: 700, color: '#111827'},
@@ -135,7 +135,7 @@
         if (props.description) {
             graphic.push({
                 type: 'text',
-                left: 12 + props.title.length * 8.5 + 4,
+                left: 12 + props.title.length * 8.5,
                 top: 13,
                 style: {
                     text: 'ⓘ',

@@ -22,6 +22,7 @@ declare module 'vue' {
     Checkbox: typeof import('./src/components/ui/Checkbox.vue')['default']
     ColumnHeaderFilter: typeof import('./src/components/workflows/ColumnHeaderFilter.vue')['default']
     ColumnSelector: typeof import('./src/components/workflows/ColumnSelector.vue')['default']
+    DashboardFilters: typeof import('./src/components/analytics/DashboardFilters.vue')['default']
     DashboardList: typeof import('./src/components/analytics/DashboardList.vue')['default']
     DashboardSelector: typeof import('./src/components/analytics/DashboardSelector.vue')['default']
     DateTimeRangePicker: typeof import('./src/components/DateTimeRangePicker.vue')['default']

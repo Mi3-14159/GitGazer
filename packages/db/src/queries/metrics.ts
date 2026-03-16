@@ -1,6 +1,6 @@
-import {and, eq, gte, lte, sql, SQL} from 'drizzle-orm';
+import {and, eq, gte, inArray, lte, sql, SQL} from 'drizzle-orm';
 import {RdsTransaction, withRlsTransaction} from '../client';
-import {pullRequests, repositories, workflowJobs, workflowRuns} from '../schema';
+import {pullRequests, repositories, user, workflowJobs, workflowRuns} from '../schema';
 import type {MetricDataPoint, MetricResult, MetricsFilter, MetricSummary} from '../types/metrics';
 
 type MetricsParams = {
@@ -46,15 +46,42 @@ function buildSummary(data: MetricDataPoint[], prevData: MetricDataPoint[]): Met
     };
 }
 
+function getEffectiveRepositoryIds(filter: MetricsFilter): number[] | undefined {
+    if (filter.repositoryIds?.length) return filter.repositoryIds;
+    if (filter.repositoryId) return [filter.repositoryId];
+    return undefined;
+}
+
 function buildWorkflowRunConditions(filter: MetricsFilter, from: Date, to: Date): SQL[] {
     const conditions: SQL[] = [gte(workflowRuns.createdAt, from), lte(workflowRuns.createdAt, to), eq(workflowRuns.status, 'completed')];
-    if (filter.repositoryId) {
-        conditions.push(eq(workflowRuns.repositoryId, filter.repositoryId));
+    const repoIds = getEffectiveRepositoryIds(filter);
+    if (repoIds) {
+        conditions.push(repoIds.length === 1 ? eq(workflowRuns.repositoryId, repoIds[0]) : inArray(workflowRuns.repositoryId, repoIds));
     }
-    if (filter.branch) {
-        conditions.push(eq(workflowRuns.headBranch, filter.branch));
+    if (filter.defaultBranchOnly) {
+        conditions.push(
+            sql`${workflowRuns.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId})`,
+        );
+    }
+    if (filter.usersOnly) {
+        conditions.push(sql`${workflowRuns.actorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`);
     }
     return conditions;
+}
+
+function buildPullRequestFilters(conditions: SQL[], filter: MetricsFilter): void {
+    const repoIds = getEffectiveRepositoryIds(filter);
+    if (repoIds) {
+        conditions.push(repoIds.length === 1 ? eq(pullRequests.repositoryId, repoIds[0]) : inArray(pullRequests.repositoryId, repoIds));
+    }
+    if (filter.defaultBranchOnly) {
+        conditions.push(
+            sql`${pullRequests.baseBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId})`,
+        );
+    }
+    if (filter.usersOnly) {
+        conditions.push(sql`${pullRequests.authorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`);
+    }
 }
 
 async function queryTimeBuckets(
@@ -108,10 +135,9 @@ export async function getLeadTimeForChanges({integrationIds, filter}: MetricsPar
         integrationIds,
         callback: async (tx) => {
             const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
-                const conditions: SQL[] = [gte(pullRequests.mergedAt, rangeFrom), lte(pullRequests.mergedAt, rangeTo), eq(pullRequests.merged, true)];
-                if (filter.repositoryId) {
-                    conditions.push(eq(pullRequests.repositoryId, filter.repositoryId));
-                }
+                const conditions: SQL[] = [gte(pullRequests.mergedAt, rangeFrom), lte(pullRequests.mergedAt, rangeTo)];
+                conditions.push(eq(pullRequests.merged, true));
+                buildPullRequestFilters(conditions, filter);
                 const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                 const rows = await tx.execute(
                     sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
@@ -177,8 +203,9 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                           AND conclusion IN ('failure', 'timed_out')
                           AND created_at >= ${rangeFrom.toISOString()}::timestamptz
                           AND created_at <= ${rangeTo.toISOString()}::timestamptz
-                          ${filter.repositoryId ? sql`AND repository_id = ${filter.repositoryId}` : sql``}
-                          ${filter.branch ? sql`AND head_branch = ${filter.branch}` : sql``}
+                          ${getEffectiveRepositoryIds(filter) ? sql`AND repository_id = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                          ${filter.defaultBranchOnly ? sql`AND head_branch = (SELECT default_branch FROM github.repositories r WHERE r.id = github.workflow_runs.repository_id AND r.integration_id = github.workflow_runs.integration_id)` : sql``}
+                          ${filter.usersOnly ? sql`AND actor_id NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                     ),
                     recovery AS (
                         SELECT f.id as failed_id,
@@ -224,14 +251,9 @@ export async function getPRMergeRate({integrationIds, filter}: MetricsParams): P
         integrationIds,
         callback: async (tx) => {
             const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
-                const conditions: SQL[] = [
-                    gte(pullRequests.closedAt, rangeFrom),
-                    lte(pullRequests.closedAt, rangeTo),
-                    sql`${pullRequests.closedAt} IS NOT NULL`,
-                ];
-                if (filter.repositoryId) {
-                    conditions.push(eq(pullRequests.repositoryId, filter.repositoryId));
-                }
+                const conditions: SQL[] = [gte(pullRequests.closedAt, rangeFrom), lte(pullRequests.closedAt, rangeTo)];
+                conditions.push(sql`${pullRequests.closedAt} IS NOT NULL`);
+                buildPullRequestFilters(conditions, filter);
                 const truncated = dateTruncExpression(granularity, sql`${pullRequests.closedAt}`);
                 const rows = await tx.execute(
                     sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
@@ -266,14 +288,18 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                         FROM ${workflowRuns}
                         WHERE ${workflowRuns.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                           AND ${workflowRuns.createdAt} <= ${rangeTo.toISOString()}::timestamptz
-                          ${filter.repositoryId ? sql`AND ${workflowRuns.repositoryId} = ${filter.repositoryId}` : sql``}
+                          ${getEffectiveRepositoryIds(filter) ? sql`AND ${workflowRuns.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                          ${filter.defaultBranchOnly ? sql`AND ${workflowRuns.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId})` : sql``}
+                          ${filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                         GROUP BY period
                         UNION ALL
                         SELECT ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, count(*) as cnt
                         FROM ${pullRequests}
                         WHERE ${pullRequests.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                           AND ${pullRequests.createdAt} <= ${rangeTo.toISOString()}::timestamptz
-                          ${filter.repositoryId ? sql`AND ${pullRequests.repositoryId} = ${filter.repositoryId}` : sql``}
+                          ${getEffectiveRepositoryIds(filter) ? sql`AND ${pullRequests.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                          ${filter.defaultBranchOnly ? sql`AND ${pullRequests.baseBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId})` : sql``}
+                          ${filter.usersOnly ? sql`AND ${pullRequests.authorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                         GROUP BY period
                     ) combined
                     GROUP BY period
@@ -308,13 +334,17 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                         FROM ${workflowRuns}
                         WHERE ${workflowRuns.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                           AND ${workflowRuns.createdAt} <= ${rangeTo.toISOString()}::timestamptz
-                          ${filter.repositoryId ? sql`AND ${workflowRuns.repositoryId} = ${filter.repositoryId}` : sql``}
+                          ${getEffectiveRepositoryIds(filter) ? sql`AND ${workflowRuns.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                          ${filter.defaultBranchOnly ? sql`AND ${workflowRuns.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId})` : sql``}
+                          ${filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                         UNION ALL
                         SELECT ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, ${pullRequests.authorId} as actor
                         FROM ${pullRequests}
                         WHERE ${pullRequests.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                           AND ${pullRequests.createdAt} <= ${rangeTo.toISOString()}::timestamptz
-                          ${filter.repositoryId ? sql`AND ${pullRequests.repositoryId} = ${filter.repositoryId}` : sql``}
+                          ${getEffectiveRepositoryIds(filter) ? sql`AND ${pullRequests.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                          ${filter.defaultBranchOnly ? sql`AND ${pullRequests.baseBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId})` : sql``}
+                          ${filter.usersOnly ? sql`AND ${pullRequests.authorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                     ) combined
                     GROUP BY period
                     ORDER BY period
@@ -347,8 +377,9 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
                     lte(workflowJobs.createdAt, rangeTo),
                     sql`${workflowJobs.completedAt} IS NOT NULL`,
                 ];
-                if (filter.repositoryId) {
-                    conditions.push(eq(workflowJobs.repositoryId, filter.repositoryId));
+                const repoIds = getEffectiveRepositoryIds(filter);
+                if (repoIds) {
+                    conditions.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
                 }
                 const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                 const rows = await tx.execute(
@@ -377,10 +408,9 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
         integrationIds,
         callback: async (tx) => {
             const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
-                const conditions: SQL[] = [gte(pullRequests.mergedAt, rangeFrom), lte(pullRequests.mergedAt, rangeTo), eq(pullRequests.merged, true)];
-                if (filter.repositoryId) {
-                    conditions.push(eq(pullRequests.repositoryId, filter.repositoryId));
-                }
+                const conditions: SQL[] = [gte(pullRequests.mergedAt, rangeFrom), lte(pullRequests.mergedAt, rangeTo)];
+                conditions.push(eq(pullRequests.merged, true));
+                buildPullRequestFilters(conditions, filter);
                 const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                 const rows = await tx.execute(
                     sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
@@ -409,8 +439,9 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
         callback: async (tx) => {
             const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
                 const conditions: SQL[] = [gte(workflowJobs.createdAt, rangeFrom), lte(workflowJobs.createdAt, rangeTo)];
-                if (filter.repositoryId) {
-                    conditions.push(eq(workflowJobs.repositoryId, filter.repositoryId));
+                const repoIds = getEffectiveRepositoryIds(filter);
+                if (repoIds) {
+                    conditions.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
                 }
                 const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                 const rows = await tx.execute(

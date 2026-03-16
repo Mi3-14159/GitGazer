@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import DashboardFilters from '@/components/analytics/DashboardFilters.vue';
     import DashboardList from '@/components/analytics/DashboardList.vue';
     import WidgetGrid from '@/components/analytics/WidgetGrid.vue';
     import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
@@ -19,6 +20,11 @@
     const granularity = ref<Granularity>('day');
     const dashboards = ref<Dashboard[]>([...defaultDashboards]);
 
+    // Filter state
+    const repositoryIds = ref<number[]>([]);
+    const defaultBranchOnly = ref(false);
+    const usersOnly = ref(false);
+
     const currentDashboard = computed(() =>
         selectedDashboardId.value ? (dashboards.value.find((d) => d.id === selectedDashboardId.value) ?? null) : null,
     );
@@ -28,6 +34,9 @@
         if (dateRange.value.from) filter.from = dateRange.value.from.toISOString();
         if (dateRange.value.to) filter.to = dateRange.value.to.toISOString();
         filter.granularity = granularity.value;
+        if (repositoryIds.value.length) filter.repositoryIds = repositoryIds.value;
+        if (defaultBranchOnly.value) filter.defaultBranchOnly = true;
+        if (usersOnly.value) filter.usersOnly = true;
         return filter;
     });
 
@@ -66,6 +75,14 @@
                 <GranularitySelector v-model:granularity="granularity" />
                 <DateTimeRangePicker v-model:date-range="dateRange" />
             </PageHeader>
+
+            <div class="flex justify-end">
+                <DashboardFilters
+                    v-model:repository-ids="repositoryIds"
+                    v-model:default-branch-only="defaultBranchOnly"
+                    v-model:users-only="usersOnly"
+                />
+            </div>
 
             <WidgetGrid
                 :dashboard="currentDashboard"

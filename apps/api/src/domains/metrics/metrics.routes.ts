@@ -16,9 +16,16 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
     }
     return {
         repositoryId: params.repositoryId ? Number(params.repositoryId) : undefined,
+        repositoryIds: params.repositoryIds
+            ? params.repositoryIds
+                  .split(',')
+                  .map(Number)
+                  .filter((n) => !isNaN(n))
+            : undefined,
         from: params.from,
         to: params.to,
-        branch: params.branch,
+        defaultBranchOnly: params.defaultBranchOnly === 'true',
+        usersOnly: params.usersOnly === 'true',
         granularity: params.granularity as 'hour' | 'day' | 'week' | 'month' | undefined,
     };
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "github"."repositories" ADD COLUMN "default_branch" varchar(255) DEFAULT 'main' NOT NULL;

@@ -46,6 +46,7 @@ export const importWorkflow = async (
         created_at: event.repository.created_at,
         updated_at: event.repository.updated_at,
         owner: event.repository.owner,
+        defaultBranch: event.repository.default_branch,
     });
 
     return {

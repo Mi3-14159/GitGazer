@@ -20,10 +20,12 @@ export const metricFieldMap: Record<WidgetType, {endpoint: 'dora' | 'space'; fie
 
 function buildQueryString(filter: MetricsFilter): string {
     const params = new URLSearchParams();
-    if (filter.repositoryId) params.set('repositoryId', String(filter.repositoryId));
+    if (filter.repositoryIds?.length) params.set('repositoryIds', filter.repositoryIds.join(','));
+    else if (filter.repositoryId) params.set('repositoryId', String(filter.repositoryId));
     if (filter.from) params.set('from', filter.from);
     if (filter.to) params.set('to', filter.to);
-    if (filter.branch) params.set('branch', filter.branch);
+    if (filter.defaultBranchOnly) params.set('defaultBranchOnly', 'true');
+    if (filter.usersOnly) params.set('usersOnly', 'true');
     if (filter.granularity) params.set('granularity', filter.granularity);
     return params.toString();
 }
@@ -45,5 +47,11 @@ export function useMetrics() {
         return (await res.json()) as SpaceMetricsResponse;
     }
 
-    return {fetchDoraMetrics, fetchSpaceMetrics};
+    async function fetchRepositories(): Promise<{id: number; name: string}[]> {
+        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/repositories`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return (await res.json()) as {id: number; name: string}[];
+    }
+
+    return {fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories};
 }

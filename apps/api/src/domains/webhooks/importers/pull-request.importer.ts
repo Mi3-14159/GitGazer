@@ -30,6 +30,7 @@ export const importPullRequest = async (
         created_at: event.repository.created_at,
         updated_at: event.repository.updated_at,
         owner: event.repository.owner,
+        defaultBranch: event.repository.default_branch,
     });
 
     const userMap = await upsertUsers(tx, integrationId, [

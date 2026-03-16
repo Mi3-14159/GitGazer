@@ -2,15 +2,18 @@ export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
 export type MetricsFilter = {
     repositoryId?: number;
+    repositoryIds?: number[];
     from?: string;
     to?: string;
-    branch?: string;
+    defaultBranchOnly?: boolean;
+    usersOnly?: boolean;
     granularity?: Granularity;
 };
 
 export const isMetricsFilter = (params: Record<string, unknown>): params is MetricsFilter & Record<string, unknown> => {
     if (params.repositoryId !== undefined && isNaN(Number(params.repositoryId))) return false;
     if (params.granularity !== undefined && !['hour', 'day', 'week', 'month'].includes(String(params.granularity))) return false;
+    if (params.usersOnly !== undefined && !['true', 'false'].includes(String(params.usersOnly))) return false;
     return true;
 };
 

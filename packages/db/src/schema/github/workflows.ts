@@ -120,6 +120,7 @@ export const repositories = githubSchema
             name: varchar('name', {length: 255}).notNull(),
             private: boolean('private').notNull(),
             ownerId: bigint('owner_id', {mode: 'number'}),
+            defaultBranch: varchar('default_branch', {length: 255}).notNull().default('main'),
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),

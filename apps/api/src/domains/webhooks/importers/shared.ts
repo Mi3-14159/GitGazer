@@ -11,6 +11,7 @@ type RepositoryPayload = {
     created_at: string | number;
     updated_at: string | number;
     owner: {id: number; login: string; type: string};
+    defaultBranch: string;
 };
 type UserPayload = {id: number; login: string; type: string};
 
@@ -99,6 +100,7 @@ export const upsertRepository = async (
             createdAt: new Date(payload.created_at),
             updatedAt: new Date(payload.updated_at),
             ownerId: payload.owner.id,
+            defaultBranch: payload.defaultBranch,
         })
         .onConflictDoNothing()
         .returning();
