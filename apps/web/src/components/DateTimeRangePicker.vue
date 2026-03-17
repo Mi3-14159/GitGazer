@@ -5,8 +5,7 @@
     import {cn} from '@/lib/utils';
     import {format, subDays, subHours} from 'date-fns';
     import {Calendar as CalendarIcon} from 'lucide-vue-next';
-    import {computed, onMounted, ref} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
+    import {computed, ref, watch} from 'vue';
 
     export interface DateRange {
         from?: Date;
@@ -20,9 +19,6 @@
         class?: string;
     }>();
 
-    const route = useRoute();
-    const router = useRouter();
-
     const open = ref(false);
 
     const shortcuts = [
@@ -32,90 +28,28 @@
         {label: 'Past 30 days', value: '30d', getRange: () => ({from: subDays(new Date(), 30), to: new Date()})},
     ] as const;
 
-    const defaultShortcut = shortcuts[2]; // Past 7 days
+    // Derive internal state from the model value
+    const activeShortcut = ref<(typeof shortcuts)[number] | null>(
+        dateRange.value.window ? (shortcuts.find((s) => s.value === dateRange.value.window) ?? null) : null,
+    );
+    const fromDate = ref(dateRange.value.from ? format(dateRange.value.from, 'yyyy-MM-dd') : '');
+    const toDate = ref(dateRange.value.to ? format(dateRange.value.to, 'yyyy-MM-dd') : '');
+    const fromTime = ref(dateRange.value.from ? format(dateRange.value.from, 'HH:mm') : '00:00');
+    const toTime = ref(dateRange.value.to ? format(dateRange.value.to, 'HH:mm') : '23:59');
 
-    // Resolve initial state from URL > model props > default
-    function resolveInitialState() {
-        const urlWindow = route.query.window as string | undefined;
-        const urlFrom = route.query.created_from as string | undefined;
-        const urlTo = route.query.created_to as string | undefined;
-
-        if (urlWindow) {
-            const match = shortcuts.find((s) => s.value === urlWindow);
-            if (match) {
-                const range = match.getRange();
-                return {shortcut: match, from: range.from, to: range.to, window: match.value};
-            }
-        }
-
-        if (urlFrom || urlTo) {
-            const from = urlFrom ? new Date(urlFrom) : undefined;
-            const to = urlTo ? new Date(urlTo) : undefined;
-            return {shortcut: null, from, to, window: undefined};
-        }
-
-        if (dateRange.value.window) {
-            const match = shortcuts.find((s) => s.value === dateRange.value.window);
-            if (match) {
-                const range = match.getRange();
-                return {shortcut: match, from: range.from, to: range.to, window: match.value};
-            }
-        }
-
-        if (dateRange.value.from) {
-            return {shortcut: null, from: dateRange.value.from, to: dateRange.value.to, window: undefined};
-        }
-
-        // Default
-        const range = defaultShortcut.getRange();
-        return {shortcut: defaultShortcut, from: range.from, to: range.to, window: defaultShortcut.value};
-    }
-
-    const initial = resolveInitialState();
-
-    const activeShortcut = ref<(typeof shortcuts)[number] | null>(initial.shortcut);
-    const fromDate = ref(initial.from ? format(initial.from, 'yyyy-MM-dd') : '');
-    const toDate = ref(initial.to ? format(initial.to, 'yyyy-MM-dd') : '');
-    const fromTime = ref(initial.from ? format(initial.from, 'HH:mm') : '00:00');
-    const toTime = ref(initial.to ? format(initial.to, 'HH:mm') : '23:59');
-
-    function syncToUrl(from: Date | undefined, to: Date | undefined, win?: string) {
-        const query: Record<string, string> = {};
-        // Preserve unrelated query params
-        for (const [key, val] of Object.entries(route.query)) {
-            if (key !== 'window' && key !== 'created_from' && key !== 'created_to' && typeof val === 'string') {
-                query[key] = val;
-            }
-        }
-
-        if (win) {
-            query.window = win;
-        } else {
-            if (from) query.created_from = from.toISOString();
-            if (to) query.created_to = to.toISOString();
-        }
-
-        router.replace({query});
-    }
-
-    function update(from: Date | undefined, to: Date | undefined, win?: string) {
-        dateRange.value = {from, to, window: win};
-        syncToUrl(from, to, win);
-    }
-
-    // Set initial state synchronously so downstream watchers (e.g. useMetric)
-    // see the resolved filter immediately and don't fire an empty-params fetch first.
-    dateRange.value = {from: initial.from, to: initial.to, window: initial.window};
-
-    // Sync to URL on mount (router.replace requires the component to be mounted)
-    onMounted(() => {
-        syncToUrl(initial.from, initial.to, initial.window);
+    // Keep internal state in sync when model is updated externally
+    watch(dateRange, (val) => {
+        activeShortcut.value = val.window ? (shortcuts.find((s) => s.value === val.window) ?? null) : null;
+        fromDate.value = val.from ? format(val.from, 'yyyy-MM-dd') : '';
+        toDate.value = val.to ? format(val.to, 'yyyy-MM-dd') : '';
+        fromTime.value = val.from ? format(val.from, 'HH:mm') : '00:00';
+        toTime.value = val.to ? format(val.to, 'HH:mm') : '23:59';
     });
 
     function emitRange() {
         activeShortcut.value = null;
         if (!fromDate.value) {
-            update(undefined, undefined);
+            dateRange.value = {};
             return;
         }
 
@@ -128,7 +62,7 @@
         const to = toDate.value ? new Date(toDate.value) : new Date(fromDate.value);
         to.setHours(tH, tM, 59, 999);
 
-        update(from, to);
+        dateRange.value = {from, to};
     }
 
     function applyShortcut(shortcut: (typeof shortcuts)[number]) {
@@ -138,7 +72,7 @@
         toDate.value = format(range.to, 'yyyy-MM-dd');
         fromTime.value = format(range.from, 'HH:mm');
         toTime.value = format(range.to, 'HH:mm');
-        update(range.from, range.to, shortcut.value);
+        dateRange.value = {from: range.from, to: range.to, window: shortcut.value};
     }
 
     function clearRange() {
@@ -147,7 +81,7 @@
         toDate.value = '';
         fromTime.value = '00:00';
         toTime.value = '23:59';
-        update(undefined, undefined);
+        dateRange.value = {};
     }
 
     const displayText = computed(() => {

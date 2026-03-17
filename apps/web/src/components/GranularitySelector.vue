@@ -2,16 +2,12 @@
     import {cn} from '@/lib/utils';
     import type {Granularity} from '@common/types';
     import {computed, type HTMLAttributes} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
 
     const props = defineProps<{
         class?: HTMLAttributes['class'];
     }>();
 
     const granularity = defineModel<Granularity>('granularity', {default: 'day'});
-
-    const route = useRoute();
-    const router = useRouter();
 
     const options: {label: string; value: Granularity}[] = [
         {label: 'Hour', value: 'hour'},
@@ -20,17 +16,10 @@
         {label: 'Month', value: 'month'},
     ];
 
-    // Resolve initial state from URL query param
-    const urlGranularity = route.query.granularity as string | undefined;
-    if (urlGranularity && options.some((o) => o.value === urlGranularity)) {
-        granularity.value = urlGranularity as Granularity;
-    }
-
     const selected = computed(() => granularity.value);
 
     function select(value: Granularity) {
         granularity.value = value;
-        router.replace({query: {...route.query, granularity: value}});
     }
 </script>
 

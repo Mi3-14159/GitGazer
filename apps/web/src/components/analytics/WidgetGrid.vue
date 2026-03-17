@@ -54,7 +54,7 @@
         }
     }
 
-    watch([toRef(props, 'dashboard'), toRef(props, 'filter')], loadMetrics, {deep: true});
+    watch([toRef(props, 'dashboard'), toRef(props, 'filter')], loadMetrics, {deep: true, immediate: true});
 
     const widgetColorMap: Record<string, string> = {
         deployment_frequency: '#22c55e',
