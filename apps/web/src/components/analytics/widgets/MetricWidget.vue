@@ -3,14 +3,16 @@
     import type {WidgetSize} from '@/types/analytics';
     import type {MetricResult} from '@common/types';
     import {format, parseISO} from 'date-fns';
-    import {BarChart} from 'echarts/charts';
-    import {GraphicComponent, GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
+    import {BarChart, LineChart} from 'echarts/charts';
+    import {GraphicComponent, GridComponent, LegendComponent, TitleComponent, TooltipComponent} from 'echarts/components';
     import {use} from 'echarts/core';
     import {CanvasRenderer} from 'echarts/renderers';
     import {computed} from 'vue';
     import VChart from 'vue-echarts';
 
-    use([CanvasRenderer, BarChart, GraphicComponent, GridComponent, TitleComponent, TooltipComponent]);
+    use([CanvasRenderer, BarChart, LineChart, GraphicComponent, GridComponent, LegendComponent, TitleComponent, TooltipComponent]);
+
+    const SERIES_COLORS = ['#6366f1', '#22c55e', '#f97316', '#06b6d4', '#ec4899', '#a855f7', '#eab308', '#ef4444', '#14b8a6', '#8b5cf6'];
 
     const props = withDefaults(
         defineProps<{
@@ -165,11 +167,52 @@
         const labels = data.map((d) => formatPeriod(d.period, stepMs));
         const labelInterval = data.length <= 10 ? 0 : Math.max(0, Math.floor(data.length / 5) - 1);
 
+        // Multi-series mode (grouped by repository)
+        const seriesData = props.metric?.series;
+        if (seriesData?.length) {
+            // Stacked bar chart — one bar segment per group
+            const echartsSeries = seriesData.map((s, i) => {
+                const valueMap = new Map(s.data.map((d) => [d.period, d.value]));
+                return {
+                    type: 'bar' as const,
+                    name: s.groupLabel,
+                    stack: 'grouped',
+                    data: data.map((d) => valueMap.get(d.period) ?? 0),
+                    itemStyle: {
+                        color: SERIES_COLORS[i % SERIES_COLORS.length],
+                        borderRadius: i === seriesData.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0],
+                    },
+                    barMaxWidth: 16,
+                };
+            });
+
+            return {
+                title: titles,
+                graphic,
+                grid: {top: 64, right: 12, bottom: 24, left: 40},
+                tooltip: {trigger: 'axis' as const, confine: true},
+                xAxis: {
+                    type: 'category' as const,
+                    data: labels,
+                    axisLabel: {fontSize: 10, color: '#9ca3af', interval: labelInterval},
+                    axisLine: {show: false},
+                    axisTick: {show: false},
+                },
+                yAxis: {
+                    type: 'value' as const,
+                    splitNumber: 3,
+                    axisLabel: {fontSize: 10, color: '#9ca3af'},
+                    splitLine: {lineStyle: {color: '#e5e7eb', type: 'dashed' as const}},
+                },
+                series: echartsSeries,
+            };
+        }
+
         return {
             title: titles,
             graphic,
             grid: {top: 64, right: 12, bottom: 24, left: 40},
-            tooltip: {trigger: 'axis' as const},
+            tooltip: {trigger: 'axis' as const, confine: true},
             xAxis: {
                 type: 'category' as const,
                 data: labels,

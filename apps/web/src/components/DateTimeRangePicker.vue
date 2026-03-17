@@ -32,7 +32,7 @@
         {label: 'Past 30 days', value: '30d', getRange: () => ({from: subDays(new Date(), 30), to: new Date()})},
     ] as const;
 
-    const defaultShortcut = shortcuts[0]; // Past 1 hour
+    const defaultShortcut = shortcuts[2]; // Past 7 days
 
     // Resolve initial state from URL > model props > default
     function resolveInitialState() {

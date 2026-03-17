@@ -1,5 +1,7 @@
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
+export type GroupByOption = 'none' | 'repository';
+
 export type MetricsFilter = {
     repositoryId?: number;
     repositoryIds?: number[];
@@ -8,12 +10,14 @@ export type MetricsFilter = {
     defaultBranchOnly?: boolean;
     usersOnly?: boolean;
     granularity?: Granularity;
+    groupBy?: GroupByOption;
 };
 
 export const isMetricsFilter = (params: Record<string, unknown>): params is MetricsFilter & Record<string, unknown> => {
     if (params.repositoryId !== undefined && isNaN(Number(params.repositoryId))) return false;
     if (params.granularity !== undefined && !['hour', 'day', 'week', 'month'].includes(String(params.granularity))) return false;
     if (params.usersOnly !== undefined && !['true', 'false'].includes(String(params.usersOnly))) return false;
+    if (params.groupBy !== undefined && !['none', 'repository'].includes(String(params.groupBy))) return false;
     return true;
 };
 
@@ -28,11 +32,19 @@ export type MetricSummary = {
     trend: 'up' | 'down' | 'stable';
 };
 
+export type MetricSeries = {
+    groupKey: string;
+    groupLabel: string;
+    data: MetricDataPoint[];
+    summary: MetricSummary;
+};
+
 export type MetricResult = {
     metric: string;
     unit: string;
     data: MetricDataPoint[];
     summary: MetricSummary;
+    series?: MetricSeries[];
 };
 
 export type DoraMetricsResponse = {

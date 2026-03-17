@@ -27,6 +27,7 @@ function buildQueryString(filter: MetricsFilter): string {
     if (filter.defaultBranchOnly) params.set('defaultBranchOnly', 'true');
     if (filter.usersOnly) params.set('usersOnly', 'true');
     if (filter.granularity) params.set('granularity', filter.granularity);
+    if (filter.groupBy && filter.groupBy !== 'none') params.set('groupBy', filter.groupBy);
     return params.toString();
 }
 

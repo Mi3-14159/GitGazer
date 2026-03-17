@@ -5,12 +5,22 @@
     import Popover from '@/components/ui/Popover.vue';
     import Switch from '@/components/ui/Switch.vue';
     import {useMetrics} from '@/composables/useMetric';
-    import {Filter, GitBranch, Search, User} from 'lucide-vue-next';
+    import type {GroupByOption} from '@common/types';
+    import {Filter, GitBranch, Layers, Search, User} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
     const defaultBranchOnly = defineModel<boolean>('defaultBranchOnly', {default: false});
     const usersOnly = defineModel<boolean>('usersOnly', {default: false});
+    const groupBy = defineModel<GroupByOption>('groupBy', {default: 'none'});
+
+    const groupByOptions: {label: string; value: GroupByOption}[] = [
+        {label: 'No grouping', value: 'none'},
+        {label: 'Group by Repository', value: 'repository'},
+    ];
+
+    const groupByLabel = computed(() => groupByOptions.find((o) => o.value === groupBy.value)?.label ?? 'No grouping');
+    const groupByOpen = ref(false);
 
     const {fetchRepositories} = useMetrics();
 
@@ -127,5 +137,42 @@
             <User class="h-3.5 w-3.5 text-muted-foreground" />
             <span class="text-sm text-muted-foreground">Users only</span>
         </label>
+
+        <!-- Group By -->
+        <div class="ml-2 flex items-center gap-1.5">
+            <Layers class="h-3.5 w-3.5 text-muted-foreground" />
+            <Popover
+                :open="groupByOpen"
+                align="start"
+                content-class="w-48"
+                @update:open="groupByOpen = $event"
+            >
+                <template #trigger>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="gap-1.5"
+                        :class="{'border-primary': groupBy !== 'none'}"
+                    >
+                        {{ groupByLabel }}
+                    </Button>
+                </template>
+                <div class="space-y-0.5">
+                    <button
+                        v-for="option in groupByOptions"
+                        :key="option.value"
+                        type="button"
+                        class="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                        :class="{'bg-muted font-medium': groupBy === option.value}"
+                        @click="
+                            groupBy = option.value;
+                            groupByOpen = false;
+                        "
+                    >
+                        {{ option.label }}
+                    </button>
+                </div>
+            </Popover>
+        </div>
     </div>
 </template>

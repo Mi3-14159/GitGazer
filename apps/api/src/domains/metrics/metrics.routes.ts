@@ -4,6 +4,7 @@ import {getDoraMetrics, getSpaceMetrics} from '@/domains/metrics/metrics.control
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {listRepositories} from '@gitgazer/db/queries/metrics';
+import type {GroupByOption} from '@gitgazer/db/types/metrics';
 import {isMetricsFilter} from '@gitgazer/db/types/metrics';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
@@ -27,6 +28,7 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
         defaultBranchOnly: params.defaultBranchOnly === 'true',
         usersOnly: params.usersOnly === 'true',
         granularity: params.granularity as 'hour' | 'day' | 'week' | 'month' | undefined,
+        groupBy: (params.groupBy === 'repository' ? 'repository' : undefined) as GroupByOption | undefined,
     };
 }
 
