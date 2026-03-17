@@ -1,5 +1,6 @@
 import {useAuth} from '@/composables/useAuth';
-import {Integration} from '@common/types';
+import {parseApiResponse} from '@/utils/apiResponse';
+import type {Integration} from '@common/types';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -17,8 +18,7 @@ export const useIntegration = () => {
                 throw new Error(`Failed to fetch integrations: ${response.status}`);
             }
 
-            const integrations = (await response.json()) as Integration[];
-            return integrations;
+            return parseApiResponse<Integration[]>(response);
         } finally {
             isLoadingIntegrations.value = false;
         }
@@ -37,7 +37,7 @@ export const useIntegration = () => {
             throw new Error(`Failed to create integration: ${response.status}`);
         }
 
-        return (await response.json()) as Integration;
+        return parseApiResponse<Integration>(response);
     };
 
     const updateIntegration = async (id: string, label: string): Promise<Integration> => {
@@ -53,7 +53,7 @@ export const useIntegration = () => {
             throw new Error(`Failed to update integration: ${response.status}`);
         }
 
-        return (await response.json()) as Integration;
+        return parseApiResponse<Integration>(response);
     };
 
     const deleteIntegration = async (id: string): Promise<void> => {
@@ -75,7 +75,7 @@ export const useIntegration = () => {
             throw new Error(`Failed to rotate secret: ${response.status}`);
         }
 
-        return (await response.json()) as Integration;
+        return parseApiResponse<Integration>(response);
     };
 
     return {

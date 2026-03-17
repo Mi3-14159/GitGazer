@@ -1,6 +1,8 @@
 import {useAuth} from '@/composables/useAuth';
 import type {WidgetType} from '@/types/analytics';
+import {parseApiResponse} from '@/utils/apiResponse';
 import type {DoraMetricsResponse, MetricsFilter, SpaceMetricsResponse} from '@common/types';
+import {isDoraMetricsResponse, isSpaceMetricsResponse} from '@common/types';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
@@ -38,20 +40,20 @@ export function useMetrics() {
         const qs = buildQueryString(filter);
         const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/dora${qs ? `?${qs}` : ''}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return (await res.json()) as DoraMetricsResponse;
+        return parseApiResponse(res, isDoraMetricsResponse);
     }
 
     async function fetchSpaceMetrics(filter: MetricsFilter): Promise<SpaceMetricsResponse> {
         const qs = buildQueryString(filter);
         const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/space${qs ? `?${qs}` : ''}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return (await res.json()) as SpaceMetricsResponse;
+        return parseApiResponse(res, isSpaceMetricsResponse);
     }
 
     async function fetchRepositories(): Promise<{id: number; name: string}[]> {
         const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/repositories`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return (await res.json()) as {id: number; name: string}[];
+        return parseApiResponse(res);
     }
 
     return {fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories};

@@ -6,7 +6,7 @@ import {computed} from 'vue';
 // Dashboard-specific filter composable
 // ---------------------------------------------------------------------------
 
-export function useDashboardFilters() {
+export function useMetricsFilters() {
     const {dateRange, granularity, repositoryIds, defaultBranchOnly, usersOnly, groupBy} = useUrlFilters({
         dateRange: dateRangeFilter(),
         granularity: enumFilter<Granularity>('granularity', ['hour', 'day', 'week', 'month'], 'day'),

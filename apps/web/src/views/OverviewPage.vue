@@ -1,10 +1,11 @@
 <script setup lang="ts">
-    import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
+    import DateTimeRangePicker from '@/components/DateTimeRangePicker.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import RecentWorkflowRuns from '@/components/dashboard/RecentWorkflowRuns.vue';
     import StatCards from '@/components/dashboard/StatCards.vue';
     import StatusDistributionChart from '@/components/dashboard/StatusDistributionChart.vue';
     import {useAuth} from '@/composables/useAuth';
+    import {dateRangeFilter, useUrlFilters} from '@/composables/useUrlFilters';
     import type {OverviewResponse} from '@common/types';
     import {computed, ref, watch} from 'vue';
 
@@ -13,7 +14,9 @@
     const {fetchWithAuth} = useAuth();
     const overview = ref<OverviewResponse | null>(null);
     const isLoading = ref(true);
-    const dateRange = ref<DateRange>({});
+    const {dateRange} = useUrlFilters({
+        dateRange: dateRangeFilter({window: '24h'}),
+    });
 
     async function fetchOverview() {
         isLoading.value = true;
@@ -36,7 +39,7 @@
         }
     }
 
-    watch(dateRange, () => fetchOverview(), {deep: true});
+    watch(dateRange, () => fetchOverview(), {deep: true, immediate: true});
 
     const stats = computed(() => overview.value?.stats ?? {total: 0, success: 0, failure: 0, inProgress: 0, other: 0});
     const successRate = computed(() => (stats.value.total > 0 ? ((stats.value.success / stats.value.total) * 100).toFixed(1) : '0.0'));

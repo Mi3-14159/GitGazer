@@ -63,6 +63,36 @@ export type SpaceMetricsResponse = {
     contributorCount: MetricResult;
 };
 
+function isMetricResult(value: unknown): value is MetricResult {
+    if (typeof value !== 'object' || value === null) return false;
+    const v = value as Record<string, unknown>;
+    return typeof v.metric === 'string' && typeof v.unit === 'string' && Array.isArray(v.data) && typeof v.summary === 'object';
+}
+
+export const isDoraMetricsResponse = (value: unknown): value is DoraMetricsResponse => {
+    if (typeof value !== 'object' || value === null) return false;
+    const v = value as Record<string, unknown>;
+    return (
+        isMetricResult(v.deploymentFrequency) &&
+        isMetricResult(v.leadTimeForChanges) &&
+        isMetricResult(v.changeFailureRate) &&
+        isMetricResult(v.meanTimeToRecovery)
+    );
+};
+
+export const isSpaceMetricsResponse = (value: unknown): value is SpaceMetricsResponse => {
+    if (typeof value !== 'object' || value === null) return false;
+    const v = value as Record<string, unknown>;
+    return (
+        isMetricResult(v.prMergeRate) &&
+        isMetricResult(v.activityVolume) &&
+        isMetricResult(v.ciDuration) &&
+        isMetricResult(v.prCycleTime) &&
+        isMetricResult(v.workflowQueueTime) &&
+        isMetricResult(v.contributorCount)
+    );
+};
+
 // Custom query types
 
 export type ChartType = 'line' | 'bar' | 'stacked-bar' | 'gauge' | 'multi-line' | 'table';

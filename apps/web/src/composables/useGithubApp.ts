@@ -1,4 +1,5 @@
 import {useAuth} from '@/composables/useAuth';
+import {parseApiResponse} from '@/utils/apiResponse';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -26,7 +27,7 @@ export const useGithubApp = () => {
                 const error = await response.json().catch(() => ({}));
                 throw new Error(error.message || `Failed to link installation: ${response.status}`);
             }
-            return (await response.json()) as LinkInstallationResponse;
+            return parseApiResponse<LinkInstallationResponse>(response);
         } finally {
             isLoading.value = false;
         }

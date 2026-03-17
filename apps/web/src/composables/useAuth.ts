@@ -1,4 +1,5 @@
-import {State, UserAttributes} from '@common/types';
+import {parseApiResponse} from '@/utils/apiResponse';
+import {isUserAttributes, State, UserAttributes} from '@common/types';
 
 const COGNITO_DOMAIN = import.meta.env.VITE_COGNITO_DOMAIN;
 const COGNITO_CLIENT_ID = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
@@ -6,9 +7,18 @@ const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 let cachedUserAttributes: UserAttributes | null = null;
 let authCheckPromise: Promise<boolean> | null = null;
-let userAttributesPromise: Promise<UserAttributes> | null = null;
+let userAttributesPromise: Promise<UserAttributes | null> | null = null;
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
+
+/** Reset all cached auth state. Must be called on sign-out to prevent stale data. */
+function clearAuthState() {
+    cachedUserAttributes = null;
+    authCheckPromise = null;
+    userAttributesPromise = null;
+    isRefreshing = false;
+    refreshPromise = null;
+}
 
 const refreshSession = async (): Promise<boolean> => {
     // If already refreshing, wait for the existing refresh operation
@@ -71,8 +81,8 @@ export const useAuth = () => {
         if (!authCheckPromise) {
             authCheckPromise = (async () => {
                 try {
-                    await getUserAttributes();
-                    return cachedUserAttributes !== null && Object.keys(cachedUserAttributes).length > 0;
+                    const attrs = await getUserAttributes();
+                    return attrs !== null && Object.keys(attrs).length > 0;
                 } catch {
                     return false;
                 } finally {
@@ -83,7 +93,7 @@ export const useAuth = () => {
         return authCheckPromise;
     };
 
-    const getUserAttributes = async (): Promise<UserAttributes> => {
+    const getUserAttributes = async (): Promise<UserAttributes | null> => {
         if (cachedUserAttributes) {
             return cachedUserAttributes;
         }
@@ -98,16 +108,19 @@ export const useAuth = () => {
                 const response = await fetchWithAuth(`${API_ENDPOINT}/user`);
 
                 if (response.ok) {
-                    cachedUserAttributes = await response.json();
-                    return cachedUserAttributes!;
+                    cachedUserAttributes = await parseApiResponse(response, isUserAttributes);
+                    return cachedUserAttributes;
                 }
+
+                // Non-ok after auth retry → user is not authenticated
+                return null;
             } catch (error) {
-                console.error('Failed to fetch user attributes:', error);
+                // Network errors are transient — propagate so callers can distinguish
+                // from "not authenticated"
+                throw error;
             } finally {
                 userAttributesPromise = null;
             }
-
-            return {};
         })();
 
         return userAttributesPromise;
@@ -134,7 +147,7 @@ export const useAuth = () => {
     };
 
     const signOut = () => {
-        cachedUserAttributes = null;
+        clearAuthState();
         window.location.href = `${API_ENDPOINT}/auth/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
     };
 

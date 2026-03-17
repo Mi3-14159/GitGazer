@@ -224,6 +224,10 @@ export type UserAttributes = {
     picture?: string;
 };
 
+export const isUserAttributes = (value: unknown): value is UserAttributes => {
+    return typeof value === 'object' && value !== null;
+};
+
 export type WSToken = {
     userId: number;
     username: string;

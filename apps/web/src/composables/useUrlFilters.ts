@@ -1,4 +1,7 @@
+import type {DateRange} from '@/components/DateTimeRangePicker.vue';
+import {subDays, subHours} from 'date-fns';
 import {type Ref, onMounted, ref, watch} from 'vue';
+import type {LocationQuery} from 'vue-router';
 import {useRoute, useRouter} from 'vue-router';
 
 // ---------------------------------------------------------------------------
@@ -19,6 +22,8 @@ export interface FilterDef<T> {
     fromUrl: (query: Record<string, string | undefined>) => T;
     /** Serialize the current value into URL query param key/value pairs. */
     toUrl: (value: T) => Record<string, string>;
+    /** URL query param keys managed by this filter (cleared before writing). */
+    ownedKeys?: string[];
 }
 
 /** Maps a schema of FilterDefs → an object of matching Refs. */
@@ -53,9 +58,14 @@ export function useUrlFilters<S extends Record<string, FilterDef<any>>>(schema: 
         refs[name] = ref(def.fromUrl(query));
     }
 
-    // Merge all serialized fields into a single query object and push to URL
+    // Merge all serialized fields into the URL, preserving unrelated params
     function syncToUrl() {
-        const merged: Record<string, string> = {};
+        const merged: LocationQuery = {...route.query};
+        for (const def of Object.values(schema)) {
+            for (const key of def.ownedKeys ?? []) {
+                delete merged[key];
+            }
+        }
         for (const [name, def] of Object.entries(schema)) {
             Object.assign(merged, def.toUrl(refs[name].value));
         }
@@ -81,6 +91,7 @@ export function enumFilter<T extends string>(urlKey: string, validValues: readon
             return v && (validValues as readonly string[]).includes(v) ? (v as T) : defaultValue;
         },
         toUrl: (v) => ({[urlKey]: v}),
+        ownedKeys: [urlKey],
     };
 }
 
@@ -93,6 +104,7 @@ export function booleanFilter(urlKey: string, defaultValue: boolean): FilterDef<
             return v !== undefined ? v === '1' : defaultValue;
         },
         toUrl: (v) => ({[urlKey]: v ? '1' : '0'}),
+        ownedKeys: [urlKey],
     };
 }
 
@@ -105,5 +117,61 @@ export function numberArrayFilter(urlKey: string): FilterDef<number[]> {
             return v ? v.split(',').map(Number).filter(Number.isFinite) : [];
         },
         toUrl: (v) => (v.length ? {[urlKey]: v.join(',')} : {}),
+        ownedKeys: [urlKey],
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Date-range filter
+// ---------------------------------------------------------------------------
+
+export const WINDOW_RANGES: Record<string, () => {from: Date; to: Date}> = {
+    '1h': () => ({from: subHours(new Date(), 1), to: new Date()}),
+    '24h': () => ({from: subDays(new Date(), 1), to: new Date()}),
+    '7d': () => ({from: subDays(new Date(), 7), to: new Date()}),
+    '30d': () => ({from: subDays(new Date(), 30), to: new Date()}),
+};
+
+const DEFAULT_WINDOW = '7d';
+
+/** A date-range filter spanning `window`, `created_from`, and `created_to` URL params. */
+export function dateRangeFilter(opts?: {from?: Date; to?: Date; window?: string}): FilterDef<DateRange> {
+    const defaultWindow = opts?.window ?? DEFAULT_WINDOW;
+    const defaultRange =
+        opts?.from || opts?.to
+            ? {from: opts.from, to: opts.to}
+            : defaultWindow in WINDOW_RANGES
+              ? WINDOW_RANGES[defaultWindow]()
+              : WINDOW_RANGES[DEFAULT_WINDOW]();
+
+    const defaultValue: DateRange = {
+        from: defaultRange.from,
+        to: defaultRange.to,
+        window: opts?.from || opts?.to ? undefined : defaultWindow,
+    };
+
+    return {
+        defaultValue,
+        fromUrl: (q) => {
+            if (q.window && q.window in WINDOW_RANGES) {
+                const range = WINDOW_RANGES[q.window]();
+                return {from: range.from, to: range.to, window: q.window};
+            }
+            if (q.created_from || q.created_to) {
+                return {
+                    from: q.created_from ? new Date(q.created_from) : undefined,
+                    to: q.created_to ? new Date(q.created_to) : undefined,
+                };
+            }
+            return defaultValue;
+        },
+        toUrl: (v) => {
+            if (v.window) return {window: v.window};
+            const result: Record<string, string> = {};
+            if (v.from) result.created_from = v.from.toISOString();
+            if (v.to) result.created_to = v.to.toISOString();
+            return result;
+        },
+        ownedKeys: ['window', 'created_from', 'created_to'],
     };
 }

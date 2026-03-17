@@ -1,11 +1,12 @@
 <script setup lang="ts">
-    import DateTimeRangePicker, {type DateRange} from '@/components/DateTimeRangePicker.vue';
+    import DateTimeRangePicker from '@/components/DateTimeRangePicker.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import WorkflowCardDetails from '@/components/workflows/WorkflowCardDetails.vue';
     import WorkflowTable from '@/components/workflows/WorkflowTable.vue';
     import WorkflowToolbar from '@/components/workflows/WorkflowToolbar.vue';
     import {useTableViews} from '@/composables/useTableViews';
+    import {dateRangeFilter, useUrlFilters} from '@/composables/useUrlFilters';
     import {useWorkflowsStore} from '@/stores/workflows';
     import {filterableColumnIds} from '@/types/table';
     import type {WorkflowFilters, WorkflowJob, WorkflowRunWithRelations} from '@common/types';
@@ -40,7 +41,9 @@
 
     const selectedJob = ref<WorkflowJob | null>(null);
     const expandedRuns = ref<Set<number>>(new Set());
-    const dateRange = ref<DateRange>({});
+    const {dateRange} = useUrlFilters({
+        dateRange: dateRangeFilter({window: '24h'}),
+    });
 
     onMounted(async () => {
         await initializeStore(Object.keys(initialApiFilters).length > 0 ? initialApiFilters : undefined);

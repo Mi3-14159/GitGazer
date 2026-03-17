@@ -1,5 +1,7 @@
 import {useAuth} from '@/composables/useAuth';
-import {NotificationRule, NotificationRuleUpdate} from '@common/types';
+import {parseApiResponse} from '@/utils/apiResponse';
+import type {NotificationRule, NotificationRuleUpdate} from '@common/types';
+import {isNotificationRule} from '@common/types';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -17,8 +19,7 @@ export const useNotification = () => {
                 throw new Error(`Failed to fetch notifications: ${response.status}`);
             }
 
-            const notifications = (await response.json()) as NotificationRule[];
-            return notifications;
+            return parseApiResponse<NotificationRule[]>(response);
         } finally {
             isLoadingNotifications.value = false;
         }
@@ -40,7 +41,7 @@ export const useNotification = () => {
             throw new Error(`Failed to create notification: ${response.status}`);
         }
 
-        return (await response.json()) as NotificationRule;
+        return parseApiResponse(response, isNotificationRule);
     };
 
     const deleteNotification = async (id: string, integrationId: string) => {

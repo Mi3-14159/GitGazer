@@ -10,7 +10,7 @@
     const route = useRoute();
     const router = useRouter();
 
-    const user = ref<UserAttributes>();
+    const user = ref<UserAttributes | null>(null);
 
     onMounted(async () => {
         user.value = await getUserAttributes();
