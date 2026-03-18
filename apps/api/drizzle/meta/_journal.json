@@ -204,6 +204,13 @@
       "when": 1773619639527,
       "tag": "0028_amazing_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1773862523232,
+      "tag": "0029_spicy_cerebro",
+      "breakpoints": true
     }
   ]
 }

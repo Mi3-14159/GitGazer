@@ -58,6 +58,10 @@ export const importPullRequest = async (
             updatedAt: new Date(event.pull_request.updated_at),
             closedAt: event.pull_request.closed_at ? new Date(event.pull_request.closed_at) : null,
             mergedAt: event.pull_request.merged_at ? new Date(event.pull_request.merged_at) : null,
+            additions: event.pull_request.additions,
+            deletions: event.pull_request.deletions,
+            changed_files: event.pull_request.changed_files,
+            commits: event.pull_request.commits,
         })
         .onConflictDoUpdate({
             target: [pullRequests.integrationId, pullRequests.id],

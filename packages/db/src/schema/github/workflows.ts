@@ -313,6 +313,10 @@ export const pullRequests = githubSchema
             updatedAt: timestamp('updated_at', {withTimezone: true}).notNull(),
             closedAt: timestamp('closed_at', {withTimezone: true}),
             mergedAt: timestamp('merged_at', {withTimezone: true}),
+            additions: integer('additions').notNull().default(0),
+            deletions: integer('deletions').notNull().default(0),
+            changed_files: integer('changed_files').notNull().default(0),
+            commits: integer('commits').notNull().default(0),
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),
