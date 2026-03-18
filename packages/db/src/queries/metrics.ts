@@ -64,7 +64,7 @@ function buildWorkflowRunConditions(filter: MetricsFilter, from: Date, to: Date)
         );
     }
     if (filter.usersOnly) {
-        conditions.push(sql`${workflowRuns.actorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`);
+        conditions.push(sql`${workflowRuns.actorId} IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'User')`);
     }
     return conditions;
 }
@@ -157,7 +157,18 @@ export async function getDeploymentFrequency({integrationIds, filter}: MetricsPa
                     conds.push(eq(workflowRuns.conclusion, 'success'));
                     const truncated = dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, count(*) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT
+                            ${repositories.id}::text as group_key,
+                            ${repositories.name} as group_label,
+                            ${truncated} as period,
+                            count(*) as value
+                        FROM ${workflowRuns}
+                        INNER JOIN ${repositories} 
+                            ON ${repositories.id} = ${workflowRuns.repositoryId}
+                            AND ${repositories.integrationId} = ${workflowRuns.integrationId}
+                        WHERE ${and(...conds)}
+                        GROUP BY group_key, group_label, period
+                        ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
