@@ -4,7 +4,7 @@
 
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
-const IMPORT_EVENT_NAMES: EmitterWebhookEventName[] = ['workflow_job', 'workflow_run', 'pull_request', 'ping', 'push'];
+const IMPORT_EVENT_NAMES: EmitterWebhookEventName[] = ['workflow_job', 'workflow_run', 'pull_request', 'ping'];
 
 const GITHUB_APP_EVENT_NAMES: string[] = ['installation', 'installation_repositories', 'installation_target'];
 
