@@ -6,7 +6,7 @@
     "@codemirror/view": "^6.40.0",
     "@smithy/protocol-http": "^5.3.12",
     "@smithy/signature-v4": "^5.3.12",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
@@ -19,7 +19,7 @@
     "radix-vue": "^1.9.17",
     "sql-formatter": "^15.7.2",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^4.2.2",
     "vue": "^3.5.30",
     "vue-echarts": "^8.0.1",
     "vue-router": "^5.0.3"
