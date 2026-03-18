@@ -71,6 +71,10 @@ export const transformPullRequest = (apiPR: any, fullRepo: any): PullRequestEven
         pull_request: {
             ...apiPR,
             merged: !!apiPR.merged_at,
+            additions: apiPR.additions ?? 0,
+            deletions: apiPR.deletions ?? 0,
+            changed_files: apiPR.changed_files ?? 0,
+            commits: apiPR.commits ?? 0,
         },
         repository: fullRepo,
         sender: apiPR.user,

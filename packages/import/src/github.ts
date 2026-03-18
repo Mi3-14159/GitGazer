@@ -148,6 +148,53 @@ export const fetchPullRequests = async (
     return fetchJson<any[]>(url);
 };
 
+export const fetchPullRequest = async (owner: string, repo: string, pullNumber: number): Promise<any> => {
+    return fetchJson(`${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}`);
+};
+
+export interface GitHubOrgRepo {
+    id: number;
+    name: string;
+    full_name: string;
+    topics: string[];
+    archived: boolean;
+    disabled: boolean;
+    visibility: string;
+}
+
+export const fetchOrgRepos = async (org: string): Promise<GitHubOrgRepo[]> => {
+    const allRepos: GitHubOrgRepo[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+        const params = new URLSearchParams();
+        params.set('type', 'all');
+        params.set('sort', 'full_name');
+        params.set('per_page', String(perPage));
+        params.set('page', String(page));
+
+        const url = `${GITHUB_API_BASE}/orgs/${encodeURIComponent(org)}/repos?${params}`;
+        const repos = await fetchJson<GitHubOrgRepo[]>(url);
+        allRepos.push(...repos);
+
+        console.log(`  Fetched page ${page} of org repos (${allRepos.length} so far)`);
+
+        if (repos.length < perPage) break;
+        page++;
+    }
+
+    return allRepos;
+};
+
+export const filterReposByTopics = (repos: GitHubOrgRepo[], topics: string[]): GitHubOrgRepo[] => {
+    const lowerTopics = topics.map((t) => t.toLowerCase());
+    return repos.filter((repo) => {
+        if (repo.archived || repo.disabled) return false;
+        return repo.topics?.some((t) => lowerTopics.includes(t.toLowerCase()));
+    });
+};
+
 export const fetchAllPullRequests = async (owner: string, repo: string, since?: string, until?: string): Promise<any[]> => {
     const allPRs: any[] = [];
     let page = 1;

@@ -1,5 +1,13 @@
 import {insertEvent} from '@/domains/webhooks/importers';
-import {fetchAllPullRequests, fetchAllWorkflowRuns, fetchRepo, fetchWorkflowJobs} from './github';
+import {
+    fetchAllPullRequests,
+    fetchAllWorkflowRuns,
+    fetchOrgRepos,
+    fetchPullRequest,
+    fetchRepo,
+    fetchWorkflowJobs,
+    filterReposByTopics,
+} from './github';
 import {transformPullRequest, transformWorkflowJob, transformWorkflowRun} from './transform';
 
 const SUPPORTED_EVENT_TYPES = ['workflow_run', 'workflow_job', 'pull_request'] as const;
@@ -27,54 +35,47 @@ const parseEventTypes = (raw: string | undefined): SupportedEventType[] => {
     return types as SupportedEventType[];
 };
 
-const main = async () => {
-    const owner = required('GITHUB_OWNER');
-    const repo = required('GITHUB_REPO');
-    const integrationId = required('INTEGRATION_ID');
-    required('GITHUB_TOKEN');
+interface ImportConfig {
+    integrationId: string;
+    dryRun: boolean;
+    concurrency: number;
+    eventTypes: SupportedEventType[];
+    createdFilter?: string;
+    since?: string;
+    until?: string;
+}
 
-    // Optional date range filters
-    const since = process.env.SINCE; // e.g. "2025-01-01"
-    const until = process.env.UNTIL; // e.g. "2025-12-31"
+interface ImportStats {
+    runSuccessCount: number;
+    runErrorCount: number;
+    jobSuccessCount: number;
+    jobErrorCount: number;
+    prSuccessCount: number;
+    prErrorCount: number;
+}
 
-    const dryRun = process.env.DRY_RUN === 'true';
-    const concurrency = parseInt(process.env.CONCURRENCY || '1', 10);
-    const eventTypes = parseEventTypes(process.env.EVENT_TYPES);
+const importRepo = async (owner: string, repo: string, config: ImportConfig): Promise<ImportStats> => {
+    const {integrationId, dryRun, concurrency, eventTypes, createdFilter, since, until} = config;
 
-    // Build the `created` filter for the GitHub API
-    // Format: ">=2025-01-01..<=2025-12-31" or ">=2025-01-01" or "<=2025-12-31"
-    let createdFilter: string | undefined;
-    if (since && until) {
-        createdFilter = `${since}..${until}`;
-    } else if (since) {
-        createdFilter = `>=${since}`;
-    } else if (until) {
-        createdFilter = `<=${until}`;
-    }
+    console.log(`\n───────────────────────────────────────`);
+    console.log(`Importing: ${owner}/${repo}`);
+    console.log(`───────────────────────────────────────`);
 
-    console.log(`\nGitGazer Backfill Import`);
-    console.log(`=======================`);
-    console.log(`Repository:     ${owner}/${repo}`);
-    console.log(`Integration ID: ${integrationId}`);
-    console.log(`Date filter:    ${createdFilter ?? 'none (all)'}`);
-    console.log(`Concurrency:    ${concurrency} run(s) in parallel`);
-    console.log(`Event types:    ${eventTypes.join(', ')}`);
-    console.log(`Dry run:        ${dryRun}`);
-    console.log();
-
-    // Step 1: Fetch full repository info (used in all event payloads)
+    // Fetch full repository info (used in all event payloads)
     console.log('Fetching repository info...');
     const fullRepo = await fetchRepo(owner, repo);
     console.log(`  Repository: ${fullRepo.full_name} (id: ${fullRepo.id})`);
 
     const needsWorkflowData = eventTypes.includes('workflow_run') || eventTypes.includes('workflow_job');
 
-    let runSuccessCount = 0;
-    let runErrorCount = 0;
-    let jobSuccessCount = 0;
-    let jobErrorCount = 0;
-    let prSuccessCount = 0;
-    let prErrorCount = 0;
+    const stats: ImportStats = {
+        runSuccessCount: 0,
+        runErrorCount: 0,
+        jobSuccessCount: 0,
+        jobErrorCount: 0,
+        prSuccessCount: 0,
+        prErrorCount: 0,
+    };
 
     // ── Workflow runs & jobs ─────────────────────────────────────────
     if (needsWorkflowData) {
@@ -145,12 +146,12 @@ const main = async () => {
             results.forEach((result) => {
                 if (result.status === 'fulfilled') {
                     const {runSuccess, successCount, errorCount} = result.value;
-                    if (runSuccess) runSuccessCount++;
-                    else runErrorCount++;
-                    jobSuccessCount += successCount;
-                    jobErrorCount += errorCount;
+                    if (runSuccess) stats.runSuccessCount++;
+                    else stats.runErrorCount++;
+                    stats.jobSuccessCount += successCount;
+                    stats.jobErrorCount += errorCount;
                 } else {
-                    runErrorCount++;
+                    stats.runErrorCount++;
                 }
             });
         }
@@ -171,7 +172,9 @@ const main = async () => {
                     const idx = i + batchIndex;
                     const prLabel = `[${idx + 1}/${prs.length}] PR #${pr.number} (${pr.title})`;
 
-                    const prEvent = transformPullRequest(pr, fullRepo);
+                    // Fetch full PR detail to get additions, deletions, changed_files, commits
+                    const fullPR = await fetchPullRequest(owner, repo, pr.number);
+                    const prEvent = transformPullRequest(fullPR, fullRepo);
 
                     if (dryRun) {
                         console.log(`${prLabel} - DRY RUN (pull_request, action=${prEvent.action})`);
@@ -184,9 +187,9 @@ const main = async () => {
 
             results.forEach((result, j) => {
                 if (result.status === 'fulfilled') {
-                    prSuccessCount++;
+                    stats.prSuccessCount++;
                 } else {
-                    prErrorCount++;
+                    stats.prErrorCount++;
                     const pr = batch[j];
                     console.error(`  PR #${pr.number} (${pr.title}) - ERROR: ${result.reason}`);
                 }
@@ -194,15 +197,126 @@ const main = async () => {
         }
     }
 
-    // Summary
+    return stats;
+};
+
+const main = async () => {
+    const owner = required('GITHUB_OWNER');
+    const integrationId = required('INTEGRATION_ID');
+    required('GITHUB_TOKEN');
+
+    const singleRepo = process.env.GITHUB_REPO;
+    const topicFilter = process.env.GITHUB_TOPIC;
+
+    // Optional date range filters
+    const since = process.env.SINCE; // e.g. "2025-01-01"
+    const until = process.env.UNTIL; // e.g. "2025-12-31"
+
+    const dryRun = process.env.DRY_RUN === 'true';
+    const concurrency = parseInt(process.env.CONCURRENCY || '1', 10);
+    const eventTypes = parseEventTypes(process.env.EVENT_TYPES);
+
+    // Build the `created` filter for the GitHub API
+    let createdFilter: string | undefined;
+    if (since && until) {
+        createdFilter = `${since}..${until}`;
+    } else if (since) {
+        createdFilter = `>=${since}`;
+    } else if (until) {
+        createdFilter = `<=${until}`;
+    }
+
+    const config: ImportConfig = {integrationId, dryRun, concurrency, eventTypes, createdFilter, since, until};
+
+    // ── Determine which repos to import ─────────────────────────────
+    let repos: string[];
+
+    if (singleRepo) {
+        // Single repo mode (backwards compatible)
+        repos = [singleRepo];
+    } else {
+        // Org discovery mode
+        console.log(`\nDiscovering repositories in org: ${owner}`);
+        const orgRepos = await fetchOrgRepos(owner);
+        console.log(`  Found ${orgRepos.length} total repositories`);
+
+        if (topicFilter) {
+            const topics = topicFilter.split(',').map((t) => t.trim());
+            const filtered = filterReposByTopics(orgRepos, topics);
+            repos = filtered.map((r) => r.name);
+            console.log(`  Filtered by topic(s) [${topics.join(', ')}]: ${repos.length} repositories`);
+        } else {
+            // Exclude archived/disabled repos even without topic filter
+            repos = orgRepos.filter((r) => !r.archived && !r.disabled).map((r) => r.name);
+            console.log(`  Active repositories: ${repos.length}`);
+        }
+
+        if (repos.length === 0) {
+            console.log('\nNo repositories matched. Exiting.');
+            return;
+        }
+
+        console.log(`\nRepositories to import:`);
+        repos.forEach((r) => console.log(`  - ${owner}/${r}`));
+    }
+
+    console.log(`\nGitGazer Backfill Import`);
+    console.log(`=======================`);
+    console.log(`Organization:   ${owner}`);
+    console.log(`Repositories:   ${repos.length}`);
+    console.log(`Integration ID: ${integrationId}`);
+    console.log(`Date filter:    ${createdFilter ?? 'none (all)'}`);
+    console.log(`Concurrency:    ${concurrency} run(s) in parallel`);
+    console.log(`Event types:    ${eventTypes.join(', ')}`);
+    console.log(`Dry run:        ${dryRun}`);
+
+    // ── Run import for each repo ────────────────────────────────────
+    const allStats: Map<string, ImportStats> = new Map();
+    const failedRepos: string[] = [];
+
+    for (const repo of repos) {
+        try {
+            const stats = await importRepo(owner, repo, config);
+            allStats.set(repo, stats);
+        } catch (err) {
+            console.error(`\nFATAL error importing ${owner}/${repo}: ${err}`);
+            failedRepos.push(repo);
+        }
+    }
+
+    // ── Summary ─────────────────────────────────────────────────────
+    const needsWorkflowData = eventTypes.includes('workflow_run') || eventTypes.includes('workflow_job');
+    const totals: ImportStats = {
+        runSuccessCount: 0,
+        runErrorCount: 0,
+        jobSuccessCount: 0,
+        jobErrorCount: 0,
+        prSuccessCount: 0,
+        prErrorCount: 0,
+    };
+
+    for (const stats of allStats.values()) {
+        totals.runSuccessCount += stats.runSuccessCount;
+        totals.runErrorCount += stats.runErrorCount;
+        totals.jobSuccessCount += stats.jobSuccessCount;
+        totals.jobErrorCount += stats.jobErrorCount;
+        totals.prSuccessCount += stats.prSuccessCount;
+        totals.prErrorCount += stats.prErrorCount;
+    }
+
     console.log(`\n=======================`);
     console.log(`Import complete!`);
+    console.log(`  Repos: ${allStats.size} succeeded, ${failedRepos.length} failed`);
     if (needsWorkflowData) {
-        console.log(`  Runs:  ${runSuccessCount} succeeded, ${runErrorCount} failed`);
-        console.log(`  Jobs:  ${jobSuccessCount} succeeded, ${jobErrorCount} failed`);
+        console.log(`  Runs:  ${totals.runSuccessCount} succeeded, ${totals.runErrorCount} failed`);
+        console.log(`  Jobs:  ${totals.jobSuccessCount} succeeded, ${totals.jobErrorCount} failed`);
     }
     if (eventTypes.includes('pull_request')) {
-        console.log(`  PRs:   ${prSuccessCount} succeeded, ${prErrorCount} failed`);
+        console.log(`  PRs:   ${totals.prSuccessCount} succeeded, ${totals.prErrorCount} failed`);
+    }
+    if (failedRepos.length > 0) {
+        console.log(`\nFailed repos:`);
+        failedRepos.forEach((r) => console.log(`  - ${owner}/${r}`));
     }
 };
 
