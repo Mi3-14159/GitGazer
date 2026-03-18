@@ -1,4 +1,4 @@
-import {insertEvent} from '@/controllers/imports/index';
+import {insertEvent} from '@/domains/webhooks/importers';
 import {fetchAllPullRequests, fetchAllWorkflowRuns, fetchRepo, fetchWorkflowJobs} from './github';
 import {transformPullRequest, transformWorkflowJob, transformWorkflowRun} from './transform';
 
