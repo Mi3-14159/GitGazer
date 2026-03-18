@@ -243,7 +243,14 @@ export async function getChangeFailureRate({integrationIds, filter}: MetricsPara
                 const conditions = buildWorkflowRunConditions(filter, rangeFrom, rangeTo);
                 const truncated = dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`);
                 const rows = await tx.execute(
-                    sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
+                    sql`SELECT 
+                        ${truncated} as period,
+                        count(*)
+                    FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value
+                    FROM ${workflowRuns}
+                    WHERE ${and(...conditions)}
+                    GROUP BY period
+                    ORDER BY period`,
                 );
                 return (rows.rows ?? []).map((r: any) => ({
                     period: new Date(r.period).toISOString(),
