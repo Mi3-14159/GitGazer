@@ -710,6 +710,66 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
     });
 }
 
+export async function getPRSize({integrationIds, filter}: MetricsParams): Promise<MetricResult> {
+    const granularity = filter.granularity ?? 'week';
+    const {from, to} = getDateRange(filter);
+    const {prevFrom, prevTo} = getPreviousRange(from, to);
+
+    return withRlsTransaction({
+        integrationIds,
+        callback: async (tx) => {
+            const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
+                const conditions: SQL[] = [gte(pullRequests.createdAt, rangeFrom), lte(pullRequests.createdAt, rangeTo)];
+                buildPullRequestFilters(conditions, filter);
+                const truncated = dateTruncExpression(granularity, sql`${pullRequests.createdAt}`);
+                const rows = await tx.execute(
+                    sql`SELECT
+                        ${truncated} as period,
+                        avg(${pullRequests.additions} + ${pullRequests.deletions}) as value
+                    FROM ${pullRequests}
+                    WHERE ${and(...conditions)}
+                    GROUP BY period
+                    ORDER BY period`,
+                );
+                return (rows.rows ?? []).map((r: any) => ({
+                    period: new Date(r.period).toISOString(),
+                    value: Math.round((Number(r.value) || 0) * 100) / 100,
+                }));
+            };
+
+            const data = await queryForRange(from, to);
+            const prevData = await queryForRange(prevFrom, prevTo);
+
+            let series: MetricSeries[] | undefined;
+            if (filter.groupBy === 'repository') {
+                const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
+                    const conds: SQL[] = [gte(pullRequests.createdAt, rangeFrom), lte(pullRequests.createdAt, rangeTo)];
+                    buildPullRequestFilters(conds, filter);
+                    const truncated = dateTruncExpression(granularity, sql`${pullRequests.createdAt}`);
+                    const rows = await tx.execute(
+                        sql`SELECT
+                            ${repositories.id}::text as group_key,
+                            ${repositories.name} as group_label,
+                            ${truncated} as period,
+                            avg(${pullRequests.additions} + ${pullRequests.deletions}) as value
+                        FROM ${pullRequests}
+                        INNER JOIN ${repositories} ON
+                            ${repositories.id} = ${pullRequests.repositoryId}
+                            AND ${repositories.integrationId} = ${pullRequests.integrationId}
+                        WHERE ${and(...conds)}
+                        GROUP BY group_key, group_label, period
+                        ORDER BY group_label, period`,
+                    );
+                    return parseGroupedRows(rows.rows ?? []);
+                };
+                series = groupRowsIntoSeries(await queryGroupedForRange(from, to), await queryGroupedForRange(prevFrom, prevTo));
+            }
+
+            return {metric: 'PR Size', unit: 'lines', data, summary: buildSummary(data, prevData), ...(series && {series})};
+        },
+    });
+}
+
 // --- Filter option lists ---
 
 export async function listRepositories({integrationIds}: {integrationIds: string[]}) {

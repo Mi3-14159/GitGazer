@@ -8,7 +8,8 @@ export type WidgetType =
     | 'ci_duration'
     | 'pr_cycle_time'
     | 'workflow_queue_time'
-    | 'contributor_count';
+    | 'contributor_count'
+    | 'pr_size';
 
 export type WidgetSize = 'small' | 'medium' | 'large' | 'full';
 
@@ -64,6 +65,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
         defaultSize: 'medium',
     },
     {type: 'contributor_count', title: 'Contributor Count', description: 'Active contributors per period', category: 'SPACE', defaultSize: 'medium'},
+    {type: 'pr_size', title: 'PR Size', description: 'Average pull request size (additions + deletions)', category: 'SPACE', defaultSize: 'medium'},
 ];
 
 export const defaultDashboards: Dashboard[] = [
@@ -91,6 +93,7 @@ export const defaultDashboards: Dashboard[] = [
             {id: 'space-4', type: 'pr_cycle_time', title: 'PR Cycle Time', size: 'medium'},
             {id: 'space-5', type: 'workflow_queue_time', title: 'Workflow Queue Time', size: 'medium'},
             {id: 'space-6', type: 'contributor_count', title: 'Contributor Count', size: 'medium'},
+            {id: 'space-7', type: 'pr_size', title: 'PR Size', size: 'medium'},
         ],
     },
 ];
@@ -111,4 +114,6 @@ export const widgetCalculationInfo: Record<WidgetType, string> = {
     workflow_queue_time:
         'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
     contributor_count: 'Number of unique authors who pushed at least one commit or opened at least one PR during the selected time period.',
+    pr_size:
+        'Average pull request size measured as additions + deletions per time period. Smaller PRs are generally reviewed faster and have fewer defects.',
 };
