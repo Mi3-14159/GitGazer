@@ -5,7 +5,7 @@
     import {CheckCircle2, XCircle, Zap} from 'lucide-vue-next';
     import {reactive} from 'vue';
 
-    const SUPPORTED_EVENTS = ['workflow_run', 'workflow_job', 'pull_request', 'push'] as const;
+    const SUPPORTED_EVENTS = ['workflow_run', 'workflow_job', 'pull_request'] as const;
 
     const props = defineProps<{
         installations: any[];

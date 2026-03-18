@@ -1,7 +1,7 @@
-import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
 import {deleteIntegration, getIntegrations, rotateSecret, upsertIntegration} from '@/domains/integrations/integrations.controller';
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
 import {getLogger} from '@/shared/logger';
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
@@ -229,7 +229,7 @@ router.patch('/api/integrations/:integrationId/github-app/:installationId/events
         throw new BadRequestError('Invalid request body');
     }
 
-    const allowedEvents = ['workflow_run', 'workflow_job', 'pull_request', 'push'];
+    const allowedEvents = ['workflow_run', 'workflow_job', 'pull_request'];
     if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
         throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
     }
