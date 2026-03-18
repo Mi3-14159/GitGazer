@@ -60,7 +60,7 @@ export const importPullRequest = async (
             mergedAt: event.pull_request.merged_at ? new Date(event.pull_request.merged_at) : null,
             additions: event.pull_request.additions,
             deletions: event.pull_request.deletions,
-            changed_files: event.pull_request.changed_files,
+            changedFiles: event.pull_request.changed_files,
             commits: event.pull_request.commits,
         })
         .onConflictDoUpdate({

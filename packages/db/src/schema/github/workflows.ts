@@ -315,7 +315,7 @@ export const pullRequests = githubSchema
             mergedAt: timestamp('merged_at', {withTimezone: true}),
             additions: integer('additions').notNull().default(0),
             deletions: integer('deletions').notNull().default(0),
-            changed_files: integer('changed_files').notNull().default(0),
+            changedFiles: integer('changed_files').notNull().default(0),
             commits: integer('commits').notNull().default(0),
         },
         (table) => [
