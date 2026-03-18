@@ -8,6 +8,7 @@ import {
     getMeanTimeToRecovery,
     getPRCycleTime,
     getPRMergeRate,
+    getPRSize,
     getWorkflowQueueTime,
 } from '@gitgazer/db/queries/metrics';
 import type {DoraMetricsResponse, MetricsFilter, SpaceMetricsResponse} from '@gitgazer/db/types/metrics';
@@ -29,14 +30,15 @@ export const getDoraMetrics = async ({integrationIds, filter}: MetricsController
 };
 
 export const getSpaceMetrics = async ({integrationIds, filter}: MetricsControllerParams): Promise<SpaceMetricsResponse> => {
-    const [prMergeRate, activityVolume, contributorCount, ciDuration, prCycleTime, workflowQueueTime] = await Promise.all([
+    const [prMergeRate, activityVolume, contributorCount, ciDuration, prCycleTime, workflowQueueTime, prSize] = await Promise.all([
         getPRMergeRate({integrationIds, filter}),
         getActivityVolume({integrationIds, filter}),
         getContributorCount({integrationIds, filter}),
         getCIDuration({integrationIds, filter}),
         getPRCycleTime({integrationIds, filter}),
         getWorkflowQueueTime({integrationIds, filter}),
+        getPRSize({integrationIds, filter}),
     ]);
 
-    return {prMergeRate, activityVolume, contributorCount, ciDuration, prCycleTime, workflowQueueTime};
+    return {prMergeRate, activityVolume, contributorCount, ciDuration, prCycleTime, workflowQueueTime, prSize};
 };

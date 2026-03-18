@@ -67,6 +67,7 @@
         pr_cycle_time: '#6366f1',
         workflow_queue_time: '#f59e0b',
         contributor_count: '#ec4899',
+        pr_size: '#8b5cf6',
     };
 </script>
 

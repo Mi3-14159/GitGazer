@@ -61,6 +61,7 @@ export type SpaceMetricsResponse = {
     prCycleTime: MetricResult;
     workflowQueueTime: MetricResult;
     contributorCount: MetricResult;
+    prSize: MetricResult;
 };
 
 function isMetricResult(value: unknown): value is MetricResult {
@@ -89,7 +90,8 @@ export const isSpaceMetricsResponse = (value: unknown): value is SpaceMetricsRes
         isMetricResult(v.ciDuration) &&
         isMetricResult(v.prCycleTime) &&
         isMetricResult(v.workflowQueueTime) &&
-        isMetricResult(v.contributorCount)
+        isMetricResult(v.contributorCount) &&
+        isMetricResult(v.prSize)
     );
 };
 
