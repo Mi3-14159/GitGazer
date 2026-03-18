@@ -194,7 +194,13 @@ export async function getLeadTimeForChanges({integrationIds, filter}: MetricsPar
                 buildPullRequestFilters(conditions, filter);
                 const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                 const rows = await tx.execute(
-                    sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
+                    sql`SELECT
+                        ${truncated} as period,
+                        avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value 
+                    FROM ${pullRequests}
+                    WHERE ${and(...conditions)}
+                    GROUP BY period
+                    ORDER BY period`,
                 );
                 return (rows.rows ?? []).map((r: any) => ({
                     period: new Date(r.period).toISOString(),
