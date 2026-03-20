@@ -64,7 +64,6 @@
 
 <template>
     <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-
         <!-- Repositories -->
         <Popover
             :open="reposOpen"
