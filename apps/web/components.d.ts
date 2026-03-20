@@ -70,7 +70,6 @@ declare module 'vue' {
     WebhookCredentials: typeof import('./src/components/integrations/WebhookCredentials.vue')['default']
     WebhookEventEditor: typeof import('./src/components/integrations/WebhookEventEditor.vue')['default']
     WidgetGrid: typeof import('./src/components/analytics/WidgetGrid.vue')['default']
-    WidgetWrapper: typeof import('./src/components/analytics/WidgetWrapper.vue')['default']
     WorkflowCardDetails: typeof import('./src/components/workflows/WorkflowCardDetails.vue')['default']
     WorkflowJobRow: typeof import('./src/components/workflows/WorkflowJobRow.vue')['default']
     WorkflowTable: typeof import('./src/components/workflows/WorkflowTable.vue')['default']
