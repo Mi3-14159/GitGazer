@@ -9,7 +9,7 @@
 </script>
 
 <template>
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center gap-2 min-w-0">
             <slot name="left" />
             <component
@@ -35,7 +35,7 @@
                 {{ description }}
             </p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <slot />
         </div>
     </div>
