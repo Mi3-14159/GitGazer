@@ -5,6 +5,7 @@
     import Label from '@/components/ui/Label.vue';
     import Switch from '@/components/ui/Switch.vue';
     import {Integration, NotificationRule, NotificationRuleChannelType} from '@common/types';
+    import {ChevronDown} from 'lucide-vue-next';
     import {onMounted, ref} from 'vue';
 
     const props = defineProps<{
@@ -53,24 +54,27 @@
         <div class="space-y-4">
             <div class="space-y-2">
                 <Label>Integration *</Label>
-                <select
-                    v-model="notificationRule.integrationId"
-                    class="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                    <option
-                        value=""
-                        disabled
+                <div class="relative">
+                    <select
+                        v-model="notificationRule.integrationId"
+                        class="flex h-9 w-full rounded-lg border border-border bg-input-background px-3 pr-8 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer"
                     >
-                        Select integration
-                    </option>
-                    <option
-                        v-for="i in integrations"
-                        :key="i.integrationId"
-                        :value="i.integrationId"
-                    >
-                        {{ i.label }}
-                    </option>
-                </select>
+                        <option
+                            value=""
+                            disabled
+                        >
+                            Select integration
+                        </option>
+                        <option
+                            v-for="i in integrations"
+                            :key="i.integrationId"
+                            :value="i.integrationId"
+                        >
+                            {{ i.label }}
+                        </option>
+                    </select>
+                    <ChevronDown class="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
