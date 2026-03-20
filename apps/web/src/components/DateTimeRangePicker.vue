@@ -112,25 +112,38 @@
             </Button>
         </template>
 
-        <div class="p-3 space-y-3 min-w-[300px]">
-            <!-- Shortcuts -->
+        <div class="p-3 space-y-3 w-[calc(100vw-1.5rem)] sm:w-[280px]">
+            <!-- Quick Select -->
             <div class="space-y-1.5">
                 <Label class="text-xs">Quick Select</Label>
-                <div class="flex flex-wrap gap-1">
-                    <Button
+                <select
+                    :value="activeShortcut?.value ?? ''"
+                    class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    @change="
+                        (e) => {
+                            const val = (e.target as HTMLSelectElement).value;
+                            const s = shortcuts.find((s) => s.value === val);
+                            if (s) applyShortcut(s);
+                        }
+                    "
+                >
+                    <option
+                        value=""
+                        disabled
+                    >
+                        Select a preset...
+                    </option>
+                    <option
                         v-for="shortcut in shortcuts"
                         :key="shortcut.value"
-                        variant="outline"
-                        size="sm"
-                        class="text-xs h-7"
-                        @click="applyShortcut(shortcut)"
+                        :value="shortcut.value"
                     >
                         {{ shortcut.label }}
-                    </Button>
-                </div>
+                    </option>
+                </select>
             </div>
 
-            <div class="border-t pt-3 grid grid-cols-2 gap-3">
+            <div class="border-t pt-3 grid grid-cols-2 gap-2">
                 <div class="space-y-1.5">
                     <Label
                         for="from-date"
@@ -141,13 +154,13 @@
                         id="from-date"
                         v-model="fromDate"
                         type="date"
-                        class="flex h-8 w-full rounded-md border border-border bg-input-background px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         @change="emitRange"
                     />
                     <input
                         v-model="fromTime"
                         type="time"
-                        class="flex h-8 w-full rounded-md border border-border bg-input-background px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         @change="emitRange"
                     />
                 </div>
@@ -161,13 +174,13 @@
                         id="to-date"
                         v-model="toDate"
                         type="date"
-                        class="flex h-8 w-full rounded-md border border-border bg-input-background px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         @change="emitRange"
                     />
                     <input
                         v-model="toTime"
                         type="time"
-                        class="flex h-8 w-full rounded-md border border-border bg-input-background px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         @change="emitRange"
                     />
                 </div>
@@ -189,3 +202,18 @@
         </div>
     </Popover>
 </template>
+
+<style scoped>
+    input[type='date'],
+    input[type='time'] {
+        position: relative;
+    }
+
+    input[type='date']::-webkit-calendar-picker-indicator,
+    input[type='time']::-webkit-calendar-picker-indicator {
+        position: absolute;
+        right: 0.375rem;
+        cursor: pointer;
+        opacity: 0.5;
+    }
+</style>
