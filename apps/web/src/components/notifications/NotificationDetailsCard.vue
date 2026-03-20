@@ -104,17 +104,16 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
                 <Checkbox
                     v-model="notificationRule.ignore_dependabot"
                     id="ignore-dep"
+                />
+                <Label
+                    for="ignore-dep"
+                    class="cursor-pointer"
+                    >Ignore Dependabot</Label
                 >
-                    <Label
-                        for="ignore-dep"
-                        class="cursor-pointer"
-                        >Ignore Dependabot</Label
-                    >
-                </Checkbox>
             </div>
 
             <div
