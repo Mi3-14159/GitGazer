@@ -48,8 +48,8 @@
 </script>
 
 <template>
-    <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2 flex-wrap flex-1">
+    <div class="flex items-start justify-between gap-2">
+        <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
             <template v-if="isEditing">
                 <div class="flex items-center gap-1">
                     <Input
@@ -84,7 +84,7 @@
             </template>
             <template v-else>
                 <h3
-                    class="font-semibold text-base cursor-pointer hover:text-primary transition-colors"
+                    class="font-semibold text-base cursor-pointer hover:text-primary transition-colors break-words min-w-0"
                     @click="startEditing"
                 >
                     {{ integration.label }}
