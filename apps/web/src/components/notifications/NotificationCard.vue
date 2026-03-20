@@ -38,7 +38,7 @@
 <template>
     <Card :class="!rule.enabled ? 'opacity-60' : ''">
         <CardContent class="p-4">
-            <div class="flex items-start justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div class="space-y-2 flex-1 min-w-0">
                     <!-- Header Row -->
                     <div class="flex items-center gap-2 flex-wrap">
@@ -136,7 +136,7 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="flex items-center gap-1 flex-shrink-0">
+                <div class="flex items-center gap-1 flex-shrink-0 self-end sm:self-start">
                     <Switch
                         :model-value="rule.enabled"
                         @update:model-value="$emit('toggle', rule)"
