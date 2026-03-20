@@ -110,7 +110,7 @@ npm run pretty
 
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
-- Copy `.env.dev.example` to `.env.dev` and configure environment variables
+- Copy `.env.dev.example` to `.env` and configure environment variables
 - Start local server: `npm run dev:api` (runs on port 8080)
 
 ### Environment Variables

@@ -79,7 +79,7 @@ npm run build  # Production build for S3 deployment
 
 #### Environment Setup
 
-- Backend: Uses `.env.dev` file for local development (loaded via `--env-file`)
+- Backend: Uses `.env` file for local development (loaded via `--env-file`)
 - Frontend: Uses `.env.local` for environment variables (Vite convention)
 - Required env vars documented in main README.md and module-specific instructions
 

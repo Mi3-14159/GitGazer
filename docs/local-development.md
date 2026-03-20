@@ -107,8 +107,8 @@ cd apps/api
 npm ci
 
 # Copy and configure environment
-cp .env.dev.example .env.dev
-# Edit .env.dev with your AWS configuration
+cp .env.dev.example .env
+# Edit .env with your AWS configuration
 
 # Start local backend (runs on port 8080)
 aws-vault exec <profile> --no-session -- npm run dev:api
@@ -196,7 +196,7 @@ npm run dev
 
 ### Backend Variables
 
-Backend variables are configured in `apps/api/.env.dev` for local development. See [apps/api/.github/backend.instructions.md](../apps/api/.github/backend.instructions.md) for details.
+Backend variables are configured in `apps/api/.env` for local development. See [apps/api/.github/backend.instructions.md](../apps/api/.github/backend.instructions.md) for details.
 
 Key variables:
 
@@ -295,7 +295,7 @@ The proxy is **not used** when:
 
 1. Verify AWS credentials: `aws sts get-caller-identity`
 2. If using aws-vault: `aws-vault exec <profile> -- aws sts get-caller-identity`
-3. Check `.env.dev` has correct AWS_REGION
+3. Check `.env` has correct AWS_REGION
 4. Ensure RDS database is accessible from your AWS account
 5. Verify IAM permissions for RDS, S3, Cognito
 

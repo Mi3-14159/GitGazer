@@ -192,7 +192,7 @@ cd apps/api
 npm ci
 
 # Configure environment (copy and edit)
-cp .env.dev.example .env.dev
+cp .env.dev.example .env
 
 # Run local development server (runs on port 8080)
 aws-vault exec <profile> --no-session -- npm run dev:api

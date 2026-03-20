@@ -18,8 +18,8 @@ This module contains multiple Lambda functions built with TypeScript and Node.js
 npm ci
 
 # Configure environment
-cp .env.dev.example .env.dev
-# Edit .env.dev with your AWS configuration
+cp .env.dev.example .env
+# Edit .env with your AWS configuration
 
 # Run local development server (runs on port 8080)
 aws-vault exec <profile> --no-session -- npm run dev:api
