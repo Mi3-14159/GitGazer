@@ -60,12 +60,12 @@
             </div>
             <div
                 v-else
-                class="grid gap-4 md:grid-cols-2"
+                class="grid gap-4 md:grid-cols-2 min-w-0"
             >
                 <Card
                     v-for="w in workflows"
                     :key="w.id"
-                    class="hover:shadow-md transition-shadow"
+                    class="hover:shadow-md transition-shadow min-w-0 overflow-hidden"
                 >
                     <CardHeader class="pb-3">
                         <div class="flex items-start justify-between">
