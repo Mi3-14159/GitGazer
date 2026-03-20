@@ -84,7 +84,7 @@
         </header>
 
         <!-- Tab Navigation -->
-        <div class="container mx-auto px-4 py-2">
+        <div class="container mx-auto px-4 pt-2 pb-1">
             <nav class="grid w-full grid-cols-5 rounded-lg bg-muted p-1">
                 <button
                     v-for="tab in tabs"
@@ -105,7 +105,7 @@
         </div>
 
         <!-- Main Content -->
-        <main class="flex-1 container mx-auto px-4 pt-2 pb-4 flex flex-col">
+        <main class="flex-1 container mx-auto px-4 pb-4 flex flex-col">
             <router-view v-slot="{Component}">
                 <transition
                     name="fade"
