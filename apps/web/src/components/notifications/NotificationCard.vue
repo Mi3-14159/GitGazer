@@ -136,7 +136,7 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="flex items-center gap-1 flex-shrink-0 self-end sm:self-start">
+                <div class="flex items-center gap-2 sm:gap-1 flex-shrink-0 self-end sm:self-start">
                     <Switch
                         :model-value="rule.enabled"
                         @update:model-value="$emit('toggle', rule)"
