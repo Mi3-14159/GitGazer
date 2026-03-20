@@ -6,7 +6,7 @@
     import Switch from '@/components/ui/Switch.vue';
     import {useMetrics} from '@/composables/useMetric';
     import type {GroupByOption} from '@common/types';
-    import {Filter, GitBranch, Layers, Search, User} from 'lucide-vue-next';
+    import {GitBranch, Layers, Search, User} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
@@ -63,9 +63,7 @@
 </script>
 
 <template>
-    <div class="flex items-center gap-2">
-        <Filter class="h-4 w-4 text-muted-foreground" />
-        <span class="text-sm text-muted-foreground">Filters:</span>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 
         <!-- Repositories -->
         <Popover
@@ -124,22 +122,8 @@
             </div>
         </Popover>
 
-        <!-- Default Branch Only -->
-        <label class="flex items-center gap-1.5 cursor-pointer">
-            <Switch v-model="defaultBranchOnly" />
-            <GitBranch class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="text-sm text-muted-foreground">Default branch only</span>
-        </label>
-
-        <!-- Users Only -->
-        <label class="flex items-center gap-1.5 cursor-pointer">
-            <Switch v-model="usersOnly" />
-            <User class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="text-sm text-muted-foreground">Users only</span>
-        </label>
-
         <!-- Group By -->
-        <div class="ml-2 flex items-center gap-1.5">
+        <div class="flex shrink-0 items-center gap-1.5">
             <Layers class="h-3.5 w-3.5 text-muted-foreground" />
             <Popover
                 :open="groupByOpen"
@@ -174,5 +158,21 @@
                 </div>
             </Popover>
         </div>
+
+        <div class="h-5 w-px bg-border" />
+
+        <!-- Default Branch Only -->
+        <label class="flex shrink-0 items-center gap-1.5 cursor-pointer">
+            <Switch v-model="defaultBranchOnly" />
+            <GitBranch class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="text-sm text-muted-foreground whitespace-nowrap">Default branch only</span>
+        </label>
+
+        <!-- Users Only -->
+        <label class="flex shrink-0 items-center gap-1.5 cursor-pointer">
+            <Switch v-model="usersOnly" />
+            <User class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="text-sm text-muted-foreground whitespace-nowrap">Users only</span>
+        </label>
     </div>
 </template>

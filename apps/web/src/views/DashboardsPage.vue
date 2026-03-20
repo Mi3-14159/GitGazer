@@ -60,14 +60,12 @@
                 <DateTimeRangePicker v-model:date-range="dateRange" />
             </PageHeader>
 
-            <div class="flex justify-end">
-                <DashboardFilters
-                    v-model:repository-ids="repositoryIds"
-                    v-model:default-branch-only="defaultBranchOnly"
-                    v-model:users-only="usersOnly"
-                    v-model:group-by="groupBy"
-                />
-            </div>
+            <DashboardFilters
+                v-model:repository-ids="repositoryIds"
+                v-model:default-branch-only="defaultBranchOnly"
+                v-model:users-only="usersOnly"
+                v-model:group-by="groupBy"
+            />
 
             <WidgetGrid
                 :dashboard="currentDashboard"
