@@ -12,6 +12,7 @@
     import type {WorkflowFilters, WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
+    import type {LocationQuery} from 'vue-router';
     import {useRoute, useRouter} from 'vue-router';
 
     const workflowsStore = useWorkflowsStore();
@@ -31,12 +32,15 @@
             initialFilters.push({column: columnId, values: param.split(',')});
         }
     }
-    const initialApiFilters: WorkflowFilters = {};
+    // URL filters take priority over stored view filters
     if (initialFilters.length > 0) {
         updateFilters(initialFilters);
-        for (const f of initialFilters) {
-            (initialApiFilters as Record<string, string[]>)[f.column] = f.values;
-        }
+    }
+
+    // Build initial API filters from the resolved view filters (URL overrides or stored view)
+    const initialApiFilters: WorkflowFilters = {};
+    for (const f of currentView.value.filters) {
+        (initialApiFilters as Record<string, string[]>)[f.column] = f.values;
     }
 
     const selectedJob = ref<WorkflowJob | null>(null);
@@ -46,7 +50,21 @@
     });
 
     onMounted(async () => {
-        await initializeStore(Object.keys(initialApiFilters).length > 0 ? initialApiFilters : undefined);
+        // Build the complete URL query from refs (not route.query which may be stale)
+        const mergedQuery: LocationQuery = {};
+        if (dateRange.value.window) {
+            mergedQuery.window = dateRange.value.window;
+        } else {
+            if (dateRange.value.from) mergedQuery.created_from = dateRange.value.from.toISOString();
+            if (dateRange.value.to) mergedQuery.created_to = dateRange.value.to.toISOString();
+        }
+        for (const f of currentView.value.filters) {
+            mergedQuery[f.column] = f.values.join(',');
+        }
+        await router.replace({query: mergedQuery});
+
+        const {apiFilters} = buildApiFilters();
+        await initializeStore(apiFilters);
         window.addEventListener('scroll', handleScroll);
     });
 
