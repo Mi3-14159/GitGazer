@@ -112,7 +112,7 @@
             </Button>
         </template>
 
-        <div class="p-3 space-y-3 w-[280px]">
+        <div class="p-3 space-y-3 w-[calc(100vw-1.5rem)] sm:w-[280px]">
             <!-- Quick Select -->
             <div class="space-y-1.5">
                 <Label class="text-xs">Quick Select</Label>
