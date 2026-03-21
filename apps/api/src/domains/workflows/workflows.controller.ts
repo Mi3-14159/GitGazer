@@ -61,18 +61,17 @@ export const getWorkflows = async ({integrationIds, limit, cursor, filters}: Wor
                 }
             }
             if (filters?.topics?.length) {
+                const topicParams = sql.join(
+                    filters.topics.map((t) => sql`${t}`),
+                    sql`, `,
+                );
                 conditions.push(
                     inArray(
                         workflowRuns.repositoryId,
                         tx
                             .select({id: repositories.id})
                             .from(repositories)
-                            .where(
-                                sql`${repositories.topics} ?| array[${sql.join(
-                                    filters.topics.map((t) => sql`${t}`),
-                                    sql`, `,
-                                )}]`,
-                            ),
+                            .where(sql`${repositories.topics} ?| array[${topicParams}]`),
                     ),
                 );
             }
