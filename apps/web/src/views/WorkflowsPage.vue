@@ -5,64 +5,38 @@
     import WorkflowCardDetails from '@/components/workflows/WorkflowCardDetails.vue';
     import WorkflowTable from '@/components/workflows/WorkflowTable.vue';
     import WorkflowToolbar from '@/components/workflows/WorkflowToolbar.vue';
-    import {useTableViews} from '@/composables/useTableViews';
-    import {dateRangeFilter, useUrlFilters} from '@/composables/useUrlFilters';
+    import {useWorkflowFilters} from '@/composables/useWorkflowFilters';
     import {useWorkflowsStore} from '@/stores/workflows';
-    import {filterableColumnIds} from '@/types/table';
-    import type {WorkflowFilters, WorkflowJob, WorkflowRunWithRelations} from '@common/types';
+    import type {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {storeToRefs} from 'pinia';
-    import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
-    import type {LocationQuery} from 'vue-router';
-    import {useRoute, useRouter} from 'vue-router';
+    import {computed, onMounted, onUnmounted, ref} from 'vue';
+    import {useRouter} from 'vue-router';
 
     const workflowsStore = useWorkflowsStore();
     const {initializeStore, handleListWorkflows, setFilters} = workflowsStore;
     const {workflows, isLoading, hasMore} = storeToRefs(workflowsStore);
 
-    const route = useRoute();
     const router = useRouter();
 
-    const {savedViews, currentView, updateColumns, updateFilters, saveView, deleteView, changeView} = useTableViews();
-
-    // Restore filters from URL query params on setup
-    const initialFilters: typeof currentView.value.filters = [];
-    for (const columnId of filterableColumnIds) {
-        const param = route.query[columnId];
-        if (typeof param === 'string' && param.length > 0) {
-            initialFilters.push({column: columnId, values: param.split(',')});
-        }
-    }
-    // URL filters take priority over stored view filters
-    if (initialFilters.length > 0) {
-        updateFilters(initialFilters);
-    }
-
-    // Build initial API filters from the resolved view filters (URL overrides or stored view)
-    const initialApiFilters: WorkflowFilters = {};
-    for (const f of currentView.value.filters) {
-        (initialApiFilters as Record<string, string[]>)[f.column] = f.values;
-    }
+    const {
+        dateRange,
+        savedViews,
+        currentView,
+        updateColumns,
+        saveView,
+        deleteView,
+        changeView,
+        buildApiFilters,
+        buildInitialQuery,
+        getActiveFilterValues,
+        handleColumnFilterChange,
+    } = useWorkflowFilters({setFilters});
 
     const selectedJob = ref<WorkflowJob | null>(null);
     const expandedRuns = ref<Set<number>>(new Set());
-    const {dateRange} = useUrlFilters({
-        dateRange: dateRangeFilter({window: '24h'}),
-    });
 
     onMounted(async () => {
-        // Build the complete URL query from refs (not route.query which may be stale)
-        const mergedQuery: LocationQuery = {};
-        if (dateRange.value.window) {
-            mergedQuery.window = dateRange.value.window;
-        } else {
-            if (dateRange.value.from) mergedQuery.created_from = dateRange.value.from.toISOString();
-            if (dateRange.value.to) mergedQuery.created_to = dateRange.value.to.toISOString();
-        }
-        for (const f of currentView.value.filters) {
-            mergedQuery[f.column] = f.values.join(',');
-        }
-        await router.replace({query: mergedQuery});
-
+        await router.replace({query: buildInitialQuery()});
         const {apiFilters} = buildApiFilters();
         await initializeStore(apiFilters);
         window.addEventListener('scroll', handleScroll);
@@ -107,64 +81,6 @@
                 return [getColumnValue(workflow, columnId)];
         }
     }
-
-    function getActiveFilterValues(columnId: string): string[] {
-        const filter = currentView.value.filters.find((f) => f.column === columnId);
-        return filter?.values ?? [];
-    }
-
-    function handleColumnFilterChange(columnId: string, values: string[]) {
-        const filters = currentView.value.filters;
-        if (values.length === 0) {
-            updateFilters(filters.filter((f) => f.column !== columnId));
-        } else {
-            const otherFilters = filters.filter((f) => f.column !== columnId);
-            updateFilters([...otherFilters, {column: columnId, values}]);
-        }
-    }
-
-    function buildApiFilters(): {apiFilters: WorkflowFilters; query: Record<string, string>} {
-        const apiFilters: WorkflowFilters = {};
-        const query: Record<string, string> = {};
-
-        for (const f of currentView.value.filters) {
-            (apiFilters as Record<string, string[]>)[f.column] = f.values;
-            query[f.column] = f.values.join(',');
-        }
-
-        if (dateRange.value.window) {
-            apiFilters.window = dateRange.value.window as WorkflowFilters['window'];
-        } else {
-            if (dateRange.value.from) apiFilters.created_from = dateRange.value.from.toISOString();
-            if (dateRange.value.to) apiFilters.created_to = dateRange.value.to.toISOString();
-        }
-
-        return {apiFilters, query};
-    }
-
-    watch(
-        () => currentView.value.filters,
-        () => {
-            const {apiFilters, query} = buildApiFilters();
-            const newQuery = {...route.query};
-            for (const col of filterableColumnIds) {
-                delete newQuery[col];
-            }
-            Object.assign(newQuery, query);
-            router.replace({query: newQuery});
-            setFilters(apiFilters);
-        },
-        {deep: true},
-    );
-
-    watch(
-        dateRange,
-        () => {
-            const {apiFilters} = buildApiFilters();
-            setFilters(apiFilters);
-        },
-        {deep: true},
-    );
 
     function toggleRun(id: number) {
         const s = new Set(expandedRuns.value);

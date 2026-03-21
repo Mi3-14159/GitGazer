@@ -1,10 +1,10 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
-    import Checkbox from '@/components/ui/Checkbox.vue';
-    import Input from '@/components/ui/Input.vue';
     import Popover from '@/components/ui/Popover.vue';
+    import type {CheckboxOption} from '@/components/ui/SearchableCheckboxList.vue';
+    import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
     import {type WorkflowRunWithRelations} from '@common/types';
-    import {Filter, Search} from 'lucide-vue-next';
+    import {Filter} from 'lucide-vue-next';
     import {computed, ref} from 'vue';
 
     const props = defineProps<{
@@ -21,19 +21,12 @@
     }>();
 
     const open = ref(false);
-    const searchTerm = ref('');
 
-    interface FilterOption {
-        value: string;
-        count: number;
-    }
-
-    const filterOptions = computed<FilterOption[]>(() => {
+    const options = computed<CheckboxOption[]>(() => {
         const valueCounts: Record<string, number> = {};
         for (const workflow of props.workflows) {
             if (props.getColumnValues) {
-                const values = props.getColumnValues(workflow, props.columnId);
-                for (const value of values) {
+                for (const value of props.getColumnValues(workflow, props.columnId)) {
                     valueCounts[value] = (valueCounts[value] || 0) + 1;
                 }
             } else {
@@ -42,15 +35,9 @@
             }
         }
         return Object.entries(valueCounts)
-            .map(([value, count]) => ({value, count}))
-            .filter(({value}) => value.length > 0)
-            .sort((a, b) => b.count - a.count);
-    });
-
-    const filteredOptions = computed(() => {
-        if (!searchTerm.value) return filterOptions.value;
-        const term = searchTerm.value.toLowerCase();
-        return filterOptions.value.filter((opt) => opt.value.toLowerCase().includes(term));
+            .filter(([value]) => value.length > 0)
+            .sort(([, a], [, b]) => b - a)
+            .map(([value, count]) => ({value, label: value, count}));
     });
 
     const hasActiveFilter = computed(() => props.activeValues.length > 0);
@@ -58,11 +45,6 @@
     function toggleValue(value: string) {
         const newValues = props.activeValues.includes(value) ? props.activeValues.filter((v) => v !== value) : [...props.activeValues, value];
         emit('filterChange', newValues);
-    }
-
-    function clearFilter() {
-        emit('filterChange', []);
-        searchTerm.value = '';
     }
 </script>
 
@@ -83,50 +65,14 @@
             </Button>
         </template>
 
-        <div class="flex flex-col max-h-[400px]">
-            <div class="p-2 border-b sticky top-0 bg-card space-y-2">
-                <div class="relative">
-                    <Search class="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        v-model="searchTerm"
-                        :placeholder="`Search ${columnLabel.toLowerCase()}...`"
-                        class="pl-8 h-9"
-                    />
-                </div>
-                <div
-                    v-if="hasActiveFilter"
-                    class="flex gap-2"
-                >
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        class="flex-1 h-7 text-xs"
-                        @click="clearFilter"
-                    >
-                        Clear
-                    </Button>
-                </div>
-            </div>
-            <div class="overflow-y-auto flex-1">
-                <div
-                    v-if="filteredOptions.length === 0"
-                    class="p-4 text-sm text-center text-muted-foreground"
-                >
-                    No results found
-                </div>
-                <div
-                    v-for="option in filteredOptions"
-                    :key="option.value"
-                    class="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer"
-                    @click="toggleValue(option.value)"
-                >
-                    <Checkbox :model-value="activeValues.includes(option.value)" />
-                    <div class="flex-1 flex items-center justify-between gap-2">
-                        <span class="text-sm truncate">{{ option.value }}</span>
-                        <span class="text-xs text-muted-foreground">{{ option.count }}</span>
-                    </div>
-                </div>
-            </div>
+        <div class="p-2">
+            <SearchableCheckboxList
+                :options="options"
+                :selected="activeValues"
+                :placeholder="`Search ${columnLabel.toLowerCase()}...`"
+                @toggle="toggleValue"
+                @clear="emit('filterChange', [])"
+            />
         </div>
     </Popover>
 </template>

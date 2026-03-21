@@ -8,6 +8,7 @@
     import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
+    import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
     import {ExternalLink, Github, Plug, Plus} from 'lucide-vue-next';
@@ -95,19 +96,13 @@
         </div>
 
         <!-- Empty -->
-        <div
+        <EmptyState
             v-else-if="integrations.length === 0"
-            class="rounded-xl border bg-card p-8 text-center"
-        >
-            <Plug class="mx-auto h-10 w-10 text-muted-foreground/40" />
-            <p class="mt-2 text-sm text-muted-foreground">No integrations configured yet.</p>
-            <Button
-                size="sm"
-                class="mt-4"
-                @click="openCreate"
-                >Create your first integration</Button
-            >
-        </div>
+            :icon="Plug"
+            message="No integrations configured yet."
+            action-label="Create your first integration"
+            @action="openCreate"
+        />
 
         <!-- Integration cards -->
         <div

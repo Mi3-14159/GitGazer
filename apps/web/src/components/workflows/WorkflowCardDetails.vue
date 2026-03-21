@@ -1,5 +1,4 @@
 <script setup lang="ts">
-    import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
     import DialogDescription from '@/components/ui/DialogDescription.vue';
@@ -7,7 +6,8 @@
     import DialogHeader from '@/components/ui/DialogHeader.vue';
     import DialogTitle from '@/components/ui/DialogTitle.vue';
     import Separator from '@/components/ui/Separator.vue';
-    import {formatDuration, statusBadgeVariant, statusIcon} from '@/utils/status';
+    import StatusBadge from '@/components/ui/StatusBadge.vue';
+    import {formatDuration} from '@/utils/status';
     import {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
     import {ExternalLink, GitBranch, GitCommit, Server, User} from 'lucide-vue-next';
@@ -41,8 +41,6 @@
         if (!props.job?.startedAt) return '-';
         return formatDistanceToNow(new Date(props.job.startedAt), {addSuffix: true});
     });
-
-    const StatusIconComponent = computed(() => statusIcon(jobStatus.value));
 
     const getGitHubWebUrl = (job: WorkflowJob, run?: WorkflowRunWithRelations | null) => {
         if (!run?.repository) return '';
@@ -79,16 +77,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
                         <div class="text-sm font-medium text-muted-foreground">Status</div>
-                        <Badge
-                            :variant="statusBadgeVariant(jobStatus)"
-                            class="gap-1"
-                        >
-                            <component
-                                :is="StatusIconComponent"
-                                class="h-3.5 w-3.5"
-                            />
-                            {{ jobStatus === 'in_progress' ? 'running' : jobStatus }}
-                        </Badge>
+                        <StatusBadge :status="jobStatus" />
                     </div>
                     <div class="space-y-2">
                         <div class="text-sm font-medium text-muted-foreground">Duration</div>

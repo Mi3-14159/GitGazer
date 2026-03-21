@@ -11,6 +11,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AppFooter: typeof import('./src/components/layout/AppFooter.vue')['default']
+    AppHeader: typeof import('./src/components/layout/AppHeader.vue')['default']
+    AppNav: typeof import('./src/components/layout/AppNav.vue')['default']
     Badge: typeof import('./src/components/ui/Badge.vue')['default']
     Button: typeof import('./src/components/ui/Button.vue')['default']
     Card: typeof import('./src/components/ui/Card.vue')['default']
@@ -34,6 +37,7 @@ declare module 'vue' {
     DialogHeader: typeof import('./src/components/ui/DialogHeader.vue')['default']
     DialogTitle: typeof import('./src/components/ui/DialogTitle.vue')['default']
     DropdownMenu: typeof import('./src/components/ui/DropdownMenu.vue')['default']
+    EmptyState: typeof import('./src/components/ui/EmptyState.vue')['default']
     GitHubAppLinkDialog: typeof import('./src/components/integrations/GitHubAppLinkDialog.vue')['default']
     GitHubInstallation: typeof import('./src/components/integrations/GitHubInstallation.vue')['default']
     GranularitySelector: typeof import('./src/components/GranularitySelector.vue')['default']
@@ -53,9 +57,11 @@ declare module 'vue' {
     RotateSecretDialog: typeof import('./src/components/integrations/RotateSecretDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SearchableCheckboxList: typeof import('./src/components/ui/SearchableCheckboxList.vue')['default']
     Separator: typeof import('./src/components/ui/Separator.vue')['default']
     Skeleton: typeof import('./src/components/ui/Skeleton.vue')['default']
     StatCards: typeof import('./src/components/dashboard/StatCards.vue')['default']
+    StatusBadge: typeof import('./src/components/ui/StatusBadge.vue')['default']
     StatusDistributionChart: typeof import('./src/components/dashboard/StatusDistributionChart.vue')['default']
     Switch: typeof import('./src/components/ui/Switch.vue')['default']
     Tabs: typeof import('./src/components/ui/Tabs.vue')['default']

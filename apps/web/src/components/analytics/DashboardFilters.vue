@@ -1,12 +1,11 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
-    import Checkbox from '@/components/ui/Checkbox.vue';
-    import Input from '@/components/ui/Input.vue';
     import Popover from '@/components/ui/Popover.vue';
+    import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
     import Switch from '@/components/ui/Switch.vue';
     import {useMetrics} from '@/composables/useMetric';
     import type {GroupByOption} from '@common/types';
-    import {GitBranch, Layers, Search, Tag, User} from 'lucide-vue-next';
+    import {GitBranch, Layers, Tag, User} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
@@ -27,11 +26,9 @@
     const {fetchRepositories, fetchTopics} = useMetrics();
 
     const repositories = ref<{id: number; name: string}[]>([]);
-    const repoSearch = ref('');
     const reposOpen = ref(false);
 
     const availableTopics = ref<string[]>([]);
-    const topicSearch = ref('');
     const topicsOpen = ref(false);
 
     onMounted(async () => {
@@ -44,13 +41,12 @@
         }
     });
 
-    const filteredRepos = computed(() => {
-        const term = repoSearch.value.toLowerCase();
-        if (!term) return repositories.value;
-        return repositories.value.filter((r) => r.name.toLowerCase().includes(term));
-    });
+    const repoOptions = computed(() => repositories.value.map((r) => ({value: String(r.id), label: r.name})));
 
-    function toggleRepo(id: number) {
+    const selectedRepoStrings = computed(() => selectedRepositoryIds.value.map(String));
+
+    function toggleRepo(idStr: string) {
+        const id = Number(idStr);
         const current = [...selectedRepositoryIds.value];
         const idx = current.indexOf(id);
         if (idx >= 0) current.splice(idx, 1);
@@ -58,9 +54,7 @@
         selectedRepositoryIds.value = current;
     }
 
-    function clearRepos() {
-        selectedRepositoryIds.value = [];
-    }
+    const topicOptions = computed(() => availableTopics.value.map((t) => ({value: t, label: t})));
 
     const repoButtonLabel = computed(() => {
         if (!selectedRepositoryIds.value.length) return 'Repositories';
@@ -69,10 +63,10 @@
         return `${names.length} repos`;
     });
 
-    const filteredTopics = computed(() => {
-        const term = topicSearch.value.toLowerCase();
-        if (!term) return availableTopics.value;
-        return availableTopics.value.filter((t) => t.toLowerCase().includes(term));
+    const topicButtonLabel = computed(() => {
+        if (!selectedTopics.value.length) return 'Topics';
+        if (selectedTopics.value.length <= 2) return selectedTopics.value.join(', ');
+        return `${selectedTopics.value.length} topics`;
     });
 
     function toggleTopic(topic: string) {
@@ -82,16 +76,6 @@
         else current.push(topic);
         selectedTopics.value = current;
     }
-
-    function clearTopics() {
-        selectedTopics.value = [];
-    }
-
-    const topicButtonLabel = computed(() => {
-        if (!selectedTopics.value.length) return 'Topics';
-        if (selectedTopics.value.length <= 2) return selectedTopics.value.join(', ');
-        return `${selectedTopics.value.length} topics`;
-    });
 </script>
 
 <template>
@@ -113,44 +97,14 @@
                     {{ repoButtonLabel }}
                 </Button>
             </template>
-            <div class="space-y-2">
-                <div class="relative">
-                    <Search class="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                        v-model="repoSearch"
-                        placeholder="Search repositories..."
-                        class="pl-7 h-8 text-sm"
-                    />
-                </div>
-                <div class="max-h-48 overflow-y-auto space-y-0.5">
-                    <label
-                        v-for="repo in filteredRepos"
-                        :key="repo.id"
-                        class="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
-                    >
-                        <Checkbox
-                            :model-value="selectedRepositoryIds.includes(repo.id)"
-                            @update:model-value="toggleRepo(repo.id)"
-                        />
-                        <span class="truncate">{{ repo.name }}</span>
-                    </label>
-                    <p
-                        v-if="filteredRepos.length === 0"
-                        class="text-xs text-muted-foreground px-2 py-1"
-                    >
-                        No repositories found
-                    </p>
-                </div>
-                <Button
-                    v-if="selectedRepositoryIds.length > 0"
-                    variant="ghost"
-                    size="sm"
-                    class="w-full text-xs"
-                    @click="clearRepos"
-                >
-                    Clear selection
-                </Button>
-            </div>
+            <SearchableCheckboxList
+                :options="repoOptions"
+                :selected="selectedRepoStrings"
+                placeholder="Search repositories..."
+                empty-message="No repositories found"
+                @toggle="toggleRepo"
+                @clear="selectedRepositoryIds = []"
+            />
         </Popover>
 
         <!-- Topics -->
@@ -171,44 +125,14 @@
                     {{ topicButtonLabel }}
                 </Button>
             </template>
-            <div class="space-y-2">
-                <div class="relative">
-                    <Search class="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                        v-model="topicSearch"
-                        placeholder="Search topics..."
-                        class="pl-7 h-8 text-sm"
-                    />
-                </div>
-                <div class="max-h-48 overflow-y-auto space-y-0.5">
-                    <label
-                        v-for="topic in filteredTopics"
-                        :key="topic"
-                        class="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
-                    >
-                        <Checkbox
-                            :model-value="selectedTopics.includes(topic)"
-                            @update:model-value="toggleTopic(topic)"
-                        />
-                        <span class="truncate">{{ topic }}</span>
-                    </label>
-                    <p
-                        v-if="filteredTopics.length === 0"
-                        class="text-xs text-muted-foreground px-2 py-1"
-                    >
-                        No topics found
-                    </p>
-                </div>
-                <Button
-                    v-if="selectedTopics.length > 0"
-                    variant="ghost"
-                    size="sm"
-                    class="w-full text-xs"
-                    @click="clearTopics"
-                >
-                    Clear selection
-                </Button>
-            </div>
+            <SearchableCheckboxList
+                :options="topicOptions"
+                :selected="selectedTopics"
+                placeholder="Search topics..."
+                empty-message="No topics found"
+                @toggle="toggleTopic"
+                @clear="selectedTopics = []"
+            />
         </Popover>
 
         <!-- Group By -->

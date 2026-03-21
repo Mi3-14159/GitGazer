@@ -1,8 +1,8 @@
 <script setup lang="ts">
-    import Badge from '@/components/ui/Badge.vue';
+    import StatusBadge from '@/components/ui/StatusBadge.vue';
     import WorkflowJobRow from '@/components/workflows/WorkflowJobRow.vue';
     import type {ColumnConfig} from '@/types/table';
-    import {formatDuration, statusBadgeVariant, statusIcon} from '@/utils/status';
+    import {formatDuration} from '@/utils/status';
     import type {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
     import {ChevronDown, ChevronRight, GitBranch, GitCommit, User} from 'lucide-vue-next';
@@ -55,16 +55,10 @@
             </template>
             <!-- Status -->
             <template v-else-if="column.id === 'status'">
-                <Badge
-                    :variant="statusBadgeVariant(run.conclusion || run.status || '')"
-                    class="gap-1 h-5 text-xs px-1.5"
-                >
-                    <component
-                        :is="statusIcon(run.conclusion || run.status || '')"
-                        class="h-3.5 w-3.5"
-                    />
-                    {{ run.conclusion || run.status || 'unknown' }}
-                </Badge>
+                <StatusBadge
+                    :status="run.conclusion || run.status || ''"
+                    size="sm"
+                />
             </template>
             <!-- Jobs -->
             <template v-else-if="column.id === 'jobs'">

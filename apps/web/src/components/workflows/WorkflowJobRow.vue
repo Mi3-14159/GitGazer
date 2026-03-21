@@ -1,7 +1,7 @@
 <script setup lang="ts">
-    import Badge from '@/components/ui/Badge.vue';
+    import StatusBadge from '@/components/ui/StatusBadge.vue';
     import type {ColumnConfig} from '@/types/table';
-    import {formatDuration, statusBadgeVariant, statusIcon} from '@/utils/status';
+    import {formatDuration} from '@/utils/status';
     import type {WorkflowJob} from '@common/types';
     import {formatDistanceToNow} from 'date-fns';
     import {Server} from 'lucide-vue-next';
@@ -37,16 +37,10 @@
                 <span class="font-mono text-muted-foreground">{{ job.runnerGroupName }}</span>
             </template>
             <template v-else-if="column.id === 'status'">
-                <Badge
-                    :variant="statusBadgeVariant(job.conclusion || job.status || '')"
-                    class="gap-1 h-5 text-xs px-1.5"
-                >
-                    <component
-                        :is="statusIcon(job.conclusion || job.status || '')"
-                        class="h-3.5 w-3.5"
-                    />
-                    {{ job.conclusion || job.status || 'unknown' }}
-                </Badge>
+                <StatusBadge
+                    :status="job.conclusion || job.status || ''"
+                    size="sm"
+                />
             </template>
             <template v-else-if="column.id === 'duration'">
                 <span class="font-mono">{{ formatDuration(job.startedAt, job.completedAt) }}</span>

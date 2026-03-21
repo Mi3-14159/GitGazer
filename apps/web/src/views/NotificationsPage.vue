@@ -5,6 +5,7 @@
     import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
+    import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegration} from '@/composables/useIntegration';
     import {useNotification} from '@/composables/useNotification';
@@ -109,19 +110,13 @@
         </div>
 
         <!-- Empty -->
-        <div
+        <EmptyState
             v-else-if="notifications.length === 0"
-            class="rounded-xl border bg-card p-8 text-center"
-        >
-            <Bell class="mx-auto h-10 w-10 text-muted-foreground/40" />
-            <p class="mt-2 text-sm text-muted-foreground">No notification rules configured.</p>
-            <Button
-                size="sm"
-                class="mt-4"
-                @click="openCreate"
-                >Create your first rule</Button
-            >
-        </div>
+            :icon="Bell"
+            message="No notification rules configured."
+            action-label="Create your first rule"
+            @action="openCreate"
+        />
 
         <!-- Card List -->
         <div
