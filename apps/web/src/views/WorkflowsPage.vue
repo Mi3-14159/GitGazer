@@ -74,8 +74,19 @@
                 return workflow.headCommitMessage?.slice(0, 40) ?? '';
             case 'run_number':
                 return workflow.runAttempt?.toString() ?? '';
+            case 'topics':
+                return (workflow.repository?.topics ?? []).join(', ');
             default:
                 return '';
+        }
+    }
+
+    function getColumnValues(workflow: WorkflowRunWithRelations, columnId: string): string[] {
+        switch (columnId) {
+            case 'topics':
+                return workflow.repository?.topics ?? [];
+            default:
+                return [getColumnValue(workflow, columnId)];
         }
     }
 
@@ -206,6 +217,7 @@
             :has-more="hasMore"
             :total-count="allRuns.length"
             :get-column-value="getColumnValue"
+            :get-column-values="getColumnValues"
             :get-active-filter-values="getActiveFilterValues"
             @toggle-run="toggleRun"
             @job-click="onJobClick"

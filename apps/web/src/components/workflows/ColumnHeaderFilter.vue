@@ -13,6 +13,7 @@
         workflows: WorkflowRunWithRelations[];
         activeValues: string[];
         getColumnValue: (workflow: WorkflowRunWithRelations, columnId: string) => string;
+        getColumnValues?: (workflow: WorkflowRunWithRelations, columnId: string) => string[];
     }>();
 
     const emit = defineEmits<{
@@ -30,11 +31,19 @@
     const filterOptions = computed<FilterOption[]>(() => {
         const valueCounts: Record<string, number> = {};
         for (const workflow of props.workflows) {
-            const value = props.getColumnValue(workflow, props.columnId);
-            valueCounts[value] = (valueCounts[value] || 0) + 1;
+            if (props.getColumnValues) {
+                const values = props.getColumnValues(workflow, props.columnId);
+                for (const value of values) {
+                    valueCounts[value] = (valueCounts[value] || 0) + 1;
+                }
+            } else {
+                const value = props.getColumnValue(workflow, props.columnId);
+                valueCounts[value] = (valueCounts[value] || 0) + 1;
+            }
         }
         return Object.entries(valueCounts)
             .map(([value, count]) => ({value, count}))
+            .filter(({value}) => value.length > 0)
             .sort((a, b) => b.count - a.count);
     });
 

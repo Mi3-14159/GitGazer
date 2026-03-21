@@ -13,6 +13,7 @@
         hasMore: boolean;
         totalCount: number;
         getColumnValue: (workflow: WorkflowRunWithRelations, columnId: string) => string;
+        getColumnValues: (workflow: WorkflowRunWithRelations, columnId: string) => string[];
         getActiveFilterValues: (columnId: string) => string[];
     }>();
 
@@ -34,6 +35,7 @@
         started: 'w-[130px]',
         commit: 'w-[180px]',
         run_number: 'w-[80px]',
+        topics: 'w-[180px]',
     };
 </script>
 
@@ -57,6 +59,7 @@
                                 :workflows="runs"
                                 :active-values="getActiveFilterValues(column.id)"
                                 :get-column-value="getColumnValue"
+                                :get-column-values="getColumnValues"
                                 @filter-change="emit('filter-change', column.id, $event)"
                             />
                         </div>
