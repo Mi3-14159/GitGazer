@@ -7,7 +7,7 @@ export type * from '@octokit/webhooks-types';
 export * from './metrics';
 
 import type {integrationsQueryRelations, workflowRunRelations} from '../queries';
-import * as schema from '../schema';
+import type * as schema from '../schema';
 
 export type NotificationRule = {
     integrationId: string;
