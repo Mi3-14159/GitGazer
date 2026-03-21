@@ -5,7 +5,7 @@
     import Switch from '@/components/ui/Switch.vue';
     import {useMetrics} from '@/composables/useMetric';
     import type {GroupByOption} from '@common/types';
-    import {GitBranch, Layers, Tag, User} from 'lucide-vue-next';
+    import {ChevronDown, GitBranch, Layers, SlidersHorizontal, Tag, User} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
@@ -76,116 +76,156 @@
         else current.push(topic);
         selectedTopics.value = current;
     }
+
+    const filtersOpen = ref(false);
+
+    const activeFilterCount = computed(() => {
+        let count = 0;
+        if (selectedRepositoryIds.value.length) count++;
+        if (selectedTopics.value.length) count++;
+        if (groupBy.value !== 'none') count++;
+        if (defaultBranchOnly.value) count++;
+        if (usersOnly.value) count++;
+        return count;
+    });
 </script>
 
 <template>
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <!-- Repositories -->
-        <Popover
-            :open="reposOpen"
-            align="start"
-            content-class="w-64"
-            @update:open="reposOpen = $event"
+    <div>
+        <!-- Mobile toggle button -->
+        <button
+            type="button"
+            class="sm:hidden flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm"
+            @click="filtersOpen = !filtersOpen"
         >
-            <template #trigger>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1.5"
-                    :class="{'border-primary': selectedRepositoryIds.length > 0}"
+            <span class="flex items-center gap-2 text-muted-foreground">
+                <SlidersHorizontal class="h-4 w-4" />
+                Filters
+                <span
+                    v-if="activeFilterCount"
+                    class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground"
                 >
-                    {{ repoButtonLabel }}
-                </Button>
-            </template>
-            <SearchableCheckboxList
-                :options="repoOptions"
-                :selected="selectedRepoStrings"
-                placeholder="Search repositories..."
-                empty-message="No repositories found"
-                @toggle="toggleRepo"
-                @clear="selectedRepositoryIds = []"
+                    {{ activeFilterCount }}
+                </span>
+            </span>
+            <ChevronDown
+                class="h-4 w-4 text-muted-foreground transition-transform duration-200"
+                :class="{'rotate-180': filtersOpen}"
             />
-        </Popover>
+        </button>
 
-        <!-- Topics -->
-        <Popover
-            :open="topicsOpen"
-            align="start"
-            content-class="w-64"
-            @update:open="topicsOpen = $event"
+        <!-- Filter content: hidden on mobile unless expanded, always visible on sm+ -->
+        <div
+            :class="[filtersOpen ? 'flex' : 'hidden', 'sm:flex']"
+            class="flex-wrap items-center gap-x-3 gap-y-2 mt-2 sm:mt-0"
         >
-            <template #trigger>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1.5"
-                    :class="{'border-primary': selectedTopics.length > 0}"
-                >
-                    <Tag class="h-3.5 w-3.5" />
-                    {{ topicButtonLabel }}
-                </Button>
-            </template>
-            <SearchableCheckboxList
-                :options="topicOptions"
-                :selected="selectedTopics"
-                placeholder="Search topics..."
-                empty-message="No topics found"
-                @toggle="toggleTopic"
-                @clear="selectedTopics = []"
-            />
-        </Popover>
-
-        <!-- Group By -->
-        <div class="flex shrink-0 items-center gap-1.5">
-            <Layers class="h-3.5 w-3.5 text-muted-foreground" />
+            <!-- Repositories -->
             <Popover
-                :open="groupByOpen"
+                :open="reposOpen"
                 align="start"
-                content-class="w-48"
-                @update:open="groupByOpen = $event"
+                content-class="w-64"
+                @update:open="reposOpen = $event"
             >
                 <template #trigger>
                     <Button
                         variant="outline"
                         size="sm"
                         class="gap-1.5"
-                        :class="{'border-primary': groupBy !== 'none'}"
+                        :class="{'border-primary': selectedRepositoryIds.length > 0}"
                     >
-                        {{ groupByLabel }}
+                        {{ repoButtonLabel }}
                     </Button>
                 </template>
-                <div class="space-y-0.5">
-                    <button
-                        v-for="option in groupByOptions"
-                        :key="option.value"
-                        type="button"
-                        class="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
-                        :class="{'bg-muted font-medium': groupBy === option.value}"
-                        @click="
-                            groupBy = option.value;
-                            groupByOpen = false;
-                        "
-                    >
-                        {{ option.label }}
-                    </button>
-                </div>
+                <SearchableCheckboxList
+                    :options="repoOptions"
+                    :selected="selectedRepoStrings"
+                    placeholder="Search repositories..."
+                    empty-message="No repositories found"
+                    @toggle="toggleRepo"
+                    @clear="selectedRepositoryIds = []"
+                />
             </Popover>
+
+            <!-- Topics -->
+            <Popover
+                :open="topicsOpen"
+                align="start"
+                content-class="w-64"
+                @update:open="topicsOpen = $event"
+            >
+                <template #trigger>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="gap-1.5"
+                        :class="{'border-primary': selectedTopics.length > 0}"
+                    >
+                        <Tag class="h-3.5 w-3.5" />
+                        {{ topicButtonLabel }}
+                    </Button>
+                </template>
+                <SearchableCheckboxList
+                    :options="topicOptions"
+                    :selected="selectedTopics"
+                    placeholder="Search topics..."
+                    empty-message="No topics found"
+                    @toggle="toggleTopic"
+                    @clear="selectedTopics = []"
+                />
+            </Popover>
+
+            <!-- Group By -->
+            <div class="flex items-center gap-1.5">
+                <Layers class="h-3.5 w-3.5 text-muted-foreground" />
+                <Popover
+                    :open="groupByOpen"
+                    align="start"
+                    content-class="w-48"
+                    @update:open="groupByOpen = $event"
+                >
+                    <template #trigger>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="gap-1.5"
+                            :class="{'border-primary': groupBy !== 'none'}"
+                        >
+                            {{ groupByLabel }}
+                        </Button>
+                    </template>
+                    <div class="space-y-0.5">
+                        <button
+                            v-for="option in groupByOptions"
+                            :key="option.value"
+                            type="button"
+                            class="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                            :class="{'bg-muted font-medium': groupBy === option.value}"
+                            @click="
+                                groupBy = option.value;
+                                groupByOpen = false;
+                            "
+                        >
+                            {{ option.label }}
+                        </button>
+                    </div>
+                </Popover>
+            </div>
+
+            <div class="hidden sm:block h-5 w-px bg-border" />
+
+            <!-- Default Branch Only -->
+            <label class="flex items-center gap-1.5 cursor-pointer">
+                <Switch v-model="defaultBranchOnly" />
+                <GitBranch class="h-3.5 w-3.5 text-muted-foreground" />
+                <span class="text-sm text-muted-foreground whitespace-nowrap">Default branch only</span>
+            </label>
+
+            <!-- Users Only -->
+            <label class="flex items-center gap-1.5 cursor-pointer">
+                <Switch v-model="usersOnly" />
+                <User class="h-3.5 w-3.5 text-muted-foreground" />
+                <span class="text-sm text-muted-foreground whitespace-nowrap">Users only</span>
+            </label>
         </div>
-
-        <div class="h-5 w-px bg-border" />
-
-        <!-- Default Branch Only -->
-        <label class="flex shrink-0 items-center gap-1.5 cursor-pointer">
-            <Switch v-model="defaultBranchOnly" />
-            <GitBranch class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="text-sm text-muted-foreground whitespace-nowrap">Default branch only</span>
-        </label>
-
-        <!-- Users Only -->
-        <label class="flex shrink-0 items-center gap-1.5 cursor-pointer">
-            <Switch v-model="usersOnly" />
-            <User class="h-3.5 w-3.5 text-muted-foreground" />
-            <span class="text-sm text-muted-foreground whitespace-nowrap">Users only</span>
-        </label>
     </div>
 </template>
