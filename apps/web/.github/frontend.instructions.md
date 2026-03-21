@@ -4,7 +4,7 @@ applyTo: 'apps/web/**/*.{vue,ts,json}'
 
 # Frontend Development Instructions
 
-This module contains the Vue 3 + Vuetify SPA frontend for GitGazer.
+This module contains the Vue 3 SPA frontend for GitGazer.
 
 ## Build and Test Commands
 
@@ -34,9 +34,11 @@ npm run pretty
 ### Tech Stack
 
 - **Framework**: Vue 3 with Composition API
-- **UI Library**: Vuetify 3
+- **UI Library**: Radix Vue (headless components) + Tailwind CSS 4
+- **UI Primitives**: Class Variance Authority (CVA) for variant-based styling
+- **Icons**: Lucide Vue Next
 - **State Management**: Pinia
-- **Router**: Vue Router 4
+- **Router**: Vue Router 5
 - **Build Tool**: Vite
 - **Authentication**: httpOnly cookies with AWS Cognito
 - **TypeScript**: For type safety
@@ -44,11 +46,16 @@ npm run pretty
 ### Project Structure
 
 - `src/components/`: Reusable Vue components
+    - `src/components/ui/`: Base UI primitives (Button, Input, Dialog, Card, etc.)
 - `src/views/`: Page-level components (routed)
 - `src/router/`: Vue Router configuration
 - `src/stores/`: Pinia state stores
-- `src/plugins/`: Vue plugins (Vuetify, etc.)
+- `src/composables/`: Reusable composition functions
 - `src/api/`: API client functions
+- `src/lib/`: Shared utility libraries
+- `src/utils/`: Utility helper functions
+- `src/types/`: TypeScript type definitions
+- `src/plugins/`: Vue plugins
 - `public/`: Static assets
 
 ## Development Patterns
@@ -57,8 +64,9 @@ npm run pretty
 
 - Use Composition API with `<script setup>` syntax
 - Always use TypeScript for better type safety
-- Follow Vuetify component patterns
-- Use Material Design Icons (`@mdi/font`)
+- Use UI primitives from `src/components/ui/` (Button, Input, Card, Dialog, etc.)
+- Use Tailwind CSS utility classes for styling
+- Use Lucide Vue Next icons: `import { HomeIcon } from 'lucide-vue-next'`
 
 Example:
 
@@ -66,14 +74,15 @@ Example:
 <script setup lang="ts">
     import {ref} from 'vue';
     import type {MyType} from '@/types';
+    import {Button} from '@/components/ui';
 
     const data = ref<MyType[]>([]);
 </script>
 
 <template>
-    <v-container>
-        <!-- Vuetify components -->
-    </v-container>
+    <div class="flex flex-col gap-4">
+        <Button variant="default">Click me</Button>
+    </div>
 </template>
 ```
 
@@ -105,7 +114,7 @@ export const useMyStore = defineStore('my-store', () => {
 - Routes defined in `src/router/`
 - Use route guards for authentication
 - Lazy-load components for code splitting
-- Follow Vue Router 4 patterns
+- Follow Vue Router 5 patterns
 
 ### API Integration
 
@@ -131,7 +140,7 @@ export const useMyStore = defineStore('my-store', () => {
 Create `.env.local` file:
 
 ```bash
-VITE_HOST_URL="http://localhost:5173"
+VITE_HOST_URL="https://app.gitgazer.localhost:5173"
 VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
 VITE_COGNITO_USER_POOL_ID="<USER_POOL_ID>"
 VITE_COGNITO_USER_POOL_CLIENT_ID="<USER_POOL_CLIENT_ID>"
@@ -149,34 +158,36 @@ Get these values from Terraform outputs after infrastructure deployment.
 - All public env vars must start with `VITE_`
 - Type definitions in `env.d.ts`
 
-## Vuetify Usage
+## UI Components
 
-### Component Auto-Import
+### Base Primitives
 
-- Vuetify components auto-imported
-- Configuration in `vite.config.ts`
-- Types generated in `components.d.ts`
+- Pre-built UI components in `src/components/ui/` (Button, Input, Card, Dialog, Tabs, Badge, etc.)
+- Built with Radix Vue for accessibility and Tailwind CSS for styling
+- Use Class Variance Authority (CVA) for variant-based component styling
+- Component variants defined with `cva()` for consistent, type-safe props
 
 ### Theming
 
-- Configure in `src/plugins/vuetify.ts`
-- Use Vuetify's built-in theming system
-- Follow Material Design guidelines
+- Tailwind CSS 4 with CSS variables for theming
+- Light/dark mode via `ThemeToggle` component
+- Color tokens defined as CSS custom properties in `src/assets/main.css`
 
 ### Icons
 
-- Material Design Icons via `@mdi/font`
-- Use `mdi-*` prefix for icons
-- Example: `<v-icon>mdi-home</v-icon>`
+- Lucide Vue Next for icons
+- Import icons as individual components: `import { HomeIcon, BellIcon } from 'lucide-vue-next'`
+- Example: `<HomeIcon class="size-4" />`
 
 ## Development Workflow
 
 ### Local Development
 
 1. Set up `.env.local` with environment variables
-2. Run `npm ci` to install dependencies
-3. Run `npm run dev` to start dev server
-4. Open `http://localhost:5173` in browser
+2. Add `app.gitgazer.localhost` to your `/etc/hosts` file pointing to `127.0.0.1`
+3. Run `npm ci` to install dependencies
+4. Run `npm run dev` to start dev server
+5. Open `https://app.gitgazer.localhost:5173` in browser (self-signed SSL certificate)
 
 ### Hot Module Replacement (HMR)
 
@@ -247,19 +258,19 @@ aws cloudfront create-invalidation --distribution-id <DISTRIBUTION_ID> --paths "
 
 1. Create in `src/components/`
 2. Use TypeScript and Composition API
-3. Follow Vuetify patterns
+3. Use base primitives from `src/components/ui/` and Tailwind CSS utilities
 4. Export and use in parent components
 
 ### Integrating New API Endpoint
 
 1. Add API function in `src/api/`
-2. Use AWS Signature V4 if authenticated
+2. Authentication is handled automatically via httpOnly cookies
 3. Handle errors and loading states
 4. Update types if needed
 
 ### Working with Forms
 
-- Use Vuetify form components
+- Use UI primitives from `src/components/ui/` (Input, Textarea, Checkbox, etc.)
 - Implement validation rules
 - Handle submit and reset
 - Show error messages clearly
@@ -277,7 +288,7 @@ aws cloudfront create-invalidation --distribution-id <DISTRIBUTION_ID> --paths "
 - Node.js 24 required (see `engines` in package.json)
 - Always use TypeScript for new files
 - Follow Vue 3 Composition API patterns
-- Use Vuetify components for consistency
+- Use UI primitives from `src/components/ui/` for consistency
 - Test authentication flows thoroughly
 - Keep components small and focused
 - Use Pinia stores for shared state
