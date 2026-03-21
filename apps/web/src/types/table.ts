@@ -28,7 +28,8 @@ export type WorkflowColumnId =
     | 'created'
     | 'started'
     | 'commit'
-    | 'run_number';
+    | 'run_number'
+    | 'topics';
 
 export const defaultColumns: ColumnConfig[] = [
     {id: 'workflow', label: 'Workflow', visible: true},
@@ -42,6 +43,7 @@ export const defaultColumns: ColumnConfig[] = [
     {id: 'started', label: 'Started', visible: false},
     {id: 'commit', label: 'Commit', visible: false},
     {id: 'run_number', label: 'Run #', visible: false},
+    {id: 'topics', label: 'Topics', visible: false},
 ];
 
 export const defaultView: TableView = {
@@ -52,4 +54,6 @@ export const defaultView: TableView = {
     filters: [],
 };
 
-export const filterableColumnIds = ['workflow', 'repository', 'branch', 'status', 'actor'];
+export const filterableColumnIds = ['workflow', 'repository', 'branch', 'status', 'actor', 'topics'];
+
+export const multiValueColumnIds = ['topics'];

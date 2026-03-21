@@ -139,7 +139,7 @@ export type OverviewResponse = {
     recentWorkflows: WorkflowRunWithRelations[];
 };
 
-export const WORKFLOW_FILTER_COLUMNS = ['workflow', 'repository', 'branch', 'status', 'actor', 'commit', 'run_number'] as const;
+export const WORKFLOW_FILTER_COLUMNS = ['workflow', 'repository', 'branch', 'status', 'actor', 'commit', 'run_number', 'topics'] as const;
 
 export type WorkflowFilterColumn = (typeof WORKFLOW_FILTER_COLUMNS)[number];
 

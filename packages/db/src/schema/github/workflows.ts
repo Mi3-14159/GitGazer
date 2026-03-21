@@ -324,7 +324,7 @@ export const pullRequests = githubSchema
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
-            }),
+            }).onDelete('set null'),
             foreignKey({
                 columns: [table.integrationId, table.authorId],
                 foreignColumns: [user.integrationId, user.id],

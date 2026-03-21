@@ -107,6 +107,19 @@
             <template v-else-if="column.id === 'run_number'">
                 <div class="text-xs font-mono">#{{ run.runAttempt }}</div>
             </template>
+            <!-- Topics -->
+            <template v-else-if="column.id === 'topics'">
+                <div class="flex items-center gap-1 flex-wrap">
+                    <Badge
+                        v-for="topic in run.repository?.topics ?? []"
+                        :key="topic"
+                        variant="secondary"
+                        class="text-xs px-1.5 h-5"
+                    >
+                        {{ topic }}
+                    </Badge>
+                </div>
+            </template>
         </td>
     </tr>
     <!-- Expanded job rows -->

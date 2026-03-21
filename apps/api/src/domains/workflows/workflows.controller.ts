@@ -2,7 +2,7 @@ import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {workflowRunRelations} from '@gitgazer/db/queries';
 import {repositories, workflowRuns} from '@gitgazer/db/schema';
 import {GetWorkflowsResponse, PaginationCursor, WorkflowFilters} from '@gitgazer/db/types';
-import {and, desc, eq, gte, inArray, lt, lte, or, SQL} from 'drizzle-orm';
+import {and, desc, eq, gte, inArray, lt, lte, or, sql, SQL} from 'drizzle-orm';
 
 type WorkflowsParams = {
     integrationIds: string[];
@@ -59,6 +59,21 @@ export const getWorkflows = async ({integrationIds, limit, cursor, filters}: Wor
                 if (nums.length) {
                     conditions.push(inArray(workflowRuns.runAttempt, nums));
                 }
+            }
+            if (filters?.topics?.length) {
+                const topicParams = sql.join(
+                    filters.topics.map((t) => sql`${t}`),
+                    sql`, `,
+                );
+                conditions.push(
+                    inArray(
+                        workflowRuns.repositoryId,
+                        tx
+                            .select({id: repositories.id})
+                            .from(repositories)
+                            .where(sql`${repositories.topics} ?| array[${topicParams}]`),
+                    ),
+                );
             }
 
             // Date range filter
