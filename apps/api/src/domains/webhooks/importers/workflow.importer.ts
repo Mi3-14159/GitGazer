@@ -39,14 +39,17 @@ export const importWorkflow = async (
 
     const userMap = await upsertUsers(tx, integrationId, userPayloads);
 
-    const repository = await upsertRepository(tx, integrationId, organizationId, {
+    const repository = await upsertRepository(tx, {
+        integrationId,
+        organizationId,
         id: event.repository.id,
         name: event.repository.name,
         private: event.repository.private,
-        created_at: event.repository.created_at,
-        updated_at: event.repository.updated_at,
-        owner: event.repository.owner,
+        createdAt: new Date(event.repository.created_at),
+        updatedAt: new Date(event.repository.updated_at),
+        ownerId: event.repository.owner.id,
         defaultBranch: event.repository.default_branch,
+        topics: event.repository.topics,
     });
 
     return {

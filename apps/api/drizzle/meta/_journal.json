@@ -211,6 +211,13 @@
       "when": 1773862523232,
       "tag": "0029_spicy_cerebro",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1774092658200,
+      "tag": "0030_lazy_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

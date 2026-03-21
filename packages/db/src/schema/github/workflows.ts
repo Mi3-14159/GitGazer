@@ -121,6 +121,7 @@ export const repositories = githubSchema
             private: boolean('private').notNull(),
             ownerId: bigint('owner_id', {mode: 'number'}),
             defaultBranch: varchar('default_branch', {length: 255}).notNull().default('main'),
+            topics: jsonb('topics').$type<string[]>().notNull().default([]),
         },
         (table) => [
             primaryKey({columns: [table.integrationId, table.id]}),

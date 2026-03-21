@@ -1,0 +1,1 @@
+ALTER TABLE "github"."repositories" ADD COLUMN "topics" jsonb DEFAULT '[]'::jsonb NOT NULL;

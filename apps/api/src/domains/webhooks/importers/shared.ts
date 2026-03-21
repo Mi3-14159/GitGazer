@@ -1,18 +1,10 @@
 import {RdsTransaction} from '@gitgazer/db/client';
 import {enterprises, organizations, repositories, user} from '@gitgazer/db/schema/github/workflows';
-import {eq, inArray, InferSelectModel} from 'drizzle-orm';
+import {RepositoryInsert} from '@gitgazer/db/types';
+import {eq, inArray, InferSelectModel, lt} from 'drizzle-orm';
 
 type EnterprisePayload = {id: number; name: string};
 type OrganizationPayload = {id: number; login: string; description: string | null};
-type RepositoryPayload = {
-    id: number;
-    name: string;
-    private: boolean;
-    created_at: string | number;
-    updated_at: string | number;
-    owner: {id: number; login: string; type: string};
-    defaultBranch: string;
-};
 type UserPayload = {id: number; login: string; type: string};
 
 /**
@@ -83,26 +75,22 @@ export const upsertOrganization = async (
 /**
  * Upsert a repository record.
  */
-export const upsertRepository = async (
-    tx: RdsTransaction,
-    integrationId: string,
-    organizationId: number | null,
-    payload: RepositoryPayload,
-): Promise<InferSelectModel<typeof repositories>> => {
+export const upsertRepository = async (tx: RdsTransaction, payload: RepositoryInsert): Promise<InferSelectModel<typeof repositories>> => {
     let repository = await tx
         .insert(repositories)
-        .values({
-            integrationId,
-            id: payload.id,
-            organizationId,
-            name: payload.name,
-            private: payload.private,
-            createdAt: new Date(payload.created_at),
-            updatedAt: new Date(payload.updated_at),
-            ownerId: payload.owner.id,
-            defaultBranch: payload.defaultBranch,
+        .values(payload)
+        .onConflictDoUpdate({
+            target: [repositories.integrationId, repositories.id],
+            set: {
+                updatedAt: payload.updatedAt,
+                name: payload.name,
+                private: payload.private,
+                ownerId: payload.ownerId,
+                defaultBranch: payload.defaultBranch,
+                topics: payload.topics,
+            },
+            setWhere: lt(repositories.updatedAt, payload.updatedAt),
         })
-        .onConflictDoNothing()
         .returning();
 
     if (repository.length === 0) {

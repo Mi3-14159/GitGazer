@@ -241,13 +241,14 @@ export type State = {
     redirect_url: string;
 };
 
-type Schema = ExtractTablesWithRelations<typeof schema>;
+export type Schema = ExtractTablesWithRelations<typeof schema>;
 
 export type WorkflowRun = typeof schema.workflowRuns.$inferSelect;
 export type WorkflowJob = typeof schema.workflowJobs.$inferSelect;
 export type PullRequest = typeof schema.pullRequests.$inferSelect;
 export type GithubAppInstallation = typeof schema.githubAppInstallations.$inferSelect;
 export type GithubAppWebhook = typeof schema.githubAppWebhooks.$inferSelect;
+export type RepositoryInsert = typeof schema.repositories.$inferInsert;
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
 export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
