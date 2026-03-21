@@ -41,15 +41,15 @@ npm run pretty
 
 ### Router Pattern
 
-- Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/router/index.ts` handles API Gateway Lambda events
-- Routes defined in `src/router/routes/`
-- Middleware chain: `cors` → `compress` → `authenticate` → `verifyGithubSign` → route handlers
+- Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/shared/router/index.ts` handles API Gateway Lambda events
+- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts`
+- Middleware chain: `compress` → `cors` → `authenticate` → `originCheck` → route handlers
 - Each route handler receives typed API Gateway event and context
 
 ### AWS Service Clients
 
-- Centralized AWS clients in `src/clients/`
-- Available clients: `rds` (Drizzle ORM), `s3`, `bedrock`, `websocket-connections`
+- Centralized AWS clients in `src/shared/clients/`
+- Available clients: `s3`, `websocket`, `secrets-manager`, `github-app`
 - Never instantiate AWS clients directly in controllers or routes
 - Clients are pre-configured with region and credentials
 
@@ -58,7 +58,7 @@ npm run pretty
 - Use Drizzle ORM via `@gitgazer/db/client` for all database operations
 - Use `withRlsTransaction` for row-level security scoped queries
 - All table schemas defined in `packages/db/src/schema/`
-- Follow existing patterns in `src/controllers/`
+- Follow existing patterns in `src/domains/`
 
 ### Error Handling
 
@@ -78,15 +78,15 @@ npm run pretty
 
 ### Adding a New API Endpoint
 
-1. Create route handler in `src/router/routes/`
-2. Add route to router in `src/router/index.ts`
+1. Create route handler in `src/domains/<domain>/`
+2. Add route to router in `src/shared/router/index.ts`
 3. Add corresponding tests
 4. Update schema/types in `packages/db/` if needed
 
 ### Adding a New Controller
 
-1. Create controller in `src/controllers/`
-2. Import and use AWS clients from `src/clients/`
+1. Create controller in `src/domains/<domain>/`
+2. Import and use AWS clients from `src/shared/clients/`
 3. Implement business logic with proper error handling
 4. Add unit tests with mocked AWS services
 
@@ -95,12 +95,12 @@ npm run pretty
 - Use Drizzle ORM for database access via `@gitgazer/db/client`
 - Use `withRlsTransaction` for row-level security scoped queries
 - All table schemas defined in `packages/db/src/schema/`
-- Follow existing patterns in `src/controllers/`
+- Follow existing patterns in `src/domains/`
 
 ### GitHub Webhook Handling
 
-- Webhook validation via `verifyGithubSign` middleware
-- GitHub events processed by controllers in `src/controllers/`
+- Webhook validation via `verifyGithubSign` middleware in `src/domains/webhooks/webhooks.middleware.ts`
+- GitHub events processed by controllers in `src/domains/webhooks/`
 - Store job data in RDS Aurora PostgreSQL
 - Trigger notifications via Step Functions
 
@@ -126,7 +126,7 @@ npm run pretty
 ### Lambda Packaging
 
 - Build artifacts go to `dist/` directory
-- Package includes `node_modules` (prod dependencies only)
+- tsup bundles all dependencies into a single file (except `@aws-sdk/*`, provided by Lambda runtime)
 - Zip files created in `tmp/` directory via `npm run buildZip`
 - Upload to S3 bucket specified in infrastructure
 
@@ -134,8 +134,6 @@ npm run pretty
 
 - **API**: Handles REST API and webhook endpoints (`src/handlers/api.ts`)
 - **WebSocket**: Manages WebSocket connections (`src/handlers/websocket.ts`)
-- **Alerting**: Processes notification rules (`src/handlers/alerting.ts`)
-- **Analytics**: Aggregates workflow data (`src/handlers/analytics.ts`)
 
 ## Code Quality
 

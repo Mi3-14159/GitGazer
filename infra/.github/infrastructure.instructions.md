@@ -62,12 +62,12 @@ GitGazer uses AWS serverless architecture with the following components:
 - `*.tf`: Resource-specific modules
     - `api_rest.tf` / `api_rest_lambda.tf`: REST API Gateway and Lambda
     - `api_websocket.tf` / `api_websocket_lambda.tf`: WebSocket API and Lambda
-    - `alerting_lambda.tf`: Alerting Lambda function
-    - `analytics_lambda.tf`: Analytics Lambda function
+    - `analytics_bedrock.tf`: Bedrock-based analytics configuration
+    - `bedrock_logging.tf`: Bedrock logging configuration
     - `cloudfront.tf`: CDN configuration
     - `cognito.tf`: Authentication setup
     - `rds.tf`: Database configuration
-    - `s3_*.tf`: Storage buckets
+    - `s3_lambda_store.tf` / `s3_ui.tf`: Storage buckets
     - `kms.tf`: Encryption keys
     - `secrets.tf`: Secrets management
     - `route53.tf`: DNS records
