@@ -169,7 +169,7 @@ resource "aws_lambda_function" "api" {
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = data.aws_s3_object.api_lambda_function_archive.key
   s3_object_version = data.aws_s3_object.api_lambda_function_archive.version_id
-  timeout           = 15
+  timeout           = 30
   publish           = true
   memory_size       = 256
   environment {
