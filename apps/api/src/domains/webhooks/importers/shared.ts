@@ -82,8 +82,8 @@ export const upsertRepository = async (tx: RdsTransaction, payload: RepositoryIn
         .onConflictDoUpdate({
             target: [repositories.integrationId, repositories.id],
             set: {
-                updatedAt: payload.updatedAt,
                 name: payload.name,
+                updatedAt: payload.updatedAt,
                 private: payload.private,
                 ownerId: payload.ownerId,
                 defaultBranch: payload.defaultBranch,
