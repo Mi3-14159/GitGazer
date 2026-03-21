@@ -1,0 +1,3 @@
+ALTER TABLE "github"."pull_requests" DROP CONSTRAINT "pull_requests_integration_id_repository_id_repositories_integration_id_id_fk";
+--> statement-breakpoint
+ALTER TABLE "github"."pull_requests" ADD CONSTRAINT "pull_requests_integration_id_repository_id_repositories_integration_id_id_fk" FOREIGN KEY ("integration_id","repository_id") REFERENCES "github"."repositories"("integration_id","id") ON DELETE set null ON UPDATE no action;
