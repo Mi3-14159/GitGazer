@@ -120,13 +120,11 @@
 
         <Button
             variant="outline"
-            size="sm"
+            size="icon"
             :disabled="currentView.isDefault"
-            class="gap-2"
             @click="openSaveDialog(true)"
         >
             <Save class="h-4 w-4" />
-            {{ currentView.isDefault ? 'Default View' : 'Update View' }}
         </Button>
     </div>
 
