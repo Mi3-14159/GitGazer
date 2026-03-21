@@ -121,6 +121,19 @@ export function numberArrayFilter(urlKey: string): FilterDef<number[]> {
     };
 }
 
+/** A comma-separated list of strings (e.g. topics). Omitted from URL when empty. */
+export function stringArrayFilter(urlKey: string): FilterDef<string[]> {
+    return {
+        defaultValue: [],
+        fromUrl: (q) => {
+            const v = q[urlKey];
+            return v ? v.split(',').filter(Boolean) : [];
+        },
+        toUrl: (v) => (v.length ? {[urlKey]: v.join(',')} : {}),
+        ownedKeys: [urlKey],
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Date-range filter
 // ---------------------------------------------------------------------------

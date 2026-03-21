@@ -25,6 +25,7 @@ function buildQueryString(filter: MetricsFilter): string {
     const params = new URLSearchParams();
     if (filter.repositoryIds?.length) params.set('repositoryIds', filter.repositoryIds.join(','));
     else if (filter.repositoryId) params.set('repositoryId', String(filter.repositoryId));
+    if (filter.topics?.length) params.set('topics', filter.topics.join(','));
     if (filter.from) params.set('from', filter.from);
     if (filter.to) params.set('to', filter.to);
     if (filter.defaultBranchOnly) params.set('defaultBranchOnly', 'true');
@@ -57,5 +58,11 @@ export function useMetrics() {
         return parseApiResponse(res);
     }
 
-    return {fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories};
+    async function fetchTopics(): Promise<string[]> {
+        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/topics`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return parseApiResponse(res);
+    }
+
+    return {fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories, fetchTopics};
 }

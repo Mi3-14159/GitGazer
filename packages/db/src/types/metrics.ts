@@ -1,10 +1,11 @@
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
-export type GroupByOption = 'none' | 'repository';
+export type GroupByOption = 'none' | 'repository' | 'topic';
 
 export type MetricsFilter = {
     repositoryId?: number;
     repositoryIds?: number[];
+    topics?: string[];
     from?: string;
     to?: string;
     defaultBranchOnly?: boolean;
@@ -17,7 +18,7 @@ export const isMetricsFilter = (params: Record<string, unknown>): params is Metr
     if (params.repositoryId !== undefined && isNaN(Number(params.repositoryId))) return false;
     if (params.granularity !== undefined && !['hour', 'day', 'week', 'month'].includes(String(params.granularity))) return false;
     if (params.usersOnly !== undefined && !['true', 'false'].includes(String(params.usersOnly))) return false;
-    if (params.groupBy !== undefined && !['none', 'repository'].includes(String(params.groupBy))) return false;
+    if (params.groupBy !== undefined && !['none', 'repository', 'topic'].includes(String(params.groupBy))) return false;
     return true;
 };
 

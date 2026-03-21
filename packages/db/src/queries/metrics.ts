@@ -52,11 +52,46 @@ function getEffectiveRepositoryIds(filter: MetricsFilter): number[] | undefined 
     return undefined;
 }
 
+function buildTopicsCondition(
+    repositoryIdColumn: SQL | typeof workflowRuns.repositoryId | typeof pullRequests.repositoryId,
+    integrationIdColumn: SQL | typeof workflowRuns.integrationId | typeof pullRequests.integrationId,
+    topics: string[],
+): SQL {
+    const topicParams = sql.join(
+        topics.map((t) => sql`${t}`),
+        sql`, `,
+    );
+    return sql`${repositoryIdColumn} IN (
+        SELECT ${repositories.id} FROM ${repositories}
+        WHERE ${repositories.integrationId} = ${integrationIdColumn}
+        AND ${repositories.topics} ?| array[${topicParams}]
+    )`;
+}
+
+function getGroupByExpressions(filter: MetricsFilter): {select: SQL; join: SQL} | null {
+    if (filter.groupBy === 'repository') {
+        return {
+            select: sql`${repositories.id}::text as group_key, ${repositories.name} as group_label`,
+            join: sql``,
+        };
+    }
+    if (filter.groupBy === 'topic') {
+        return {
+            select: sql`t.topic as group_key, t.topic as group_label`,
+            join: sql`CROSS JOIN LATERAL jsonb_array_elements_text(${repositories.topics}) AS t(topic)`,
+        };
+    }
+    return null;
+}
+
 function buildWorkflowRunConditions(filter: MetricsFilter, from: Date, to: Date): SQL[] {
     const conditions: SQL[] = [gte(workflowRuns.createdAt, from), lte(workflowRuns.createdAt, to), eq(workflowRuns.status, 'completed')];
     const repoIds = getEffectiveRepositoryIds(filter);
     if (repoIds) {
         conditions.push(repoIds.length === 1 ? eq(workflowRuns.repositoryId, repoIds[0]) : inArray(workflowRuns.repositoryId, repoIds));
+    }
+    if (filter.topics?.length) {
+        conditions.push(buildTopicsCondition(workflowRuns.repositoryId, workflowRuns.integrationId, filter.topics));
     }
     if (filter.defaultBranchOnly) {
         conditions.push(
@@ -73,6 +108,9 @@ function buildPullRequestFilters(conditions: SQL[], filter: MetricsFilter): void
     const repoIds = getEffectiveRepositoryIds(filter);
     if (repoIds) {
         conditions.push(repoIds.length === 1 ? eq(pullRequests.repositoryId, repoIds[0]) : inArray(pullRequests.repositoryId, repoIds));
+    }
+    if (filter.topics?.length) {
+        conditions.push(buildTopicsCondition(pullRequests.repositoryId, pullRequests.integrationId, filter.topics));
     }
     if (filter.defaultBranchOnly) {
         conditions.push(
@@ -151,21 +189,22 @@ export async function getDeploymentFrequency({integrationIds, filter}: MetricsPa
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds = buildWorkflowRunConditions(filter, rangeFrom, rangeTo);
                     conds.push(eq(workflowRuns.conclusion, 'success'));
                     const truncated = dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`);
                     const rows = await tx.execute(
                         sql`SELECT
-                            ${repositories.id}::text as group_key,
-                            ${repositories.name} as group_label,
+                            ${groupExprs.select},
                             ${truncated} as period,
                             count(*) as value
                         FROM ${workflowRuns}
                         INNER JOIN ${repositories} 
                             ON ${repositories.id} = ${workflowRuns.repositoryId}
                             AND ${repositories.integrationId} = ${workflowRuns.integrationId}
+                        ${groupExprs.join}
                         WHERE ${and(...conds)}
                         GROUP BY group_key, group_label, period
                         ORDER BY group_label, period`,
@@ -212,14 +251,15 @@ export async function getLeadTimeForChanges({integrationIds, filter}: MetricsPar
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds: SQL[] = [gte(pullRequests.mergedAt, rangeFrom), lte(pullRequests.mergedAt, rangeTo)];
                     conds.push(eq(pullRequests.merged, true));
                     buildPullRequestFilters(conds, filter);
                     const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -262,12 +302,13 @@ export async function getChangeFailureRate({integrationIds, filter}: MetricsPara
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds = buildWorkflowRunConditions(filter, rangeFrom, rangeTo);
                     const truncated = dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -331,7 +372,8 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            if (filter.groupBy === 'repository' || filter.groupBy === 'topic') {
+                const isTopicGroup = filter.groupBy === 'topic';
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const rows = await tx.execute(sql`
                         WITH failed_runs AS (
@@ -359,11 +401,12 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                                 AND s.created_at > f.created_at
                             GROUP BY f.id, f.created_at, f.repository_id
                         )
-                        SELECT r.id::text as group_key, r.name as group_label,
+                        SELECT ${isTopicGroup ? sql`t.topic as group_key, t.topic as group_label` : sql`r.id::text as group_key, r.name as group_label`},
                                ${dateTruncExpression(granularity, sql`failed_at`)} as period,
                                avg(extract(epoch from (recovered_at - failed_at)) / 3600) as value
                         FROM recovery
                         JOIN github.repositories r ON r.id = recovery.repository_id
+                        ${isTopicGroup ? sql.raw(`CROSS JOIN LATERAL jsonb_array_elements_text(r.topics) AS t(topic)`) : sql``}
                         GROUP BY group_key, group_label, period
                         ORDER BY group_label, period
                     `);
@@ -405,14 +448,15 @@ export async function getPRMergeRate({integrationIds, filter}: MetricsParams): P
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds: SQL[] = [gte(pullRequests.closedAt, rangeFrom), lte(pullRequests.closedAt, rangeTo)];
                     conds.push(sql`${pullRequests.closedAt} IS NOT NULL`);
                     buildPullRequestFilters(conds, filter);
                     const truncated = dateTruncExpression(granularity, sql`${pullRequests.closedAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -467,14 +511,16 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const rows = await tx.execute(sql`
                         SELECT group_key, group_label, period, sum(cnt) as value FROM (
-                            SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label,
+                            SELECT ${groupExprs.select},
                                    ${dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`)} as period, count(*) as cnt
                             FROM ${workflowRuns}
                             INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId}
+                            ${groupExprs.join}
                             WHERE ${workflowRuns.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                               AND ${workflowRuns.createdAt} <= ${rangeTo.toISOString()}::timestamptz
                               ${getEffectiveRepositoryIds(filter) ? sql`AND ${workflowRuns.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
@@ -482,10 +528,11 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                               ${filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                             GROUP BY group_key, group_label, period
                             UNION ALL
-                            SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label,
+                            SELECT ${groupExprs.select},
                                    ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, count(*) as cnt
                             FROM ${pullRequests}
                             INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId}
+                            ${groupExprs.join}
                             WHERE ${pullRequests.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                               AND ${pullRequests.createdAt} <= ${rangeTo.toISOString()}::timestamptz
                               ${getEffectiveRepositoryIds(filter) ? sql`AND ${pullRequests.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
@@ -546,24 +593,27 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const rows = await tx.execute(sql`
                         SELECT group_key, group_label, period, count(DISTINCT actor) as value FROM (
-                            SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label,
+                            SELECT ${groupExprs.select},
                                    ${dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`)} as period, ${workflowRuns.actorId} as actor
                             FROM ${workflowRuns}
                             INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId}
+                            ${groupExprs.join}
                             WHERE ${workflowRuns.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                               AND ${workflowRuns.createdAt} <= ${rangeTo.toISOString()}::timestamptz
                               ${getEffectiveRepositoryIds(filter) ? sql`AND ${workflowRuns.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
                               ${filter.defaultBranchOnly ? sql`AND ${workflowRuns.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId})` : sql``}
                               ${filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                             UNION ALL
-                            SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label,
+                            SELECT ${groupExprs.select},
                                    ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, ${pullRequests.authorId} as actor
                             FROM ${pullRequests}
                             INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId}
+                            ${groupExprs.join}
                             WHERE ${pullRequests.createdAt} >= ${rangeFrom.toISOString()}::timestamptz
                               AND ${pullRequests.createdAt} <= ${rangeTo.toISOString()}::timestamptz
                               ${getEffectiveRepositoryIds(filter) ? sql`AND ${pullRequests.repositoryId} = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
@@ -615,7 +665,8 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds: SQL[] = [
                         gte(workflowJobs.createdAt, rangeFrom),
@@ -628,7 +679,7 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
                     }
                     const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -666,14 +717,15 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds: SQL[] = [gte(pullRequests.mergedAt, rangeFrom), lte(pullRequests.mergedAt, rangeTo)];
                     conds.push(eq(pullRequests.merged, true));
                     buildPullRequestFilters(conds, filter);
                     const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -713,7 +765,8 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds: SQL[] = [gte(workflowJobs.createdAt, rangeFrom), lte(workflowJobs.createdAt, rangeTo)];
                     const repoIds = getEffectiveRepositoryIds(filter);
@@ -722,7 +775,7 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
                     }
                     const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${repositories.id}::text as group_key, ${repositories.name} as group_label, ${truncated} as period, avg(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -765,21 +818,22 @@ export async function getPRSize({integrationIds, filter}: MetricsParams): Promis
             const prevData = await queryForRange(prevFrom, prevTo);
 
             let series: MetricSeries[] | undefined;
-            if (filter.groupBy === 'repository') {
+            const groupExprs = getGroupByExpressions(filter);
+            if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
                     const conds: SQL[] = [gte(pullRequests.createdAt, rangeFrom), lte(pullRequests.createdAt, rangeTo)];
                     buildPullRequestFilters(conds, filter);
                     const truncated = dateTruncExpression(granularity, sql`${pullRequests.createdAt}`);
                     const rows = await tx.execute(
                         sql`SELECT
-                            ${repositories.id}::text as group_key,
-                            ${repositories.name} as group_label,
+                            ${groupExprs.select},
                             ${truncated} as period,
                             avg(${pullRequests.additions} + ${pullRequests.deletions}) as value
                         FROM ${pullRequests}
                         INNER JOIN ${repositories} ON
                             ${repositories.id} = ${pullRequests.repositoryId}
                             AND ${repositories.integrationId} = ${pullRequests.integrationId}
+                        ${groupExprs.join}
                         WHERE ${and(...conds)}
                         GROUP BY group_key, group_label, period
                         ORDER BY group_label, period`,
@@ -802,6 +856,18 @@ export async function listRepositories({integrationIds}: {integrationIds: string
         callback: async (tx) => {
             const rows = await tx.select({id: repositories.id, name: repositories.name}).from(repositories).orderBy(repositories.name);
             return rows;
+        },
+    });
+}
+
+export async function listTopics({integrationIds}: {integrationIds: string[]}) {
+    return withRlsTransaction({
+        integrationIds,
+        callback: async (tx) => {
+            const rows = await tx.execute(
+                sql`SELECT DISTINCT jsonb_array_elements_text(${repositories.topics}) AS topic FROM ${repositories} ORDER BY topic`,
+            );
+            return (rows.rows ?? []).map((r: any) => String(r.topic));
         },
     });
 }

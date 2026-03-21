@@ -15,7 +15,7 @@
     const route = useRoute();
     const router = useRouter();
 
-    const {dateRange, granularity, repositoryIds, defaultBranchOnly, usersOnly, groupBy, metricsFilter} = useDashboardFilters();
+    const {dateRange, granularity, repositoryIds, topics, defaultBranchOnly, usersOnly, groupBy, metricsFilter} = useDashboardFilters();
 
     const selectedDashboardId = ref<string | null>((route.params.dashboardId as string) || null);
     const dashboards = ref<Dashboard[]>([...defaultDashboards]);
@@ -62,6 +62,7 @@
 
             <DashboardFilters
                 v-model:repository-ids="repositoryIds"
+                v-model:topics="topics"
                 v-model:default-branch-only="defaultBranchOnly"
                 v-model:users-only="usersOnly"
                 v-model:group-by="groupBy"

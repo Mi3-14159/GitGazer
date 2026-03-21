@@ -3,7 +3,7 @@ import {getCustomQuerySchema, runCustomQuery} from '@/domains/metrics/custom-met
 import {getDoraMetrics, getSpaceMetrics} from '@/domains/metrics/metrics.controller';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {listRepositories} from '@gitgazer/db/queries/metrics';
+import {listRepositories, listTopics} from '@gitgazer/db/queries/metrics';
 import type {GroupByOption} from '@gitgazer/db/types/metrics';
 import {isMetricsFilter} from '@gitgazer/db/types/metrics';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
@@ -23,12 +23,13 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
                   .map(Number)
                   .filter((n) => !isNaN(n))
             : undefined,
+        topics: params.topics ? params.topics.split(',').filter(Boolean) : undefined,
         from: params.from,
         to: params.to,
         defaultBranchOnly: params.defaultBranchOnly === 'true',
         usersOnly: params.usersOnly === 'true',
         granularity: params.granularity as 'hour' | 'day' | 'week' | 'month' | undefined,
-        groupBy: (params.groupBy === 'repository' ? 'repository' : undefined) as GroupByOption | undefined,
+        groupBy: (['repository', 'topic'].includes(params.groupBy ?? '') ? params.groupBy : undefined) as GroupByOption | undefined,
     };
 }
 
@@ -92,6 +93,27 @@ router.get('/api/metrics/repositories', [addUserIntegrationsToCtx], async (reqCt
     const repos = await listRepositories({integrationIds});
 
     return new Response(JSON.stringify(repos), {
+        status: HttpStatusCodes.OK,
+        headers: {'Content-Type': 'application/json'},
+    });
+});
+
+router.get('/api/metrics/topics', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+    if (!userIntegrationIds.length) {
+        return new Response(JSON.stringify([]), {
+            status: HttpStatusCodes.OK,
+            headers: {'Content-Type': 'application/json'},
+        });
+    }
+
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const requestedId = event.queryStringParameters?.integrationId;
+    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+
+    const topics = await listTopics({integrationIds});
+
+    return new Response(JSON.stringify(topics), {
         status: HttpStatusCodes.OK,
         headers: {'Content-Type': 'application/json'},
     });

@@ -6,10 +6,11 @@
     import Switch from '@/components/ui/Switch.vue';
     import {useMetrics} from '@/composables/useMetric';
     import type {GroupByOption} from '@common/types';
-    import {GitBranch, Layers, Search, User} from 'lucide-vue-next';
+    import {GitBranch, Layers, Search, Tag, User} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
+    const selectedTopics = defineModel<string[]>('topics', {default: () => []});
     const defaultBranchOnly = defineModel<boolean>('defaultBranchOnly', {default: false});
     const usersOnly = defineModel<boolean>('usersOnly', {default: false});
     const groupBy = defineModel<GroupByOption>('groupBy', {default: 'none'});
@@ -17,22 +18,29 @@
     const groupByOptions: {label: string; value: GroupByOption}[] = [
         {label: 'No grouping', value: 'none'},
         {label: 'Group by Repository', value: 'repository'},
+        {label: 'Group by Topic', value: 'topic'},
     ];
 
     const groupByLabel = computed(() => groupByOptions.find((o) => o.value === groupBy.value)?.label ?? 'No grouping');
     const groupByOpen = ref(false);
 
-    const {fetchRepositories} = useMetrics();
+    const {fetchRepositories, fetchTopics} = useMetrics();
 
     const repositories = ref<{id: number; name: string}[]>([]);
     const repoSearch = ref('');
     const reposOpen = ref(false);
 
+    const availableTopics = ref<string[]>([]);
+    const topicSearch = ref('');
+    const topicsOpen = ref(false);
+
     onMounted(async () => {
         try {
-            repositories.value = await fetchRepositories();
+            const [repos, topics] = await Promise.all([fetchRepositories(), fetchTopics()]);
+            repositories.value = repos;
+            availableTopics.value = topics;
         } catch {
-            // silently fail — list stays empty
+            // silently fail — lists stay empty
         }
     });
 
@@ -59,6 +67,30 @@
         const names = selectedRepositoryIds.value.map((id) => repositories.value.find((r) => r.id === id)?.name).filter(Boolean);
         if (names.length <= 2) return names.join(', ');
         return `${names.length} repos`;
+    });
+
+    const filteredTopics = computed(() => {
+        const term = topicSearch.value.toLowerCase();
+        if (!term) return availableTopics.value;
+        return availableTopics.value.filter((t) => t.toLowerCase().includes(term));
+    });
+
+    function toggleTopic(topic: string) {
+        const current = [...selectedTopics.value];
+        const idx = current.indexOf(topic);
+        if (idx >= 0) current.splice(idx, 1);
+        else current.push(topic);
+        selectedTopics.value = current;
+    }
+
+    function clearTopics() {
+        selectedTopics.value = [];
+    }
+
+    const topicButtonLabel = computed(() => {
+        if (!selectedTopics.value.length) return 'Topics';
+        if (selectedTopics.value.length <= 2) return selectedTopics.value.join(', ');
+        return `${selectedTopics.value.length} topics`;
     });
 </script>
 
@@ -115,6 +147,64 @@
                     size="sm"
                     class="w-full text-xs"
                     @click="clearRepos"
+                >
+                    Clear selection
+                </Button>
+            </div>
+        </Popover>
+
+        <!-- Topics -->
+        <Popover
+            :open="topicsOpen"
+            align="start"
+            content-class="w-64"
+            @update:open="topicsOpen = $event"
+        >
+            <template #trigger>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="gap-1.5"
+                    :class="{'border-primary': selectedTopics.length > 0}"
+                >
+                    <Tag class="h-3.5 w-3.5" />
+                    {{ topicButtonLabel }}
+                </Button>
+            </template>
+            <div class="space-y-2">
+                <div class="relative">
+                    <Search class="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                        v-model="topicSearch"
+                        placeholder="Search topics..."
+                        class="pl-7 h-8 text-sm"
+                    />
+                </div>
+                <div class="max-h-48 overflow-y-auto space-y-0.5">
+                    <label
+                        v-for="topic in filteredTopics"
+                        :key="topic"
+                        class="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                    >
+                        <Checkbox
+                            :model-value="selectedTopics.includes(topic)"
+                            @update:model-value="toggleTopic(topic)"
+                        />
+                        <span class="truncate">{{ topic }}</span>
+                    </label>
+                    <p
+                        v-if="filteredTopics.length === 0"
+                        class="text-xs text-muted-foreground px-2 py-1"
+                    >
+                        No topics found
+                    </p>
+                </div>
+                <Button
+                    v-if="selectedTopics.length > 0"
+                    variant="ghost"
+                    size="sm"
+                    class="w-full text-xs"
+                    @click="clearTopics"
                 >
                     Clear selection
                 </Button>
