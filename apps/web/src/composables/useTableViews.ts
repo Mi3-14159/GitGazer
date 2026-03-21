@@ -8,20 +8,26 @@ export function useTableViews() {
     const currentView = ref<TableView>(savedViews.value[0] ?? defaultView);
 
     function loadViews(): TableView[] {
+        const base = {...defaultView, columns: defaultColumns.map((c) => ({...c}))};
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const parsed = JSON.parse(stored) as TableView[];
-                if (parsed.length > 0) return parsed;
+                if (parsed.length > 0) return [base, ...parsed];
             }
         } catch {
             // ignore
         }
-        return [{...defaultView, columns: defaultColumns.map((c) => ({...c}))}];
+        return [base];
     }
 
     function persistViews() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedViews.value));
+        const custom = savedViews.value.filter((v) => !v.isDefault);
+        if (custom.length > 0) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(custom));
+        } else {
+            localStorage.removeItem(STORAGE_KEY);
+        }
     }
 
     watch(savedViews, persistViews, {deep: true});
@@ -32,6 +38,11 @@ export function useTableViews() {
 
     function updateFilters(filters: FilterValue[]) {
         currentView.value = {...currentView.value, filters};
+        // Sync to saved views so the change persists in localStorage
+        const idx = savedViews.value.findIndex((v) => v.id === currentView.value.id);
+        if (idx >= 0) {
+            savedViews.value[idx] = {...savedViews.value[idx], filters};
+        }
     }
 
     function saveView(view: TableView) {
