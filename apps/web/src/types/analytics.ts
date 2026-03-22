@@ -44,7 +44,13 @@ export const widgetDefinitions: WidgetDefinition[] = [
         category: 'DORA',
         defaultSize: 'medium',
     },
-    {type: 'lead_time', title: 'Lead Time for Changes', description: 'Average time from PR creation to merge', category: 'DORA', defaultSize: 'medium'},
+    {
+        type: 'lead_time',
+        title: 'Lead Time for Changes',
+        description: 'Average time from PR creation to merge',
+        category: 'DORA',
+        defaultSize: 'medium',
+    },
     {type: 'mttr', title: 'Mean Time to Recovery', description: 'Average time to recover from failures', category: 'DORA', defaultSize: 'medium'},
     {
         type: 'change_failure_rate',
@@ -106,14 +112,15 @@ export const widgetCalculationInfo: Record<WidgetType, string> = {
     mttr: 'Average elapsed time between a failed deployment and the next successful deployment on the same branch. Only incidents resolved within the window are included.',
     change_failure_rate:
         'Percentage of deployments to production that result in a failure (rollback, hotfix, or incident). Calculated as failed deployments ÷ total deployments × 100.',
-    pr_merge_rate:
-        'Percentage of closed pull requests that were merged. Calculated as merged PRs ÷ total closed PRs × 100.',
+    pr_merge_rate: 'Percentage of closed pull requests that were merged. Calculated as merged PRs ÷ total closed PRs × 100.',
     activity_volume: 'Total number of workflow runs triggered and pull requests opened per time period across all tracked repositories.',
-    ci_duration: 'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time. See Workflow Queue Time for queue duration.',
+    ci_duration:
+        'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time. See Workflow Queue Time for queue duration.',
     pr_cycle_time: 'Average elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
     workflow_queue_time:
         'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
-    contributor_count: 'Number of unique contributors who triggered at least one workflow run or authored at least one pull request during the period.',
+    contributor_count:
+        'Number of unique contributors who triggered at least one workflow run or authored at least one pull request during the period.',
     pr_size:
         'Average pull request size measured as additions + deletions per time period. Smaller PRs are generally reviewed faster and have fewer defects.',
 };
