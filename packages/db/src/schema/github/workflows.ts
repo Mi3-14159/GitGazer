@@ -211,7 +211,7 @@ export const workflowJobs = githubSchema
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
-            }).onDelete('set null'),
+            }).onDelete('cascade'),
             index('workflow_jobs_run_lookup').on(table.integrationId, table.workflowRunId),
         ],
     )
@@ -266,7 +266,7 @@ export const workflowRuns = githubSchema
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
-            }).onDelete('set null'),
+            }).onDelete('cascade'),
             foreignKey({
                 columns: [table.integrationId, table.actorId],
                 foreignColumns: [user.integrationId, user.id],
@@ -324,7 +324,7 @@ export const pullRequests = githubSchema
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
-            }).onDelete('set null'),
+            }).onDelete('cascade'),
             foreignKey({
                 columns: [table.integrationId, table.authorId],
                 foreignColumns: [user.integrationId, user.id],

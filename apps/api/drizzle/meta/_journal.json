@@ -225,6 +225,13 @@
       "when": 1774136267845,
       "tag": "0031_thin_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1774207994371,
+      "tag": "0032_sleepy_randall_flagg",
+      "breakpoints": true
     }
   ]
 }
