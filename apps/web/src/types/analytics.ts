@@ -44,7 +44,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
         category: 'DORA',
         defaultSize: 'medium',
     },
-    {type: 'lead_time', title: 'Lead Time for Changes', description: 'Time from commit to production', category: 'DORA', defaultSize: 'medium'},
+    {type: 'lead_time', title: 'Lead Time for Changes', description: 'Average time from PR creation to merge', category: 'DORA', defaultSize: 'medium'},
     {type: 'mttr', title: 'Mean Time to Recovery', description: 'Average time to recover from failures', category: 'DORA', defaultSize: 'medium'},
     {
         type: 'change_failure_rate',
@@ -54,7 +54,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
         defaultSize: 'medium',
     },
     {type: 'pr_merge_rate', title: 'PR Merge Rate', description: 'Pull request merge success rate', category: 'SPACE', defaultSize: 'medium'},
-    {type: 'activity_volume', title: 'Activity Volume', description: 'Commits and activity per period', category: 'SPACE', defaultSize: 'medium'},
+    {type: 'activity_volume', title: 'Activity Volume', description: 'Workflow runs and PRs per period', category: 'SPACE', defaultSize: 'medium'},
     {type: 'ci_duration', title: 'CI Duration', description: 'Average CI pipeline duration', category: 'SPACE', defaultSize: 'medium'},
     {type: 'pr_cycle_time', title: 'PR Cycle Time', description: 'Time from PR open to merge', category: 'SPACE', defaultSize: 'medium'},
     {
@@ -102,18 +102,18 @@ export const widgetCalculationInfo: Record<WidgetType, string> = {
     deployment_frequency:
         'Number of successful deployments to production per time period. Counted from workflow runs on the default branch that complete successfully.',
     lead_time:
-        'Median time from first commit in a PR to that code running in production. Measured as commit timestamp → successful deployment workflow completion.',
+        'Average time from pull request creation to merge. Measured as the mean of (merged_at − created_at) across all merged PRs in the period.',
     mttr: 'Average elapsed time between a failed deployment and the next successful deployment on the same branch. Only incidents resolved within the window are included.',
     change_failure_rate:
         'Percentage of deployments to production that result in a failure (rollback, hotfix, or incident). Calculated as failed deployments ÷ total deployments × 100.',
     pr_merge_rate:
-        'Percentage of opened pull requests that were merged within the selected time window. Calculated as merged PRs ÷ total opened PRs × 100.',
-    activity_volume: 'Total number of commits pushed and pull requests opened per time period across all tracked repositories.',
-    ci_duration: 'Average wall-clock duration of CI workflow runs from queue to completion. Includes both successful and failed runs.',
-    pr_cycle_time: 'Median elapsed time from when a pull request is opened to when it is merged. Excludes PRs that were closed without merging.',
+        'Percentage of closed pull requests that were merged. Calculated as merged PRs ÷ total closed PRs × 100.',
+    activity_volume: 'Total number of workflow runs triggered and pull requests opened per time period across all tracked repositories.',
+    ci_duration: 'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time. See Workflow Queue Time for queue duration.',
+    pr_cycle_time: 'Average elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
     workflow_queue_time:
         'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
-    contributor_count: 'Number of unique authors who pushed at least one commit or opened at least one PR during the selected time period.',
+    contributor_count: 'Number of unique contributors who triggered at least one workflow run or authored at least one pull request during the period.',
     pr_size:
         'Average pull request size measured as additions + deletions per time period. Smaller PRs are generally reviewed faster and have fewer defects.',
 };
