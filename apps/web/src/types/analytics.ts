@@ -47,7 +47,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
     {
         type: 'lead_time',
         title: 'Lead Time for Changes',
-        description: 'Average time from PR creation to merge',
+        description: 'Coming soon — commit to production',
         category: 'DORA',
         defaultSize: 'medium',
     },
@@ -55,7 +55,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
     {
         type: 'change_failure_rate',
         title: 'Change Failure Rate',
-        description: 'Percentage of deployments that fail',
+        description: 'Percentage of workflow runs that fail',
         category: 'DORA',
         defaultSize: 'medium',
     },
@@ -106,12 +106,12 @@ export const defaultDashboards: Dashboard[] = [
 
 export const widgetCalculationInfo: Record<WidgetType, string> = {
     deployment_frequency:
-        'Number of successful deployments to production per time period. Counted from workflow runs on the default branch that complete successfully.',
+        'Number of successful workflow runs per time period. Best used with the Default Branch Only filter enabled to approximate deployment frequency.',
     lead_time:
-        'Average time from pull request creation to merge. Measured as the mean of (merged_at − created_at) across all merged PRs in the period.',
-    mttr: 'Average elapsed time between a failed deployment and the next successful deployment on the same branch. Only incidents resolved within the window are included.',
+        'Coming soon — will measure time from code commit to production deployment. Currently, see PR Cycle Time in the SPACE dashboard for PR open-to-merge duration.',
+    mttr: 'Average elapsed time between a failed workflow run and the next successful run on the same workflow and branch. Only failures with a subsequent recovery are included.',
     change_failure_rate:
-        'Percentage of deployments to production that result in a failure (rollback, hotfix, or incident). Calculated as failed deployments ÷ total deployments × 100.',
+        'Percentage of completed workflow runs that failed or timed out. Calculated as (failed + timed_out) ÷ total completed runs × 100. Best used with the Default Branch Only filter.',
     pr_merge_rate: 'Percentage of closed pull requests that were merged. Calculated as merged PRs ÷ total closed PRs × 100.',
     activity_volume: 'Total number of workflow runs triggered and pull requests opened per time period across all tracked repositories.',
     ci_duration:

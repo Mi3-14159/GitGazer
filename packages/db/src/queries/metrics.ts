@@ -727,7 +727,7 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
                 buildPullRequestFilters(conditions, filter);
                 const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                 const rows = await tx.execute(
-                    sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
+                    sql`SELECT ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
                 );
                 return (rows.rows ?? []).map((r: any) => ({
                     period: new Date(r.period).toISOString(),
@@ -747,7 +747,7 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
                     buildPullRequestFilters(conds, filter);
                     const truncated = dateTruncExpression(granularity, sql`${pullRequests.mergedAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
@@ -771,7 +771,7 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
                 const conditions = buildWorkflowJobConditions(filter, rangeFrom, rangeTo);
                 const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                 const rows = await tx.execute(
-                    sql`SELECT ${truncated} as period, avg(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
+                    sql`SELECT ${truncated} as period, avg(GREATEST(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60, 0)) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
                 );
                 return (rows.rows ?? []).map((r: any) => ({
                     period: new Date(r.period).toISOString(),
@@ -789,7 +789,7 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
                     const conds = buildWorkflowJobConditions(filter, rangeFrom, rangeTo);
                     const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                     const rows = await tx.execute(
-                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                        sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(GREATEST(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60, 0)) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                     );
                     return parseGroupedRows(rows.rows ?? []);
                 };
