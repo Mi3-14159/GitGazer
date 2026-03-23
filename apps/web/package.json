@@ -22,7 +22,7 @@
     "tailwindcss": "^4.2.2",
     "vue": "^3.5.30",
     "vue-echarts": "^8.0.1",
-    "vue-router": "^5.0.3"
+    "vue-router": "^5.0.4"
   },
   "devDependencies": {
     "@babel/types": "^7.28.6",
