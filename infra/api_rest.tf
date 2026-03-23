@@ -57,6 +57,9 @@ locals {
     "metrics/repositories" = {
       methods = ["GET"]
     },
+    "metrics/topics" = {
+      methods = ["GET"]
+    },
     "metrics/custom/query" = {
       methods = ["POST"]
     },
