@@ -53,8 +53,8 @@ function getEffectiveRepositoryIds(filter: MetricsFilter): number[] | undefined 
 }
 
 function buildTopicsCondition(
-    repositoryIdColumn: SQL | typeof workflowRuns.repositoryId | typeof pullRequests.repositoryId,
-    integrationIdColumn: SQL | typeof workflowRuns.integrationId | typeof pullRequests.integrationId,
+    repositoryIdColumn: SQL | typeof workflowRuns.repositoryId | typeof pullRequests.repositoryId | typeof workflowJobs.repositoryId,
+    integrationIdColumn: SQL | typeof workflowRuns.integrationId | typeof pullRequests.integrationId | typeof workflowJobs.integrationId,
     topics: string[],
 ): SQL {
     const topicParams = sql.join(
@@ -100,6 +100,28 @@ function buildWorkflowRunConditions(filter: MetricsFilter, from: Date, to: Date)
     }
     if (filter.usersOnly) {
         conditions.push(sql`${workflowRuns.actorId} IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'User')`);
+    }
+    return conditions;
+}
+
+function buildWorkflowJobConditions(filter: MetricsFilter, from: Date, to: Date): SQL[] {
+    const conditions: SQL[] = [gte(workflowJobs.createdAt, from), lte(workflowJobs.createdAt, to), sql`${workflowJobs.completedAt} IS NOT NULL`];
+    const repoIds = getEffectiveRepositoryIds(filter);
+    if (repoIds) {
+        conditions.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
+    }
+    if (filter.topics?.length) {
+        conditions.push(buildTopicsCondition(workflowJobs.repositoryId, workflowJobs.integrationId, filter.topics));
+    }
+    if (filter.defaultBranchOnly) {
+        conditions.push(
+            sql`${workflowJobs.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId})`,
+        );
+    }
+    if (filter.usersOnly) {
+        conditions.push(
+            sql`${workflowJobs.workflowRunId} IN (SELECT ${workflowRuns.id} FROM ${workflowRuns} WHERE ${workflowRuns.integrationId} = ${workflowJobs.integrationId} AND ${workflowRuns.id} = ${workflowJobs.workflowRunId} AND ${workflowRuns.actorId} IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'User'))`,
+        );
     }
     return conditions;
 }
@@ -340,6 +362,14 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                           AND created_at >= ${rangeFrom.toISOString()}::timestamptz
                           AND created_at <= ${rangeTo.toISOString()}::timestamptz
                           ${getEffectiveRepositoryIds(filter) ? sql`AND repository_id = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                          ${
+                              filter.topics?.length
+                                  ? sql`AND repository_id IN (SELECT r.id FROM github.repositories r WHERE r.integration_id = github.workflow_runs.integration_id AND r.topics ?| array[${sql.join(
+                                        filter.topics.map((t) => sql`${t}`),
+                                        sql`, `,
+                                    )}])`
+                                  : sql``
+                          }
                           ${filter.defaultBranchOnly ? sql`AND head_branch = (SELECT default_branch FROM github.repositories r WHERE r.id = github.workflow_runs.repository_id AND r.integration_id = github.workflow_runs.integration_id)` : sql``}
                           ${filter.usersOnly ? sql`AND actor_id NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                     ),
@@ -384,6 +414,14 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                               AND created_at >= ${rangeFrom.toISOString()}::timestamptz
                               AND created_at <= ${rangeTo.toISOString()}::timestamptz
                               ${getEffectiveRepositoryIds(filter) ? sql`AND repository_id = ANY(${sql.raw(`ARRAY[${getEffectiveRepositoryIds(filter)!.join(',')}]`)})` : sql``}
+                              ${
+                                  filter.topics?.length
+                                      ? sql`AND repository_id IN (SELECT r.id FROM github.repositories r WHERE r.integration_id = github.workflow_runs.integration_id AND r.topics ?| array[${sql.join(
+                                            filter.topics.map((t) => sql`${t}`),
+                                            sql`, `,
+                                        )}])`
+                                      : sql``
+                              }
                               ${filter.defaultBranchOnly ? sql`AND head_branch = (SELECT default_branch FROM github.repositories r WHERE r.id = github.workflow_runs.repository_id AND r.integration_id = github.workflow_runs.integration_id)` : sql``}
                               ${filter.usersOnly ? sql`AND actor_id NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``}
                         ),
@@ -642,15 +680,7 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
         integrationIds,
         callback: async (tx) => {
             const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
-                const conditions: SQL[] = [
-                    gte(workflowJobs.createdAt, rangeFrom),
-                    lte(workflowJobs.createdAt, rangeTo),
-                    sql`${workflowJobs.completedAt} IS NOT NULL`,
-                ];
-                const repoIds = getEffectiveRepositoryIds(filter);
-                if (repoIds) {
-                    conditions.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
-                }
+                const conditions = buildWorkflowJobConditions(filter, rangeFrom, rangeTo);
                 const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                 const rows = await tx.execute(
                     sql`SELECT ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
@@ -668,15 +698,7 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
             const groupExprs = getGroupByExpressions(filter);
             if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
-                    const conds: SQL[] = [
-                        gte(workflowJobs.createdAt, rangeFrom),
-                        lte(workflowJobs.createdAt, rangeTo),
-                        sql`${workflowJobs.completedAt} IS NOT NULL`,
-                    ];
-                    const repoIds = getEffectiveRepositoryIds(filter);
-                    if (repoIds) {
-                        conds.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
-                    }
+                    const conds = buildWorkflowJobConditions(filter, rangeFrom, rangeTo);
                     const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                     const rows = await tx.execute(
                         sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
@@ -746,11 +768,7 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
         integrationIds,
         callback: async (tx) => {
             const queryForRange = async (rangeFrom: Date, rangeTo: Date) => {
-                const conditions: SQL[] = [gte(workflowJobs.createdAt, rangeFrom), lte(workflowJobs.createdAt, rangeTo)];
-                const repoIds = getEffectiveRepositoryIds(filter);
-                if (repoIds) {
-                    conditions.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
-                }
+                const conditions = buildWorkflowJobConditions(filter, rangeFrom, rangeTo);
                 const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                 const rows = await tx.execute(
                     sql`SELECT ${truncated} as period, avg(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
@@ -768,11 +786,7 @@ export async function getWorkflowQueueTime({integrationIds, filter}: MetricsPara
             const groupExprs = getGroupByExpressions(filter);
             if (groupExprs) {
                 const queryGroupedForRange = async (rangeFrom: Date, rangeTo: Date): Promise<GroupedRow[]> => {
-                    const conds: SQL[] = [gte(workflowJobs.createdAt, rangeFrom), lte(workflowJobs.createdAt, rangeTo)];
-                    const repoIds = getEffectiveRepositoryIds(filter);
-                    if (repoIds) {
-                        conds.push(repoIds.length === 1 ? eq(workflowJobs.repositoryId, repoIds[0]) : inArray(workflowJobs.repositoryId, repoIds));
-                    }
+                    const conds = buildWorkflowJobConditions(filter, rangeFrom, rangeTo);
                     const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
                     const rows = await tx.execute(
                         sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conds)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
