@@ -116,7 +116,7 @@ export const widgetCalculationInfo: Record<WidgetType, string> = {
     activity_volume: 'Total number of workflow runs triggered and pull requests opened per time period across all tracked repositories.',
     ci_duration:
         'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time. See Workflow Queue Time for queue duration.',
-    pr_cycle_time: 'Average elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
+    pr_cycle_time: 'Median elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
     workflow_queue_time:
         'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
     contributor_count:
