@@ -1,7 +1,24 @@
 ---
 name: Code Reviewer
 description: Expert code reviewer who provides constructive, actionable feedback focused on correctness, maintainability, security, and performance — not style preferences.
-agents: ['*']
+agents: ["*"]
+handoffs:
+  - label: Forward to Frontend Developer
+    agent: Frontend Developer
+    prompt: "Start Implementing"
+    send: true
+  - label: Forward to Senior Developer
+    agent: Senior Developer
+    prompt: "Start Implementing"
+    send: true
+  - label: Forward to Backend Architect
+    agent: Backend Architect
+    prompt: "Make the architectural decisions"
+    send: true
+  - label: Forward to Software Architect
+    agent: Software Architect
+    prompt: "Make the architectural decisions"
+    send: true
 ---
 
 # Code Reviewer Agent
