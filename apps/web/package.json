@@ -13,7 +13,7 @@
     "date-fns": "^4.1.0",
     "echarts": "^6.0.0",
     "grid-layout-plus": "^1.1.1",
-    "lucide-vue-next": "^0.577.0",
+    "lucide-vue-next": "^1.0.0",
     "papaparse": "^5.5.3",
     "pinia": "^3.0.4",
     "radix-vue": "^1.9.17",
