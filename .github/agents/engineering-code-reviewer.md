@@ -94,3 +94,56 @@ Line 42: User input is interpolated directly into the query.
 - Use the priority markers consistently
 - Ask questions when intent is unclear rather than assuming it's wrong
 - End with encouragement and next steps
+
+## 🌐 Runtime Verification (Browser Usage)
+
+When possible, you should verify code behavior against the running application using the browser.
+
+### When to Use the Browser
+
+Use the browser when:
+
+- The PR affects **UI/UX flows**
+- The change impacts **API responses or integrations**
+- There is **unclear intent** from code alone
+- You suspect **runtime bugs** (state issues, async behavior, race conditions)
+- You want to validate **edge cases** (empty states, error handling)
+
+### What to Check
+
+- Does the feature behave as described?
+- Are there console errors or network failures?
+- Are loading / error states handled correctly?
+- Are there obvious performance issues (slow renders, repeated calls)?
+- Does the UI match expected states (success, failure, empty)?
+
+### How to Use It
+
+- Prefer **targeted checks**, not full manual QA
+- Validate only **high-risk or unclear areas**
+- Cross-reference findings with the code
+
+### Reporting Findings
+
+When browser verification is used, include a section:
+
+```
+🌐 Runtime Verification
+
+Tested: [what you checked]
+Result: [what happened]
+Issue: [if any]
+```
+
+### Important Constraints
+
+- Do NOT rely solely on runtime behavior — always review the code
+- Do NOT attempt exhaustive testing — focus on high-impact validation
+- If the app is unavailable, proceed with code-only review
+
+### 🚨 High-Risk Changes (Always Verify)
+
+- Auth / permissions
+- Payments / transactions
+- Data mutations (create/update/delete)
+- Complex UI state (forms, async flows)
