@@ -1,645 +1,395 @@
 ---
 name: refactor
-description: 'Surgical code refactoring to improve maintainability without changing behavior. Covers extracting functions, renaming variables, breaking down god functions, improving type safety, eliminating code smells, and applying design patterns. Less drastic than repo-rebuilder; use for gradual improvements.'
+description: 'Surgical code refactoring for the GitGazer pnpm monorepo (Vue 3 + AWS Lambda + Drizzle ORM). Covers extracting functions, improving type safety, breaking down oversized controllers and components, fixing import conventions, enforcing RLS transaction boundaries, and applying project-specific patterns. Use when the user asks to clean up, refactor, or improve code in apps/api, apps/web, or packages/db.'
 license: MIT
 ---
 
-# Refactor
+# Refactor — GitGazer
 
 ## Overview
 
-Improve code structure and readability without changing external behavior. Refactoring is gradual evolution, not revolution. Use this for improving existing code, not rewriting from scratch.
+Improve code structure and readability without changing external behavior. Refactoring is gradual evolution, not revolution. This skill is tuned to the GitGazer codebase conventions — a pnpm monorepo with a Vue 3 SPA frontend, AWS Lambda backend, and shared Drizzle ORM database package.
 
 ## When to Use
 
-Use this skill when:
-
 - Code is hard to understand or maintain
-- Functions/classes are too large
-- Code smells need addressing
-- Adding features is difficult due to code structure
-- User asks "clean up this code", "refactor this", "improve this"
-
----
+- Controllers, composables, or components are too large
+- Code smells or convention violations need addressing
+- User says "clean up", "refactor", "improve this code"
 
 ## Refactoring Principles
 
-### The Golden Rules
-
-1. **Behavior is preserved** - Refactoring doesn't change what the code does, only how
-2. **Small steps** - Make tiny changes, test after each
-3. **Version control is your friend** - Commit before and after each safe state
-4. **Tests are essential** - Without tests, you're not refactoring, you're editing
-5. **One thing at a time** - Don't mix refactoring with feature changes
-
-### When NOT to Refactor
-
-```
-- Code that works and won't change again (if it ain't broke...)
-- Critical production code without tests (add tests first)
-- When you're under a tight deadline
-- "Just because" - need a clear purpose
-```
+1. **Behavior is preserved** — refactoring changes how, not what
+2. **Small steps** — one change, run tests, commit
+3. **Tests come first** — without colocated `*.test.ts` coverage, add tests before refactoring
+4. **One concern at a time** — never mix refactoring with feature work
+5. **Respect existing architecture** — this codebase is controller-centric; don't invent service layers unless explicitly asked
 
 ---
 
-## Common Code Smells & Fixes
+## Project Architecture at a Glance
 
-### 1. Long Method/Function
+| Area           | Stack                                          | Key Convention                                                       |
+| -------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
+| `apps/api/`    | TypeScript, Lambda, Powertools Router, Drizzle | Controller-centric domains, `withRlsTransaction`, `@/` alias imports |
+| `apps/web/`    | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite  | `<script setup>`, composables for API logic, `@/` alias imports      |
+| `packages/db/` | Drizzle ORM, Aurora PostgreSQL                 | Shared schema, types, runtime guards, RLS helpers                    |
 
-```diff
-# BAD: 200-line function that does everything
-- async function processOrder(orderId) {
--   // 50 lines: fetch order
--   // 30 lines: validate order
--   // 40 lines: calculate pricing
--   // 30 lines: update inventory
--   // 20 lines: create shipment
--   // 30 lines: send notifications
-- }
+### Import Rules (applies everywhere)
 
-# GOOD: Broken into focused functions
-+ async function processOrder(orderId) {
-+   const order = await fetchOrder(orderId);
-+   validateOrder(order);
-+   const pricing = calculatePricing(order);
-+   await updateInventory(order);
-+   const shipment = await createShipment(order);
-+   await sendNotifications(order, pricing, shipment);
-+   return { order, pricing, shipment };
-+ }
-```
-
-### 2. Duplicated Code
-
-```diff
-# BAD: Same logic in multiple places
-- function calculateUserDiscount(user) {
--   if (user.membership === 'gold') return user.total * 0.2;
--   if (user.membership === 'silver') return user.total * 0.1;
--   return 0;
-- }
--
-- function calculateOrderDiscount(order) {
--   if (order.user.membership === 'gold') return order.total * 0.2;
--   if (order.user.membership === 'silver') return order.total * 0.1;
--   return 0;
-- }
-
-# GOOD: Extract common logic
-+ function getMembershipDiscountRate(membership) {
-+   const rates = { gold: 0.2, silver: 0.1 };
-+   return rates[membership] || 0;
-+ }
-+
-+ function calculateUserDiscount(user) {
-+   return user.total * getMembershipDiscountRate(user.membership);
-+ }
-+
-+ function calculateOrderDiscount(order) {
-+   return order.total * getMembershipDiscountRate(order.user.membership);
-+ }
-```
-
-### 3. Large Class/Module
-
-```diff
-# BAD: God object that knows too much
-- class UserManager {
--   createUser() { /* ... */ }
--   updateUser() { /* ... */ }
--   deleteUser() { /* ... */ }
--   sendEmail() { /* ... */ }
--   generateReport() { /* ... */ }
--   handlePayment() { /* ... */ }
--   validateAddress() { /* ... */ }
--   // 50 more methods...
-- }
-
-# GOOD: Single responsibility per class
-+ class UserService {
-+   create(data) { /* ... */ }
-+   update(id, data) { /* ... */ }
-+   delete(id) { /* ... */ }
-+ }
-+
-+ class EmailService {
-+   send(to, subject, body) { /* ... */ }
-+ }
-+
-+ class ReportService {
-+   generate(type, params) { /* ... */ }
-+ }
-+
-+ class PaymentService {
-+   process(amount, method) { /* ... */ }
-+ }
-```
-
-### 4. Long Parameter List
-
-```diff
-# BAD: Too many parameters
-- function createUser(email, password, name, age, address, city, country, phone) {
--   /* ... */
-- }
-
-# GOOD: Group related parameters
-+ interface UserData {
-+   email: string;
-+   password: string;
-+   name: string;
-+   age?: number;
-+   address?: Address;
-+   phone?: string;
-+ }
-+
-+ function createUser(data: UserData) {
-+   /* ... */
-+ }
-
-# EVEN BETTER: Use builder pattern for complex construction
-+ const user = UserBuilder
-+   .email('test@example.com')
-+   .password('secure123')
-+   .name('Test User')
-+   .address(address)
-+   .build();
-```
-
-### 5. Feature Envy
-
-```diff
-# BAD: Method that uses another object's data more than its own
-- class Order {
--   calculateDiscount(user) {
--     if (user.membershipLevel === 'gold') {
-+       return this.total * 0.2;
-+     }
-+     if (user.accountAge > 365) {
-+       return this.total * 0.1;
-+     }
-+     return 0;
-+   }
-+ }
-
-# GOOD: Move logic to the object that owns the data
-+ class User {
-+   getDiscountRate(orderTotal) {
-+     if (this.membershipLevel === 'gold') return 0.2;
-+     if (this.accountAge > 365) return 0.1;
-+     return 0;
-+   }
-+ }
-+
-+ class Order {
-+   calculateDiscount(user) {
-+     return this.total * user.getDiscountRate(this.total);
-+   }
-+ }
-```
-
-### 6. Primitive Obsession
-
-```diff
-# BAD: Using primitives for domain concepts
-- function sendEmail(to, subject, body) { /* ... */ }
-- sendEmail('user@example.com', 'Hello', '...');
-
-- function createPhone(country, number) {
--   return `${country}-${number}`;
-- }
-
-# GOOD: Use domain types
-+ class Email {
-+   private constructor(public readonly value: string) {
-+     if (!Email.isValid(value)) throw new Error('Invalid email');
-+   }
-+   static create(value: string) { return new Email(value); }
-+   static isValid(email: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
-+ }
-+
-+ class PhoneNumber {
-+   constructor(
-+     public readonly country: string,
-+     public readonly number: string
-+   ) {
-+     if (!PhoneNumber.isValid(country, number)) throw new Error('Invalid phone');
-+   }
-+   toString() { return `${this.country}-${this.number}`; }
-+   static isValid(country: string, number: string) { /* ... */ }
-+ }
-+
-+ // Usage
-+ const email = Email.create('user@example.com');
-+ const phone = new PhoneNumber('1', '555-1234');
-```
-
-### 7. Magic Numbers/Strings
-
-```diff
-# BAD: Unexplained values
-- if (user.status === 2) { /* ... */ }
-- const discount = total * 0.15;
-- setTimeout(callback, 86400000);
-
-# GOOD: Named constants
-+ const UserStatus = {
-+   ACTIVE: 1,
-+   INACTIVE: 2,
-+   SUSPENDED: 3
-+ } as const;
-+
-+ const DISCOUNT_RATES = {
-+   STANDARD: 0.1,
-+   PREMIUM: 0.15,
-+   VIP: 0.2
-+ } as const;
-+
-+ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-+
-+ if (user.status === UserStatus.INACTIVE) { /* ... */ }
-+ const discount = total * DISCOUNT_RATES.PREMIUM;
-+ setTimeout(callback, ONE_DAY_MS);
-```
-
-### 8. Nested Conditionals
-
-```diff
-# BAD: Arrow code
-- function process(order) {
--   if (order) {
--     if (order.user) {
--       if (order.user.isActive) {
--         if (order.total > 0) {
--           return processOrder(order);
-+         } else {
-+           return { error: 'Invalid total' };
-+         }
-+       } else {
-+         return { error: 'User inactive' };
-+       }
-+     } else {
-+       return { error: 'No user' };
-+     }
-+   } else {
-+     return { error: 'No order' };
-+   }
-+ }
-
-# GOOD: Guard clauses / early returns
-+ function process(order) {
-+   if (!order) return { error: 'No order' };
-+   if (!order.user) return { error: 'No user' };
-+   if (!order.user.isActive) return { error: 'User inactive' };
-+   if (order.total <= 0) return { error: 'Invalid total' };
-+   return processOrder(order);
-+ }
-
-# EVEN BETTER: Using Result type
-+ function process(order): Result<ProcessedOrder, Error> {
-+   return Result.combine([
-+     validateOrderExists(order),
-+     validateUserExists(order),
-+     validateUserActive(order.user),
-+     validateOrderTotal(order)
-+   ]).flatMap(() => processOrder(order));
-+ }
-```
-
-### 9. Dead Code
-
-```diff
-# BAD: Unused code lingers
-- function oldImplementation() { /* ... */ }
-- const DEPRECATED_VALUE = 5;
-- import { unusedThing } from './somewhere';
-- // Commented out code
-- // function oldCode() { /* ... */ }
-
-# GOOD: Remove it
-+ // Delete unused functions, imports, and commented code
-+ // If you need it again, git history has it
-```
-
-### 10. Inappropriate Intimacy
-
-```diff
-# BAD: One class reaches deep into another
-- class OrderProcessor {
--   process(order) {
--     order.user.profile.address.street;  // Too intimate
--     order.repository.connection.config;  // Breaking encapsulation
-+   }
-+ }
-
-# GOOD: Ask, don't tell
-+ class OrderProcessor {
-+   process(order) {
-+     order.getShippingAddress();  // Order knows how to get it
-+     order.save();  // Order knows how to save itself
-+   }
-+ }
-```
+- Use `@/` for `src/` within each app
+- Use `@gitgazer/db/*` for the shared DB package
+- **Never** use relative paths like `../../../` — always use path aliases
 
 ---
 
-## Extract Method Refactoring
+## GitGazer-Specific Code Smells & Fixes
 
-### Before and After
+### 1. Relative Import Paths
+
+The most common convention violation. Deep relative imports make code fragile and hard to move.
 
 ```diff
-# Before: One long function
-- function printReport(users) {
--   console.log('USER REPORT');
--   console.log('============');
--   console.log('');
--   console.log(`Total users: ${users.length}`);
--   console.log('');
--   console.log('ACTIVE USERS');
--   console.log('------------');
--   const active = users.filter(u => u.isActive);
--   active.forEach(u => {
--     console.log(`- ${u.name} (${u.email})`);
--   });
--   console.log('');
--   console.log(`Active: ${active.length}`);
--   console.log('');
--   console.log('INACTIVE USERS');
--   console.log('--------------');
--   const inactive = users.filter(u => !u.isActive);
--   inactive.forEach(u => {
--     console.log(`- ${u.name} (${u.email})`);
--   });
--   console.log('');
--   console.log(`Inactive: ${inactive.length}`);
+# BAD
+- import { withRlsTransaction } from '../../../packages/db/src/client';
+- import { logger } from '../../shared/logger';
+- import type { WorkflowRun } from '../../../packages/db/src/types';
+
+# GOOD
++ import { withRlsTransaction } from '@gitgazer/db/client';
++ import { logger } from '@/shared/logger';
++ import type { WorkflowRun } from '@gitgazer/db/types';
+```
+
+### 2. God Controller
+
+Backend controllers tend to accumulate logic. When a controller exceeds ~150 lines or handles multiple distinct concerns, break it apart. Keep domain boundaries — extract helpers into the same domain folder, not into new "service" layers.
+
+```diff
+# BAD: webhooks.controller.ts doing validation + parsing + DB writes + notifications
+- export async function handleWorkflowRunEvent(event: APIGatewayProxyEvent) {
+-   // 30 lines: parse webhook payload
+-   // 20 lines: validate event type
+-   // 40 lines: transform to DB format
+-   // 30 lines: upsert workflow run
+-   // 25 lines: trigger notifications
 - }
 
-# After: Extracted methods
-+ function printReport(users) {
-+   printHeader('USER REPORT');
-+   console.log(`Total users: ${users.length}\n`);
-+   printUserSection('ACTIVE USERS', users.filter(u => u.isActive));
-+   printUserSection('INACTIVE USERS', users.filter(u => !u.isActive));
+# GOOD: Extract helpers within the same domain folder
++ // webhooks.controller.ts — orchestration only
++ export async function handleWorkflowRunEvent(event: APIGatewayProxyEvent) {
++   const payload = parseWebhookPayload(event);
++   const workflowRun = transformWorkflowRun(payload);
++   await upsertWorkflowRun(workflowRun);
++   await triggerNotifications(workflowRun);
 + }
-+
-+ function printHeader(title) {
-+   const line = '='.repeat(title.length);
-+   console.log(title);
-+   console.log(line);
-+   console.log('');
-+ }
-+
-+ function printUserSection(title, users) {
-+   console.log(title);
-+   console.log('-'.repeat(title.length));
-+   users.forEach(u => console.log(`- ${u.name} (${u.email})`));
-+   console.log('');
-+   console.log(`${title.split(' ')[0]}: ${users.length}`);
-+   console.log('');
+
++ // importers/workflow-run.ts — domain-specific transform + persistence
++ export function transformWorkflowRun(payload: WorkflowRunPayload) { /* ... */ }
++ export async function upsertWorkflowRun(run: WorkflowRunInsert) { /* ... */ }
+```
+
+### 3. Missing or Misplaced RLS Transaction Boundary
+
+Every tenant-scoped database query must go through `withRlsTransaction`. The boundary should be as early as possible in the call chain — at the controller level, not buried inside helpers.
+
+```diff
+# BAD: RLS boundary deep inside a helper
+- async function getWorkflows(integrationIds: string[]) {
+-   const data = await someHelper(integrationIds); // RLS hidden inside
+-   return transform(data);
+- }
+
+# BAD: Direct db access without RLS
+- const runs = await db.query.workflowRuns.findMany({ where: ... });
+
+# GOOD: RLS at controller boundary, tx passed down
++ export async function getWorkflows(reqCtx: RequestContext) {
++   const integrationIds = reqCtx.user.integrationIds;
++   return withRlsTransaction(integrationIds, async (tx) => {
++     const runs = await tx.query.workflowRuns.findMany({ /* ... */ });
++     return runs;
++   });
 + }
 ```
+
+### 4. Direct AWS Client Instantiation
+
+AWS clients are pre-configured in `src/shared/clients/`. Instantiating them directly in controllers bypasses central configuration, region settings, and testability.
+
+```diff
+# BAD
+- import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+- const s3 = new S3Client({ region: 'us-east-1' });
+
+# GOOD
++ import { getSignedUrl } from '@/shared/clients/s3.client';
+```
+
+### 5. Oversized Vue Component
+
+When a `.vue` file exceeds ~200 lines of `<script setup>`, the component is likely handling too many concerns. Extract data-fetching and stateful logic into composables; extract visual sub-sections into child components.
+
+```diff
+# BAD: WorkflowDetailView.vue with 300+ lines of script setup
+- <script setup lang="ts">
+- // 40 lines: filter state
+- // 60 lines: fetch + transform data
+- // 50 lines: chart config
+- // 30 lines: pagination logic
+- // watchers, lifecycle hooks, etc.
+- </script>
+
+# GOOD: Extract into composable + focused child components
++ // composables/useWorkflowDetail.ts
++ export function useWorkflowDetail(workflowId: Ref<string>) {
++   const loading = ref(false);
++   const data = ref<WorkflowRunWithRelations[]>([]);
++   async function fetchRuns() { /* ... */ }
++   return { loading, data, fetchRuns };
++ }
+
++ // WorkflowDetailView.vue — thin orchestration
++ <script setup lang="ts">
++ import { useWorkflowDetail } from '@/composables/useWorkflowDetail';
++ const { loading, data, fetchRuns } = useWorkflowDetail(workflowId);
++ </script>
+```
+
+### 6. Business Logic in Vue Templates
+
+Computed properties and composables exist specifically so templates stay declarative. Move conditional logic, data transforms, and formatting out of templates.
+
+```diff
+# BAD
+- <span>{{ run.conclusion === 'success' ? 'Passed' : run.conclusion === 'failure' ? 'Failed' : 'Unknown' }}</span>
+
+# GOOD
++ const conclusionLabel = computed(() => {
++   const labels: Record<string, string> = { success: 'Passed', failure: 'Failed' };
++   return labels[run.value.conclusion] ?? 'Unknown';
++ });
++ // template:
++ <span>{{ conclusionLabel }}</span>
+```
+
+### 7. Options API or Non-Setup Components
+
+All Vue components must use `<script setup lang="ts">`. Any Options API (`export default { data(), methods{} }`) or non-setup Composition API (`setup()` function) should be migrated.
+
+### 8. Store Logic Leaking into Components
+
+API calls, WebSocket management, and data transformations belong in Pinia stores or composables — not in component `<script setup>` blocks. Components orchestrate; stores and composables own state and side effects.
+
+### 9. Untyped or `any` in Shared Types
+
+The `packages/db/src/types/` module provides runtime guards (`isNotificationRule`, `isWorkflowsRequestParameters`, etc.) and Drizzle-derived types. Use them. Adding `any` here propagates unsafety across both frontend and backend.
+
+### 10. Dead Code and Commented-Out Blocks
+
+Remove unused functions, imports, and commented-out code. Git history preserves everything. This applies especially to barrel exports in `components/ui/index.ts` — if a component is no longer used, remove its export.
 
 ---
 
-## Introducing Type Safety
+## Backend Refactoring Patterns
 
-### From Untyped to Typed
+### Breaking Down a Large Controller
 
-```diff
-# Before: No types
-- function calculateDiscount(user, total, membership, date) {
--   if (membership === 'gold' && date.getDay() === 5) {
--     return total * 0.25;
--   }
--   if (membership === 'gold') return total * 0.2;
--   return total * 0.1;
-- }
+The domain pattern is: `<domain>.routes.ts` → `<domain>.controller.ts` → optional helpers/importers.
 
-# After: Full type safety
-+ type Membership = 'bronze' | 'silver' | 'gold';
-+
-+ interface User {
-+   id: string;
-+   name: string;
-+   membership: Membership;
-+ }
-+
-+ interface DiscountResult {
-+   original: number;
-+   discount: number;
-+   final: number;
-+   rate: number;
-+ }
-+
-+ function calculateDiscount(
-+   user: User,
-+   total: number,
-+   date: Date = new Date()
-+ ): DiscountResult {
-+   if (total < 0) throw new Error('Total cannot be negative');
-+
-+   let rate = 0.1; // Default bronze
-+
-+   if (user.membership === 'gold' && date.getDay() === 5) {
-+     rate = 0.25; // Friday bonus for gold
-+   } else if (user.membership === 'gold') {
-+     rate = 0.2;
-+   } else if (user.membership === 'silver') {
-+     rate = 0.15;
-+   }
-+
-+   const discount = total * rate;
-+
-+   return {
-+     original: total,
-+     discount,
-+     final: total - discount,
-+     rate
-+   };
-+ }
+When a controller grows too large, extract into focused modules within the same domain folder:
+
 ```
+domains/webhooks/
+├── webhooks.routes.ts              # Route definitions only
+├── webhooks.controller.ts          # Orchestration — thin dispatch
+├── webhooks.middleware.ts          # Signature verification
+├── importers/
+│   ├── workflow-run.importer.ts    # Transform + persist workflow runs
+│   ├── workflow-job.importer.ts    # Transform + persist workflow jobs
+│   └── check-suite.importer.ts    # Transform + persist check suites
+└── webhooks.middleware.test.ts     # Colocated test
+```
+
+### Improving RLS Transaction Usage
+
+Choose the correct role for the operation:
+
+| Role      | Use When                     |
+| --------- | ---------------------------- |
+| `reader`  | Read-only queries (default)  |
+| `writer`  | Inserts, updates, deletes    |
+| `analyst` | Custom SQL / metrics queries |
+
+```typescript
+// Read
+return withRlsTransaction(integrationIds, async (tx) => {
+    return tx.query.workflowRuns.findMany({
+        /* ... */
+    });
+});
+
+// Write — specify writer role
+return withRlsTransaction(
+    integrationIds,
+    async (tx) => {
+        await tx.insert(notificationRules).values(rule);
+    },
+    'writer',
+);
+```
+
+### Extracting Shared Query Logic
+
+When the same Drizzle query pattern appears in multiple controllers, move it to `packages/db/src/queries/`. This is where metrics queries already live.
+
+### Test Mocking Pattern
+
+Tests mock `withRlsTransaction` at the module level and execute the callback with a synthetic `tx`:
+
+```typescript
+vi.mock('@gitgazer/db/client', () => ({
+    withRlsTransaction: vi.fn(async (_ids, callback) => {
+        return callback(mockTx);
+    }),
+}));
+```
+
+When refactoring, preserve this mocking boundary. If you extract a helper that takes `tx` as a parameter, tests become simpler because you can pass `mockTx` directly without module-level mocks.
 
 ---
 
-## Design Patterns for Refactoring
+## Frontend Refactoring Patterns
 
-### Strategy Pattern
+### Extracting a Composable
 
-```diff
-# Before: Conditional logic
-- function calculateShipping(order, method) {
--   if (method === 'standard') {
--     return order.total > 50 ? 0 : 5.99;
--   } else if (method === 'express') {
--     return order.total > 100 ? 9.99 : 14.99;
-+   } else if (method === 'overnight') {
-+     return 29.99;
-+   }
-+ }
+Move reusable fetch + state logic from components into `src/composables/useX.ts`:
 
-# After: Strategy pattern
-+ interface ShippingStrategy {
-+   calculate(order: Order): number;
-+ }
-+
-+ class StandardShipping implements ShippingStrategy {
-+   calculate(order: Order) {
-+     return order.total > 50 ? 0 : 5.99;
-+   }
-+ }
-+
-+ class ExpressShipping implements ShippingStrategy {
-+   calculate(order: Order) {
-+     return order.total > 100 ? 9.99 : 14.99;
-+   }
-+ }
-+
-+ class OvernightShipping implements ShippingStrategy {
-+   calculate(order: Order) {
-+     return 29.99;
-+   }
-+ }
-+
-+ function calculateShipping(order: Order, strategy: ShippingStrategy) {
-+   return strategy.calculate(order);
-+ }
+```typescript
+// composables/useMetric.ts
+export function useMetric() {
+    const {fetchWithAuth} = useAuth();
+    const loading = ref(false);
+    const metrics = ref<MetricsSummary | null>(null);
+
+    async function fetchMetrics(filters: MetricsFilters) {
+        loading.value = true;
+        try {
+            const res = await fetchWithAuth(`${API_ENDPOINT}/metrics`, {
+                method: 'POST',
+                body: JSON.stringify(filters),
+            });
+            const data = await res.json();
+            if (isMetricsSummaryResponse(data)) metrics.value = data;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    return {loading, metrics, fetchMetrics};
+}
 ```
 
-### Chain of Responsibility
+Key conventions:
 
-```diff
-# Before: Nested validation
-- function validate(user) {
--   const errors = [];
--   if (!user.email) errors.push('Email required');
-+   else if (!isValidEmail(user.email)) errors.push('Invalid email');
-+   if (!user.name) errors.push('Name required');
-+   if (user.age < 18) errors.push('Must be 18+');
-+   if (user.country === 'blocked') errors.push('Country not supported');
-+   return errors;
-+ }
+- Name: `useX` matching the domain concept
+- Use `useAuth().fetchWithAuth` for authenticated requests
+- Use runtime guards from `@gitgazer/db/types` to validate API responses
+- Expose `loading` ref + data ref + action functions
 
-# After: Chain of responsibility
-+ abstract class Validator {
-+   abstract validate(user: User): string | null;
-+   setNext(validator: Validator): Validator {
-+     this.next = validator;
-+     return validator;
-+   }
-+   validate(user: User): string | null {
-+     const error = this.doValidate(user);
-+     if (error) return error;
-+     return this.next?.validate(user) ?? null;
-+   }
-+ }
-+
-+ class EmailRequiredValidator extends Validator {
-+   doValidate(user: User) {
-+     return !user.email ? 'Email required' : null;
-+   }
-+ }
-+
-+ class EmailFormatValidator extends Validator {
-+   doValidate(user: User) {
-+     return user.email && !isValidEmail(user.email) ? 'Invalid email' : null;
-+   }
-+ }
-+
-+ // Build the chain
-+ const validator = new EmailRequiredValidator()
-+   .setNext(new EmailFormatValidator())
-+   .setNext(new NameRequiredValidator())
-+   .setNext(new AgeValidator())
-+   .setNext(new CountryValidator());
+### Extracting Vue Sub-Components
+
+Split when a component has multiple visual sections, each with their own state or event handling:
+
+```
+components/dashboard/
+├── DashboardView.vue           # Layout + orchestration
+├── StatusDistributionChart.vue # ECharts pie/bar
+├── RecentRunsTable.vue         # Table with pagination
+└── DashboardFilters.vue        # Filter controls
+```
+
+Each child receives data via props and emits events upward. The parent view composes them.
+
+### Cleaning Up Pinia Stores
+
+Stores should use the Composition API pattern (`defineStore` with setup function). If a store has grown large, consider splitting into focused stores or extracting internal helpers:
+
+```typescript
+// stores/workflows.ts
+export const useWorkflowsStore = defineStore('workflows', () => {
+    // State
+    const runs = ref<WorkflowRunWithRelations[]>([]);
+    const cursor = ref<string | null>(null);
+    const filters = ref<WorkflowFilters>(defaultFilters);
+
+    // Actions — keep focused
+    async function fetchRuns() {
+        /* ... */
+    }
+    function applyFilter(key: string, value: unknown) {
+        /* ... */
+    }
+
+    // Only expose what consumers need
+    return {runs, cursor, filters, fetchRuns, applyFilter};
+});
 ```
 
 ---
 
 ## Refactoring Steps
 
-### Safe Refactoring Process
+### Safe Process
 
-```
-1. PREPARE
-   - Ensure tests exist (write them if missing)
-   - Commit current state
-   - Create feature branch
-
-2. IDENTIFY
-   - Find the code smell to address
-   - Understand what the code does
-   - Plan the refactoring
-
-3. REFACTOR (small steps)
-   - Make one small change
-   - Run tests
-   - Commit if tests pass
-   - Repeat
-
-4. VERIFY
-   - All tests pass
-   - Manual testing if needed
-   - Performance unchanged or improved
-
-5. CLEAN UP
-   - Update comments
-   - Update documentation
-   - Final commit
-```
+1. **Prepare** — ensure colocated `*.test.ts` files cover the code; if missing, write tests first
+2. **Identify** — pinpoint the smell; read the module instruction file for the area (`apps/api/.github/backend.instructions.md` or `apps/web/.github/frontend.instructions.md`)
+3. **Refactor** — small steps; run `pnpm run test:unit` (backend) or `vue-tsc --noEmit` (frontend) after each change
+4. **Verify** — all tests pass, no new type errors, import aliases correct
 
 ---
 
 ## Refactoring Checklist
 
-### Code Quality
+### Backend (`apps/api/`)
 
-- [ ] Functions are small (< 50 lines)
-- [ ] Functions do one thing
-- [ ] No duplicated code
-- [ ] Descriptive names (variables, functions, classes)
-- [ ] No magic numbers/strings
-- [ ] Dead code removed
+- [ ] All imports use `@/` or `@gitgazer/db/*` — no relative `../` paths
+- [ ] Controllers < 150 lines; large ones decomposed into domain helpers
+- [ ] All tenant-scoped queries use `withRlsTransaction` with correct role
+- [ ] AWS clients from `@/shared/clients/` — no direct SDK instantiation
+- [ ] Structured logging via Powertools Logger — no raw `console.log`
+- [ ] Colocated `*.test.ts` with mocked AWS/DB boundaries
+- [ ] No `any` types without explicit justification
 
-### Structure
+### Frontend (`apps/web/`)
 
-- [ ] Related code is together
-- [ ] Clear module boundaries
-- [ ] Dependencies flow in one direction
-- [ ] No circular dependencies
+- [ ] `<script setup lang="ts">` on every component
+- [ ] Components < 200 lines of script; large ones use composables
+- [ ] API logic in composables (`useX.ts`), not in component scripts
+- [ ] Pinia stores use Composition API style
+- [ ] UI primitives from `@/components/ui/` — not custom one-off implementations
+- [ ] Icons from `lucide-vue-next` — no inline SVGs
+- [ ] No business logic in templates — use computed properties
 
-### Type Safety
+### Shared (`packages/db/`)
 
-- [ ] Types defined for all public APIs
-- [ ] No `any` types without justification
-- [ ] Nullable types explicitly marked
-
-### Testing
-
-- [ ] Refactored code is tested
-- [ ] Tests cover edge cases
-- [ ] All tests pass
+- [ ] Types and guards exported from `packages/db/src/types/`
+- [ ] Shared queries in `packages/db/src/queries/`
+- [ ] Schema changes reflected in Drizzle migrations
 
 ---
 
 ## Common Refactoring Operations
 
-| Operation                                     | Description                           |
-| --------------------------------------------- | ------------------------------------- |
-| Extract Method                                | Turn code fragment into method        |
-| Extract Class                                 | Move behavior to new class            |
-| Extract Interface                             | Create interface from implementation  |
-| Inline Method                                 | Move method body back to caller       |
-| Inline Class                                  | Move class behavior to caller         |
-| Pull Up Method                                | Move method to superclass             |
-| Push Down Method                              | Move method to subclass               |
-| Rename Method/Variable                        | Improve clarity                       |
-| Introduce Parameter Object                    | Group related parameters              |
-| Replace Conditional with Polymorphism         | Use polymorphism instead of switch/if |
-| Replace Magic Number with Constant            | Named constants                       |
-| Decompose Conditional                         | Break complex conditions              |
-| Consolidate Conditional                       | Combine duplicate conditions          |
-| Replace Nested Conditional with Guard Clauses | Early returns                         |
-| Introduce Null Object                         | Eliminate null checks                 |
-| Replace Type Code with Class/Enum             | Strong typing                         |
-| Replace Inheritance with Delegation           | Composition over inheritance          |
+| Operation             | GitGazer Context                                                   |
+| --------------------- | ------------------------------------------------------------------ |
+| Extract helper        | Move logic from controller into same domain folder                 |
+| Extract composable    | Move fetch + state from component into `composables/useX.ts`       |
+| Extract sub-component | Split large `.vue` into parent + children in same component group  |
+| Fix imports           | Replace relative paths with `@/` or `@gitgazer/db/*` aliases       |
+| Add RLS boundary      | Wrap raw db queries in `withRlsTransaction`                        |
+| Add type guard        | Create runtime guard in `packages/db/src/types/` for shared type   |
+| Extract store         | Move component-local state to Pinia store when shared across views |
+| Extract query         | Move repeated Drizzle patterns to `packages/db/src/queries/`       |
+| Remove dead code      | Delete unused exports, commented blocks, orphaned components       |
+| Fix barrel exports    | Update `index.ts` barrel files after adding/removing modules       |
