@@ -8,12 +8,12 @@
     "@aws-lambda-powertools/event-handler": "^2.32.0",
     "@aws-lambda-powertools/jmespath": "^2.32.0",
     "@aws-lambda-powertools/logger": "^2.32.0",
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.1014.0",
-    "@aws-sdk/client-bedrock-runtime": "^3.1014.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1015.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1015.0",
     "@aws-sdk/client-rds-data": "3.873.0",
-    "@aws-sdk/client-s3": "^3.1014.0",
-    "@aws-sdk/client-secrets-manager": "^3.1014.0",
-    "@aws-sdk/s3-request-presigner": "^3.1014.0",
+    "@aws-sdk/client-s3": "^3.1015.0",
+    "@aws-sdk/client-secrets-manager": "^3.1015.0",
+    "@aws-sdk/s3-request-presigner": "^3.1015.0",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks": "^14.2.0",
@@ -31,7 +31,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tsup": "^8.5.1",
-    "vite": "^8.0.1"
+    "vite": "^8.0.2"
   },
   "engines": {
     "node": "^24"
