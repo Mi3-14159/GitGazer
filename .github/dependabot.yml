@@ -47,6 +47,4 @@ updates:
               patterns: ['*']
               update-types: ['minor', 'patch']
       ignore:
-          - dependency-name: '@types/node'
-            versions: ['25.x']
           - dependency-name: '@aws-sdk/client-rds-data'
