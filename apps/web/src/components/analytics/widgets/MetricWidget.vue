@@ -240,25 +240,33 @@
 
 <template>
     <Card :class="sizeClass">
-        <!-- Loading skeleton -->
-        <div
-            v-if="isLoading && !props.metric"
-            class="p-4 space-y-3 animate-pulse"
-        >
-            <div class="flex items-center justify-between">
-                <div>
-                    <div class="h-4 w-32 bg-muted rounded" />
-                    <div class="h-3 w-48 bg-muted rounded mt-1" />
+        <!-- Chart with optional reload overlay -->
+        <div class="relative">
+            <Transition name="fade">
+                <div
+                    v-if="isLoading"
+                    class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px] rounded-lg"
+                >
+                    <div class="h-5 w-5 rounded-full border-2 border-muted-foreground/30 border-t-primary animate-spin" />
                 </div>
-                <div class="h-6 w-16 bg-muted rounded" />
-            </div>
-            <div class="h-28 bg-muted rounded" />
+            </Transition>
+            <VChart
+                :option="chartOption"
+                autoresize
+                style="height: 200px; width: 100%"
+                :class="{'opacity-50 transition-opacity duration-200': isLoading}"
+            />
         </div>
-        <VChart
-            v-else
-            :option="chartOption"
-            autoresize
-            style="height: 200px; width: 100%"
-        />
     </Card>
 </template>
+
+<style scoped>
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity 0.15s ease;
+    }
+    .fade-enter-from,
+    .fade-leave-to {
+        opacity: 0;
+    }
+</style>
