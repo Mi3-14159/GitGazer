@@ -5,15 +5,15 @@
   },
   "description": "lambda as API",
   "devDependencies": {
-    "@aws-lambda-powertools/event-handler": "^2.31.0",
-    "@aws-lambda-powertools/jmespath": "^2.31.0",
-    "@aws-lambda-powertools/logger": "^2.31.0",
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.1012.0",
-    "@aws-sdk/client-bedrock-runtime": "^3.1012.0",
+    "@aws-lambda-powertools/event-handler": "^2.32.0",
+    "@aws-lambda-powertools/jmespath": "^2.32.0",
+    "@aws-lambda-powertools/logger": "^2.32.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1014.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1014.0",
     "@aws-sdk/client-rds-data": "3.873.0",
-    "@aws-sdk/client-s3": "^3.1012.0",
-    "@aws-sdk/client-secrets-manager": "^3.1012.0",
-    "@aws-sdk/s3-request-presigner": "^3.1012.0",
+    "@aws-sdk/client-s3": "^3.1014.0",
+    "@aws-sdk/client-secrets-manager": "^3.1014.0",
+    "@aws-sdk/s3-request-presigner": "^3.1014.0",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks": "^14.2.0",
@@ -21,7 +21,7 @@
     "@octokit/webhooks-types": "^7.6.1",
     "@types/aws-lambda": "^8.10.160",
     "@types/convict": "^6.1.6",
-    "@types/pg": "^8.18.0",
+    "@types/pg": "^8.20.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "aws-jwt-verify": "^5.1.1",
@@ -56,6 +56,6 @@
   },
   "version": "1.0.0",
   "dependencies": {
-    "convict": "^6.2.4"
+    "convict": "^6.2.5"
   }
 }
