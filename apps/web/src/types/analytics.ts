@@ -9,7 +9,8 @@ export type WidgetType =
     | 'pr_cycle_time'
     | 'workflow_queue_time'
     | 'contributor_count'
-    | 'pr_size';
+    | 'pr_size'
+    | 'pr_review_time';
 
 export type WidgetSize = 'small' | 'medium' | 'large' | 'full';
 
@@ -47,7 +48,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
     {
         type: 'lead_time',
         title: 'Lead Time for Changes',
-        description: 'Average time from PR creation to merge',
+        description: 'Coming soon — commit to production',
         category: 'DORA',
         defaultSize: 'medium',
     },
@@ -55,7 +56,7 @@ export const widgetDefinitions: WidgetDefinition[] = [
     {
         type: 'change_failure_rate',
         title: 'Change Failure Rate',
-        description: 'Percentage of deployments that fail',
+        description: 'Percentage of workflow runs that fail',
         category: 'DORA',
         defaultSize: 'medium',
     },
@@ -72,6 +73,13 @@ export const widgetDefinitions: WidgetDefinition[] = [
     },
     {type: 'contributor_count', title: 'Contributor Count', description: 'Active contributors per period', category: 'SPACE', defaultSize: 'medium'},
     {type: 'pr_size', title: 'PR Size', description: 'Average pull request size (additions + deletions)', category: 'SPACE', defaultSize: 'medium'},
+    {
+        type: 'pr_review_time',
+        title: 'PR Review Time',
+        description: 'Average time to first review',
+        category: 'SPACE',
+        defaultSize: 'medium',
+    },
 ];
 
 export const defaultDashboards: Dashboard[] = [
@@ -100,27 +108,30 @@ export const defaultDashboards: Dashboard[] = [
             {id: 'space-5', type: 'workflow_queue_time', title: 'Workflow Queue Time', size: 'medium'},
             {id: 'space-6', type: 'contributor_count', title: 'Contributor Count', size: 'medium'},
             {id: 'space-7', type: 'pr_size', title: 'PR Size', size: 'medium'},
+            {id: 'space-8', type: 'pr_review_time', title: 'PR Review Time', size: 'medium'},
         ],
     },
 ];
 
 export const widgetCalculationInfo: Record<WidgetType, string> = {
     deployment_frequency:
-        'Number of successful deployments to production per time period. Counted from workflow runs on the default branch that complete successfully.',
+        'Number of successful workflow runs per time period. Best used with the Default Branch Only filter enabled to approximate deployment frequency.',
     lead_time:
-        'Average time from pull request creation to merge. Measured as the mean of (merged_at − created_at) across all merged PRs in the period.',
-    mttr: 'Average elapsed time between a failed deployment and the next successful deployment on the same branch. Only incidents resolved within the window are included.',
+        'Coming soon — will measure time from code commit to production deployment. Currently, see PR Cycle Time in the SPACE dashboard for PR open-to-merge duration.',
+    mttr: 'Average elapsed time between a failed workflow run and the next successful run on the same workflow and branch. Only failures with a subsequent recovery are included.',
     change_failure_rate:
-        'Percentage of deployments to production that result in a failure (rollback, hotfix, or incident). Calculated as failed deployments ÷ total deployments × 100.',
+        'Percentage of completed workflow runs that failed or timed out. Calculated as (failed + timed_out) ÷ total completed runs × 100. Best used with the Default Branch Only filter.',
     pr_merge_rate: 'Percentage of closed pull requests that were merged. Calculated as merged PRs ÷ total closed PRs × 100.',
     activity_volume: 'Total number of workflow runs triggered and pull requests opened per time period across all tracked repositories.',
     ci_duration:
         'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time. See Workflow Queue Time for queue duration.',
-    pr_cycle_time: 'Average elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
+    pr_cycle_time: 'Median elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
     workflow_queue_time:
         'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
     contributor_count:
         'Number of unique contributors who triggered at least one workflow run or authored at least one pull request during the period.',
     pr_size:
         'Average pull request size measured as additions + deletions per time period. Smaller PRs are generally reviewed faster and have fewer defects.',
+    pr_review_time:
+        'Average time from PR creation to the first substantive review (approved or changes requested). Excludes comment-only reviews. Measures the Communication & Collaboration dimension of the SPACE framework.',
 };

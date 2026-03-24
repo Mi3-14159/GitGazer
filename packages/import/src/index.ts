@@ -4,13 +4,14 @@ import {
     fetchAllWorkflowRuns,
     fetchOrgRepos,
     fetchPullRequest,
+    fetchPullRequestReviews,
     fetchRepo,
     fetchWorkflowJobs,
     filterReposByTopics,
 } from './github';
-import {transformPullRequest, transformWorkflowJob, transformWorkflowRun} from './transform';
+import {transformPullRequest, transformPullRequestReview, transformWorkflowJob, transformWorkflowRun} from './transform';
 
-const SUPPORTED_EVENT_TYPES = ['workflow_run', 'workflow_job', 'pull_request'] as const;
+const SUPPORTED_EVENT_TYPES = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'] as const;
 type SupportedEventType = (typeof SUPPORTED_EVENT_TYPES)[number];
 
 const required = (name: string): string => {
@@ -52,6 +53,8 @@ interface ImportStats {
     jobErrorCount: number;
     prSuccessCount: number;
     prErrorCount: number;
+    reviewSuccessCount: number;
+    reviewErrorCount: number;
 }
 
 const importRepo = async (owner: string, repo: string, config: ImportConfig): Promise<ImportStats> => {
@@ -75,6 +78,8 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
         jobErrorCount: 0,
         prSuccessCount: 0,
         prErrorCount: 0,
+        reviewSuccessCount: 0,
+        reviewErrorCount: 0,
     };
 
     // ── Workflow runs & jobs ─────────────────────────────────────────
@@ -197,6 +202,45 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
         }
     }
 
+    // ── Pull request reviews ─────────────────────────────────────────
+    if (eventTypes.includes('pull_request_review')) {
+        console.log('\nFetching pull request reviews...');
+        const prs = await fetchAllPullRequests(owner, repo, since, until);
+        console.log(`  Total PRs to scan for reviews: ${prs.length}`);
+
+        for (let i = 0; i < prs.length; i++) {
+            const pr = prs[i];
+            const prLabel = `[${i + 1}/${prs.length}] PR #${pr.number}`;
+
+            try {
+                const reviews = await fetchPullRequestReviews(owner, repo, pr.number);
+
+                if (reviews.length === 0) {
+                    console.log(`${prLabel} - no reviews`);
+                    continue;
+                }
+
+                const fullPR = await fetchPullRequest(owner, repo, pr.number);
+
+                for (const review of reviews) {
+                    if (!review.submitted_at) continue;
+                    const reviewEvent = transformPullRequestReview(review, fullPR, fullRepo);
+
+                    if (dryRun) {
+                        console.log(`${prLabel} review #${review.id} - DRY RUN`);
+                    } else {
+                        await insertEvent(integrationId, 'pull_request_review', reviewEvent);
+                        console.log(`${prLabel} review #${review.id} by ${review.user.login} (${review.state}) - inserted`);
+                    }
+                    stats.reviewSuccessCount++;
+                }
+            } catch (err) {
+                stats.reviewErrorCount++;
+                console.error(`${prLabel} - ERROR fetching reviews: ${err}`);
+            }
+        }
+    }
+
     return stats;
 };
 
@@ -293,6 +337,8 @@ const main = async () => {
         jobErrorCount: 0,
         prSuccessCount: 0,
         prErrorCount: 0,
+        reviewSuccessCount: 0,
+        reviewErrorCount: 0,
     };
 
     for (const stats of allStats.values()) {
@@ -302,6 +348,8 @@ const main = async () => {
         totals.jobErrorCount += stats.jobErrorCount;
         totals.prSuccessCount += stats.prSuccessCount;
         totals.prErrorCount += stats.prErrorCount;
+        totals.reviewSuccessCount += stats.reviewSuccessCount;
+        totals.reviewErrorCount += stats.reviewErrorCount;
     }
 
     console.log(`\n=======================`);
@@ -313,6 +361,9 @@ const main = async () => {
     }
     if (eventTypes.includes('pull_request')) {
         console.log(`  PRs:   ${totals.prSuccessCount} succeeded, ${totals.prErrorCount} failed`);
+    }
+    if (eventTypes.includes('pull_request_review')) {
+        console.log(`  Reviews: ${totals.reviewSuccessCount} succeeded, ${totals.reviewErrorCount} failed`);
     }
     if (failedRepos.length > 0) {
         console.log(`\nFailed repos:`);

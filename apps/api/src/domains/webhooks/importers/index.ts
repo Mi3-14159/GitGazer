@@ -1,9 +1,10 @@
 import {getLogger} from '@/shared/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {events, gitgazerWriter} from '@gitgazer/db/schema';
-import {EventPayloadMap, PullRequest, WorkflowJob, WorkflowRunWithRelations} from '@gitgazer/db/types';
+import {EventPayloadMap, PullRequest, PullRequestReview, PullRequestReviewEvent, WorkflowJob, WorkflowRunWithRelations} from '@gitgazer/db/types';
 import {EmitterWebhookEventName} from '@octokit/webhooks';
 import {InferSelectModel} from 'drizzle-orm/table';
+import {importPullRequestReview} from './pull-request-review.importer';
 import {importPullRequest} from './pull-request.importer';
 import {importWorkflowJob} from './workflow-job.importer';
 import {importWorkflowRun} from './workflow-run.importer';
@@ -15,7 +16,7 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
     integrationId: string,
     eventType: T,
     event: EventPayloadMap[T],
-): Promise<InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations | PullRequest> => {
+): Promise<InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations | PullRequest | PullRequestReview> => {
     const result = await withRlsTransaction({
         integrationIds: [integrationId],
         userName: gitgazerWriter.name,
@@ -56,6 +57,11 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
 
                 logger.info(`Inserted pull request event for integration ${integrationId}, PR id ${pullRequest.id}`);
                 return pullRequest;
+            } else if (eventType === 'pull_request_review' && 'review' in event) {
+                const {pullRequestReview} = await importPullRequestReview(integrationId, event as PullRequestReviewEvent, tx);
+
+                logger.info(`Inserted pull request review event for integration ${integrationId}, review id ${pullRequestReview.id}`);
+                return pullRequestReview;
             }
 
             logger.info(`Inserted generic event for integration ${integrationId}, event type ${eventType}`);

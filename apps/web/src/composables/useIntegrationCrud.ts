@@ -60,19 +60,12 @@ export function useIntegrationCrud() {
 
     // CRUD handlers
     function openCreate() {
-        editingIntegration.value = null;
         showDialog.value = true;
     }
 
     async function handleSave(label: string) {
-        if (editingIntegration.value) {
-            const updated = await updateIntegration(editingIntegration.value.integrationId, label);
-            const idx = integrations.value.findIndex((i) => i.integrationId === updated.integrationId);
-            if (idx !== -1) integrations.value[idx] = updated;
-        } else {
-            const created = await createIntegration(label);
-            integrations.value.push(created);
-        }
+        const created = await createIntegration(label);
+        integrations.value.push(created);
         showDialog.value = false;
     }
 

@@ -1,4 +1,4 @@
-import type {PullRequestEvent, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
+import type {PullRequestEvent, PullRequestReviewEvent, WorkflowJobEvent, WorkflowRunEvent} from '@octokit/webhooks-types';
 
 /**
  * Derives the webhook `action` field from the status/conclusion of a run or job.
@@ -80,4 +80,22 @@ export const transformPullRequest = (apiPR: any, fullRepo: any): PullRequestEven
         sender: apiPR.user,
         organization: fullRepo.organization ?? undefined,
     } as unknown as PullRequestEvent;
+};
+
+/**
+ * Transform a GitHub API pull request review response + PR + full repo
+ * into the webhook `PullRequestReviewEvent` format expected by `insertEvent`.
+ */
+export const transformPullRequestReview = (apiReview: any, apiPR: any, fullRepo: any): PullRequestReviewEvent => {
+    return {
+        action: 'submitted',
+        review: apiReview,
+        pull_request: {
+            ...apiPR,
+            merged: !!apiPR.merged_at,
+        },
+        repository: fullRepo,
+        sender: apiReview.user,
+        organization: fullRepo.organization ?? undefined,
+    } as unknown as PullRequestReviewEvent;
 };
