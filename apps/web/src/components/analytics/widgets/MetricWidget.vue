@@ -1,16 +1,18 @@
 <script setup lang="ts">
     import Card from '@/components/ui/Card.vue';
+    import Tooltip from '@/components/ui/Tooltip.vue';
     import type {WidgetSize} from '@/types/analytics';
     import type {MetricResult} from '@common/types';
     import {format, parseISO} from 'date-fns';
     import {BarChart, LineChart} from 'echarts/charts';
-    import {GraphicComponent, GridComponent, LegendComponent, TitleComponent, TooltipComponent} from 'echarts/components';
+    import {GridComponent, LegendComponent, TitleComponent, TooltipComponent} from 'echarts/components';
     import {use} from 'echarts/core';
     import {CanvasRenderer} from 'echarts/renderers';
+    import {Info} from 'lucide-vue-next';
     import {computed} from 'vue';
     import VChart from 'vue-echarts';
 
-    use([CanvasRenderer, BarChart, LineChart, GraphicComponent, GridComponent, LegendComponent, TitleComponent, TooltipComponent]);
+    use([CanvasRenderer, BarChart, LineChart, GridComponent, LegendComponent, TitleComponent, TooltipComponent]);
 
     const SERIES_COLORS = ['#6366f1', '#22c55e', '#f97316', '#06b6d4', '#ec4899', '#a855f7', '#eab308', '#ef4444', '#14b8a6', '#8b5cf6'];
 
@@ -92,76 +94,21 @@
         }
     }
 
-    function wrapText(text: string, maxLen = 50): string {
-        const words = text.split(' ');
-        let line = '';
-        const lines: string[] = [];
-        for (const word of words) {
-            if (line && line.length + word.length + 1 > maxLen) {
-                lines.push(line);
-                line = word;
-            } else {
-                line = line ? `${line} ${word}` : word;
-            }
-        }
-        if (line) lines.push(line);
-        return lines.join('<br/>');
-    }
-
     const chartOption = computed(() => {
         const data = props.metric?.data;
         const barColor = props.color ?? '#6366f1';
 
-        const titles: Record<string, unknown>[] = [
-            {
-                text: props.title,
-                left: 12,
-                top: 8,
-                textStyle: {fontSize: 14, fontWeight: 600, color: '#374151'},
-            },
-        ];
-
-        if (props.metric) {
-            titles.push({
-                text: formattedValue.value,
-                subtext: trendText.value,
-                right: -formattedValue.value.length * 8.5,
-                top: 8,
-                textAlign: 'right' as const,
-                textStyle: {fontSize: 22, fontWeight: 700, color: '#111827'},
-                subtextStyle: {fontSize: 11, fontWeight: 500, color: trendColor.value},
-            });
-        }
-
-        // Info icon + click-toggled description popup
-        const graphic: Record<string, unknown>[] = [];
-        if (props.description) {
-            graphic.push({
-                type: 'text',
-                left: 12 + props.title.length * 8.5,
-                top: 13,
-                style: {
-                    text: 'ⓘ',
-                    fontSize: 16,
-                    fill: '#666',
-                    cursor: 'pointer',
-                },
-                tooltip: {
-                    show: true,
-                    formatter: wrapText(props.description),
-                    confine: true,
-                },
-            });
-        }
-
         if (!data?.length) {
-            titles.push({
-                text: 'No data available',
-                left: 'center',
-                bottom: 20,
-                textStyle: {fontSize: 12, color: '#9ca3af', fontWeight: 400},
-            });
-            return {title: titles, graphic};
+            return {
+                title: [
+                    {
+                        text: 'No data available',
+                        left: 'center',
+                        top: 'middle',
+                        textStyle: {fontSize: 12, color: '#9ca3af', fontWeight: 400},
+                    },
+                ],
+            };
         }
 
         const {stepMs} = dataInfo.value;
@@ -203,9 +150,7 @@
             });
 
             return {
-                title: titles,
-                graphic,
-                grid: {top: 64, right: 12, bottom: 24, left: 40},
+                grid: {top: 12, right: 12, bottom: 24, left: 40},
                 tooltip: {trigger: 'axis' as const, confine: true},
                 xAxis: {
                     type: 'category' as const,
@@ -225,9 +170,7 @@
         }
 
         return {
-            title: titles,
-            graphic,
-            grid: {top: 64, right: 12, bottom: 24, left: 40},
+            grid: {top: 12, right: 12, bottom: 24, left: 40},
             tooltip: {trigger: 'axis' as const, confine: true},
             xAxis: {
                 type: 'category' as const,
@@ -276,6 +219,40 @@
             v-else
             class="relative"
         >
+            <!-- Widget header -->
+            <div class="flex items-start justify-between px-3 pt-2.5">
+                <div class="flex items-center gap-1">
+                    <span class="text-sm font-semibold text-foreground">{{ title }}</span>
+                    <Tooltip
+                        v-if="description"
+                        side="bottom"
+                        content-class="max-w-xs"
+                    >
+                        <template #trigger>
+                            <button
+                                class="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                                aria-label="Widget description"
+                            >
+                                <Info class="h-3.5 w-3.5" />
+                            </button>
+                        </template>
+                        {{ description }}
+                    </Tooltip>
+                </div>
+                <div
+                    v-if="metric"
+                    class="text-right"
+                >
+                    <span class="text-xl font-bold text-foreground">{{ formattedValue }}</span>
+                    <div
+                        v-if="trendText"
+                        class="text-[11px] font-medium"
+                        :style="{color: trendColor}"
+                    >
+                        {{ trendText }}
+                    </div>
+                </div>
+            </div>
             <Transition name="fade">
                 <div
                     v-if="isLoading"
@@ -287,7 +264,7 @@
             <VChart
                 :option="chartOption"
                 autoresize
-                style="height: 200px; width: 100%"
+                style="height: 160px; width: 100%"
                 :class="{'opacity-50 transition-opacity duration-200': isLoading}"
             />
         </div>
