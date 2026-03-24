@@ -207,8 +207,10 @@
 
         const seriesData = props.metric?.series;
 
+        const unitLabel = props.metric?.unit ?? '';
+
         const base = {
-            grid: {top: 12, right: 12, bottom: 24, left: 40},
+            grid: {top: unitLabel ? 20 : 12, right: 12, bottom: 24, left: 40},
             tooltip: {trigger: 'axis' as const, confine: true},
             xAxis: {
                 type: 'category' as const,
@@ -220,6 +222,9 @@
             yAxis: {
                 type: 'value' as const,
                 splitNumber: 3,
+                name: unitLabel,
+                nameLocation: 'end' as const,
+                nameTextStyle: {fontSize: 10, color: '#9ca3af', padding: [0, 0, 0, 0]},
                 axisLabel: {fontSize: 10, color: '#9ca3af'},
                 splitLine: {lineStyle: {color: '#e5e7eb', type: 'dashed' as const}},
             },
