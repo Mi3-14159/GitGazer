@@ -100,7 +100,7 @@ export const isSpaceMetricsResponse = (value: unknown): value is SpaceMetricsRes
 
 // Custom query types
 
-export type ChartType = 'line' | 'bar' | 'stacked-bar' | 'gauge' | 'multi-line' | 'table';
+export type ChartType = 'line' | 'bar' | 'stacked-bar' | 'area' | 'gauge' | 'multi-line' | 'table';
 
 export type CustomQueryColumn = {
     name: string;

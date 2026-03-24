@@ -1,20 +1,23 @@
 <script setup lang="ts">
+    import ChartTypeToggle from '@/components/analytics/widgets/ChartTypeToggle.vue';
     import Card from '@/components/ui/Card.vue';
     import Tooltip from '@/components/ui/Tooltip.vue';
-    import type {WidgetSize} from '@/types/analytics';
+    import type {WidgetChartType, WidgetSize} from '@/types/analytics';
     import type {MetricResult} from '@common/types';
     import {format, parseISO} from 'date-fns';
     import {BarChart, LineChart} from 'echarts/charts';
-    import {GridComponent, LegendComponent, TitleComponent, TooltipComponent} from 'echarts/components';
+    import {GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
     import {use} from 'echarts/core';
     import {CanvasRenderer} from 'echarts/renderers';
     import {Info} from 'lucide-vue-next';
-    import {computed} from 'vue';
+    import {computed, ref, watch} from 'vue';
     import VChart from 'vue-echarts';
 
-    use([CanvasRenderer, BarChart, LineChart, GridComponent, LegendComponent, TitleComponent, TooltipComponent]);
+    use([CanvasRenderer, BarChart, LineChart, GridComponent, TitleComponent, TooltipComponent]);
 
     const SERIES_COLORS = ['#6366f1', '#22c55e', '#f97316', '#06b6d4', '#ec4899', '#a855f7', '#eab308', '#ef4444', '#14b8a6', '#8b5cf6'];
+    const BAR_STYLE = {borderRadius: [2, 2, 0, 0] as [number, number, number, number]};
+    const BAR_MAX_WIDTH = 16;
 
     const props = withDefaults(
         defineProps<{
@@ -28,6 +31,31 @@
         }>(),
         {color: undefined, description: undefined, comingSoon: false},
     );
+
+    const hasMultiSeries = computed(() => !!props.metric?.series?.length);
+
+    const defaultChartType = computed<WidgetChartType>(() => {
+        if (hasMultiSeries.value) {
+            return props.metric?.unit === '%' ? 'line' : 'stacked-bar';
+        }
+        return 'bar';
+    });
+
+    const selectedChartType = ref<WidgetChartType>(defaultChartType.value);
+
+    // Reset to smart default when data shape changes (e.g. groupBy toggled)
+    watch(defaultChartType, (newDefault, oldDefault) => {
+        if (newDefault !== oldDefault) {
+            selectedChartType.value = newDefault;
+        }
+    });
+
+    // Clamp selection when stacked-bar becomes unavailable (multi → single series)
+    watch(hasMultiSeries, (multi) => {
+        if (!multi && selectedChartType.value === 'stacked-bar') {
+            selectedChartType.value = 'bar';
+        }
+    });
 
     const sizeClass = computed(() => {
         const map: Record<WidgetSize, string> = {
@@ -94,9 +122,70 @@
         }
     }
 
+    function buildSingleSeries(values: number[], color: string, chartType: WidgetChartType) {
+        if (chartType === 'line' || chartType === 'area') {
+            return {
+                type: 'line' as const,
+                data: values,
+                lineStyle: {width: 2, color},
+                itemStyle: {color},
+                ...(chartType === 'area' && {areaStyle: {color, opacity: 0.15}}),
+                symbol: 'circle' as const,
+                symbolSize: 4,
+            };
+        }
+        return {
+            type: 'bar' as const,
+            data: values,
+            itemStyle: {color, ...BAR_STYLE},
+            barMaxWidth: BAR_MAX_WIDTH,
+        };
+    }
+
+    function buildMultiSeries(seriesData: NonNullable<MetricResult['series']>, periods: string[], chartType: WidgetChartType) {
+        return seriesData.map((s, i) => {
+            const valueMap = new Map(s.data.map((d) => [d.period, d.value]));
+            const color = SERIES_COLORS[i % SERIES_COLORS.length];
+            const values = periods.map((p) => valueMap.get(p) ?? (chartType === 'bar' || chartType === 'stacked-bar' ? 0 : null));
+
+            if (chartType === 'line' || chartType === 'area') {
+                return {
+                    type: 'line' as const,
+                    name: s.groupLabel,
+                    data: values,
+                    lineStyle: {width: 2, color},
+                    itemStyle: {color},
+                    ...(chartType === 'area' && {areaStyle: {color, opacity: 0.15}}),
+                    symbol: 'circle' as const,
+                    symbolSize: 4,
+                    connectNulls: false,
+                };
+            }
+            if (chartType === 'stacked-bar') {
+                return {
+                    type: 'bar' as const,
+                    name: s.groupLabel,
+                    stack: 'grouped',
+                    data: values,
+                    itemStyle: {color, ...BAR_STYLE},
+                    barMaxWidth: BAR_MAX_WIDTH,
+                };
+            }
+            // bar (side-by-side)
+            return {
+                type: 'bar' as const,
+                name: s.groupLabel,
+                data: values,
+                itemStyle: {color, ...BAR_STYLE},
+                barMaxWidth: BAR_MAX_WIDTH,
+            };
+        });
+    }
+
     const chartOption = computed(() => {
         const data = props.metric?.data;
         const barColor = props.color ?? '#6366f1';
+        const chartType = selectedChartType.value;
 
         if (!data?.length) {
             return {
@@ -114,62 +203,11 @@
         const {stepMs} = dataInfo.value;
         const labels = data.map((d) => formatPeriod(d.period, stepMs));
         const labelInterval = data.length <= 10 ? 0 : Math.max(0, Math.floor(data.length / 5) - 1);
+        const periods = data.map((d) => d.period);
 
-        // Multi-series mode (grouped by repository)
         const seriesData = props.metric?.series;
-        if (seriesData?.length) {
-            const isPercentage = props.metric?.unit === '%';
-            // For percentage metrics: line chart (stacking/side-by-side bars don't work well)
-            // For additive metrics: stacked bars
-            const echartsSeries = seriesData.map((s, i) => {
-                const valueMap = new Map(s.data.map((d) => [d.period, d.value]));
-                const color = SERIES_COLORS[i % SERIES_COLORS.length];
-                if (isPercentage) {
-                    return {
-                        type: 'line' as const,
-                        name: s.groupLabel,
-                        data: data.map((d) => valueMap.get(d.period) ?? null),
-                        lineStyle: {width: 2, color},
-                        itemStyle: {color},
-                        symbol: 'circle' as const,
-                        symbolSize: 4,
-                        connectNulls: false,
-                    };
-                }
-                return {
-                    type: 'bar' as const,
-                    name: s.groupLabel,
-                    stack: 'grouped',
-                    data: data.map((d) => valueMap.get(d.period) ?? 0),
-                    itemStyle: {
-                        color,
-                        borderRadius: [2, 2, 0, 0],
-                    },
-                    barMaxWidth: 16,
-                };
-            });
 
-            return {
-                grid: {top: 12, right: 12, bottom: 24, left: 40},
-                tooltip: {trigger: 'axis' as const, confine: true},
-                xAxis: {
-                    type: 'category' as const,
-                    data: labels,
-                    axisLabel: {fontSize: 10, color: '#9ca3af', interval: labelInterval},
-                    axisLine: {show: false},
-                    axisTick: {show: false},
-                },
-                yAxis: {
-                    type: 'value' as const,
-                    splitNumber: 3,
-                    axisLabel: {fontSize: 10, color: '#9ca3af'},
-                    splitLine: {lineStyle: {color: '#e5e7eb', type: 'dashed' as const}},
-                },
-                series: echartsSeries,
-            };
-        }
-
-        return {
+        const base = {
             grid: {top: 12, right: 12, bottom: 24, left: 40},
             tooltip: {trigger: 'axis' as const, confine: true},
             xAxis: {
@@ -185,13 +223,20 @@
                 axisLabel: {fontSize: 10, color: '#9ca3af'},
                 splitLine: {lineStyle: {color: '#e5e7eb', type: 'dashed' as const}},
             },
+        };
+
+        if (seriesData?.length) {
+            return {...base, series: buildMultiSeries(seriesData, periods, chartType)};
+        }
+
+        return {
+            ...base,
             series: [
-                {
-                    type: 'bar' as const,
-                    data: data.map((d) => d.value),
-                    itemStyle: {color: barColor, borderRadius: [2, 2, 0, 0]},
-                    barMaxWidth: 16,
-                },
+                buildSingleSeries(
+                    data.map((d) => d.value),
+                    barColor,
+                    chartType,
+                ),
             ],
         };
     });
@@ -239,17 +284,25 @@
                         {{ description }}
                     </Tooltip>
                 </div>
-                <div
-                    v-if="metric"
-                    class="text-right"
-                >
-                    <span class="text-xl font-bold text-foreground">{{ formattedValue }}</span>
+                <div class="flex items-center gap-2">
+                    <ChartTypeToggle
+                        v-if="metric"
+                        v-model="selectedChartType"
+                        :has-multi-series="hasMultiSeries"
+                        :disabled="isLoading"
+                    />
                     <div
-                        v-if="trendText"
-                        class="text-[11px] font-medium"
-                        :style="{color: trendColor}"
+                        v-if="metric"
+                        class="text-right"
                     >
-                        {{ trendText }}
+                        <span class="text-xl font-bold text-foreground">{{ formattedValue }}</span>
+                        <div
+                            v-if="trendText"
+                            class="text-[11px] font-medium"
+                            :style="{color: trendColor}"
+                        >
+                            {{ trendText }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -263,6 +316,7 @@
             </Transition>
             <VChart
                 :option="chartOption"
+                :update-options="{notMerge: true}"
                 autoresize
                 style="height: 160px; width: 100%"
                 :class="{'opacity-50 transition-opacity duration-200': isLoading}"

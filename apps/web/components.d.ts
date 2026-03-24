@@ -22,6 +22,7 @@ declare module 'vue' {
     CardFooter: typeof import('./src/components/ui/CardFooter.vue')['default']
     CardHeader: typeof import('./src/components/ui/CardHeader.vue')['default']
     CardTitle: typeof import('./src/components/ui/CardTitle.vue')['default']
+    ChartTypeToggle: typeof import('./src/components/analytics/widgets/ChartTypeToggle.vue')['default']
     Checkbox: typeof import('./src/components/ui/Checkbox.vue')['default']
     ColumnHeaderFilter: typeof import('./src/components/workflows/ColumnHeaderFilter.vue')['default']
     ColumnSelector: typeof import('./src/components/workflows/ColumnSelector.vue')['default']

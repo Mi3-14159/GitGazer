@@ -14,6 +14,8 @@ export type WidgetType =
 
 export type WidgetSize = 'small' | 'medium' | 'large' | 'full';
 
+export type WidgetChartType = Extract<import('@common/types').ChartType, 'bar' | 'stacked-bar' | 'line' | 'area'>;
+
 export interface Widget {
     id: string;
     type: WidgetType;
