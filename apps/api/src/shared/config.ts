@@ -135,6 +135,10 @@ export const loadConfig = async (): Promise<void> => {
     const secretArn = process.env.CONFIG_SECRET_ARN;
     if (secretArn) {
         const secretValues = await getSecretValue(secretArn);
+        if (!secretValues) {
+            throw new Error(`No secret values found at ARN ${secretArn}`);
+        }
+
         config.load(secretValues);
     }
     config.validate({allowed: 'warn'});

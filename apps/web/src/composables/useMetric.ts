@@ -19,6 +19,7 @@ export const metricFieldMap: Record<WidgetType, {endpoint: 'dora' | 'space'; fie
     workflow_queue_time: {endpoint: 'space', field: 'workflowQueueTime'},
     contributor_count: {endpoint: 'space', field: 'contributorCount'},
     pr_size: {endpoint: 'space', field: 'prSize'},
+    pr_review_time: {endpoint: 'space', field: 'prReviewTime'},
 };
 
 function buildQueryString(filter: MetricsFilter): string {

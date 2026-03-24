@@ -13,6 +13,8 @@
     import {Lock} from 'lucide-vue-next';
     import {ref, toRef, watch} from 'vue';
 
+    const COMING_SOON_WIDGETS: ReadonlySet<WidgetType> = new Set(['lead_time']);
+
     const props = defineProps<{
         dashboard: Dashboard;
         filter: MetricsFilter;
@@ -23,7 +25,7 @@
     const isLoading = ref(false);
 
     function needsEndpoint(endpoint: 'dora' | 'space'): boolean {
-        return props.dashboard.widgets.some((w) => metricFieldMap[w.type]?.endpoint === endpoint);
+        return props.dashboard.widgets.some((w) => !COMING_SOON_WIDGETS.has(w.type) && metricFieldMap[w.type]?.endpoint === endpoint);
     }
 
     async function loadMetrics() {
@@ -68,6 +70,7 @@
         workflow_queue_time: '#f59e0b',
         contributor_count: '#ec4899',
         pr_size: '#8b5cf6',
+        pr_review_time: '#14b8a6',
     };
 </script>
 
@@ -100,8 +103,9 @@
                     :size="widget.size"
                     :description="widgetCalculationInfo[widget.type]"
                     :metric="metrics[widget.type] ?? null"
-                    :is-loading="isLoading"
+                    :is-loading="isLoading && !COMING_SOON_WIDGETS.has(widget.type)"
                     :color="widgetColorMap[widget.type]"
+                    :coming-soon="COMING_SOON_WIDGETS.has(widget.type)"
                 />
             </div>
         </CardContent>

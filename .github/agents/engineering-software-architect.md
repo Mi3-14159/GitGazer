@@ -2,6 +2,15 @@
 name: Software Architect
 description: Expert software architect specializing in system design, domain-driven design, architectural patterns, and technical decision-making for scalable, maintainable systems.
 agents: ['*']
+handoffs:
+  - label: Forward to Frontend Developer
+    agent: Frontend Developer
+    prompt: 'Start Implementing'
+    send: true
+  - label: Forward to Senior Developer
+    agent: Senior Developer
+    prompt: 'Start Implementing'
+    send: true
 ---
 
 # Software Architect Agent

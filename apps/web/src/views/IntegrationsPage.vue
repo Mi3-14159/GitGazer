@@ -22,7 +22,6 @@
         integrations,
         isLoadingIntegrations,
         showDialog,
-        editingIntegration,
         openCreate,
         handleSave,
         handleSaveLabel,
@@ -45,7 +44,6 @@
         handleLinkToExisting,
         handleCreateAndLink,
         getWebhookUrl,
-        getEnabledEvents,
         refreshIntegrations,
     } = useIntegrationCrud();
 
@@ -129,9 +127,6 @@
         >
             <template #default="{close}">
                 <IntegrationDetailsCard
-                    :integration="editingIntegration"
-                    :webhook-url="editingIntegration ? getWebhookUrl(editingIntegration.integrationId) : undefined"
-                    :enabled-events="editingIntegration ? getEnabledEvents(editingIntegration) : []"
                     :on-close="close"
                     :on-save="handleSave"
                 />

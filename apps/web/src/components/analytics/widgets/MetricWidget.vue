@@ -22,8 +22,9 @@
             isLoading: boolean;
             color?: string;
             description?: string;
+            comingSoon?: boolean;
         }>(),
-        {color: undefined, description: undefined},
+        {color: undefined, description: undefined, comingSoon: false},
     );
 
     const sizeClass = computed(() => {
@@ -170,17 +171,32 @@
         // Multi-series mode (grouped by repository)
         const seriesData = props.metric?.series;
         if (seriesData?.length) {
-            // Stacked bar chart — one bar segment per group
+            const isPercentage = props.metric?.unit === '%';
+            // For percentage metrics: line chart (stacking/side-by-side bars don't work well)
+            // For additive metrics: stacked bars
             const echartsSeries = seriesData.map((s, i) => {
                 const valueMap = new Map(s.data.map((d) => [d.period, d.value]));
+                const color = SERIES_COLORS[i % SERIES_COLORS.length];
+                if (isPercentage) {
+                    return {
+                        type: 'line' as const,
+                        name: s.groupLabel,
+                        data: data.map((d) => valueMap.get(d.period) ?? null),
+                        lineStyle: {width: 2, color},
+                        itemStyle: {color},
+                        symbol: 'circle' as const,
+                        symbolSize: 4,
+                        connectNulls: false,
+                    };
+                }
                 return {
                     type: 'bar' as const,
                     name: s.groupLabel,
                     stack: 'grouped',
                     data: data.map((d) => valueMap.get(d.period) ?? 0),
                     itemStyle: {
-                        color: SERIES_COLORS[i % SERIES_COLORS.length],
-                        borderRadius: i === seriesData.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0],
+                        color,
+                        borderRadius: [2, 2, 0, 0],
                     },
                     barMaxWidth: 16,
                 };
@@ -240,8 +256,26 @@
 
 <template>
     <Card :class="sizeClass">
+        <!-- Coming Soon placeholder -->
+        <div
+            v-if="comingSoon"
+            class="flex flex-col items-center justify-center gap-3 py-10 px-4 text-center"
+            style="height: 200px"
+        >
+            <span class="text-sm font-semibold text-foreground">{{ title }}</span>
+            <span class="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">Coming Soon</span>
+            <p
+                v-if="description"
+                class="max-w-xs text-xs text-muted-foreground leading-relaxed"
+            >
+                {{ description }}
+            </p>
+        </div>
         <!-- Chart with optional reload overlay -->
-        <div class="relative">
+        <div
+            v-else
+            class="relative"
+        >
             <Transition name="fade">
                 <div
                     v-if="isLoading"

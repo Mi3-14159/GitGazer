@@ -246,6 +246,7 @@ export type Schema = ExtractTablesWithRelations<typeof schema>;
 export type WorkflowRun = typeof schema.workflowRuns.$inferSelect;
 export type WorkflowJob = typeof schema.workflowJobs.$inferSelect;
 export type PullRequest = typeof schema.pullRequests.$inferSelect;
+export type PullRequestReview = typeof schema.pullRequestReviews.$inferSelect;
 export type GithubAppInstallation = typeof schema.githubAppInstallations.$inferSelect;
 export type GithubAppWebhook = typeof schema.githubAppWebhooks.$inferSelect;
 export type RepositoryInsert = typeof schema.repositories.$inferInsert;
