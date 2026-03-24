@@ -89,7 +89,10 @@ export const transformPullRequest = (apiPR: any, fullRepo: any): PullRequestEven
 export const transformPullRequestReview = (apiReview: any, apiPR: any, fullRepo: any): PullRequestReviewEvent => {
     return {
         action: 'submitted',
-        review: apiReview,
+        review: {
+            ...apiReview,
+            state: apiReview.state.toLowerCase(), // API returns APPROVED/REQUEST_CHANGES/COMMENT, webhook expects lowercase
+        },
         pull_request: {
             ...apiPR,
             merged: !!apiPR.merged_at,
