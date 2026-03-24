@@ -152,6 +152,27 @@ export const fetchPullRequest = async (owner: string, repo: string, pullNumber: 
     return fetchJson(`${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}`);
 };
 
+export const fetchPullRequestReviews = async (owner: string, repo: string, pullNumber: number): Promise<any[]> => {
+    const allReviews: any[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+        const params = new URLSearchParams();
+        params.set('per_page', String(perPage));
+        params.set('page', String(page));
+
+        const url = `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/reviews?${params}`;
+        const reviews = await fetchJson<any[]>(url);
+        allReviews.push(...reviews);
+
+        if (reviews.length < perPage) break;
+        page++;
+    }
+
+    return allReviews;
+};
+
 export interface GitHubOrgRepo {
     id: number;
     name: string;

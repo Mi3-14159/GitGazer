@@ -9,7 +9,8 @@ export type WidgetType =
     | 'pr_cycle_time'
     | 'workflow_queue_time'
     | 'contributor_count'
-    | 'pr_size';
+    | 'pr_size'
+    | 'pr_review_time';
 
 export type WidgetSize = 'small' | 'medium' | 'large' | 'full';
 
@@ -72,6 +73,13 @@ export const widgetDefinitions: WidgetDefinition[] = [
     },
     {type: 'contributor_count', title: 'Contributor Count', description: 'Active contributors per period', category: 'SPACE', defaultSize: 'medium'},
     {type: 'pr_size', title: 'PR Size', description: 'Average pull request size (additions + deletions)', category: 'SPACE', defaultSize: 'medium'},
+    {
+        type: 'pr_review_time',
+        title: 'PR Review Time',
+        description: 'Average time to first review',
+        category: 'SPACE',
+        defaultSize: 'medium',
+    },
 ];
 
 export const defaultDashboards: Dashboard[] = [
@@ -100,6 +108,7 @@ export const defaultDashboards: Dashboard[] = [
             {id: 'space-5', type: 'workflow_queue_time', title: 'Workflow Queue Time', size: 'medium'},
             {id: 'space-6', type: 'contributor_count', title: 'Contributor Count', size: 'medium'},
             {id: 'space-7', type: 'pr_size', title: 'PR Size', size: 'medium'},
+            {id: 'space-8', type: 'pr_review_time', title: 'PR Review Time', size: 'medium'},
         ],
     },
 ];
@@ -123,4 +132,6 @@ export const widgetCalculationInfo: Record<WidgetType, string> = {
         'Number of unique contributors who triggered at least one workflow run or authored at least one pull request during the period.',
     pr_size:
         'Average pull request size measured as additions + deletions per time period. Smaller PRs are generally reviewed faster and have fewer defects.',
+    pr_review_time:
+        'Average time from PR creation to the first substantive review (approved or changes requested). Excludes comment-only reviews. Measures the Communication & Collaboration dimension of the SPACE framework.',
 };

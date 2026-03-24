@@ -9,6 +9,7 @@ describe('config', () => {
     beforeEach(() => {
         vi.resetModules();
         vi.restoreAllMocks();
+        delete process.env.CONFIG_SECRET_ARN;
     });
 
     afterEach(() => {

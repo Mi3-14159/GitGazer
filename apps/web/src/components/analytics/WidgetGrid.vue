@@ -70,6 +70,7 @@
         workflow_queue_time: '#f59e0b',
         contributor_count: '#ec4899',
         pr_size: '#8b5cf6',
+        pr_review_time: '#14b8a6',
     };
 </script>
 

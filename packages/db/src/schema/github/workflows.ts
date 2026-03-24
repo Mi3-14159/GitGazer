@@ -336,6 +336,59 @@ export const pullRequests = githubSchema
     )
     .enableRLS();
 
+export const pullRequestReviews = githubSchema
+    .table(
+        'pull_request_reviews',
+        {
+            integrationId: uuid('integration_id')
+                .references(() => integrations.integrationId, {onDelete: 'cascade'})
+                .notNull(),
+            id: bigint('id', {mode: 'number'}).notNull(),
+            pullRequestId: bigint('pull_request_id', {mode: 'number'}).notNull(),
+            repositoryId: bigint('repository_id', {mode: 'number'}).notNull(),
+            userId: bigint('user_id', {mode: 'number'}).notNull(),
+            state: varchar('state', {length: 50}).notNull(),
+            submittedAt: timestamp('submitted_at', {withTimezone: true}).notNull(),
+            body: text('body'),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.id]}),
+            foreignKey({
+                columns: [table.integrationId, table.pullRequestId],
+                foreignColumns: [pullRequests.integrationId, pullRequests.id],
+            }).onDelete('cascade'),
+            foreignKey({
+                columns: [table.integrationId, table.repositoryId],
+                foreignColumns: [repositories.integrationId, repositories.id],
+            }).onDelete('cascade'),
+            foreignKey({
+                columns: [table.integrationId, table.userId],
+                foreignColumns: [user.integrationId, user.id],
+            }),
+            index('pull_request_reviews_pr_lookup').on(table.integrationId, table.pullRequestId, table.submittedAt),
+            index('pull_request_reviews_repo_submitted').on(table.integrationId, table.repositoryId, table.submittedAt),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            analystTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
+export const pullRequestReviewsRelations = relations(pullRequestReviews, ({one}) => ({
+    pullRequest: one(pullRequests, {
+        fields: [pullRequestReviews.integrationId, pullRequestReviews.pullRequestId],
+        references: [pullRequests.integrationId, pullRequests.id],
+    }),
+    repository: one(repositories, {
+        fields: [pullRequestReviews.integrationId, pullRequestReviews.repositoryId],
+        references: [repositories.integrationId, repositories.id],
+    }),
+    reviewer: one(user, {
+        fields: [pullRequestReviews.integrationId, pullRequestReviews.userId],
+        references: [user.integrationId, user.id],
+    }),
+}));
+
 export const pullRequestsRelations = relations(pullRequests, ({one, many}) => ({
     repository: one(repositories, {
         fields: [pullRequests.integrationId, pullRequests.repositoryId],
@@ -346,6 +399,7 @@ export const pullRequestsRelations = relations(pullRequests, ({one, many}) => ({
         references: [user.integrationId, user.id],
     }),
     workflowRuns: many(workflowRunPullRequests),
+    reviews: many(pullRequestReviews),
 }));
 
 export const workflowRunPullRequests = githubSchema
