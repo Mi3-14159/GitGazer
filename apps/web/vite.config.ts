@@ -8,12 +8,23 @@ import Components from 'unplugin-vue-components/vite';
 import {resolve} from 'path';
 import {defineConfig} from 'vite';
 
+function figmaCapturePlugin() {
+    return {
+        name: 'figma-capture',
+        transformIndexHtml(html: string, ctx: {server?: unknown}) {
+            if (!ctx.server) return html;
+            return html.replace('</head>', '        <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>\n    </head>');
+        },
+    };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
         Vue(),
         tailwindcss(),
         Components(),
+        figmaCapturePlugin(),
         basicSsl({
             name: 'app.gitgazer.localhost',
             domains: ['app.gitgazer.localhost'],
