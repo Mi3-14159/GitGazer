@@ -2,7 +2,7 @@ import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {eventLogEntries, gitgazerWriter} from '@gitgazer/db/schema';
 import type {
     EventLogCategory,
-    EventLogEntry,
+    EventLogEntryInsert,
     EventLogEntryMetadata,
     EventLogEntryRow,
     EventLogFilters,
@@ -11,12 +11,7 @@ import type {
 } from '@gitgazer/db/types';
 import {and, count, eq, ilike, or, sql} from 'drizzle-orm';
 
-const toEventLogEntry = (row: EventLogEntryRow): EventLogEntry => ({
-    ...row,
-    createdAt: row.createdAt.toISOString(),
-});
-
-export const getEventLogEntries = async (params: {integrationIds: string[]; filters?: EventLogFilters}): Promise<EventLogEntry[]> => {
+export const getEventLogEntries = async (params: {integrationIds: string[]; filters?: EventLogFilters}): Promise<EventLogEntryRow[]> => {
     const {integrationIds, filters} = params;
     if (integrationIds.length === 0) return [];
 
@@ -51,7 +46,7 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
                 .limit(limit)
                 .offset(offset);
 
-            return rows.map(toEventLogEntry);
+            return rows;
         },
     });
 };
@@ -80,7 +75,7 @@ export const getEventLogStats = async (params: {integrationIds: string[]}): Prom
     });
 };
 
-export const toggleEventLogRead = async (params: {id: string; integrationIds: string[]; read: boolean}): Promise<EventLogEntry | null> => {
+export const toggleEventLogRead = async (params: {id: string; integrationIds: string[]; read: boolean}): Promise<EventLogEntryRow | null> => {
     const {id, integrationIds, read} = params;
 
     const rows = await withRlsTransaction({
@@ -95,7 +90,7 @@ export const toggleEventLogRead = async (params: {id: string; integrationIds: st
         },
     });
 
-    return rows.length > 0 ? toEventLogEntry(rows[0]) : null;
+    return rows.length > 0 ? rows[0] : null;
 };
 
 export const markAllEventLogRead = async (params: {integrationIds: string[]}): Promise<number> => {
@@ -124,7 +119,7 @@ export const createEventLogEntry = async (params: {
     title: string;
     message: string;
     metadata?: EventLogEntryMetadata;
-}): Promise<EventLogEntry> => {
+}): Promise<EventLogEntryInsert> => {
     const rows = await withRlsTransaction({
         integrationIds: [params.integrationId],
         userName: gitgazerWriter.name,
@@ -143,5 +138,5 @@ export const createEventLogEntry = async (params: {
         },
     });
 
-    return toEventLogEntry(rows[0]);
+    return rows[0];
 };

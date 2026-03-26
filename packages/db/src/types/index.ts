@@ -116,9 +116,8 @@ export type EventLogEntryMetadata = {
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;
 export type EventLogEntryInsert = typeof schema.eventLogEntries.$inferInsert;
-export type EventLogEntry = Omit<EventLogEntryRow, 'createdAt'> & {createdAt: string};
 
-export const isEventLogEntry = (value: unknown): value is EventLogEntry => {
+export const isEventLogEntry = (value: unknown): value is EventLogEntryRow | EventLogEntryInsert => {
     if (typeof value !== 'object' || value === null) return false;
     const v = value as Record<string, unknown>;
     return (
