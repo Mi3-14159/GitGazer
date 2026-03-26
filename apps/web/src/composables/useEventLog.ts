@@ -1,6 +1,6 @@
 import {useAuth} from '@/composables/useAuth';
 import {isArrayOf, parseApiResponse} from '@/utils/apiResponse';
-import type {EventLogEntry, EventLogStats, EventLogType} from '@common/types';
+import type {EventLogCategory, EventLogEntry, EventLogStats, EventLogType} from '@common/types';
 import {isEventLogEntry, isEventLogStats} from '@common/types';
 import {computed, ref} from 'vue';
 
@@ -11,11 +11,12 @@ export const useEventLog = () => {
     const loadingCount = ref(0);
     const isLoading = computed(() => loadingCount.value > 0);
 
-    const getEventLogEntries = async (filters?: {type?: EventLogType; read?: boolean; search?: string; limit?: number; offset?: number}) => {
+    const getEventLogEntries = async (filters?: {type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string; limit?: number; offset?: number}) => {
         loadingCount.value++;
         try {
             const params = new URLSearchParams();
             if (filters?.type) params.set('type', filters.type);
+            if (filters?.category) params.set('category', filters.category);
             if (filters?.read !== undefined) params.set('read', String(filters.read));
             if (filters?.search) params.set('search', filters.search);
             if (filters?.limit) params.set('limit', String(filters.limit));

@@ -12,7 +12,7 @@
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useEventLog} from '@/composables/useEventLog';
-    import type {EventLogEntry, EventLogStats, EventLogType} from '@common/types';
+    import type {EventLogCategory, EventLogEntry, EventLogStats, EventLogType} from '@common/types';
     import {Bell, Loader2, ScrollText} from 'lucide-vue-next';
     import {onMounted, ref} from 'vue';
 
@@ -22,7 +22,7 @@
 
     const entries = ref<EventLogEntry[]>([]);
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});
-    const currentFilters = ref<{type?: EventLogType; read?: boolean; search?: string}>({});
+    const currentFilters = ref<{type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string}>({});
     const hasMore = ref(true);
     const isLoadingMore = ref(false);
 
@@ -35,7 +35,7 @@
 
     onMounted(loadData);
 
-    async function handleFilterChange(filter: {type?: EventLogType; read?: boolean; search?: string}) {
+    async function handleFilterChange(filter: {type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string}) {
         currentFilters.value = filter;
         const result = await getEventLogEntries({...filter, limit: PAGE_SIZE});
         entries.value = result ?? [];
@@ -137,7 +137,7 @@
                         v-if="entries.length === 0"
                         :icon="Bell"
                         :message="
-                            currentFilters.type || currentFilters.read !== undefined || currentFilters.search
+                            currentFilters.type || currentFilters.category || currentFilters.read !== undefined || currentFilters.search
                                 ? 'No events match your filters. Try adjusting your search or filter.'
                                 : 'No events yet. Events will appear as workflows trigger alerts.'
                         "

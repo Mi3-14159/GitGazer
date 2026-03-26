@@ -146,6 +146,7 @@ export const isEventLogStats = (value: unknown): value is EventLogStats => {
 
 export type EventLogFilters = {
     type?: EventLogType;
+    category?: EventLogCategory;
     read?: boolean;
     search?: string;
     limit?: number;

@@ -31,6 +31,9 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
             if (filters?.type) {
                 conditions.push(eq(eventLogEntries.type, filters.type));
             }
+            if (filters?.category) {
+                conditions.push(eq(eventLogEntries.category, filters.category));
+            }
             if (filters?.read !== undefined) {
                 conditions.push(eq(eventLogEntries.read, filters.read));
             }

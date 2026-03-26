@@ -2,7 +2,7 @@ import {getEventLogEntries, getEventLogStats, markAllEventLogRead, toggleEventLo
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, NotFoundError, Router} from '@aws-lambda-powertools/event-handler/http';
-import {EVENT_LOG_TYPES, type EventLogFilters, type EventLogType} from '@gitgazer/db/types';
+import {EVENT_LOG_CATEGORIES, EVENT_LOG_TYPES, type EventLogCategory, type EventLogFilters, type EventLogType} from '@gitgazer/db/types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -16,6 +16,10 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
 
     if (params.type && EVENT_LOG_TYPES.includes(params.type as EventLogType)) {
         filters.type = params.type as EventLogType;
+    }
+
+    if (params.category && EVENT_LOG_CATEGORIES.includes(params.category as EventLogCategory)) {
+        filters.category = params.category as EventLogCategory;
     }
 
     if (params.read === 'true') filters.read = true;
