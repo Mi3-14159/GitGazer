@@ -100,7 +100,7 @@ export type NotificationRuleUpdate = Omit<NotificationRule, 'createdAt' | 'updat
 export const EVENT_LOG_TYPES = ['failure', 'success', 'warning', 'info', 'alert'] as const;
 export type EventLogType = (typeof EVENT_LOG_TYPES)[number];
 
-export const EVENT_LOG_CATEGORIES = ['system', 'notification', 'integration'] as const;
+export const EVENT_LOG_CATEGORIES = ['notification', 'integration'] as const;
 export type EventLogCategory = (typeof EVENT_LOG_CATEGORIES)[number];
 
 export type EventLogEntryMetadata = {
