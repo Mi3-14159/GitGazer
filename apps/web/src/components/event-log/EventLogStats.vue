@@ -1,8 +1,4 @@
 <script setup lang="ts">
-    import Card from '@/components/ui/Card.vue';
-    import CardContent from '@/components/ui/CardContent.vue';
-    import CardHeader from '@/components/ui/CardHeader.vue';
-    import CardTitle from '@/components/ui/CardTitle.vue';
     import type {EventLogStats} from '@common/types';
     import {Bell, BookCheck, BookOpen} from 'lucide-vue-next';
 
@@ -12,33 +8,23 @@
 </script>
 
 <template>
-    <div class="grid gap-4 md:grid-cols-3">
-        <Card>
-            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle class="text-sm font-medium">Total Events</CardTitle>
-                <Bell class="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div class="text-2xl font-bold">{{ stats.total }}</div>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle class="text-sm font-medium">Unread</CardTitle>
-                <BookOpen class="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-                <div class="text-2xl font-bold">{{ stats.unread }}</div>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle class="text-sm font-medium">Read</CardTitle>
-                <BookCheck class="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-                <div class="text-2xl font-bold">{{ stats.read }}</div>
-            </CardContent>
-        </Card>
+    <div class="flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-1.5">
+            <Bell class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="text-muted-foreground">Total</span>
+            <span class="font-semibold">{{ stats.total }}</span>
+        </div>
+        <span class="text-border">|</span>
+        <div class="flex items-center gap-1.5">
+            <BookOpen class="h-3.5 w-3.5 text-blue-500" />
+            <span class="text-muted-foreground">Unread</span>
+            <span class="font-semibold">{{ stats.unread }}</span>
+        </div>
+        <span class="text-border">|</span>
+        <div class="flex items-center gap-1.5">
+            <BookCheck class="h-3.5 w-3.5 text-green-500" />
+            <span class="text-muted-foreground">Read</span>
+            <span class="font-semibold">{{ stats.read }}</span>
+        </div>
     </div>
 </template>

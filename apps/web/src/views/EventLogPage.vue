@@ -6,9 +6,6 @@
     import Button from '@/components/ui/Button.vue';
     import Card from '@/components/ui/Card.vue';
     import CardContent from '@/components/ui/CardContent.vue';
-    import CardDescription from '@/components/ui/CardDescription.vue';
-    import CardHeader from '@/components/ui/CardHeader.vue';
-    import CardTitle from '@/components/ui/CardTitle.vue';
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useEventLog} from '@/composables/useEventLog';
@@ -115,33 +112,36 @@
 <template>
     <div class="space-y-4 p-4">
         <PageHeader
-            title="Event Log"
             description="Review and manage all workflow notifications and events"
             :icon="ScrollText"
-        />
+        >
+            <EventLogStatsCards
+                v-if="!isLoading || entries.length > 0"
+                :stats="stats"
+            />
+        </PageHeader>
 
         <!-- Loading -->
         <div
             v-if="isLoading && entries.length === 0"
             class="space-y-4"
         >
-            <div class="grid gap-4 md:grid-cols-3">
-                <Skeleton class="h-24 w-full rounded-xl" />
-                <Skeleton class="h-24 w-full rounded-xl" />
-                <Skeleton class="h-24 w-full rounded-xl" />
+            <div class="space-y-4">
+                <Skeleton class="h-10 w-full rounded-xl" />
+                <Skeleton class="h-64 w-full rounded-xl" />
             </div>
-            <Skeleton class="h-64 w-full rounded-xl" />
         </div>
 
         <template v-else>
-            <!-- Stats -->
-            <EventLogStatsCards :stats="stats" />
-
             <!-- Filters + List -->
             <Card>
-                <CardHeader>
-                    <div class="flex items-center justify-between gap-2">
-                        <CardTitle>Events</CardTitle>
+                <CardContent class="pt-4 space-y-4">
+                    <EventLogFilters
+                        v-model:type="type"
+                        v-model:read="read"
+                        v-model:category="category"
+                        v-model:search="search"
+                    >
                         <Button
                             variant="outline"
                             size="sm"
@@ -149,18 +149,9 @@
                             @click="handleMarkAllRead"
                         >
                             <CheckCheck class="h-4 w-4 mr-2" />
-                            Mark All as Read
+                            Mark All Read
                         </Button>
-                    </div>
-                    <CardDescription> All workflow alerts and notifications in one place </CardDescription>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <EventLogFilters
-                        v-model:type="type"
-                        v-model:read="read"
-                        v-model:category="category"
-                        v-model:search="search"
-                    />
+                    </EventLogFilters>
 
                     <!-- Event List -->
                     <EmptyState
