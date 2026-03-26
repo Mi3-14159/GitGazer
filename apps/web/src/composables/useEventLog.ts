@@ -11,7 +11,14 @@ export const useEventLog = () => {
     const loadingCount = ref(0);
     const isLoading = computed(() => loadingCount.value > 0);
 
-    const getEventLogEntries = async (filters?: {type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string; limit?: number; offset?: number}) => {
+    const getEventLogEntries = async (filters?: {
+        type?: EventLogType;
+        category?: EventLogCategory;
+        read?: boolean;
+        search?: string;
+        limit?: number;
+        offset?: number;
+    }) => {
         loadingCount.value++;
         try {
             const params = new URLSearchParams();
