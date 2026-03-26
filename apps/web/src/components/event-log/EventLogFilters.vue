@@ -37,6 +37,7 @@
         {value: 'all', label: 'All Categories'},
         {value: 'system', label: 'System'},
         {value: 'notification', label: 'Notification'},
+        {value: 'integration', label: 'Integration'},
     ];
 </script>
 
