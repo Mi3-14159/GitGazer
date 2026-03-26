@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import Input from '@/components/ui/Input.vue';
-    import type {ReadFilter} from '@/composables/useEventLogFilters';
-    import type {EventLogCategory, EventLogType} from '@common/types';
+    import {READ_VALUES, type ReadFilter} from '@/composables/useEventLogFilters';
+    import {EVENT_LOG_CATEGORIES, EVENT_LOG_TYPES, type EventLogCategory, type EventLogType} from '@common/types';
     import {Eye, Filter, Layers, Search} from 'lucide-vue-next';
 
     defineProps<{
@@ -20,24 +20,17 @@
 
     const typeOptions: {value: EventLogType | 'all'; label: string}[] = [
         {value: 'all', label: 'All Types'},
-        {value: 'failure', label: 'Failures'},
-        {value: 'success', label: 'Successes'},
-        {value: 'warning', label: 'Warnings'},
-        {value: 'info', label: 'Info'},
-        {value: 'alert', label: 'Alerts'},
+        ...EVENT_LOG_TYPES.map((type) => ({value: type, label: type.charAt(0).toUpperCase() + type.slice(1)})),
     ];
 
-    const readOptions: {value: ReadFilter; label: string}[] = [
-        {value: 'all', label: 'All'},
-        {value: 'unread', label: 'Unread'},
-        {value: 'read', label: 'Read'},
-    ];
+    const readOptions: {value: ReadFilter; label: string}[] = READ_VALUES.map((val) => ({
+        value: val,
+        label: val.charAt(0).toUpperCase() + val.slice(1),
+    }));
 
     const categoryOptions: {value: EventLogCategory | 'all'; label: string}[] = [
-        {value: 'all', label: 'All Categories'},
-        {value: 'system', label: 'System'},
-        {value: 'notification', label: 'Notification'},
-        {value: 'integration', label: 'Integration'},
+        {value: 'all' as const, label: 'All Categories'},
+        ...EVENT_LOG_CATEGORIES.map((cat) => ({value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1)})),
     ];
 </script>
 

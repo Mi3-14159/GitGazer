@@ -3,7 +3,7 @@ import type {EventLogCategory, EventLogType} from '@common/types';
 import {EVENT_LOG_CATEGORIES, EVENT_LOG_TYPES} from '@common/types';
 
 export type ReadFilter = 'all' | 'unread' | 'read';
-const READ_VALUES = ['all', 'unread', 'read'] as const;
+export const READ_VALUES = ['all', 'unread', 'read'] as const;
 
 export function useEventLogFilters() {
     const {type, read, category, search} = useUrlFilters({
