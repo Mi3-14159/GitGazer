@@ -78,7 +78,8 @@
         const previousEntries = [...entries.value];
         const previousStats = {...stats.value};
 
-        if (readVal) {
+        const shouldRemove = (readVal && read.value === 'unread') || (!readVal && read.value === 'read');
+        if (shouldRemove) {
             entries.value = entries.value.filter((e) => e.id !== id);
         } else {
             entries.value[idx] = {...entries.value[idx], read: readVal};
@@ -100,7 +101,11 @@
         // Optimistic update
         const previousEntries = entries.value;
         const previousStats = {...stats.value};
-        entries.value = [];
+        if (read.value === 'unread') {
+            entries.value = [];
+        } else {
+            entries.value = entries.value.map((e) => ({...e, read: true}));
+        }
         stats.value = {...stats.value, unread: 0, read: stats.value.total};
 
         try {
