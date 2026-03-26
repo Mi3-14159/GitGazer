@@ -1,7 +1,7 @@
 import {RdsTransaction} from '@gitgazer/db/client';
 import {enterprises, organizations, repositories, user} from '@gitgazer/db/schema/github/workflows';
 import {RepositoryInsert} from '@gitgazer/db/types';
-import {eq, inArray, InferSelectModel, lt} from 'drizzle-orm';
+import {eq, inArray, InferSelectModel} from 'drizzle-orm';
 
 type EnterprisePayload = {id: number; name: string};
 type OrganizationPayload = {id: number; login: string; description: string | null};
@@ -76,22 +76,7 @@ export const upsertOrganization = async (
  * Upsert a repository record.
  */
 export const upsertRepository = async (tx: RdsTransaction, payload: RepositoryInsert): Promise<InferSelectModel<typeof repositories>> => {
-    let repository = await tx
-        .insert(repositories)
-        .values(payload)
-        .onConflictDoUpdate({
-            target: [repositories.integrationId, repositories.id],
-            set: {
-                name: payload.name,
-                updatedAt: payload.updatedAt,
-                private: payload.private,
-                ownerId: payload.ownerId,
-                defaultBranch: payload.defaultBranch,
-                topics: payload.topics,
-            },
-            setWhere: lt(repositories.updatedAt, payload.updatedAt),
-        })
-        .returning();
+    let repository = await tx.insert(repositories).values(payload).onConflictDoNothing().returning();
 
     if (repository.length === 0) {
         repository = await tx.select().from(repositories).where(eq(repositories.id, payload.id)).limit(1);
