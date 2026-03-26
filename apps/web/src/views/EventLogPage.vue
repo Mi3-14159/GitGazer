@@ -162,9 +162,20 @@
                         </Button>
                     </EventLogFilters>
 
+                    <!-- Loading overlay for filter changes -->
+                    <Transition name="fade">
+                        <div
+                            v-if="isLoading && entries.length > 0"
+                            class="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground"
+                        >
+                            <Loader2 class="h-4 w-4 animate-spin" />
+                            <span>Updating...</span>
+                        </div>
+                    </Transition>
+
                     <!-- Event List -->
                     <EmptyState
-                        v-if="entries.length === 0"
+                        v-if="entries.length === 0 && !isLoading"
                         :icon="Bell"
                         :message="
                             hasActiveFilters
@@ -173,7 +184,10 @@
                         "
                     />
 
-                    <div v-else>
+                    <div
+                        v-else
+                        :class="{'opacity-50 pointer-events-none transition-opacity duration-200': isLoading}"
+                    >
                         <TransitionGroup
                             name="event-list"
                             tag="div"
@@ -222,5 +236,15 @@
 
     .event-list-move {
         transition: transform 0.3s ease;
+    }
+
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity 0.2s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+        opacity: 0;
     }
 </style>
