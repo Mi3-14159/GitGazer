@@ -1,25 +1,25 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
     import Input from '@/components/ui/Input.vue';
+    import type {ReadFilter} from '@/composables/useEventLogFilters';
     import type {EventLogCategory, EventLogType} from '@common/types';
-    import {CheckCheck, Filter, Layers, Search, Tag} from 'lucide-vue-next';
-    import {ref, watch} from 'vue';
+    import {CheckCheck, Eye, Filter, Layers, Search} from 'lucide-vue-next';
 
-    type ReadFilter = 'all' | 'unread' | 'read';
-
-    const props = defineProps<{
+    defineProps<{
         unreadCount: number;
+        type: EventLogType | 'all';
+        read: ReadFilter;
+        category: EventLogCategory | 'all';
+        search: string;
     }>();
 
     const emit = defineEmits<{
-        filterChange: [filter: {type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string}];
+        'update:type': [value: EventLogType | 'all'];
+        'update:read': [value: ReadFilter];
+        'update:category': [value: EventLogCategory | 'all'];
+        'update:search': [value: string];
         markAllRead: [];
     }>();
-
-    const searchTerm = ref('');
-    const typeFilter = ref<EventLogType | 'all'>('all');
-    const readFilter = ref<ReadFilter>('all');
-    const categoryFilter = ref<EventLogCategory | 'all'>('all');
 
     const typeOptions: {value: EventLogType | 'all'; label: string}[] = [
         {value: 'all', label: 'All Types'},
@@ -41,27 +41,6 @@
         {value: 'system', label: 'System'},
         {value: 'notification', label: 'Notification'},
     ];
-
-    function emitFilters() {
-        const filter: {type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string} = {};
-
-        if (typeFilter.value !== 'all') filter.type = typeFilter.value;
-        if (readFilter.value === 'unread') filter.read = false;
-        else if (readFilter.value === 'read') filter.read = true;
-        if (categoryFilter.value !== 'all') filter.category = categoryFilter.value;
-        if (searchTerm.value.trim()) filter.search = searchTerm.value.trim();
-
-        emit('filterChange', filter);
-    }
-
-    let debounceTimer: ReturnType<typeof globalThis.setTimeout>;
-
-    watch(searchTerm, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = globalThis.setTimeout(emitFilters, 300);
-    });
-
-    watch([typeFilter, readFilter, categoryFilter], emitFilters);
 </script>
 
 <template>
@@ -70,9 +49,10 @@
             <div class="relative flex-1">
                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    v-model="searchTerm"
+                    :model-value="search"
                     placeholder="Search events..."
                     class="pl-9"
+                    @update:model-value="emit('update:search', $event as string)"
                 />
             </div>
 
@@ -80,7 +60,7 @@
                 variant="outline"
                 size="sm"
                 class="h-9"
-                :disabled="props.unreadCount === 0"
+                :disabled="unreadCount === 0"
                 @click="emit('markAllRead')"
             >
                 <CheckCheck class="h-4 w-4 mr-2" />
@@ -93,8 +73,9 @@
             <div class="relative">
                 <Filter class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <select
-                    v-model="typeFilter"
+                    :value="type"
                     class="flex h-9 w-full sm:w-[150px] rounded-lg border border-border bg-input-background pl-9 pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer"
+                    @change="emit('update:type', ($event.target as HTMLSelectElement).value as EventLogType | 'all')"
                 >
                     <option
                         v-for="opt in typeOptions"
@@ -108,10 +89,11 @@
 
             <!-- Read Filter -->
             <div class="relative">
-                <Tag class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Eye class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <select
-                    v-model="readFilter"
+                    :value="read"
                     class="flex h-9 w-full sm:w-[130px] rounded-lg border border-border bg-input-background pl-9 pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer"
+                    @change="emit('update:read', ($event.target as HTMLSelectElement).value as ReadFilter)"
                 >
                     <option
                         v-for="opt in readOptions"
@@ -127,8 +109,9 @@
             <div class="relative">
                 <Layers class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <select
-                    v-model="categoryFilter"
+                    :value="category"
                     class="flex h-9 w-full sm:w-[170px] rounded-lg border border-border bg-input-background pl-9 pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer"
+                    @change="emit('update:category', ($event.target as HTMLSelectElement).value as EventLogCategory | 'all')"
                 >
                     <option
                         v-for="opt in categoryOptions"

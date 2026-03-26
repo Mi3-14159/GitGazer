@@ -82,7 +82,7 @@ export function useUrlFilters<S extends Record<string, FilterDef<any>>>(schema: 
 // Factory helpers for common field types
 // ---------------------------------------------------------------------------
 
-/** A string-enum filter mapped to a single URL param. */
+/** A string-enum filter mapped to a single URL param. Omitted from URL when value equals the default. */
 export function enumFilter<T extends string>(urlKey: string, validValues: readonly T[], defaultValue: T): FilterDef<T> {
     return {
         defaultValue,
@@ -90,7 +90,7 @@ export function enumFilter<T extends string>(urlKey: string, validValues: readon
             const v = q[urlKey];
             return v && (validValues as readonly string[]).includes(v) ? (v as T) : defaultValue;
         },
-        toUrl: (v) => ({[urlKey]: v}),
+        toUrl: (v) => (v === defaultValue ? {} : {[urlKey]: v}),
         ownedKeys: [urlKey],
     };
 }
@@ -130,6 +130,16 @@ export function stringArrayFilter(urlKey: string): FilterDef<string[]> {
             return v ? v.split(',').filter(Boolean) : [];
         },
         toUrl: (v) => (v.length ? {[urlKey]: v.join(',')} : {}),
+        ownedKeys: [urlKey],
+    };
+}
+
+/** A plain string filter. Omitted from URL when empty or whitespace-only. */
+export function stringFilter(urlKey: string, defaultValue = ''): FilterDef<string> {
+    return {
+        defaultValue,
+        fromUrl: (q) => q[urlKey] ?? defaultValue,
+        toUrl: (v) => (v.trim() ? {[urlKey]: v.trim()} : {}),
         ownedKeys: [urlKey],
     };
 }
