@@ -90,7 +90,7 @@ export function enumFilter<T extends string>(urlKey: string, validValues: readon
             const v = q[urlKey];
             return v && (validValues as readonly string[]).includes(v) ? (v as T) : defaultValue;
         },
-        toUrl: (v) => (v === defaultValue ? {} : {[urlKey]: v}),
+        toUrl: (v) => ({[urlKey]: v}),
         ownedKeys: [urlKey],
     };
 }

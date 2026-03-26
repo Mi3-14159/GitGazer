@@ -8,7 +8,7 @@ const READ_VALUES = ['all', 'unread', 'read'] as const;
 export function useEventLogFilters() {
     const {type, read, category, search} = useUrlFilters({
         type: enumFilter<EventLogType | 'all'>('type', ['all', ...EVENT_LOG_TYPES], 'all'),
-        read: enumFilter<ReadFilter>('read', READ_VALUES, 'all'),
+        read: enumFilter<ReadFilter>('read', READ_VALUES, 'unread'),
         category: enumFilter<EventLogCategory | 'all'>('category', ['all', ...EVENT_LOG_CATEGORIES], 'all'),
         search: stringFilter('search'),
     });
