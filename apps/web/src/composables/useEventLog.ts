@@ -1,6 +1,6 @@
 import {useAuth} from '@/composables/useAuth';
 import {isArrayOf, parseApiResponse} from '@/utils/apiResponse';
-import type {EventLogCategory, EventLogEntry, EventLogStats, EventLogType} from '@common/types';
+import type {EventLogCategory, EventLogEntryRow, EventLogStats, EventLogType} from '@common/types';
 import {isEventLogEntry, isEventLogStats} from '@common/types';
 import {computed, ref} from 'vue';
 
@@ -37,7 +37,7 @@ export const useEventLog = () => {
                 throw new Error(`Failed to fetch event log: ${response.status}`);
             }
 
-            return parseApiResponse<EventLogEntry[]>(response, isArrayOf(isEventLogEntry));
+            return parseApiResponse<EventLogEntryRow[]>(response, isArrayOf(isEventLogEntry));
         } finally {
             loadingCount.value--;
         }
@@ -65,7 +65,7 @@ export const useEventLog = () => {
         if (!response.ok) {
             throw new Error(`Failed to update event log entry: ${response.status}`);
         }
-        return parseApiResponse<EventLogEntry>(response, isEventLogEntry);
+        return parseApiResponse<EventLogEntryRow>(response, isEventLogEntry);
     };
 
     const markAllRead = async () => {

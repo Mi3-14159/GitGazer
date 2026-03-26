@@ -4,12 +4,12 @@
     import CardContent from '@/components/ui/CardContent.vue';
     import Checkbox from '@/components/ui/Checkbox.vue';
     import {formatTimeSince} from '@/utils/formatDate';
-    import type {EventLogEntry, EventLogType} from '@common/types';
+    import type {EventLogEntryRow, EventLogType} from '@common/types';
     import {AlertTriangle, Bell, CheckCircle2, ExternalLink, XCircle} from 'lucide-vue-next';
     import {computed} from 'vue';
 
     const props = defineProps<{
-        entry: EventLogEntry;
+        entry: EventLogEntryRow;
     }>();
 
     const emit = defineEmits<{

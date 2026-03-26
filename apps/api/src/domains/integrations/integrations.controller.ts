@@ -1,3 +1,4 @@
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {deprovisionAllWebhooks, updateAllWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
 import {ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@/shared/logger';
@@ -59,6 +60,16 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
         if (!fullIntegrations[0]) {
             throw new InternalServerError('Failed to fetch updated integration');
         }
+
+        await createEventLogEntry({
+            integrationId: id,
+            category: 'integration',
+            type: 'info',
+            title: 'Integration renamed',
+            message: `Integration label updated to "${label.trim()}"`,
+            metadata: {integrationId: id, integrationLabel: label.trim()},
+        });
+
         return fullIntegrations[0];
     }
 
@@ -101,6 +112,16 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
         // Fetch the created integration with relations
         const fullIntegrations = await getIntegrations({integrationIds: [insertedIntegration.integrationId]});
         const created = fullIntegrations[0] ?? {...insertedIntegration, githubAppInstallations: []};
+
+        await createEventLogEntry({
+            integrationId: insertedIntegration.integrationId,
+            category: 'integration',
+            type: 'success',
+            title: 'Integration created',
+            message: `Integration "${label.trim()}" was created`,
+            metadata: {integrationId: insertedIntegration.integrationId, integrationLabel: label.trim()},
+        });
+
         return created;
     } catch (error: any) {
         logger.error(`Failed to create integration '${label}'`, {error: error?.message});
@@ -142,6 +163,8 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
             },
         });
 
+        // Note: event log entry is not persisted because event_log_entries cascade-deletes with the integration.
+        // The log line below serves as the audit trail.
         logger.info(`Successfully deleted integration '${id}'`);
     } catch (error: any) {
         logger.error(`Failed to delete integration ${id}`, {error: error?.message});
@@ -188,6 +211,15 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
         throw new UnauthorizedError('Integration not found or access denied');
     }
 
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'warning',
+        title: 'Secret rotated',
+        message: 'The integration webhook secret was rotated.',
+        metadata: {integrationId},
+    });
+
     const newSecret = results[0].secret;
 
     // Update all linked GitHub App webhooks with the new secret
@@ -207,6 +239,14 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
             await updateAllWebhookSecrets(integrationId, installationId, newSecret);
         } catch (error) {
             logger.error(`Failed to update webhook secrets for installation ${installationId}`, {error});
+            await createEventLogEntry({
+                integrationId,
+                category: 'integration',
+                type: 'failure',
+                title: 'Secret rotation failed',
+                message: 'Failed to update webhook secrets for the integration.',
+                metadata: {integrationId},
+            });
         }
     }
 
@@ -215,5 +255,15 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
     if (!fullIntegrations[0]) {
         throw new InternalServerError('Failed to fetch updated integration');
     }
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'warning',
+        title: 'Secret rotation completed',
+        message: 'All linked GitHub App webhooks have been updated.',
+        metadata: {integrationId},
+    });
+
     return fullIntegrations[0];
 };

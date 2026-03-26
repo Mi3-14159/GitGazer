@@ -1,3 +1,4 @@
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
 import {deleteIntegration, getIntegrations, rotateSecret, upsertIntegration} from '@/domains/integrations/integrations.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
@@ -164,7 +165,24 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         webhookCount = await provisionWebhooks(integrationId, installationId);
     } catch (error) {
         logger.error('Failed to provision webhooks', {error});
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'failure',
+            title: 'GitHub App link failed',
+            message: `Failed to link GitHub App installation for "${installation.accountLogin}"`,
+            metadata: {integrationId, installationId, accountLogin: installation.accountLogin},
+        });
     }
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'success',
+        title: 'GitHub App linked',
+        message: `GitHub App installation for "${installation.accountLogin}" was linked with ${webhookCount} webhook(s) provisioned`,
+        metadata: {integrationId, installationId, accountLogin: installation.accountLogin},
+    });
 
     return {
         installationId: installation.installationId,
@@ -199,6 +217,15 @@ router.delete('/api/integrations/:integrationId/github-app/:installationId', [ad
         .update(githubAppInstallations)
         .set({integrationId: null, updatedAt: new Date()})
         .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'GitHub App unlinked',
+        message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
+        metadata: {integrationId, installationId},
+    });
 
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,
@@ -235,6 +262,15 @@ router.patch('/api/integrations/:integrationId/github-app/:installationId/events
     }
 
     await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Webhook events updated',
+        message: `Subscribed webhook events updated to: ${requestBody.events.join(', ')}`,
+        metadata: {integrationId, installationId, webhookEvents: requestBody.events},
+    });
 
     return {events: requestBody.events};
 });

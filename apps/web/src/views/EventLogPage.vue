@@ -10,7 +10,7 @@
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useEventLog} from '@/composables/useEventLog';
     import {useEventLogFilters} from '@/composables/useEventLogFilters';
-    import type {EventLogCategory, EventLogEntry, EventLogStats, EventLogType} from '@common/types';
+    import type {EventLogCategory, EventLogEntryRow, EventLogStats, EventLogType} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
 
@@ -19,7 +19,7 @@
     const {getEventLogEntries, getEventLogStats, toggleRead, markAllRead, isLoading} = useEventLog();
     const {type, read, category, search} = useEventLogFilters();
 
-    const entries = ref<EventLogEntry[]>([]);
+    const entries = ref<EventLogEntryRow[]>([]);
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});
     const hasMore = ref(true);
     const isLoadingMore = ref(false);

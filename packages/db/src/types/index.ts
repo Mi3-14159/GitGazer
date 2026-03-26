@@ -100,7 +100,7 @@ export type NotificationRuleUpdate = Omit<NotificationRule, 'createdAt' | 'updat
 export const EVENT_LOG_TYPES = ['failure', 'success', 'warning', 'info', 'alert'] as const;
 export type EventLogType = (typeof EVENT_LOG_TYPES)[number];
 
-export const EVENT_LOG_CATEGORIES = ['system', 'notification'] as const;
+export const EVENT_LOG_CATEGORIES = ['system', 'notification', 'integration'] as const;
 export type EventLogCategory = (typeof EVENT_LOG_CATEGORIES)[number];
 
 export type EventLogEntryMetadata = {
@@ -112,12 +112,17 @@ export type EventLogEntryMetadata = {
     jobName?: string;
     workflowRunId?: number;
     workflowJobId?: number;
+    integrationId?: string;
+    integrationLabel?: string;
+    installationId?: number;
+    accountLogin?: string;
+    webhookEvents?: string[];
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;
 export type EventLogEntryInsert = typeof schema.eventLogEntries.$inferInsert;
 
-export const isEventLogEntry = (value: unknown): value is EventLogEntryRow | EventLogEntryInsert => {
+export const isEventLogEntry = (value: unknown): value is EventLogEntryRow => {
     if (typeof value !== 'object' || value === null) return false;
     const v = value as Record<string, unknown>;
     return (
