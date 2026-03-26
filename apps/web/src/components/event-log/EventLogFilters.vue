@@ -1,12 +1,10 @@
 <script setup lang="ts">
-    import Button from '@/components/ui/Button.vue';
     import Input from '@/components/ui/Input.vue';
     import type {ReadFilter} from '@/composables/useEventLogFilters';
     import type {EventLogCategory, EventLogType} from '@common/types';
-    import {CheckCheck, Eye, Filter, Layers, Search} from 'lucide-vue-next';
+    import {Eye, Filter, Layers, Search} from 'lucide-vue-next';
 
     defineProps<{
-        unreadCount: number;
         type: EventLogType | 'all';
         read: ReadFilter;
         category: EventLogCategory | 'all';
@@ -18,7 +16,6 @@
         'update:read': [value: ReadFilter];
         'update:category': [value: EventLogCategory | 'all'];
         'update:search': [value: string];
-        markAllRead: [];
     }>();
 
     const typeOptions: {value: EventLogType | 'all'; label: string}[] = [
@@ -45,27 +42,14 @@
 
 <template>
     <div class="flex flex-col gap-3">
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="relative flex-1">
-                <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    :model-value="search"
-                    placeholder="Search events..."
-                    class="pl-9"
-                    @update:model-value="emit('update:search', $event as string)"
-                />
-            </div>
-
-            <Button
-                variant="outline"
-                size="sm"
-                class="h-9"
-                :disabled="unreadCount === 0"
-                @click="emit('markAllRead')"
-            >
-                <CheckCheck class="h-4 w-4 mr-2" />
-                Mark All as Read
-            </Button>
+        <div class="relative">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+                :model-value="search"
+                placeholder="Search events..."
+                class="pl-9"
+                @update:model-value="emit('update:search', $event as string)"
+            />
         </div>
 
         <div class="flex flex-wrap items-center gap-2">

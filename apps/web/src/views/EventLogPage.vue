@@ -14,7 +14,7 @@
     import {useEventLog} from '@/composables/useEventLog';
     import {useEventLogFilters} from '@/composables/useEventLogFilters';
     import type {EventLogCategory, EventLogEntry, EventLogStats, EventLogType} from '@common/types';
-    import {Bell, Loader2, ScrollText} from 'lucide-vue-next';
+    import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
 
     const PAGE_SIZE = 50;
@@ -140,7 +140,18 @@
             <!-- Filters + List -->
             <Card>
                 <CardHeader>
-                    <CardTitle>Events</CardTitle>
+                    <div class="flex items-center justify-between gap-2">
+                        <CardTitle>Events</CardTitle>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            :disabled="stats.unread === 0"
+                            @click="handleMarkAllRead"
+                        >
+                            <CheckCheck class="h-4 w-4 mr-2" />
+                            Mark All as Read
+                        </Button>
+                    </div>
                     <CardDescription> All workflow alerts and notifications in one place </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
@@ -149,8 +160,6 @@
                         v-model:read="read"
                         v-model:category="category"
                         v-model:search="search"
-                        :unread-count="stats.unread"
-                        @mark-all-read="handleMarkAllRead"
                     />
 
                     <!-- Event List -->
