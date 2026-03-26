@@ -24,9 +24,13 @@ const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
     userName?: string;
+    lockTimeoutS?: number;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
-    const {integrationIds, userName = gitgazerReader.name, callback} = params;
+    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5} = params;
+    if (lockTimeoutS <= 0) {
+        throw new Error('lockTimeoutS must be a positive integer');
+    }
 
     // Validate integration IDs to prevent SQL injection via the raw SET LOCAL
     for (const id of integrationIds) {
@@ -38,6 +42,7 @@ export const withRlsTransaction = async <T>(params: {
     return await db.transaction(async (tx) => {
         await tx.execute(sql`SET ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
+        await tx.execute(sql`SET LOCAL lock_timeout = '${lockTimeoutS}s';`);
 
         return await callback(tx);
     });
