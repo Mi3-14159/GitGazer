@@ -28,7 +28,7 @@ export const withRlsTransaction = async <T>(params: {
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
     const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5} = params;
-    if (lockTimeoutS <= 0) {
+    if (!Number.isInteger(lockTimeoutS) || lockTimeoutS <= 0) {
         throw new Error('lockTimeoutS must be a positive integer');
     }
 
@@ -42,7 +42,7 @@ export const withRlsTransaction = async <T>(params: {
     return await db.transaction(async (tx) => {
         await tx.execute(sql`SET ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
-        await tx.execute(sql`SET LOCAL lock_timeout = '${lockTimeoutS}s';`);
+        await tx.execute(sql.raw(`SET LOCAL lock_timeout = '${lockTimeoutS}s';`));
 
         return await callback(tx);
     });
