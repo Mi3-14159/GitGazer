@@ -75,19 +75,23 @@
         if (idx === -1) return;
 
         // Optimistic update
-        const previousEntry = entries.value[idx];
+        const previousEntries = [...entries.value];
         const previousStats = {...stats.value};
-        entries.value[idx] = {...previousEntry, read: readVal};
+
+        if (readVal) {
+            entries.value = entries.value.filter((e) => e.id !== id);
+        } else {
+            entries.value[idx] = {...entries.value[idx], read: readVal};
+        }
         stats.value = readVal
             ? {...stats.value, unread: stats.value.unread - 1, read: stats.value.read + 1}
             : {...stats.value, unread: stats.value.unread + 1, read: stats.value.read - 1};
 
         try {
-            const updated = await toggleRead(id, readVal);
-            if (updated) entries.value[idx] = updated;
+            await toggleRead(id, readVal);
         } catch {
             // Revert on failure
-            entries.value[idx] = previousEntry;
+            entries.value = previousEntries;
             stats.value = previousStats;
         }
     }
@@ -96,7 +100,7 @@
         // Optimistic update
         const previousEntries = entries.value;
         const previousStats = {...stats.value};
-        entries.value = entries.value.map((e) => ({...e, read: true}));
+        entries.value = [];
         stats.value = {...stats.value, unread: 0, read: stats.value.total};
 
         try {
@@ -164,16 +168,19 @@
                         "
                     />
 
-                    <div
-                        v-else
-                        class="space-y-3"
-                    >
-                        <EventLogCard
-                            v-for="entry in entries"
-                            :key="entry.id"
-                            :entry="entry"
-                            @toggle-read="handleToggleRead"
-                        />
+                    <div v-else>
+                        <TransitionGroup
+                            name="event-list"
+                            tag="div"
+                            class="space-y-3"
+                        >
+                            <EventLogCard
+                                v-for="entry in entries"
+                                :key="entry.id"
+                                :entry="entry"
+                                @toggle-read="handleToggleRead"
+                            />
+                        </TransitionGroup>
 
                         <div
                             v-if="hasMore"
@@ -197,3 +204,18 @@
         </template>
     </div>
 </template>
+
+<style scoped>
+    .event-list-leave-active {
+        transition: all 0.3s ease;
+    }
+
+    .event-list-leave-to {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    .event-list-move {
+        transition: transform 0.3s ease;
+    }
+</style>
