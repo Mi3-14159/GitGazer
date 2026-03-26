@@ -1,5 +1,6 @@
-import {getLogger} from '@/shared/logger';
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {fetchWithRetry} from '@/shared/helpers/fetch';
+import {getLogger} from '@/shared/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRules, workflowRuns} from '@gitgazer/db/schema';
 import {NotificationRuleChannelType, WorkflowJobEvent} from '@gitgazer/db/types';
@@ -95,6 +96,28 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
     // Send all notifications
     for (const notification of notifications) {
         await sendSlackNotification(notification.webhookUrl, body, notification.ruleId, logger);
+    }
+
+    // Create event log entry for this alert
+    try {
+        await createEventLogEntry({
+            integrationId,
+            category: 'notification',
+            type: 'alert',
+            title: `${workflow_name} / ${job_name} failed`,
+            message: `Job "${job_name}" in workflow "${workflow_name}" failed on ${repository_name}/${head_branch}`,
+            metadata: {
+                repository: full_name,
+                branch: head_branch ?? undefined,
+                actor: sender,
+                workflowName: workflow_name ?? undefined,
+                jobName: job_name,
+                workflowRunId: run_id,
+                workflowJobId: event.workflow_job.id,
+            },
+        });
+    } catch (error) {
+        logger.error('Failed to create event log entry', error as Error);
     }
 }
 

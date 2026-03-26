@@ -34,6 +34,12 @@ const router = createRouter({
                     meta: {title: 'Notifications'},
                 },
                 {
+                    path: 'event-log',
+                    name: 'event-log',
+                    component: () => import('@/views/EventLogPage.vue'),
+                    meta: {title: 'Event Log'},
+                },
+                {
                     path: 'integrations',
                     name: 'integrations',
                     component: () => import('@/views/IntegrationsPage.vue'),

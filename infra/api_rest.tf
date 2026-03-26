@@ -72,6 +72,21 @@ locals {
     "overview" = {
       methods = ["GET"]
     },
+    "event-log" = {
+      methods = ["GET"]
+    },
+    "event-log" = {
+      methods = ["GET"]
+    },
+    "event-log/stats" = {
+      methods = ["GET"]
+    },
+    "event-log/{id}/read" = {
+      methods = ["PATCH"]
+    },
+    "event-log/mark-all-read" = {
+      methods = ["POST"]
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations

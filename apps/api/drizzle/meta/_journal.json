@@ -239,6 +239,13 @@
       "when": 1774306999234,
       "tag": "0033_empty_jazinda",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1774559117032,
+      "tag": "0034_dry_green_goblin",
+      "breakpoints": true
     }
   ]
 }

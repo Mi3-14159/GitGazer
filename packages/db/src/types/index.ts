@@ -96,6 +96,62 @@ export const isNotificationRuleRule = (rule: any): rule is NotificationRuleRule 
 
 export type NotificationRuleUpdate = Omit<NotificationRule, 'createdAt' | 'updatedAt' | 'integrationId' | 'id'>;
 
+// Event Log types
+export const EVENT_LOG_TYPES = ['failure', 'success', 'warning', 'info', 'alert'] as const;
+export type EventLogType = (typeof EVENT_LOG_TYPES)[number];
+
+export const EVENT_LOG_CATEGORIES = ['system', 'notification'] as const;
+export type EventLogCategory = (typeof EVENT_LOG_CATEGORIES)[number];
+
+export type EventLogEntryMetadata = {
+    repository?: string;
+    branch?: string;
+    actor?: string;
+    commit?: string;
+    workflowName?: string;
+    jobName?: string;
+    workflowRunId?: number;
+    workflowJobId?: number;
+};
+
+export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;
+export type EventLogEntryInsert = typeof schema.eventLogEntries.$inferInsert;
+export type EventLogEntry = Omit<EventLogEntryRow, 'createdAt'> & {createdAt: string};
+
+export const isEventLogEntry = (value: unknown): value is EventLogEntry => {
+    if (typeof value !== 'object' || value === null) return false;
+    const v = value as Record<string, unknown>;
+    return (
+        typeof v.id === 'string' &&
+        typeof v.type === 'string' &&
+        EVENT_LOG_TYPES.includes(v.type as EventLogType) &&
+        typeof v.title === 'string' &&
+        typeof v.message === 'string' &&
+        typeof v.read === 'boolean' &&
+        typeof v.createdAt === 'string'
+    );
+};
+
+export type EventLogStats = {
+    total: number;
+    unread: number;
+    read: number;
+};
+
+export const isEventLogStats = (value: unknown): value is EventLogStats => {
+    if (typeof value !== 'object' || value === null) return false;
+    const v = value as Record<string, unknown>;
+    return typeof v.total === 'number' && typeof v.unread === 'number' && typeof v.read === 'number';
+};
+
+export type EventLogFilters = {
+    type?: EventLogType;
+    read?: boolean;
+    search?: string;
+    limit?: number;
+    offset?: number;
+};
+
 export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpdate => {
     return (
         Array.isArray(rule.channels) &&

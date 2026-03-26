@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import {Activity, Bell, LayoutDashboard, PlayCircle, Webhook} from 'lucide-vue-next';
+    import {Activity, Bell, LayoutDashboard, PlayCircle, ScrollText, Webhook} from 'lucide-vue-next';
     import {computed} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
@@ -12,17 +12,10 @@
         {value: 'integrations', label: 'Integrations', icon: Webhook, path: '/integrations'},
         {value: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications'},
         {value: 'dashboards', label: 'Dashboards', icon: LayoutDashboard, path: '/dashboards'},
+        {value: 'event-log', label: 'Event Log', icon: ScrollText, path: '/event-log'},
     ];
 
-    const activeTab = computed(() => {
-        const path = route.path;
-        if (path.startsWith('/overview')) return 'overview';
-        if (path.startsWith('/dashboards')) return 'dashboards';
-        if (path.startsWith('/workflows')) return 'workflows';
-        if (path.startsWith('/integrations')) return 'integrations';
-        if (path.startsWith('/notifications')) return 'notifications';
-        return 'overview';
-    });
+    const activeTab = computed(() => tabs.find((tab) => route.path.startsWith(tab.path))?.value ?? 'overview');
 
     function navigateTab(tab: (typeof tabs)[number]) {
         if (route.path === tab.path) return;
@@ -32,7 +25,7 @@
 
 <template>
     <div class="container mx-auto px-4 pt-2 pb-1">
-        <nav class="grid w-full grid-cols-5 rounded-lg bg-muted p-1">
+        <nav class="grid w-full grid-cols-6 rounded-lg bg-muted p-1">
             <button
                 v-for="tab in tabs"
                 :key="tab.value"
