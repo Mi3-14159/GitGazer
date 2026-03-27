@@ -42,22 +42,18 @@
         <CardContent class="p-4">
             <div class="flex items-start gap-3">
                 <!-- Checkbox -->
-                <div class="pt-1">
-                    <Checkbox
-                        :model-value="entry.read"
-                        :class="entry.read ? 'data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500' : ''"
-                        @update:model-value="emit('toggleRead', entry.id, !entry.read)"
-                    />
-                </div>
+                <Checkbox
+                    :model-value="entry.read"
+                    :class="[entry.read ? 'data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500' : '', 'mt-1 shrink-0']"
+                    @update:model-value="emit('toggleRead', entry.id, !entry.read)"
+                />
 
                 <!-- Icon -->
-                <div class="pt-0.5">
-                    <component
-                        :is="typeConfig.icon"
-                        class="h-5 w-5"
-                        :class="typeConfig.class"
-                    />
-                </div>
+                <component
+                    :is="typeConfig.icon"
+                    class="h-5 w-5 mt-0.5 shrink-0"
+                    :class="typeConfig.class"
+                />
 
                 <!-- Content -->
                 <div class="flex-1 min-w-0 space-y-2">
