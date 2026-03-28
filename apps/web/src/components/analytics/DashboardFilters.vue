@@ -1,58 +1,17 @@
 <script setup lang="ts">
-    import FilterDropdown from '@/components/ui/FilterDropdown.vue';
+    import GroupByFilter from '@/components/filters/GroupByFilter.vue';
+    import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
+    import TopicFilter from '@/components/filters/TopicFilter.vue';
     import Switch from '@/components/ui/Switch.vue';
-    import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
-    import {useMetrics} from '@/composables/useMetric';
     import type {GroupByOption} from '@common/types';
-    import {ChevronDown, GitBranch, GitFork, Layers, SlidersHorizontal, Tag, User} from 'lucide-vue-next';
-    import {computed, onMounted, provide, ref} from 'vue';
+    import {ChevronDown, GitBranch, SlidersHorizontal, User} from 'lucide-vue-next';
+    import {computed, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
     const selectedTopics = defineModel<string[]>('topics', {default: () => []});
     const defaultBranchOnly = defineModel<boolean>('defaultBranchOnly', {default: false});
     const usersOnly = defineModel<boolean>('usersOnly', {default: false});
     const groupBy = defineModel<GroupByOption>('groupBy', {default: 'none'});
-
-    const groupByOptions: {label: string; value: GroupByOption}[] = [
-        {label: 'No grouping', value: 'none'},
-        {label: 'Group by Repository', value: 'repository'},
-        {label: 'Group by Topic', value: 'topic'},
-    ];
-
-    const groupByRef = computed({
-        get: () => groupBy.value as string,
-        set: (v: string) => {
-            groupBy.value = v as GroupByOption;
-        },
-    });
-
-    const {fetchRepositories, fetchTopics} = useMetrics();
-
-    const repositories = ref<{id: number; name: string}[]>([]);
-    const availableTopics = ref<string[]>([]);
-
-    onMounted(async () => {
-        try {
-            const [repos, topics] = await Promise.all([fetchRepositories(), fetchTopics()]);
-            repositories.value = repos;
-            availableTopics.value = topics;
-        } catch {
-            // silently fail — lists stay empty
-        }
-    });
-
-    const repoOptions = computed(() => repositories.value.map((r) => ({value: String(r.id), label: r.name})));
-    const topicOptions = computed(() => availableTopics.value.map((t) => ({value: t, label: t})));
-
-    // Writable computed ref that bridges v-model number[] ↔ FilterDropdown string[]
-    const repoStringsRef = computed({
-        get: () => selectedRepositoryIds.value.map(String),
-        set: (v: string[]) => {
-            selectedRepositoryIds.value = v.map(Number);
-        },
-    });
-
-    provide(FILTER_INJECTION_KEY, {repositoryIds: repoStringsRef, topics: selectedTopics, groupBy: groupByRef});
 
     const filtersOpen = ref(false);
 
@@ -96,35 +55,9 @@
             :class="[filtersOpen ? 'flex' : 'hidden', 'sm:flex']"
             class="flex-wrap items-center gap-x-3 gap-y-2 mt-2 sm:mt-0"
         >
-            <!-- Repositories -->
-            <FilterDropdown
-                filter-key="repositoryIds"
-                :options="repoOptions"
-                :icon="GitFork"
-                multiple
-                placeholder="Repositories"
-                search-placeholder="Search repositories..."
-                label="Repositories"
-            />
-
-            <!-- Topics -->
-            <FilterDropdown
-                filter-key="topics"
-                :options="topicOptions"
-                :icon="Tag"
-                multiple
-                placeholder="Topics"
-                search-placeholder="Search topics..."
-                label="Topics"
-            />
-
-            <!-- Group By -->
-            <FilterDropdown
-                filter-key="groupBy"
-                :options="groupByOptions"
-                :icon="Layers"
-                label="Group By"
-            />
+            <RepositoryFilter v-model="selectedRepositoryIds" />
+            <TopicFilter v-model="selectedTopics" />
+            <GroupByFilter v-model="groupBy" />
 
             <div class="hidden sm:block h-5 w-px bg-border" />
 
