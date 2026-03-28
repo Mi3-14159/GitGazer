@@ -27,7 +27,7 @@ export interface FilterDef<T> {
 }
 
 /** Maps a schema of FilterDefs → an object of matching Refs. */
-type FilterRefs<S extends Record<string, FilterDef<any>>> = {
+export type FilterRefs<S extends Record<string, FilterDef<any>>> = {
     [K in keyof S]: Ref<S[K] extends FilterDef<infer V> ? V : never>;
 };
 
