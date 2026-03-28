@@ -8,16 +8,87 @@
     import CardContent from '@/components/ui/CardContent.vue';
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
-    import {useEventLog} from '@/composables/useEventLog';
+    import {useAuth} from '@/composables/useAuth';
     import {enumFilter, stringFilter, useUrlFilters} from '@/composables/useUrlFilters';
+    import {isArrayOf, parseApiResponse} from '@/utils/apiResponse';
     import type {EventLogCategory, EventLogEntryRow, EventLogReadFilter, EventLogStats, EventLogType} from '@common/types';
-    import {EVENT_LOG_CATEGORIES, EVENT_LOG_READ_VALUES, EVENT_LOG_TYPES} from '@common/types';
+    import {EVENT_LOG_CATEGORIES, EVENT_LOG_READ_VALUES, EVENT_LOG_TYPES, isEventLogEntry, isEventLogStats} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
 
     const PAGE_SIZE = 50;
+    const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
-    const {getEventLogEntries, getEventLogStats, toggleRead, markAllRead, isLoading} = useEventLog();
+    const {fetchWithAuth} = useAuth();
+    const loadingCount = ref(0);
+    const isLoading = computed(() => loadingCount.value > 0);
+
+    async function getEventLogEntries(filters?: {
+        type?: EventLogType;
+        category?: EventLogCategory;
+        read?: boolean;
+        search?: string;
+        limit?: number;
+        offset?: number;
+    }) {
+        loadingCount.value++;
+        try {
+            const params = new URLSearchParams();
+            if (filters?.type) params.set('type', filters.type);
+            if (filters?.category) params.set('category', filters.category);
+            if (filters?.read !== undefined) params.set('read', String(filters.read));
+            if (filters?.search) params.set('search', filters.search);
+            if (filters?.limit) params.set('limit', String(filters.limit));
+            if (filters?.offset) params.set('offset', String(filters.offset));
+
+            const qs = params.toString();
+            const url = `${API_ENDPOINT}/event-log${qs ? `?${qs}` : ''}`;
+            const response = await fetchWithAuth(url);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch event log: ${response.status}`);
+            }
+
+            return parseApiResponse<EventLogEntryRow[]>(response, isArrayOf(isEventLogEntry));
+        } finally {
+            loadingCount.value--;
+        }
+    }
+
+    async function getEventLogStats() {
+        loadingCount.value++;
+        try {
+            const response = await fetchWithAuth(`${API_ENDPOINT}/event-log/stats`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch event log stats: ${response.status}`);
+            }
+            return parseApiResponse<EventLogStats>(response, isEventLogStats);
+        } finally {
+            loadingCount.value--;
+        }
+    }
+
+    async function toggleRead(id: string, readVal: boolean) {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/event-log/${id}/read`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({read: readVal}),
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to update event log entry: ${response.status}`);
+        }
+        return parseApiResponse<EventLogEntryRow>(response, isEventLogEntry);
+    }
+
+    async function markAllRead() {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/event-log/mark-all-read`, {
+            method: 'POST',
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to mark all as read: ${response.status}`);
+        }
+        return parseApiResponse<{updated: number}>(response);
+    }
     const {type, read, category, search} = useUrlFilters({
         type: enumFilter<EventLogType | 'all'>('type', ['all', ...EVENT_LOG_TYPES], 'all'),
         read: enumFilter<EventLogReadFilter>('read', EVENT_LOG_READ_VALUES, 'unread'),
