@@ -1,10 +1,11 @@
 <script setup lang="ts">
+    import DefaultBranchFilter from '@/components/filters/DefaultBranchFilter.vue';
     import GroupByFilter from '@/components/filters/GroupByFilter.vue';
     import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
     import TopicFilter from '@/components/filters/TopicFilter.vue';
-    import Switch from '@/components/ui/Switch.vue';
+    import UsersOnlyFilter from '@/components/filters/UsersOnlyFilter.vue';
     import type {GroupByOption} from '@common/types';
-    import {ChevronDown, GitBranch, SlidersHorizontal, User} from 'lucide-vue-next';
+    import {ChevronDown, SlidersHorizontal} from 'lucide-vue-next';
     import {computed, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
@@ -61,19 +62,8 @@
 
             <div class="hidden sm:block h-5 w-px bg-border" />
 
-            <!-- Default Branch Only -->
-            <label class="flex items-center gap-1.5 cursor-pointer">
-                <Switch v-model="defaultBranchOnly" />
-                <GitBranch class="h-3.5 w-3.5 text-muted-foreground" />
-                <span class="text-sm text-muted-foreground whitespace-nowrap">Default branch only</span>
-            </label>
-
-            <!-- Users Only -->
-            <label class="flex items-center gap-1.5 cursor-pointer">
-                <Switch v-model="usersOnly" />
-                <User class="h-3.5 w-3.5 text-muted-foreground" />
-                <span class="text-sm text-muted-foreground whitespace-nowrap">Users only</span>
-            </label>
+            <DefaultBranchFilter v-model="defaultBranchOnly" />
+            <UsersOnlyFilter v-model="usersOnly" />
         </div>
     </div>
 </template>

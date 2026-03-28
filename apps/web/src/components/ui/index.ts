@@ -12,6 +12,7 @@ export {default as DialogDescription} from './DialogDescription.vue';
 export {default as DialogFooter} from './DialogFooter.vue';
 export {default as DialogHeader} from './DialogHeader.vue';
 export {default as DialogTitle} from './DialogTitle.vue';
+export {default as FilterBoolean} from './FilterBoolean.vue';
 export {default as FilterDropdown} from './FilterDropdown.vue';
 export {default as FilterRoot} from './FilterRoot.vue';
 export {default as Input} from './Input.vue';
