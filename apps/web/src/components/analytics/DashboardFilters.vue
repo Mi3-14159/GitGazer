@@ -1,12 +1,13 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
+    import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import Popover from '@/components/ui/Popover.vue';
-    import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
     import Switch from '@/components/ui/Switch.vue';
+    import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
     import {useMetrics} from '@/composables/useMetric';
     import type {GroupByOption} from '@common/types';
-    import {ChevronDown, GitBranch, Layers, SlidersHorizontal, Tag, User} from 'lucide-vue-next';
-    import {computed, onMounted, ref} from 'vue';
+    import {ChevronDown, GitBranch, GitFork, Layers, SlidersHorizontal, Tag, User} from 'lucide-vue-next';
+    import {computed, onMounted, provide, ref} from 'vue';
 
     const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
     const selectedTopics = defineModel<string[]>('topics', {default: () => []});
@@ -26,10 +27,7 @@
     const {fetchRepositories, fetchTopics} = useMetrics();
 
     const repositories = ref<{id: number; name: string}[]>([]);
-    const reposOpen = ref(false);
-
     const availableTopics = ref<string[]>([]);
-    const topicsOpen = ref(false);
 
     onMounted(async () => {
         try {
@@ -42,40 +40,17 @@
     });
 
     const repoOptions = computed(() => repositories.value.map((r) => ({value: String(r.id), label: r.name})));
-
-    const selectedRepoStrings = computed(() => selectedRepositoryIds.value.map(String));
-
-    function toggleRepo(idStr: string) {
-        const id = Number(idStr);
-        const current = [...selectedRepositoryIds.value];
-        const idx = current.indexOf(id);
-        if (idx >= 0) current.splice(idx, 1);
-        else current.push(id);
-        selectedRepositoryIds.value = current;
-    }
-
     const topicOptions = computed(() => availableTopics.value.map((t) => ({value: t, label: t})));
 
-    const repoButtonLabel = computed(() => {
-        if (!selectedRepositoryIds.value.length) return 'Repositories';
-        const names = selectedRepositoryIds.value.map((id) => repositories.value.find((r) => r.id === id)?.name).filter(Boolean);
-        if (names.length <= 2) return names.join(', ');
-        return `${names.length} repos`;
+    // Writable computed ref that bridges v-model number[] ↔ FilterDropdown string[]
+    const repoStringsRef = computed({
+        get: () => selectedRepositoryIds.value.map(String),
+        set: (v: string[]) => {
+            selectedRepositoryIds.value = v.map(Number);
+        },
     });
 
-    const topicButtonLabel = computed(() => {
-        if (!selectedTopics.value.length) return 'Topics';
-        if (selectedTopics.value.length <= 2) return selectedTopics.value.join(', ');
-        return `${selectedTopics.value.length} topics`;
-    });
-
-    function toggleTopic(topic: string) {
-        const current = [...selectedTopics.value];
-        const idx = current.indexOf(topic);
-        if (idx >= 0) current.splice(idx, 1);
-        else current.push(topic);
-        selectedTopics.value = current;
-    }
+    provide(FILTER_INJECTION_KEY, {repositoryIds: repoStringsRef, topics: selectedTopics});
 
     const filtersOpen = ref(false);
 
@@ -120,59 +95,26 @@
             class="flex-wrap items-center gap-x-3 gap-y-2 mt-2 sm:mt-0"
         >
             <!-- Repositories -->
-            <Popover
-                :open="reposOpen"
-                align="start"
-                content-class="w-64"
-                @update:open="reposOpen = $event"
-            >
-                <template #trigger>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        class="gap-1.5"
-                        :class="{'border-primary': selectedRepositoryIds.length > 0}"
-                    >
-                        {{ repoButtonLabel }}
-                    </Button>
-                </template>
-                <SearchableCheckboxList
-                    :options="repoOptions"
-                    :selected="selectedRepoStrings"
-                    placeholder="Search repositories..."
-                    empty-message="No repositories found"
-                    @toggle="toggleRepo"
-                    @clear="selectedRepositoryIds = []"
-                />
-            </Popover>
+            <FilterDropdown
+                filter-key="repositoryIds"
+                :options="repoOptions"
+                :icon="GitFork"
+                multiple
+                placeholder="Repositories"
+                search-placeholder="Search repositories..."
+                label="Repositories"
+            />
 
             <!-- Topics -->
-            <Popover
-                :open="topicsOpen"
-                align="start"
-                content-class="w-64"
-                @update:open="topicsOpen = $event"
-            >
-                <template #trigger>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        class="gap-1.5"
-                        :class="{'border-primary': selectedTopics.length > 0}"
-                    >
-                        <Tag class="h-3.5 w-3.5" />
-                        {{ topicButtonLabel }}
-                    </Button>
-                </template>
-                <SearchableCheckboxList
-                    :options="topicOptions"
-                    :selected="selectedTopics"
-                    placeholder="Search topics..."
-                    empty-message="No topics found"
-                    @toggle="toggleTopic"
-                    @clear="selectedTopics = []"
-                />
-            </Popover>
+            <FilterDropdown
+                filter-key="topics"
+                :options="topicOptions"
+                :icon="Tag"
+                multiple
+                placeholder="Topics"
+                search-placeholder="Search topics..."
+                label="Topics"
+            />
 
             <!-- Group By -->
             <div class="flex items-center gap-1.5">

@@ -73,7 +73,7 @@
     const hasSelection = computed(() => !!multiRef && multiRef.value.length > 0);
 
     const baseClasses =
-        'flex h-9 w-full rounded-lg border border-border bg-input-background pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer';
+        'flex h-9 rounded-lg border border-border bg-input-background pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer';
 </script>
 
 <template>
@@ -90,7 +90,7 @@
         <select
             :value="singleRef"
             :aria-label="label ?? filterKey"
-            :class="[baseClasses, icon ? 'pl-9' : 'pl-3', widthClass]"
+            :class="[baseClasses, 'w-full', icon ? 'pl-9' : 'pl-3', widthClass]"
             @change="onChange"
         >
             <option
