@@ -17,19 +17,20 @@
 
     const filters = inject(FILTER_INJECTION_KEY);
     if (!filters) {
-        throw new Error('FilterDropdown must be used inside a <FilterRoot> component');
+        throw new Error('FilterDropdown requires a parent that provides FILTER_INJECTION_KEY (e.g. <FilterRoot> or a manual provide)');
     }
 
     // Dropdown <select> values are always strings — this component is designed for
     // string-based filters (enumFilter, stringFilter). For other types, use a
     // custom filter component.
-    const filterRef = filters[props.filterKey] as Ref<string> | undefined;
-    if (!filterRef) {
+    const maybeRef = filters[props.filterKey] as Ref<string> | undefined;
+    if (!maybeRef) {
         throw new Error(`FilterDropdown: filter key "${props.filterKey}" not found in parent FilterRoot schema`);
     }
+    const filterRef: Ref<string> = maybeRef;
 
     function onChange(event: Event) {
-        filterRef!.value = (event.target as HTMLSelectElement).value;
+        filterRef.value = (event.target as HTMLSelectElement).value;
     }
 </script>
 
