@@ -1,7 +1,5 @@
 <script setup lang="ts">
-    import Button from '@/components/ui/Button.vue';
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
-    import Popover from '@/components/ui/Popover.vue';
     import Switch from '@/components/ui/Switch.vue';
     import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
     import {useMetrics} from '@/composables/useMetric';
@@ -21,8 +19,12 @@
         {label: 'Group by Topic', value: 'topic'},
     ];
 
-    const groupByLabel = computed(() => groupByOptions.find((o) => o.value === groupBy.value)?.label ?? 'No grouping');
-    const groupByOpen = ref(false);
+    const groupByRef = computed({
+        get: () => groupBy.value as string,
+        set: (v: string) => {
+            groupBy.value = v as GroupByOption;
+        },
+    });
 
     const {fetchRepositories, fetchTopics} = useMetrics();
 
@@ -50,7 +52,7 @@
         },
     });
 
-    provide(FILTER_INJECTION_KEY, {repositoryIds: repoStringsRef, topics: selectedTopics});
+    provide(FILTER_INJECTION_KEY, {repositoryIds: repoStringsRef, topics: selectedTopics, groupBy: groupByRef});
 
     const filtersOpen = ref(false);
 
@@ -117,41 +119,12 @@
             />
 
             <!-- Group By -->
-            <div class="flex items-center gap-1.5">
-                <Layers class="h-3.5 w-3.5 text-muted-foreground" />
-                <Popover
-                    :open="groupByOpen"
-                    align="start"
-                    content-class="w-48"
-                    @update:open="groupByOpen = $event"
-                >
-                    <template #trigger>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="gap-1.5"
-                            :class="{'border-primary': groupBy !== 'none'}"
-                        >
-                            {{ groupByLabel }}
-                        </Button>
-                    </template>
-                    <div class="space-y-0.5">
-                        <button
-                            v-for="option in groupByOptions"
-                            :key="option.value"
-                            type="button"
-                            class="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
-                            :class="{'bg-muted font-medium': groupBy === option.value}"
-                            @click="
-                                groupBy = option.value;
-                                groupByOpen = false;
-                            "
-                        >
-                            {{ option.label }}
-                        </button>
-                    </div>
-                </Popover>
-            </div>
+            <FilterDropdown
+                filter-key="groupBy"
+                :options="groupByOptions"
+                :icon="Layers"
+                label="Group By"
+            />
 
             <div class="hidden sm:block h-5 w-px bg-border" />
 
