@@ -9,15 +9,21 @@
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useEventLog} from '@/composables/useEventLog';
-    import {useEventLogFilters} from '@/composables/useEventLogFilters';
-    import type {EventLogCategory, EventLogEntryRow, EventLogStats, EventLogType} from '@common/types';
+    import {enumFilter, stringFilter, useUrlFilters} from '@/composables/useUrlFilters';
+    import type {EventLogCategory, EventLogEntryRow, EventLogReadFilter, EventLogStats, EventLogType} from '@common/types';
+    import {EVENT_LOG_CATEGORIES, EVENT_LOG_READ_VALUES, EVENT_LOG_TYPES} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
 
     const PAGE_SIZE = 50;
 
     const {getEventLogEntries, getEventLogStats, toggleRead, markAllRead, isLoading} = useEventLog();
-    const {type, read, category, search} = useEventLogFilters();
+    const {type, read, category, search} = useUrlFilters({
+        type: enumFilter<EventLogType | 'all'>('type', ['all', ...EVENT_LOG_TYPES], 'all'),
+        read: enumFilter<EventLogReadFilter>('read', EVENT_LOG_READ_VALUES, 'unread'),
+        category: enumFilter<EventLogCategory | 'all'>('category', ['all', ...EVENT_LOG_CATEGORIES], 'all'),
+        search: stringFilter('search'),
+    });
 
     const entries = ref<EventLogEntryRow[]>([]);
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});

@@ -103,6 +103,9 @@ export type EventLogType = (typeof EVENT_LOG_TYPES)[number];
 export const EVENT_LOG_CATEGORIES = ['notification', 'integration'] as const;
 export type EventLogCategory = (typeof EVENT_LOG_CATEGORIES)[number];
 
+export const EVENT_LOG_READ_VALUES = ['all', 'unread', 'read'] as const;
+export type EventLogReadFilter = (typeof EVENT_LOG_READ_VALUES)[number];
+
 export type EventLogEntryMetadata = {
     repository?: string;
     branch?: string;
