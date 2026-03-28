@@ -8,7 +8,7 @@
     import Button from '@/components/ui/Button.vue';
     import {booleanFilter, dateRangeFilter, enumFilter, numberArrayFilter, stringArrayFilter, useUrlFilters} from '@/composables/useUrlFilters';
     import {type Dashboard, defaultDashboards} from '@/types/analytics';
-    import type {Granularity, GroupByOption, MetricsFilter} from '@common/types';
+    import {GRANULARITY_VALUES, GROUP_BY_OPTIONS, type Granularity, type GroupByOption, type MetricsFilter} from '@common/types';
     import {ArrowLeft} from 'lucide-vue-next';
     import {computed, ref, watch} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
@@ -18,12 +18,12 @@
 
     const {dateRange, granularity, repositoryIds, topics, defaultBranchOnly, usersOnly, groupBy} = useUrlFilters({
         dateRange: dateRangeFilter(),
-        granularity: enumFilter<Granularity>('granularity', ['hour', 'day', 'week', 'month'], 'day'),
+        granularity: enumFilter<Granularity>('granularity', GRANULARITY_VALUES, 'day'),
         repositoryIds: numberArrayFilter('repos'),
         topics: stringArrayFilter('topics'),
         defaultBranchOnly: booleanFilter('defaultBranch', true),
         usersOnly: booleanFilter('usersOnly', true),
-        groupBy: enumFilter<GroupByOption>('groupBy', ['none', 'repository', 'topic'], 'repository'),
+        groupBy: enumFilter<GroupByOption>('groupBy', GROUP_BY_OPTIONS, 'repository'),
     });
 
     const metricsFilter = computed<MetricsFilter>(() => {

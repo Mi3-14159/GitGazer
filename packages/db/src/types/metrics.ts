@@ -1,6 +1,8 @@
-export type Granularity = 'hour' | 'day' | 'week' | 'month';
+export const GRANULARITY_VALUES = ['hour', 'day', 'week', 'month'] as const;
+export type Granularity = (typeof GRANULARITY_VALUES)[number];
 
-export type GroupByOption = 'none' | 'repository' | 'topic';
+export const GROUP_BY_OPTIONS = ['none', 'repository', 'topic'] as const;
+export type GroupByOption = (typeof GROUP_BY_OPTIONS)[number];
 
 export type MetricsFilter = {
     repositoryId?: number;
