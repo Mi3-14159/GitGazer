@@ -25,7 +25,10 @@
 
 <template>
     <div class="container mx-auto px-4 pt-2 pb-1">
-        <nav class="grid w-full grid-cols-6 rounded-lg bg-muted p-1">
+        <nav
+            data-tour="nav-bar"
+            class="grid w-full grid-cols-6 rounded-lg bg-muted p-1"
+        >
             <button
                 v-for="tab in tabs"
                 :key="tab.value"

@@ -2,6 +2,7 @@
     import AppFooter from '@/components/layout/AppFooter.vue';
     import AppHeader from '@/components/layout/AppHeader.vue';
     import AppNav from '@/components/layout/AppNav.vue';
+    import GuidedTour from '@/components/tour/GuidedTour.vue';
 </script>
 
 <template>
@@ -25,6 +26,8 @@
         </main>
 
         <AppFooter />
+
+        <GuidedTour />
     </div>
 </template>
 

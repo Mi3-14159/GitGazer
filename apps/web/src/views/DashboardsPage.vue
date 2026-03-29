@@ -42,7 +42,10 @@
 </script>
 
 <template>
-    <div class="space-y-4 p-4">
+    <div
+        data-tour="dashboards-content"
+        class="space-y-4 p-4"
+    >
         <!-- Dashboard Detail View -->
         <template v-if="currentDashboard">
             <PageHeader>

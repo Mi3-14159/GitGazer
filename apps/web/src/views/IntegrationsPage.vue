@@ -62,7 +62,10 @@
 </script>
 
 <template>
-    <div class="space-y-4 p-4">
+    <div
+        data-tour="integrations-content"
+        class="space-y-4 p-4"
+    >
         <!-- Header -->
         <PageHeader description="Manage webhook endpoints, secrets, and GitHub App installations">
             <a

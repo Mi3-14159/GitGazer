@@ -110,7 +110,10 @@
 </script>
 
 <template>
-    <div class="space-y-4 p-4">
+    <div
+        data-tour="workflows-content"
+        class="space-y-4 p-4"
+    >
         <!-- Description + Date Range -->
         <PageHeader
             description="Complete workflow history with infinite scrolling"

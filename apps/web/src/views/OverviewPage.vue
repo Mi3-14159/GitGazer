@@ -61,10 +61,12 @@
             <DateTimeRangePicker v-model:date-range="dateRange" />
         </PageHeader>
 
-        <StatCards
-            :stats="stats"
-            :success-rate="successRate"
-        />
+        <div data-tour="stat-cards">
+            <StatCards
+                :stats="stats"
+                :success-rate="successRate"
+            />
+        </div>
 
         <StatusDistributionChart :stats="stats" />
 

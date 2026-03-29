@@ -88,7 +88,10 @@
 </script>
 
 <template>
-    <div class="space-y-4 p-4">
+    <div
+        data-tour="notifications-content"
+        class="space-y-4 p-4"
+    >
         <!-- Header -->
         <PageHeader description="Configure Slack webhooks to receive alerts about workflow status changes">
             <Button
