@@ -8,18 +8,18 @@
     import {ChevronDown, SlidersHorizontal} from 'lucide-vue-next';
     import {computed, ref} from 'vue';
 
-    const selectedRepositoryIds = defineModel<number[]>('repositoryIds', {default: () => []});
-    const selectedTopics = defineModel<string[]>('topics', {default: () => []});
-    const defaultBranchOnly = defineModel<boolean>('defaultBranchOnly', {default: false});
-    const usersOnly = defineModel<boolean>('usersOnly', {default: false});
-    const groupBy = defineModel<GroupByOption>('groupBy', {default: 'none'});
+    const repositoryIds = defineModel<number[]>('repositoryIds', {required: true});
+    const topics = defineModel<string[]>('topics', {required: true});
+    const defaultBranchOnly = defineModel<boolean>('defaultBranchOnly', {required: true});
+    const usersOnly = defineModel<boolean>('usersOnly', {required: true});
+    const groupBy = defineModel<GroupByOption>('groupBy', {required: true});
 
     const filtersOpen = ref(false);
 
     const activeFilterCount = computed(() => {
         let count = 0;
-        if (selectedRepositoryIds.value.length) count++;
-        if (selectedTopics.value.length) count++;
+        if (repositoryIds.value.length) count++;
+        if (topics.value.length) count++;
         if (groupBy.value !== 'none') count++;
         if (defaultBranchOnly.value) count++;
         if (usersOnly.value) count++;
@@ -56,8 +56,8 @@
             :class="[filtersOpen ? 'flex' : 'hidden', 'sm:flex']"
             class="flex-wrap items-center gap-x-3 gap-y-2 mt-2 sm:mt-0"
         >
-            <RepositoryFilter v-model="selectedRepositoryIds" />
-            <TopicFilter v-model="selectedTopics" />
+            <RepositoryFilter v-model="repositoryIds" />
+            <TopicFilter v-model="topics" />
             <GroupByFilter v-model="groupBy" />
 
             <div class="hidden sm:block h-5 w-px bg-border" />

@@ -9,10 +9,10 @@
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {enumFilter, stringFilter, useUrlFilters} from '@/composables/useUrlFilters';
+    import {useEventLogFilters} from '@/composables/useEventLogFilters';
     import {isArrayOf, parseApiResponse} from '@/utils/apiResponse';
-    import type {EventLogCategory, EventLogEntryRow, EventLogReadFilter, EventLogStats, EventLogType} from '@common/types';
-    import {EVENT_LOG_CATEGORIES, EVENT_LOG_READ_VALUES, EVENT_LOG_TYPES, isEventLogEntry, isEventLogStats} from '@common/types';
+    import type {EventLogFilters as EventLogApiFilters, EventLogEntryRow, EventLogStats} from '@common/types';
+    import {isEventLogEntry, isEventLogStats} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
 
@@ -23,21 +23,14 @@
     const loadingCount = ref(0);
     const isLoading = computed(() => loadingCount.value > 0);
 
-    async function getEventLogEntries(filters?: {
-        type?: EventLogType;
-        category?: EventLogCategory;
-        read?: boolean;
-        search?: string;
-        limit?: number;
-        offset?: number;
-    }) {
+    async function getEventLogEntries(filters?: EventLogApiFilters) {
         loadingCount.value++;
         try {
             const params = new URLSearchParams();
             // loop over the params
             Object.entries(filters ?? {}).forEach(([key, value]) => {
                 if (value !== undefined) {
-                    params.set(key, String(value));
+                    params.set(key, Array.isArray(value) ? value.join(',') : String(value));
                 }
             });
 
@@ -89,12 +82,7 @@
         }
         return parseApiResponse<{updated: number}>(response);
     }
-    const {type, read, category, search} = useUrlFilters({
-        type: enumFilter<EventLogType | 'all'>('type', ['all', ...EVENT_LOG_TYPES], 'all'),
-        read: enumFilter<EventLogReadFilter>('read', EVENT_LOG_READ_VALUES, 'unread'),
-        category: enumFilter<EventLogCategory | 'all'>('category', ['all', ...EVENT_LOG_CATEGORIES], 'all'),
-        search: stringFilter('search'),
-    });
+    const {type, read, category, search, repositoryIds, topics} = useEventLogFilters();
 
     const entries = ref<EventLogEntryRow[]>([]);
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});
@@ -102,16 +90,26 @@
     const isLoadingMore = ref(false);
 
     const apiFilters = computed(() => {
-        const filters: {type?: EventLogType; category?: EventLogCategory; read?: boolean; search?: string} = {};
+        const filters: EventLogApiFilters = {};
         if (type.value !== 'all') filters.type = type.value;
         if (read.value === 'unread') filters.read = false;
         else if (read.value === 'read') filters.read = true;
         if (category.value !== 'all') filters.category = category.value;
         if (search.value.trim()) filters.search = search.value.trim();
+        if (repositoryIds.value.length) filters.repositoryIds = repositoryIds.value;
+        if (topics.value.length) filters.topics = topics.value;
         return filters;
     });
 
-    const hasActiveFilters = computed(() => type.value !== 'all' || read.value !== 'all' || category.value !== 'all' || search.value.trim() !== '');
+    const hasActiveFilters = computed(
+        () =>
+            type.value !== 'all' ||
+            read.value !== 'unread' ||
+            category.value !== 'all' ||
+            search.value.trim() !== '' ||
+            repositoryIds.value.length > 0 ||
+            topics.value.length > 0,
+    );
 
     async function loadEntries() {
         const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE});
@@ -132,7 +130,7 @@
         clearTimeout(searchDebounce);
         searchDebounce = globalThis.setTimeout(loadEntries, 300);
     });
-    watch([type, read, category], loadEntries);
+    watch([type, read, category, repositoryIds, topics], loadEntries);
 
     async function handleLoadMore() {
         if (isLoadingMore.value || !hasMore.value) return;
@@ -227,6 +225,8 @@
                         v-model:read="read"
                         v-model:category="category"
                         v-model:search="search"
+                        v-model:repositoryIds="repositoryIds"
+                        v-model:topics="topics"
                     >
                         <Button
                             variant="outline"

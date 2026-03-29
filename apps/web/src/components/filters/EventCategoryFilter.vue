@@ -1,12 +1,11 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
-    import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
     import type {EventLogCategory} from '@common/types';
     import {EVENT_LOG_CATEGORIES} from '@common/types';
     import {Layers} from 'lucide-vue-next';
-    import {computed, inject, provide} from 'vue';
+    import {computed} from 'vue';
 
-    const category = defineModel<EventLogCategory | 'all'>({default: 'all'});
+    const category = defineModel<EventLogCategory | 'all'>({required: true});
 
     const categoryOptions = [
         {value: 'all', label: 'All Categories'},
@@ -19,14 +18,11 @@
             category.value = v as EventLogCategory | 'all';
         },
     });
-
-    const parentFilters = inject(FILTER_INJECTION_KEY, undefined);
-    provide(FILTER_INJECTION_KEY, {...parentFilters, category: categoryRef});
 </script>
 
 <template>
     <FilterDropdown
-        filter-key="category"
+        v-model="categoryRef"
         :options="categoryOptions"
         :icon="Layers"
         width-class="sm:w-[170px]"

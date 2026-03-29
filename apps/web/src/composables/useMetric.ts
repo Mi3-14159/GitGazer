@@ -6,6 +6,13 @@ import {isDoraMetricsResponse, isSpaceMetricsResponse} from '@common/types';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
+// Module-level cache for repositories and topics to avoid duplicate fetches
+// when multiple filter components mount on the same page.
+let repositoriesCache: {id: number; name: string}[] | null = null;
+let repositoriesInflight: Promise<{id: number; name: string}[]> | null = null;
+let topicsCache: string[] | null = null;
+let topicsInflight: Promise<string[]> | null = null;
+
 /** Maps each widget type to a field in a DoraMetricsResponse or SpaceMetricsResponse. */
 export const metricFieldMap: Record<WidgetType, {endpoint: 'dora' | 'space'; field: string}> = {
     deployment_frequency: {endpoint: 'dora', field: 'deploymentFrequency'},
@@ -54,15 +61,35 @@ export function useMetrics() {
     }
 
     async function fetchRepositories(): Promise<{id: number; name: string}[]> {
-        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/repositories`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return parseApiResponse(res);
+        if (repositoriesCache) return repositoriesCache;
+        if (repositoriesInflight) return repositoriesInflight;
+        repositoriesInflight = fetchWithAuth(`${API_ENDPOINT}/metrics/repositories`)
+            .then(async (res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await parseApiResponse<{id: number; name: string}[]>(res);
+                repositoriesCache = data;
+                return data;
+            })
+            .finally(() => {
+                repositoriesInflight = null;
+            });
+        return repositoriesInflight;
     }
 
     async function fetchTopics(): Promise<string[]> {
-        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/topics`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return parseApiResponse(res);
+        if (topicsCache) return topicsCache;
+        if (topicsInflight) return topicsInflight;
+        topicsInflight = fetchWithAuth(`${API_ENDPOINT}/metrics/topics`)
+            .then(async (res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await parseApiResponse<string[]>(res);
+                topicsCache = data;
+                return data;
+            })
+            .finally(() => {
+                topicsInflight = null;
+            });
+        return topicsInflight;
     }
 
     return {fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories, fetchTopics};

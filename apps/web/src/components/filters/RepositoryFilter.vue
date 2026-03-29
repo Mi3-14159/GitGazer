@@ -1,11 +1,10 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
-    import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
     import {useMetrics} from '@/composables/useMetric';
     import {GitFork} from 'lucide-vue-next';
-    import {computed, inject, onMounted, provide, ref} from 'vue';
+    import {computed, onMounted, ref} from 'vue';
 
-    const selectedIds = defineModel<number[]>({default: () => []});
+    const selectedIds = defineModel<number[]>({required: true});
 
     const {fetchRepositories} = useMetrics();
     const repositories = ref<{id: number; name: string}[]>([]);
@@ -13,8 +12,8 @@
     onMounted(async () => {
         try {
             repositories.value = await fetchRepositories();
-        } catch {
-            // silently fail — list stays empty
+        } catch (err) {
+            console.warn('Failed to load repositories for filter', err);
         }
     });
 
@@ -26,15 +25,11 @@
             selectedIds.value = v.map(Number);
         },
     });
-
-    // Merge into existing injection or create a new one
-    const parentFilters = inject(FILTER_INJECTION_KEY, undefined);
-    provide(FILTER_INJECTION_KEY, {...parentFilters, repositoryIds: stringsRef});
 </script>
 
 <template>
     <FilterDropdown
-        filter-key="repositoryIds"
+        v-model="stringsRef"
         :options="options"
         :icon="GitFork"
         multiple

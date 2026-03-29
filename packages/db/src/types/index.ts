@@ -156,6 +156,8 @@ export type EventLogFilters = {
     category?: EventLogCategory;
     read?: boolean;
     search?: string;
+    repositoryIds?: number[];
+    topics?: string[];
     limit?: number;
     offset?: number;
 };

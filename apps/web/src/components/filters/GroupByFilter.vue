@@ -1,11 +1,10 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
-    import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
     import type {GroupByOption} from '@common/types';
     import {Layers} from 'lucide-vue-next';
-    import {computed, inject, provide} from 'vue';
+    import {computed} from 'vue';
 
-    const groupBy = defineModel<GroupByOption>({default: 'none'});
+    const groupBy = defineModel<GroupByOption>({required: true});
 
     const groupByOptions: {label: string; value: GroupByOption}[] = [
         {label: 'No grouping', value: 'none'},
@@ -19,15 +18,11 @@
             groupBy.value = v as GroupByOption;
         },
     });
-
-    // Merge into existing injection or create a new one
-    const parentFilters = inject(FILTER_INJECTION_KEY, undefined);
-    provide(FILTER_INJECTION_KEY, {...parentFilters, groupBy: groupByRef});
 </script>
 
 <template>
     <FilterDropdown
-        filter-key="groupBy"
+        v-model="groupByRef"
         :options="groupByOptions"
         :icon="Layers"
         label="Group By"

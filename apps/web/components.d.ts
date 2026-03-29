@@ -49,7 +49,6 @@ declare module 'vue' {
     FilterCheckboxPopover: typeof import('./src/components/ui/FilterCheckboxPopover.vue')['default']
     FilterDropdown: typeof import('./src/components/ui/FilterDropdown.vue')['default']
     FilterMultiSelect: typeof import('./src/components/ui/FilterMultiSelect.vue')['default']
-    FilterRoot: typeof import('./src/components/ui/FilterRoot.vue')['default']
     GitHubAppLinkDialog: typeof import('./src/components/integrations/GitHubAppLinkDialog.vue')['default']
     GitHubInstallation: typeof import('./src/components/integrations/GitHubInstallation.vue')['default']
     GranularitySelector: typeof import('./src/components/GranularitySelector.vue')['default']

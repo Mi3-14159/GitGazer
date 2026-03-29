@@ -1,12 +1,9 @@
 <script setup lang="ts">
     import Checkbox from '@/components/ui/Checkbox.vue';
     import Switch from '@/components/ui/Switch.vue';
-    import {FILTER_INJECTION_KEY} from '@/composables/useFilterRoot';
-    import {inject, type Component, type Ref} from 'vue';
+    import type {Component} from 'vue';
 
-    const props = defineProps<{
-        /** Key matching a boolean filter name in the parent `<FilterRoot>` schema. */
-        filterKey: string;
+    defineProps<{
         /** Human-readable label displayed next to the toggle. */
         label: string;
         /** Optional leading icon component (e.g. from lucide-vue-next). */
@@ -15,15 +12,7 @@
         variant?: 'switch' | 'checkbox';
     }>();
 
-    const filters = inject(FILTER_INJECTION_KEY);
-    if (!filters) {
-        throw new Error('FilterBoolean requires a parent that provides FILTER_INJECTION_KEY (e.g. <FilterRoot> or a manual provide)');
-    }
-
-    const checked = filters[props.filterKey] as Ref<boolean> | undefined;
-    if (!checked) {
-        throw new Error(`FilterBoolean: filter key "${props.filterKey}" not found in parent FilterRoot schema`);
-    }
+    const checked = defineModel<boolean>({required: true});
 </script>
 
 <template>

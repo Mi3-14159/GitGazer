@@ -27,6 +27,19 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
 
     if (params.search) filters.search = params.search.slice(0, 500);
 
+    if (params.repositoryIds) {
+        const ids = params.repositoryIds
+            .split(',')
+            .map(Number)
+            .filter((n) => !isNaN(n));
+        if (ids.length > 0) filters.repositoryIds = ids;
+    }
+
+    if (params.topics) {
+        const parsed = params.topics.split(',').filter(Boolean);
+        if (parsed.length > 0) filters.topics = parsed;
+    }
+
     if (params.limit) {
         const parsed = parseInt(params.limit, 10);
         if (!isNaN(parsed) && parsed > 0) filters.limit = parsed;
