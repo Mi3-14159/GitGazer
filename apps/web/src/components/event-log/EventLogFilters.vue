@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import EventCategoryFilter from '@/components/filters/EventCategoryFilter.vue';
     import EventTypeFilter from '@/components/filters/EventTypeFilter.vue';
+    import IntegrationFilter from '@/components/filters/IntegrationFilter.vue';
     import ReadStatusFilter from '@/components/filters/ReadStatusFilter.vue';
     import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
     import TopicFilter from '@/components/filters/TopicFilter.vue';
@@ -14,6 +15,7 @@
     const search = defineModel<string>('search', {required: true});
     const repositoryIds = defineModel<number[]>('repositoryIds', {required: true});
     const topics = defineModel<string[]>('topics', {required: true});
+    const integrationIds = defineModel<string[]>('integrationIds', {required: true});
 </script>
 
 <template>
@@ -34,6 +36,7 @@
                 <EventCategoryFilter v-model="category" />
                 <RepositoryFilter v-model="repositoryIds" />
                 <TopicFilter v-model="topics" />
+                <IntegrationFilter v-model="integrationIds" />
             </div>
             <div class="sm:ml-auto">
                 <slot />

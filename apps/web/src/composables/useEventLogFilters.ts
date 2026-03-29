@@ -14,6 +14,7 @@ export interface EventLogFilters {
     search: Ref<string>;
     repositoryIds: Ref<number[]>;
     topics: Ref<string[]>;
+    integrationIds: Ref<string[]>;
 }
 
 /**
@@ -29,5 +30,6 @@ export function useEventLogFilters(): EventLogFilters {
         search: stringFilter('search'),
         repositoryIds: numberArrayFilter('repos'),
         topics: stringArrayFilter('topics'),
+        integrationIds: stringArrayFilter('integrations'),
     });
 }

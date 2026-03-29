@@ -40,6 +40,12 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         if (parsed.length > 0) filters.topics = parsed;
     }
 
+    if (params.integrationIds) {
+        const authorized = new Set(integrationIds);
+        const parsed = params.integrationIds.split(',').filter((id) => UUID_RE.test(id) && authorized.has(id));
+        if (parsed.length > 0) filters.integrationIds = parsed;
+    }
+
     if (params.limit) {
         const parsed = parseInt(params.limit, 10);
         if (!isNaN(parsed) && parsed > 0) filters.limit = parsed;

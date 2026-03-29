@@ -9,7 +9,7 @@ import type {
     EventLogStats,
     EventLogType,
 } from '@gitgazer/db/types';
-import {and, count, eq, ilike, or, sql} from 'drizzle-orm';
+import {and, count, eq, ilike, inArray, or, sql} from 'drizzle-orm';
 
 export const getEventLogEntries = async (params: {integrationIds: string[]; filters?: EventLogFilters}): Promise<EventLogEntryRow[]> => {
     const {integrationIds, filters} = params;
@@ -38,11 +38,7 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
                 conditions.push(or(ilike(eventLogEntries.title, term), ilike(eventLogEntries.message, term))!);
             }
             if (filters?.repositoryIds?.length) {
-                const repoIdParams = sql.join(
-                    filters.repositoryIds.map((id) => sql`${id}`),
-                    sql`, `,
-                );
-                conditions.push(sql`(${eventLogEntries.metadata}->>'repositoryId')::BIGINT IN (${repoIdParams})`);
+                conditions.push(inArray(sql`(metadata->>'repositoryId')::BIGINT`, filters.repositoryIds));
             }
             if (filters?.topics?.length) {
                 const topicParams = sql.join(
@@ -53,11 +49,15 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
                     .select({id: sql`${repositories.id}`})
                     .from(repositories)
                     .where(sql`${repositories.topics} ?| array[${topicParams}]`);
-                const repoIdParams = sql.join(
-                    repoRows.map((r) => sql`${r.id}`),
-                    sql`, `,
+                conditions.push(
+                    inArray(
+                        sql`(${eventLogEntries.metadata}->>'repositoryId')::BIGINT`,
+                        repoRows.map((r) => r.id),
+                    ),
                 );
-                conditions.push(sql`(${eventLogEntries.metadata}->>'repositoryId')::BIGINT IN (${repoIdParams})`);
+            }
+            if (filters?.integrationIds?.length) {
+                conditions.push(inArray(eventLogEntries.integrationId, filters.integrationIds));
             }
 
             const rows = await tx

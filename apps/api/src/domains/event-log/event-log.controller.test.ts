@@ -196,6 +196,30 @@ describe('event-log controller', () => {
             const whereArg = mockMainWhere.mock.calls[0][0];
             expect(whereArg).not.toBeUndefined();
         });
+
+        it('applies integrationIds filter when provided', async () => {
+            const mockLimit = vi.fn().mockReturnThis();
+            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
+
+            mockLimit.mockReturnValue({offset: mockOffset});
+
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                return params.callback({select: mockSelect});
+            });
+
+            await eventLog.getEventLogEntries({
+                integrationIds: ['int-1', 'int-2'],
+                filters: {integrationIds: ['int-1']},
+            });
+
+            expect(mockWhere).toHaveBeenCalledWith(expect.anything());
+            const whereArg = mockWhere.mock.calls[0][0];
+            expect(whereArg).not.toBeUndefined();
+        });
     });
 
     // ---------------------------------------------------------------

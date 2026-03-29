@@ -56,6 +56,7 @@ declare module 'vue' {
     Input: typeof import('./src/components/ui/Input.vue')['default']
     IntegrationCard: typeof import('./src/components/integrations/IntegrationCard.vue')['default']
     IntegrationDetailsCard: typeof import('./src/components/integrations/IntegrationDetailsCard.vue')['default']
+    IntegrationFilter: typeof import('./src/components/filters/IntegrationFilter.vue')['default']
     IntegrationHeader: typeof import('./src/components/integrations/IntegrationHeader.vue')['default']
     Label: typeof import('./src/components/ui/Label.vue')['default']
     MetricWidget: typeof import('./src/components/analytics/widgets/MetricWidget.vue')['default']

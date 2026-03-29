@@ -159,6 +159,7 @@ export type EventLogFilters = {
     search?: string;
     repositoryIds?: number[];
     topics?: string[];
+    integrationIds?: string[];
     limit?: number;
     offset?: number;
 };

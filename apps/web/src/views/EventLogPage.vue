@@ -82,7 +82,7 @@
         }
         return parseApiResponse<{updated: number}>(response);
     }
-    const {type, read, category, search, repositoryIds, topics} = useEventLogFilters();
+    const {type, read, category, search, repositoryIds, topics, integrationIds} = useEventLogFilters();
 
     const entries = ref<EventLogEntryRow[]>([]);
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});
@@ -98,6 +98,7 @@
         if (search.value.trim()) filters.search = search.value.trim();
         if (repositoryIds.value.length) filters.repositoryIds = repositoryIds.value;
         if (topics.value.length) filters.topics = topics.value;
+        if (integrationIds.value.length) filters.integrationIds = integrationIds.value;
         return filters;
     });
 
@@ -108,7 +109,8 @@
             category.value !== 'all' ||
             search.value.trim() !== '' ||
             repositoryIds.value.length > 0 ||
-            topics.value.length > 0,
+            topics.value.length > 0 ||
+            integrationIds.value.length > 0,
     );
 
     async function loadEntries() {
@@ -130,7 +132,7 @@
         clearTimeout(searchDebounce);
         searchDebounce = globalThis.setTimeout(loadEntries, 300);
     });
-    watch([type, read, category, repositoryIds, topics], loadEntries);
+    watch([type, read, category, repositoryIds, topics, integrationIds], loadEntries);
 
     async function handleLoadMore() {
         if (isLoadingMore.value || !hasMore.value) return;
@@ -227,6 +229,7 @@
                         v-model:search="search"
                         v-model:repositoryIds="repositoryIds"
                         v-model:topics="topics"
+                        v-model:integrationIds="integrationIds"
                     >
                         <Button
                             variant="outline"
