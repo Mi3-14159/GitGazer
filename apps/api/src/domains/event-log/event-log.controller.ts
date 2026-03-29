@@ -38,18 +38,26 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
                 conditions.push(or(ilike(eventLogEntries.title, term), ilike(eventLogEntries.message, term))!);
             }
             if (filters?.repositoryIds?.length) {
-                conditions.push(sql`${eventLogEntries.metadata}->>'repositoryId' IN (${filters?.repositoryIds.join(',')})`);
+                const repoIdParams = sql.join(
+                    filters.repositoryIds.map((id) => sql`${id}`),
+                    sql`, `,
+                );
+                conditions.push(sql`(${eventLogEntries.metadata}->>'repositoryId')::BIGINT IN (${repoIdParams})`);
             }
             if (filters?.topics?.length) {
                 const topicParams = sql.join(
                     filters.topics.map((t) => sql`${t}`),
                     sql`, `,
                 );
-                const repoIds = await tx
+                const repoRows = await tx
                     .select({id: sql`${repositories.id}`})
                     .from(repositories)
                     .where(sql`${repositories.topics} ?| array[${topicParams}]`);
-                conditions.push(sql`${eventLogEntries.metadata}->>'repositoryId' IN (${repoIds.map((r) => r.id).join(',')})`);
+                const repoIdParams = sql.join(
+                    repoRows.map((r) => sql`${r.id}`),
+                    sql`, `,
+                );
+                conditions.push(sql`(${eventLogEntries.metadata}->>'repositoryId')::BIGINT IN (${repoIdParams})`);
             }
 
             const rows = await tx
