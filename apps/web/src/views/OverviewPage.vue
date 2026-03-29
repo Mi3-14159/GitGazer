@@ -1,9 +1,9 @@
 <script setup lang="ts">
-    import DateTimeRangePicker from '@/components/DateTimeRangePicker.vue';
-    import PageHeader from '@/components/PageHeader.vue';
     import RecentWorkflowRuns from '@/components/dashboard/RecentWorkflowRuns.vue';
     import StatCards from '@/components/dashboard/StatCards.vue';
     import StatusDistributionChart from '@/components/dashboard/StatusDistributionChart.vue';
+    import DateTimeRangePicker from '@/components/filters/DateTimeRangePicker.vue';
+    import PageHeader from '@/components/PageHeader.vue';
     import {useAuth} from '@/composables/useAuth';
     import {dateRangeFilter, useUrlFilters} from '@/composables/useUrlFilters';
     import type {OverviewResponse} from '@common/types';

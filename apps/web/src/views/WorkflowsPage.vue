@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import DateTimeRangePicker from '@/components/DateTimeRangePicker.vue';
+    import DateTimeRangePicker from '@/components/filters/DateTimeRangePicker.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import WorkflowCardDetails from '@/components/workflows/WorkflowCardDetails.vue';
