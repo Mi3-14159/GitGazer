@@ -107,6 +107,7 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
             title: `${workflow_name} / ${job_name} failed`,
             message: `Job "${job_name}" in workflow "${workflow_name}" failed on ${repository_name}/${head_branch}`,
             metadata: {
+                repositoryId: event.repository.id,
                 repository: full_name,
                 branch: head_branch ?? undefined,
                 actor: sender,

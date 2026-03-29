@@ -107,6 +107,7 @@ export const EVENT_LOG_READ_VALUES = ['all', 'unread', 'read'] as const;
 export type EventLogReadFilter = (typeof EVENT_LOG_READ_VALUES)[number];
 
 export type EventLogEntryMetadata = {
+    repositoryId?: number;
     repository?: string;
     branch?: string;
     actor?: string;

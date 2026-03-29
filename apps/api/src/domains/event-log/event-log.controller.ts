@@ -9,7 +9,7 @@ import type {
     EventLogStats,
     EventLogType,
 } from '@gitgazer/db/types';
-import {and, count, eq, ilike, inArray, or, sql} from 'drizzle-orm';
+import {and, count, eq, ilike, or, sql} from 'drizzle-orm';
 
 export const getEventLogEntries = async (params: {integrationIds: string[]; filters?: EventLogFilters}): Promise<EventLogEntryRow[]> => {
     const {integrationIds, filters} = params;
@@ -38,22 +38,18 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
                 conditions.push(or(ilike(eventLogEntries.title, term), ilike(eventLogEntries.message, term))!);
             }
             if (filters?.repositoryIds?.length) {
-                const repoNames = await tx
-                    .select({name: sql`${repositories.name}`})
-                    .from(repositories)
-                    .where(inArray(repositories.id, filters.repositoryIds));
-                conditions.push(sql`${eventLogEntries.metadata}->>'repository' IN (${repoNames})`);
+                conditions.push(sql`${eventLogEntries.metadata}->>'repositoryId' IN (${filters?.repositoryIds.join(',')})`);
             }
             if (filters?.topics?.length) {
                 const topicParams = sql.join(
                     filters.topics.map((t) => sql`${t}`),
                     sql`, `,
                 );
-                const repoNames = tx
-                    .select({name: sql`${repositories.name}`})
+                const repoIds = await tx
+                    .select({id: sql`${repositories.id}`})
                     .from(repositories)
                     .where(sql`${repositories.topics} ?| array[${topicParams}]`);
-                conditions.push(sql`${eventLogEntries.metadata}->>'repository' IN (${repoNames})`);
+                conditions.push(sql`${eventLogEntries.metadata}->>'repositoryId' IN (${repoIds.map((r) => r.id).join(',')})`);
             }
 
             const rows = await tx

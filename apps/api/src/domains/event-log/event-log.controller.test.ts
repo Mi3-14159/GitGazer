@@ -142,43 +142,29 @@ describe('event-log controller', () => {
         });
 
         it('applies repositoryIds filter via subquery', async () => {
-            const mockSubqueryWhere = vi.fn().mockReturnValue('subquery-result');
-            const mockSubqueryFrom = vi.fn().mockReturnValue({where: mockSubqueryWhere});
-
             const mockLimit = vi.fn().mockReturnThis();
             const mockOffset = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
-            const mockMainWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
-            const mockMainFrom = vi.fn().mockReturnValue({where: mockMainWhere});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
 
             mockLimit.mockReturnValue({offset: mockOffset});
 
-            let selectCallCount = 0;
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
-                selectCallCount = 0;
-                return params.callback({
-                    select: () => {
-                        selectCallCount++;
-                        // First select() is the subquery for repository names
-                        if (selectCallCount === 1) {
-                            return {from: mockSubqueryFrom};
-                        }
-                        // Second select() is the main query
-                        return {from: mockMainFrom};
-                    },
-                });
+                return params.callback({select: mockSelect});
             });
 
             await eventLog.getEventLogEntries({integrationIds: ['int-1'], filters: {repositoryIds: [1, 2]}});
 
-            expect(selectCallCount).toBe(2); // subquery + main query
-            expect(mockMainWhere).toHaveBeenCalledWith(expect.anything());
-            const whereArg = mockMainWhere.mock.calls[0][0];
+            expect(mockSelect).toHaveBeenCalledOnce();
+            expect(mockWhere).toHaveBeenCalledWith(expect.anything());
+            const whereArg = mockWhere.mock.calls[0][0];
             expect(whereArg).not.toBeUndefined();
         });
 
         it('applies topics filter via subquery with ?| operator', async () => {
-            const mockSubqueryWhere = vi.fn().mockReturnValue('subquery-result');
+            const mockSubqueryWhere = vi.fn().mockReturnValue([{id: 'repo-1'}, {id: 'repo-2'}]);
             const mockSubqueryFrom = vi.fn().mockReturnValue({where: mockSubqueryWhere});
 
             const mockLimit = vi.fn().mockReturnThis();
