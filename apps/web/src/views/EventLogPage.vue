@@ -11,7 +11,7 @@
     import {useAuth} from '@/composables/useAuth';
     import {useEventLogFilters} from '@/composables/useEventLogFilters';
     import {isArrayOf, parseApiResponse} from '@/utils/apiResponse';
-    import type {EventLogFilters as EventLogApiFilters, EventLogEntryRow, EventLogStats} from '@common/types';
+    import type {EventLogFilters as EventLogApiFilters, EventLogCategory, EventLogEntryRow, EventLogStats, EventLogType} from '@common/types';
     import {isEventLogEntry, isEventLogStats} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onMounted, ref, watch} from 'vue';
@@ -91,10 +91,10 @@
 
     const apiFilters = computed(() => {
         const filters: EventLogApiFilters = {};
-        if (type.value !== 'all') filters.type = type.value;
-        if (read.value === 'unread') filters.read = false;
-        else if (read.value === 'read') filters.read = true;
-        if (category.value !== 'all') filters.category = category.value;
+        if (type.value.length) filters.type = type.value as EventLogType[];
+        // read: single selection → boolean; both selected (length 2) or none (length 0) → no filter (show all)
+        if (read.value.length === 1) filters.read = read.value[0] === 'read';
+        if (category.value.length) filters.category = category.value as EventLogCategory[];
         if (search.value.trim()) filters.search = search.value.trim();
         if (repositoryIds.value.length) filters.repositoryIds = repositoryIds.value;
         if (topics.value.length) filters.topics = topics.value;
@@ -104,9 +104,9 @@
 
     const hasActiveFilters = computed(
         () =>
-            type.value !== 'all' ||
-            read.value !== 'unread' ||
-            category.value !== 'all' ||
+            type.value.length > 0 ||
+            read.value.length > 0 ||
+            category.value.length > 0 ||
             search.value.trim() !== '' ||
             repositoryIds.value.length > 0 ||
             topics.value.length > 0 ||
@@ -155,7 +155,9 @@
         const previousEntries = [...entries.value];
         const previousStats = {...stats.value};
 
-        const shouldRemove = (readVal && read.value === 'unread') || (!readVal && read.value === 'read');
+        const onlyUnread = read.value.length === 1 && read.value[0] === 'unread';
+        const onlyRead = read.value.length === 1 && read.value[0] === 'read';
+        const shouldRemove = (readVal && onlyUnread) || (!readVal && onlyRead);
         if (shouldRemove) {
             entries.value = entries.value.filter((e) => e.id !== id);
         } else {
@@ -178,7 +180,7 @@
         // Optimistic update
         const previousEntries = entries.value;
         const previousStats = {...stats.value};
-        if (read.value === 'unread') {
+        if (read.value.length === 1 && read.value[0] === 'unread') {
             entries.value = [];
         } else {
             entries.value = entries.value.map((e) => ({...e, read: true}));

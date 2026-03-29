@@ -1,6 +1,4 @@
-import {enumFilter, numberArrayFilter, stringArrayFilter, stringFilter, useUrlFilters} from '@/composables/useUrlFilters';
-import type {EventLogCategory, EventLogReadFilter, EventLogType} from '@common/types';
-import {EVENT_LOG_CATEGORIES, EVENT_LOG_READ_VALUES, EVENT_LOG_TYPES} from '@common/types';
+import {numberArrayFilter, stringArrayFilter, stringFilter, useUrlFilters} from '@/composables/useUrlFilters';
 import type {Ref} from 'vue';
 
 // ---------------------------------------------------------------------------
@@ -8,9 +6,9 @@ import type {Ref} from 'vue';
 // ---------------------------------------------------------------------------
 
 export interface EventLogFilters {
-    type: Ref<EventLogType | 'all'>;
-    read: Ref<EventLogReadFilter>;
-    category: Ref<EventLogCategory | 'all'>;
+    type: Ref<string[]>;
+    read: Ref<string[]>;
+    category: Ref<string[]>;
     search: Ref<string>;
     repositoryIds: Ref<number[]>;
     topics: Ref<string[]>;
@@ -24,9 +22,9 @@ export interface EventLogFilters {
  */
 export function useEventLogFilters(): EventLogFilters {
     return useUrlFilters({
-        type: enumFilter<EventLogType | 'all'>('type', ['all', ...EVENT_LOG_TYPES], 'all'),
-        read: enumFilter<EventLogReadFilter>('read', EVENT_LOG_READ_VALUES, 'unread'),
-        category: enumFilter<EventLogCategory | 'all'>('category', ['all', ...EVENT_LOG_CATEGORIES], 'all'),
+        type: stringArrayFilter('type'),
+        read: stringArrayFilter('read', ['unread']),
+        category: stringArrayFilter('category'),
         search: stringFilter('search'),
         repositoryIds: numberArrayFilter('repos'),
         topics: stringArrayFilter('topics'),

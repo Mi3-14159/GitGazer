@@ -23,11 +23,11 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
         callback: async (tx: RdsTransaction) => {
             const conditions = [];
 
-            if (filters?.type) {
-                conditions.push(eq(eventLogEntries.type, filters.type));
+            if (filters?.type?.length) {
+                conditions.push(inArray(eventLogEntries.type, filters.type));
             }
-            if (filters?.category) {
-                conditions.push(eq(eventLogEntries.category, filters.category));
+            if (filters?.category?.length) {
+                conditions.push(inArray(eventLogEntries.category, filters.category));
             }
             if (filters?.read !== undefined) {
                 conditions.push(eq(eventLogEntries.read, filters.read));

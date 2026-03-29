@@ -6,12 +6,11 @@
     import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
     import TopicFilter from '@/components/filters/TopicFilter.vue';
     import Input from '@/components/ui/Input.vue';
-    import type {EventLogCategory, EventLogReadFilter, EventLogType} from '@common/types';
     import {Search} from 'lucide-vue-next';
 
-    const type = defineModel<EventLogType | 'all'>('type', {required: true});
-    const read = defineModel<EventLogReadFilter>('read', {required: true});
-    const category = defineModel<EventLogCategory | 'all'>('category', {required: true});
+    const type = defineModel<string[]>('type', {required: true});
+    const read = defineModel<string[]>('read', {required: true});
+    const category = defineModel<string[]>('category', {required: true});
     const search = defineModel<string>('search', {required: true});
     const repositoryIds = defineModel<number[]>('repositoryIds', {required: true});
     const topics = defineModel<string[]>('topics', {required: true});

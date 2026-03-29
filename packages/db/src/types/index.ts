@@ -103,8 +103,7 @@ export type EventLogType = (typeof EVENT_LOG_TYPES)[number];
 export const EVENT_LOG_CATEGORIES = ['notification', 'integration'] as const;
 export type EventLogCategory = (typeof EVENT_LOG_CATEGORIES)[number];
 
-export const EVENT_LOG_READ_VALUES = ['all', 'unread', 'read'] as const;
-export type EventLogReadFilter = (typeof EVENT_LOG_READ_VALUES)[number];
+export const EVENT_LOG_READ_VALUES = ['unread', 'read'] as const;
 
 export type EventLogEntryMetadata = {
     repositoryId?: number;
@@ -153,8 +152,8 @@ export const isEventLogStats = (value: unknown): value is EventLogStats => {
 };
 
 export type EventLogFilters = {
-    type?: EventLogType;
-    category?: EventLogCategory;
+    type?: EventLogType[];
+    category?: EventLogCategory[];
     read?: boolean;
     search?: string;
     repositoryIds?: number[];

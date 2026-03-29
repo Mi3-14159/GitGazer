@@ -14,12 +14,14 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
 
     const filters: EventLogFilters = {};
 
-    if (params.type && EVENT_LOG_TYPES.includes(params.type as EventLogType)) {
-        filters.type = params.type as EventLogType;
+    if (params.type) {
+        const types = params.type.split(',').filter((t): t is EventLogType => EVENT_LOG_TYPES.includes(t as EventLogType));
+        if (types.length > 0) filters.type = types;
     }
 
-    if (params.category && EVENT_LOG_CATEGORIES.includes(params.category as EventLogCategory)) {
-        filters.category = params.category as EventLogCategory;
+    if (params.category) {
+        const categories = params.category.split(',').filter((c): c is EventLogCategory => EVENT_LOG_CATEGORIES.includes(c as EventLogCategory));
+        if (categories.length > 0) filters.category = categories;
     }
 
     if (params.read === 'true') filters.read = true;
