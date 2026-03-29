@@ -28,69 +28,79 @@
         {label: 'Past 30 days', value: '30d', getRange: () => ({from: subDays(new Date(), 30), to: new Date()})},
     ] as const;
 
-    // Derive internal state from the model value
-    const activeShortcut = ref<(typeof shortcuts)[number] | null>(
-        dateRange.value.window ? (shortcuts.find((s) => s.value === dateRange.value.window) ?? null) : null,
-    );
-    const fromDate = ref(dateRange.value.from ? format(dateRange.value.from, 'yyyy-MM-dd') : '');
-    const toDate = ref(dateRange.value.to ? format(dateRange.value.to, 'yyyy-MM-dd') : '');
-    const fromTime = ref(dateRange.value.from ? format(dateRange.value.from, 'HH:mm') : '00:00');
-    const toTime = ref(dateRange.value.to ? format(dateRange.value.to, 'HH:mm') : '23:59');
+    const activeShortcut = ref('');
+    const fromDate = ref('');
+    const toDate = ref('');
+    const fromTime = ref('00:00');
+    const toTime = ref('23:59');
 
-    // Keep internal state in sync when model is updated externally
-    watch(dateRange, (val) => {
-        activeShortcut.value = val.window ? (shortcuts.find((s) => s.value === val.window) ?? null) : null;
+    function syncFromModel() {
+        const val = dateRange.value;
+        activeShortcut.value = val.window ?? '';
         fromDate.value = val.from ? format(val.from, 'yyyy-MM-dd') : '';
         toDate.value = val.to ? format(val.to, 'yyyy-MM-dd') : '';
         fromTime.value = val.from ? format(val.from, 'HH:mm') : '00:00';
         toTime.value = val.to ? format(val.to, 'HH:mm') : '23:59';
-    });
-
-    function emitRange() {
-        activeShortcut.value = null;
-        if (!fromDate.value) {
-            dateRange.value = {};
-            return;
-        }
-
-        const [fH, fM] = fromTime.value.split(':').map(Number);
-        const [tH, tM] = toTime.value.split(':').map(Number);
-
-        const from = new Date(fromDate.value);
-        from.setHours(fH, fM, 0, 0);
-
-        const to = toDate.value ? new Date(toDate.value) : new Date(fromDate.value);
-        to.setHours(tH, tM, 59, 999);
-
-        dateRange.value = {from, to};
     }
 
+    // Initialize from model
+    syncFromModel();
+
+    // Keep internal state in sync when model is updated externally
+    watch(dateRange, syncFromModel);
+
+    // Reset to last committed state when popover closes without saving
+    watch(open, (isOpen) => {
+        if (!isOpen) syncFromModel();
+    });
+
     function applyShortcut(shortcut: (typeof shortcuts)[number]) {
-        activeShortcut.value = shortcut;
+        activeShortcut.value = shortcut.value;
         const range = shortcut.getRange();
         fromDate.value = format(range.from, 'yyyy-MM-dd');
         toDate.value = format(range.to, 'yyyy-MM-dd');
         fromTime.value = format(range.from, 'HH:mm');
         toTime.value = format(range.to, 'HH:mm');
         dateRange.value = {from: range.from, to: range.to, window: shortcut.value};
+        open.value = false;
+    }
+
+    function applyCustomRange() {
+        if (!fromDate.value) {
+            dateRange.value = {};
+        } else {
+            const [fH, fM] = fromTime.value.split(':').map(Number);
+            const [tH, tM] = toTime.value.split(':').map(Number);
+
+            const from = new Date(fromDate.value);
+            from.setHours(fH, fM, 0, 0);
+
+            const to = toDate.value ? new Date(toDate.value) : new Date(fromDate.value);
+            to.setHours(tH, tM, 59, 999);
+
+            dateRange.value = {from, to};
+        }
+        open.value = false;
     }
 
     function clearRange() {
-        activeShortcut.value = null;
+        activeShortcut.value = '';
         fromDate.value = '';
         toDate.value = '';
         fromTime.value = '00:00';
         toTime.value = '23:59';
         dateRange.value = {};
+        open.value = false;
     }
 
     const displayText = computed(() => {
-        if (activeShortcut.value) return activeShortcut.value.label;
-        if (!dateRange.value.from) return 'Pick a date range';
+        const matchedShortcut = shortcuts.find((s) => s.value === dateRange.value.window);
+        if (matchedShortcut) return matchedShortcut.label;
         const f = dateRange.value.from;
+        if (!f) return 'Pick a date range';
         const t = dateRange.value.to;
-        if (!t) return `${format(f, 'MMM dd, yyyy')} at ${fromTime.value}`;
-        return `${format(f, 'MMM dd')} ${fromTime.value} – ${format(t, 'MMM dd, yyyy')} ${toTime.value}`;
+        if (!t) return `${format(f, 'MMM dd, yyyy')} at ${format(f, 'HH:mm')}`;
+        return `${format(f, 'MMM dd')} ${format(f, 'HH:mm')} – ${format(t, 'MMM dd, yyyy')} ${format(t, 'HH:mm')}`;
     });
 </script>
 
@@ -117,7 +127,7 @@
             <div class="space-y-1.5">
                 <Label class="text-xs">Quick Select</Label>
                 <select
-                    :value="activeShortcut?.value ?? ''"
+                    :value="activeShortcut"
                     class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     @change="
                         (e) => {
@@ -155,13 +165,11 @@
                         v-model="fromDate"
                         type="date"
                         class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        @change="emitRange"
                     />
                     <input
                         v-model="fromTime"
                         type="time"
                         class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        @change="emitRange"
                     />
                 </div>
                 <div class="space-y-1.5">
@@ -175,28 +183,36 @@
                         v-model="toDate"
                         type="date"
                         class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        @change="emitRange"
                     />
                     <input
                         v-model="toTime"
                         type="time"
                         class="flex h-7 w-full rounded-md border border-border bg-input-background px-1.5 py-0.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        @change="emitRange"
                     />
                 </div>
             </div>
 
             <div
-                v-if="dateRange.from"
-                class="border-t pt-2"
+                v-if="fromDate || dateRange.from"
+                class="border-t pt-2 flex gap-2"
             >
                 <Button
+                    v-if="dateRange.from"
                     variant="ghost"
                     size="sm"
-                    class="w-full h-7 text-xs"
+                    class="flex-1 h-7 text-xs"
                     @click="clearRange"
                 >
-                    Clear date range
+                    Clear
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="flex-1 h-7 text-xs"
+                    :disabled="!fromDate"
+                    @click="applyCustomRange"
+                >
+                    Apply
                 </Button>
             </div>
         </div>
