@@ -27,6 +27,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let cursor: PaginationCursor | undefined;
     let activeFilters: WorkflowFilters = {};
+    let fetchAbortController: AbortController | null = null;
 
     const fetchWebSocketToken = async (): Promise<string> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/auth/ws-token`);
@@ -176,7 +177,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         }
     };
 
-    const getJobs = async (params?: WorkflowsRequestParameters) => {
+    const getJobs = async (params?: WorkflowsRequestParameters, signal?: AbortSignal) => {
         isLoading.value = true;
         try {
             const queryParams = new URLSearchParams();
@@ -203,7 +204,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
                 queryParams.append('cursor', JSON.stringify(cursor));
             }
 
-            const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?${queryParams.toString()}`);
+            const response = await fetchWithAuth(`${API_ENDPOINT}/workflows?${queryParams.toString()}`, {signal});
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch workflows: ${response.status}`);
@@ -218,14 +219,18 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
             return data.items;
         } finally {
-            isLoading.value = false;
+            if (!signal?.aborted) {
+                isLoading.value = false;
+            }
         }
     };
 
-    const handleListWorkflows = async () => {
+    const handleListWorkflows = async (signal?: AbortSignal) => {
         if (!hasMore.value || isLoading.value) return;
 
-        workflowsArray.value.push(...(await getJobs({limit: 100})));
+        const items = await getJobs({limit: 100}, signal);
+        if (signal?.aborted) return;
+        workflowsArray.value.push(...items);
     };
 
     const handleWorkflow = (eventType: EmitterWebhookEventName, workflow: WorkflowRunWithRelations | WorkflowJob) => {
@@ -271,14 +276,27 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const setFilters = async (filters: WorkflowFilters) => {
+        fetchAbortController?.abort();
+        const controller = new AbortController();
+        fetchAbortController = controller;
+
         activeFilters = filters;
         cursor = undefined;
         hasMore.value = true;
         workflowsArray.value = [];
-        await handleListWorkflows();
+        try {
+            await handleListWorkflows(controller.signal);
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return;
+            throw e;
+        }
     };
 
     const initializeStore = async (initialFilters?: WorkflowFilters) => {
+        fetchAbortController?.abort();
+        const controller = new AbortController();
+        fetchAbortController = controller;
+
         // Reset pagination state
         cursor = undefined;
         hasMore.value = true;
@@ -291,7 +309,12 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             await connectToWebSocket();
         }
 
-        await handleListWorkflows();
+        try {
+            await handleListWorkflows(controller.signal);
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return;
+            throw e;
+        }
     };
 
     return {

@@ -14,7 +14,7 @@
     import type {EventLogFilters as EventLogApiFilters, EventLogCategory, EventLogEntryRow, EventLogStats, EventLogType} from '@common/types';
     import {isEventLogEntry, isEventLogStats} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
-    import {computed, onMounted, ref, watch} from 'vue';
+    import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 
     const PAGE_SIZE = 50;
     const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -22,8 +22,9 @@
     const {fetchWithAuth} = useAuth();
     const loadingCount = ref(0);
     const isLoading = computed(() => loadingCount.value > 0);
+    let entriesAbortController: AbortController | null = null;
 
-    async function getEventLogEntries(filters?: EventLogApiFilters) {
+    async function getEventLogEntries(filters?: EventLogApiFilters, signal?: AbortSignal) {
         loadingCount.value++;
         try {
             const params = new URLSearchParams();
@@ -36,7 +37,7 @@
 
             const qs = params.toString();
             const url = `${API_ENDPOINT}/event-log${qs ? `?${qs}` : ''}`;
-            const response = await fetchWithAuth(url);
+            const response = await fetchWithAuth(url, {signal});
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch event log: ${response.status}`);
@@ -114,9 +115,19 @@
     );
 
     async function loadEntries() {
-        const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE});
-        entries.value = result ?? [];
-        hasMore.value = (result?.length ?? 0) >= PAGE_SIZE;
+        entriesAbortController?.abort();
+        const controller = new AbortController();
+        entriesAbortController = controller;
+
+        try {
+            const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE}, controller.signal);
+            if (controller.signal.aborted) return;
+            entries.value = result ?? [];
+            hasMore.value = (result?.length ?? 0) >= PAGE_SIZE;
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return;
+            throw e;
+        }
     }
 
     async function loadData() {
@@ -134,14 +145,22 @@
     });
     watch([type, read, category, repositoryIds, topics, integrationIds], loadEntries);
 
+    onBeforeUnmount(() => entriesAbortController?.abort());
+
     async function handleLoadMore() {
         if (isLoadingMore.value || !hasMore.value) return;
         isLoadingMore.value = true;
         try {
-            const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE, offset: entries.value.length});
+            const result = await getEventLogEntries(
+                {...apiFilters.value, limit: PAGE_SIZE, offset: entries.value.length},
+                entriesAbortController?.signal,
+            );
             const newEntries = result ?? [];
             entries.value = [...entries.value, ...newEntries];
             hasMore.value = newEntries.length >= PAGE_SIZE;
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return;
+            throw e;
         } finally {
             isLoadingMore.value = false;
         }

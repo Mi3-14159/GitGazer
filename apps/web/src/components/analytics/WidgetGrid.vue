@@ -11,7 +11,7 @@
     import {widgetCalculationInfo} from '@/types/analytics';
     import type {MetricResult, MetricsFilter} from '@common/types';
     import {Lock} from 'lucide-vue-next';
-    import {ref, toRef, watch} from 'vue';
+    import {onBeforeUnmount, ref, toRef, watch} from 'vue';
 
     const COMING_SOON_WIDGETS: ReadonlySet<WidgetType> = new Set(['lead_time']);
 
@@ -23,6 +23,7 @@
     const {fetchDoraMetrics, fetchSpaceMetrics} = useMetrics();
     const metrics = ref<Partial<Record<WidgetType, MetricResult>>>({});
     const isLoading = ref(false);
+    let abortController: AbortController | null = null;
 
     function needsEndpoint(endpoint: 'dora' | 'space'): boolean {
         return props.dashboard.widgets.some((w) => !COMING_SOON_WIDGETS.has(w.type) && metricFieldMap[w.type]?.endpoint === endpoint);
@@ -32,13 +33,19 @@
         const filter = props.filter;
         if (!filter.from && !filter.to) return;
 
+        abortController?.abort();
+        const controller = new AbortController();
+        abortController = controller;
+
         isLoading.value = true;
         try {
             const result: Partial<Record<WidgetType, MetricResult>> = {};
             const [dora, space] = await Promise.all([
-                needsEndpoint('dora') ? fetchDoraMetrics(filter) : null,
-                needsEndpoint('space') ? fetchSpaceMetrics(filter) : null,
+                needsEndpoint('dora') ? fetchDoraMetrics(filter, controller.signal) : null,
+                needsEndpoint('space') ? fetchSpaceMetrics(filter, controller.signal) : null,
             ]);
+
+            if (controller.signal.aborted) return;
 
             for (const widget of props.dashboard.widgets) {
                 const mapping = metricFieldMap[widget.type];
@@ -49,12 +56,17 @@
                 }
             }
             metrics.value = result;
-        } catch {
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return;
             metrics.value = {};
         } finally {
-            isLoading.value = false;
+            if (!controller.signal.aborted) {
+                isLoading.value = false;
+            }
         }
     }
+
+    onBeforeUnmount(() => abortController?.abort());
 
     watch([toRef(props, 'dashboard'), toRef(props, 'filter')], loadMetrics, {deep: true, immediate: true});
 

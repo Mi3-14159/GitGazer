@@ -7,18 +7,23 @@
     import {useAuth} from '@/composables/useAuth';
     import {dateRangeFilter, useUrlFilters} from '@/composables/useUrlFilters';
     import type {OverviewResponse} from '@common/types';
-    import {computed, ref, watch} from 'vue';
+    import {computed, onBeforeUnmount, ref, watch} from 'vue';
 
     const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
     const {fetchWithAuth} = useAuth();
     const overview = ref<OverviewResponse | null>(null);
     const isLoading = ref(true);
+    let abortController: AbortController | null = null;
     const {dateRange} = useUrlFilters({
         dateRange: dateRangeFilter({window: '24h'}),
     });
 
     async function fetchOverview() {
+        abortController?.abort();
+        const controller = new AbortController();
+        abortController = controller;
+
         isLoading.value = true;
         try {
             const params = new URLSearchParams();
@@ -28,16 +33,20 @@
                 if (dateRange.value.from) params.set('created_from', dateRange.value.from.toISOString());
                 if (dateRange.value.to) params.set('created_to', dateRange.value.to.toISOString());
             }
-            const response = await fetchWithAuth(`${API_ENDPOINT}/overview?${params.toString()}`);
+            const response = await fetchWithAuth(`${API_ENDPOINT}/overview?${params.toString()}`, {signal: controller.signal});
             if (response.ok) {
                 overview.value = (await response.json()) as OverviewResponse;
             }
-        } catch {
-            // Silently handle errors
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return;
         } finally {
-            isLoading.value = false;
+            if (!controller.signal.aborted) {
+                isLoading.value = false;
+            }
         }
     }
+
+    onBeforeUnmount(() => abortController?.abort());
 
     watch(dateRange, () => fetchOverview(), {deep: true, immediate: true});
 

@@ -46,16 +46,16 @@ function buildQueryString(filter: MetricsFilter): string {
 export function useMetrics() {
     const {fetchWithAuth} = useAuth();
 
-    async function fetchDoraMetrics(filter: MetricsFilter): Promise<DoraMetricsResponse> {
+    async function fetchDoraMetrics(filter: MetricsFilter, signal?: AbortSignal): Promise<DoraMetricsResponse> {
         const qs = buildQueryString(filter);
-        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/dora${qs ? `?${qs}` : ''}`);
+        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/dora${qs ? `?${qs}` : ''}`, {signal});
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return parseApiResponse(res, isDoraMetricsResponse);
     }
 
-    async function fetchSpaceMetrics(filter: MetricsFilter): Promise<SpaceMetricsResponse> {
+    async function fetchSpaceMetrics(filter: MetricsFilter, signal?: AbortSignal): Promise<SpaceMetricsResponse> {
         const qs = buildQueryString(filter);
-        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/space${qs ? `?${qs}` : ''}`);
+        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/space${qs ? `?${qs}` : ''}`, {signal});
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return parseApiResponse(res, isSpaceMetricsResponse);
     }
