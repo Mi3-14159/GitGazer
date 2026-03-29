@@ -1,4 +1,4 @@
-import type {DateRange} from '@/components/DateTimeRangePicker.vue';
+import type {DateRange} from '@/components/filters/DateTimeRangePicker.vue';
 import {booleanFilter, dateRangeFilter, enumFilter, numberArrayFilter, stringArrayFilter, useUrlFilters} from '@/composables/useUrlFilters';
 import {GRANULARITY_VALUES, GROUP_BY_OPTIONS, type Granularity, type GroupByOption, type MetricsFilter} from '@common/types';
 import {type Ref, computed} from 'vue';

@@ -2,8 +2,8 @@
     import DashboardFilters from '@/components/analytics/DashboardFilters.vue';
     import DashboardList from '@/components/analytics/DashboardList.vue';
     import WidgetGrid from '@/components/analytics/WidgetGrid.vue';
-    import DateTimeRangePicker from '@/components/DateTimeRangePicker.vue';
-    import GranularitySelector from '@/components/GranularitySelector.vue';
+    import DateTimeRangePicker from '@/components/filters/DateTimeRangePicker.vue';
+    import GranularitySelector from '@/components/filters/GranularitySelector.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import {useDashboardFilters} from '@/composables/useDashboardFilters';

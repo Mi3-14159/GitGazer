@@ -1,4 +1,4 @@
-import type {DateRange} from '@/components/DateTimeRangePicker.vue';
+import type {DateRange} from '@/components/filters/DateTimeRangePicker.vue';
 import {subDays, subHours} from 'date-fns';
 import {type Ref, onMounted, ref, watch} from 'vue';
 import type {LocationQuery} from 'vue-router';
