@@ -1,10 +1,12 @@
 <script setup lang="ts">
+    import {useTour} from '@/composables/useTour';
     import {Activity, Bell, LayoutDashboard, PlayCircle, ScrollText, Webhook} from 'lucide-vue-next';
     import {computed} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
     const route = useRoute();
     const router = useRouter();
+    const {isActive: tourActive, currentStepConfig} = useTour();
 
     const tabs = [
         {value: 'overview', label: 'Overview', icon: Activity, path: '/overview'},
@@ -16,6 +18,12 @@
     ];
 
     const activeTab = computed(() => tabs.find((tab) => route.path.startsWith(tab.path))?.value ?? 'overview');
+
+    const tourHighlightTab = computed(() => {
+        if (!tourActive.value || !currentStepConfig.value?.route) return null;
+        if (currentStepConfig.value.target === '[data-tour="nav-bar"]') return null;
+        return tabs.find((tab) => tab.path === currentStepConfig.value?.route)?.value ?? null;
+    });
 
     function navigateTab(tab: (typeof tabs)[number]) {
         if (route.path === tab.path) return;
@@ -35,6 +43,7 @@
                 :class="[
                     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
                     activeTab === tab.value ? 'bg-background text-foreground shadow' : 'text-muted-foreground hover:text-foreground',
+                    tourHighlightTab === tab.value && 'tour-nav-highlight',
                 ]"
                 @click="navigateTab(tab)"
             >
@@ -47,3 +56,34 @@
         </nav>
     </div>
 </template>
+
+<style scoped>
+    .tour-nav-highlight {
+        position: relative;
+        z-index: 65;
+        box-shadow:
+            0 0 0 2px hsl(var(--primary)),
+            0 0 12px hsl(var(--primary) / 0.4);
+        animation: tour-nav-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes tour-nav-pulse {
+        0%,
+        100% {
+            box-shadow:
+                0 0 0 2px hsl(var(--primary)),
+                0 0 12px hsl(var(--primary) / 0.4);
+        }
+        50% {
+            box-shadow:
+                0 0 0 2px hsl(var(--primary)),
+                0 0 20px hsl(var(--primary) / 0.6);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tour-nav-highlight {
+            animation: none;
+        }
+    }
+</style>
