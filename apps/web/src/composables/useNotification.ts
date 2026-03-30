@@ -38,7 +38,7 @@ export const useNotification = () => {
         );
 
         if (!response.ok) {
-            throw new Error(`Failed to create notification: ${response.status}`);
+            throw new Error(`Failed to save notification: ${response.status}`);
         }
 
         return parseApiResponse(response, isNotificationRule);

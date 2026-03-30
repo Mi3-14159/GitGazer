@@ -22,6 +22,9 @@
     const editingRule = ref<NotificationRule | null>(null);
     const showDeleteConfirm = ref(false);
     const deletingRule = ref<NotificationRule | null>(null);
+    const isSaving = ref(false);
+    const togglingIds = ref(new Set<string>());
+    const saveError = ref('');
 
     onMounted(async () => {
         const [n, i] = await Promise.all([getNotifications(), getIntegrations()]);
@@ -31,11 +34,13 @@
 
     function openCreate() {
         editingRule.value = null;
+        saveError.value = '';
         showDialog.value = true;
     }
 
     function openEdit(rule: NotificationRule) {
         editingRule.value = rule;
+        saveError.value = '';
         showDialog.value = true;
     }
 
@@ -45,17 +50,29 @@
     }
 
     async function handleSave(rule: NotificationRule) {
-        const {channels, enabled, ignore_dependabot, rule: ruleFilter} = rule;
-        const saved = await upsertNotification({channels, enabled, ignore_dependabot, rule: ruleFilter}, rule.integrationId, rule.id || undefined);
-        if (saved) {
-            if (editingRule.value) {
-                const idx = notifications.value.findIndex((n) => n.id === saved.id);
-                if (idx !== -1) notifications.value[idx] = saved;
-            } else {
-                notifications.value.push(saved);
+        isSaving.value = true;
+        saveError.value = '';
+        try {
+            const {channels, enabled, ignore_dependabot, rule: ruleFilter} = rule;
+            const saved = await upsertNotification(
+                {channels, enabled, ignore_dependabot, rule: ruleFilter},
+                rule.integrationId,
+                rule.id || undefined,
+            );
+            if (saved) {
+                if (editingRule.value) {
+                    const idx = notifications.value.findIndex((n) => n.id === saved.id);
+                    if (idx !== -1) notifications.value[idx] = saved;
+                } else {
+                    notifications.value.push(saved);
+                }
             }
+            showDialog.value = false;
+        } catch {
+            saveError.value = 'Failed to save notification rule. Please try again.';
+        } finally {
+            isSaving.value = false;
         }
-        showDialog.value = false;
     }
 
     async function handleDelete() {
@@ -69,16 +86,32 @@
     }
 
     async function handleToggleEnabled(rule: NotificationRule) {
-        const toggled = {...rule, enabled: !rule.enabled};
-        const {channels, enabled, ignore_dependabot, rule: ruleFilter} = toggled;
-        const saved = await upsertNotification(
-            {channels, enabled, ignore_dependabot, rule: ruleFilter},
-            toggled.integrationId,
-            toggled.id || undefined,
-        );
-        if (saved) {
-            const idx = notifications.value.findIndex((n) => n.id === saved.id);
-            if (idx !== -1) notifications.value[idx] = saved;
+        if (!rule.id || togglingIds.value.has(rule.id)) return;
+
+        const idx = notifications.value.findIndex((n) => n.id === rule.id);
+        if (idx === -1) return;
+
+        togglingIds.value.add(rule.id);
+
+        // Optimistic update: flip immediately
+        const previousEnabled = rule.enabled;
+        notifications.value[idx] = {...rule, enabled: !previousEnabled};
+
+        try {
+            const {channels, ignore_dependabot, rule: ruleFilter} = rule;
+            const saved = await upsertNotification(
+                {channels, enabled: !previousEnabled, ignore_dependabot, rule: ruleFilter},
+                rule.integrationId,
+                rule.id || undefined,
+            );
+            if (saved) {
+                notifications.value[idx] = saved;
+            }
+        } catch {
+            // Revert on failure
+            notifications.value[idx] = {...notifications.value[idx], enabled: previousEnabled};
+        } finally {
+            togglingIds.value.delete(rule.id);
         }
     }
 
@@ -140,12 +173,14 @@
         <!-- Create/Edit Dialog -->
         <Dialog
             :open="showDialog"
-            @update:open="showDialog = $event"
+            @update:open="!isSaving && (showDialog = $event)"
         >
             <template #default="{close}">
                 <NotificationDetailsCard
                     :integrations="integrations"
                     :existing-rule="editingRule"
+                    :is-saving="isSaving"
+                    :save-error="saveError"
                     :on-close="close"
                     :on-save="handleSave"
                 />

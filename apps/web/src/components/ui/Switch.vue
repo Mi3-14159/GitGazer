@@ -6,6 +6,7 @@
         class?: HTMLAttributes['class'];
         modelValue?: boolean;
         disabled?: boolean;
+        loading?: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -15,7 +16,7 @@
     const isChecked = computed(() => props.modelValue ?? false);
 
     function toggle() {
-        if (props.disabled) return;
+        if (props.disabled || props.loading) return;
         emit('update:modelValue', !isChecked.value);
     }
 </script>
@@ -25,11 +26,13 @@
         role="switch"
         type="button"
         :aria-checked="isChecked"
-        :disabled="disabled"
+        :aria-busy="loading"
+        :disabled="disabled || loading"
         :class="
             cn(
                 'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
                 isChecked ? 'bg-primary' : 'bg-switch-background',
+                loading ? 'animate-pulse' : '',
                 props.class,
             )
         "

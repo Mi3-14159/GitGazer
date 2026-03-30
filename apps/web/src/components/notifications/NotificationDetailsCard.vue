@@ -11,8 +11,10 @@
     const props = defineProps<{
         integrations: Integration[];
         onClose: () => void;
-        onSave: (notificationRule: NotificationRule) => void;
+        onSave: (notificationRule: NotificationRule) => void | Promise<void>;
         existingRule?: NotificationRule | null;
+        isSaving?: boolean;
+        saveError?: string;
     }>();
 
     const notificationRule = ref<NotificationRule>({
@@ -137,20 +139,25 @@
             </div>
 
             <p
-                v-if="errorMsg"
+                v-if="errorMsg || saveError"
                 class="text-xs text-destructive"
             >
-                {{ errorMsg }}
+                {{ errorMsg || saveError }}
             </p>
             <p class="text-xs text-muted-foreground">* indicates required field</p>
         </div>
         <div class="flex justify-end gap-2 mt-6 pt-4 border-t">
             <Button
                 variant="outline"
+                :disabled="isSaving"
                 @click="props.onClose"
                 >Close</Button
             >
-            <Button @click="handleSave">Save</Button>
+            <Button
+                :loading="isSaving"
+                @click="handleSave"
+                >Save</Button
+            >
         </div>
     </div>
 </template>

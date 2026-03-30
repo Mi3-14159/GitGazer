@@ -1,10 +1,11 @@
 <script setup lang="ts">
     import {cn} from '@/lib/utils';
     import {cva, type VariantProps} from 'class-variance-authority';
+    import {Loader2} from 'lucide-vue-next';
     import {computed, type HTMLAttributes} from 'vue';
 
     const buttonVariants = cva(
-        'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer',
+        'relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer',
         {
             variants: {
                 variant: {
@@ -37,6 +38,7 @@
             size?: NonNullable<ButtonVariantProps['size']>;
             class?: HTMLAttributes['class'];
             disabled?: boolean;
+            loading?: boolean;
             type?: 'button' | 'submit' | 'reset';
         }>(),
         {variant: 'default', size: 'default', type: 'button'},
@@ -48,9 +50,17 @@
 <template>
     <button
         :class="classes"
-        :disabled="disabled"
+        :disabled="disabled || loading"
         :type="type"
     >
-        <slot />
+        <span
+            v-if="loading"
+            class="absolute inset-0 flex items-center justify-center"
+        >
+            <Loader2 class="h-4 w-4 animate-spin" />
+        </span>
+        <span :class="['inline-flex items-center gap-2', loading ? 'invisible' : '']">
+            <slot />
+        </span>
     </button>
 </template>
