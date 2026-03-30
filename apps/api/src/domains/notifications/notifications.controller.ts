@@ -4,6 +4,9 @@ import {gitgazerWriter, notificationRules} from '@gitgazer/db/schema';
 import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
+import {getLogger} from '@/shared/logger';
+
 const toNotificationRule = (row: typeof notificationRules.$inferSelect): NotificationRule => ({
     integrationId: row.integrationId,
     id: row.id,
@@ -14,6 +17,10 @@ const toNotificationRule = (row: typeof notificationRules.$inferSelect): Notific
     ignore_dependabot: row.ignore_dependabot,
     rule: row.rule,
 });
+
+const describeRuleFilter = (rule: NotificationRuleUpdate['rule']): string => {
+    return [rule.owner, rule.repository_name, rule.workflow_name, rule.head_branch].map((v) => v || '*').join('/');
+};
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {
     const {integrationIds} = params;
@@ -70,7 +77,25 @@ export const upsertNotificationRule = async (params: {
         },
     });
 
-    return toNotificationRule(result[0]);
+    const saved = toNotificationRule(result[0]);
+    const action = params.createOnly ? 'created' : 'updated';
+    const filterDesc = describeRuleFilter(params.rule.rule);
+    const channels = params.rule.channels.map((c) => c.type).join(', ');
+
+    try {
+        await createEventLogEntry({
+            integrationId: params.integrationId,
+            category: 'notification',
+            type: 'info',
+            title: `Notification rule ${action}`,
+            message: `Notification rule for ${filterDesc} was ${action} (channels: ${channels}, enabled: ${params.rule.enabled})`,
+            metadata: {integrationId: params.integrationId},
+        });
+    } catch (error) {
+        getLogger().error('Failed to create event log entry for notification rule upsert', error as Error);
+    }
+
+    return saved;
 };
 
 export const deleteNotificationRule = async (ruleId: string, integrationId: string, userIntegrationIds: string[]): Promise<void> => {
@@ -85,4 +110,17 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
             await tx.delete(notificationRules).where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)));
         },
     });
+
+    try {
+        await createEventLogEntry({
+            integrationId,
+            category: 'notification',
+            type: 'info',
+            title: 'Notification rule deleted',
+            message: 'A notification rule was deleted',
+            metadata: {integrationId},
+        });
+    } catch (error) {
+        getLogger().error('Failed to create event log entry for notification rule deletion', error as Error);
+    }
 };
