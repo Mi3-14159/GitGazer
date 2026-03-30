@@ -88,12 +88,21 @@
 
         if (e.key === 'Escape') {
             skipTour();
-        } else if (e.key === 'ArrowRight') {
+        } else if (e.key === 'ArrowRight' || (e.key === 'Enter' && document.activeElement?.tagName !== 'BUTTON')) {
             e.preventDefault();
-            nextStep();
+            void nextStep();
         } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            prevStep();
+            void prevStep();
+        }
+    }
+
+    function handleFocusIn(e: FocusEvent) {
+        if (!isActive.value) return;
+        const popover = document.querySelector('[role="dialog"][aria-modal="true"]');
+        if (popover && !popover.contains(e.target as Node)) {
+            const first = popover.querySelector<HTMLElement>('button');
+            first?.focus();
         }
     }
 
@@ -141,21 +150,23 @@
 
     // Start on welcome step
     function handleWelcomeStart() {
-        nextStep();
+        void nextStep();
     }
 
     onMounted(() => {
         document.addEventListener('keydown', handleKeydown);
+        document.addEventListener('focusin', handleFocusIn);
         window.addEventListener('scroll', handleScroll, true);
         window.addEventListener('resize', handleResize);
 
         if (shouldAutoStart.value) {
-            startTour();
+            void startTour();
         }
     });
 
     onUnmounted(() => {
         document.removeEventListener('keydown', handleKeydown);
+        document.removeEventListener('focusin', handleFocusIn);
         window.removeEventListener('scroll', handleScroll, true);
         window.removeEventListener('resize', handleResize);
         resizeObserver?.disconnect();

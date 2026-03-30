@@ -51,8 +51,10 @@ export function useTour() {
 
     let isNavigating = false;
 
-    function startTour() {
-        currentStep.value = 0;
+    async function startTour() {
+        const lastStep = persistence.value.tourLastStep;
+        currentStep.value = lastStep > 0 && lastStep < totalSteps ? lastStep : 0;
+        await navigateToStepRoute(currentStep.value);
         isActive.value = true;
     }
 
@@ -81,6 +83,7 @@ export function useTour() {
                 const prev = currentStep.value - 1;
                 await navigateToStepRoute(prev);
                 currentStep.value = prev;
+                persistence.value.tourLastStep = prev;
             }
         } finally {
             isNavigating = false;
@@ -94,10 +97,7 @@ export function useTour() {
     }
 
     async function resumeTour() {
-        const step = persistence.value.tourLastStep;
-        await navigateToStepRoute(step);
-        currentStep.value = step;
-        isActive.value = true;
+        await startTour();
     }
 
     function resetTour() {

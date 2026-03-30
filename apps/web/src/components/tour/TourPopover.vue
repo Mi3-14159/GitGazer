@@ -19,6 +19,7 @@
 
     const popoverRef = ref<HTMLElement | null>(null);
     const position = ref({top: 0, left: 0});
+    const isMobile = ref(window.innerWidth < 768);
     const gap = 12;
 
     function calcPosition() {
@@ -30,24 +31,27 @@
         const pw = el.offsetWidth;
         const ph = el.offsetHeight;
 
+        isMobile.value = vw < 768;
+
         // Center in viewport when no target
         if (!props.targetRect) {
-            position.value = {
-                top: Math.max(12, (vh - ph) / 2),
-                left: Math.max(12, (vw - pw) / 2),
-            };
+            if (isMobile.value) {
+                position.value = {top: 0, left: 0};
+            } else {
+                position.value = {
+                    top: Math.max(12, (vh - ph) / 2),
+                    left: Math.max(12, (vw - pw) / 2),
+                };
+            }
             return;
         }
 
         const rect = props.targetRect;
         const side = props.step.popoverSide ?? 'bottom';
 
-        // Check if mobile
-        if (vw < 768) {
-            position.value = {
-                top: rect.bottom + gap,
-                left: Math.max(12, (vw - Math.min(pw, vw - 24)) / 2),
-            };
+        // Mobile: render as bottom sheet
+        if (isMobile.value) {
+            position.value = {top: 0, left: 0};
             return;
         }
 
@@ -124,13 +128,26 @@
 
 <template>
     <Teleport to="body">
+        <!-- Screen reader announcement for step changes -->
+        <div
+            aria-live="polite"
+            class="sr-only"
+        >
+            Step {{ stepIndex + 1 }} of {{ totalSteps }}: {{ step.title }}
+        </div>
+
         <div
             ref="popoverRef"
             role="dialog"
             aria-modal="true"
             :aria-label="`Tour step ${stepIndex + 1} of ${totalSteps}: ${step.title}`"
-            class="fixed z-[70] w-[calc(100vw-24px)] sm:w-auto sm:max-w-sm rounded-xl border bg-card p-4 shadow-xl animate-in fade-in-0 zoom-in-95 duration-200"
-            :style="{top: `${position.top}px`, left: `${position.left}px`}"
+            :class="[
+                'fixed z-[70] border bg-card shadow-xl animate-in duration-200',
+                isMobile
+                    ? 'inset-x-0 bottom-0 w-full max-h-[60vh] overflow-y-auto rounded-t-xl p-5 fade-in-0 slide-in-from-bottom-4'
+                    : 'w-auto max-w-sm rounded-xl p-4 fade-in-0 zoom-in-95',
+            ]"
+            :style="isMobile ? undefined : {top: `${position.top}px`, left: `${position.left}px`}"
             @keydown="handleKeydown"
         >
             <!-- Progress dots + counter -->
@@ -176,7 +193,7 @@
             <!-- Navigation -->
             <div class="flex items-center justify-between">
                 <Button
-                    v-if="stepIndex > 0"
+                    v-if="stepIndex > 1"
                     variant="ghost"
                     size="sm"
                     @click="emit('prev')"

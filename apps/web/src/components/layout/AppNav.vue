@@ -62,8 +62,8 @@
         position: relative;
         z-index: 65;
         box-shadow:
-            0 0 0 2px hsl(var(--primary)),
-            0 0 12px hsl(var(--primary) / 0.4);
+            0 0 0 2px var(--primary),
+            0 0 12px color-mix(in oklab, var(--primary) 40%, transparent);
         animation: tour-nav-pulse 2s ease-in-out infinite;
     }
 
@@ -71,13 +71,13 @@
         0%,
         100% {
             box-shadow:
-                0 0 0 2px hsl(var(--primary)),
-                0 0 12px hsl(var(--primary) / 0.4);
+                0 0 0 2px var(--primary),
+                0 0 12px color-mix(in oklab, var(--primary) 40%, transparent);
         }
         50% {
             box-shadow:
-                0 0 0 2px hsl(var(--primary)),
-                0 0 20px hsl(var(--primary) / 0.6);
+                0 0 0 2px var(--primary),
+                0 0 20px color-mix(in oklab, var(--primary) 60%, transparent);
         }
     }
 

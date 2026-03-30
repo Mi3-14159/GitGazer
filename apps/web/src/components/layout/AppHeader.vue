@@ -4,7 +4,7 @@
     import {useAuth} from '@/composables/useAuth';
     import {useTour} from '@/composables/useTour';
     import type {UserAttributes} from '@common/types';
-    import {CircleHelp, GitBranch, LogOut, Play, RotateCcw} from 'lucide-vue-next';
+    import {CircleHelp, GitBranch, Keyboard, LogOut, Play, RotateCcw} from 'lucide-vue-next';
     import {DropdownMenuItem} from 'radix-vue';
     import {onMounted, ref} from 'vue';
 
@@ -32,7 +32,7 @@
 
     function handleResume() {
         helpOpen.value = false;
-        resumeTour();
+        void resumeTour();
     }
 
     async function handleLogout() {
@@ -91,6 +91,11 @@
                         >
                             <Play class="h-3.5 w-3.5" />
                             Resume tour
+                        </DropdownMenuItem>
+                        <DropdownMenuItem class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md cursor-pointer hover:bg-accent outline-none">
+                            <Keyboard class="h-3.5 w-3.5" />
+                            Keyboard shortcuts
+                            <span class="ml-auto text-xs text-muted-foreground">← → Esc</span>
                         </DropdownMenuItem>
                     </DropdownMenu>
 
