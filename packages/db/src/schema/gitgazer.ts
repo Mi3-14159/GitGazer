@@ -1,5 +1,12 @@
 import {bigint, boolean, index, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
-import {EVENT_LOG_CATEGORIES, EVENT_LOG_TYPES, type EventLogEntryMetadata, type NotificationRuleChannel, type NotificationRuleRule} from '../types';
+import {
+    EVENT_LOG_CATEGORIES,
+    EVENT_LOG_TYPES,
+    WEBSOCKET_CHANNELS,
+    type EventLogEntryMetadata,
+    type NotificationRuleChannel,
+    type NotificationRuleRule,
+} from '../types';
 import {integrations, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
@@ -20,6 +27,7 @@ export const wsConnections = gitgazerSchema.table(
             .notNull()
             .references(() => users.id, {onDelete: 'cascade'}),
         connectedAt: timestamp('connected_at', {withTimezone: true}).notNull().defaultNow(),
+        channel: varchar('channel', {length: 30, enum: WEBSOCKET_CHANNELS}).notNull(),
     },
     (table) => [
         writerTenantSeparationPolicy(),
@@ -28,6 +36,7 @@ export const wsConnections = gitgazerSchema.table(
             columns: [table.integrationId, table.connectionId, table.userId],
         }),
         index('ws_connections_connection_id_idx').on(table.connectionId),
+        index('ws_connections_integration_channel_idx').on(table.integrationId, table.channel),
     ],
 );
 

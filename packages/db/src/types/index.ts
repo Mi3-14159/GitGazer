@@ -320,3 +320,6 @@ export type RepositoryInsert = typeof schema.repositories.$inferInsert;
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
 export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
+
+export const WEBSOCKET_CHANNELS = ['workflows', 'events_log'] as const;
+export type WebSocketChannel = (typeof WEBSOCKET_CHANNELS)[number];

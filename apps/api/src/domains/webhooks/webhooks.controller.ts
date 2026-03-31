@@ -10,7 +10,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {EventPayloadMap, StreamEvent, WorkflowJobEvent} from '@gitgazer/db/types';
+import {EventPayloadMap, StreamEvent, type WebSocketChannel, WorkflowJobEvent} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 let apiClient: ApiGatewayManagementApiClient | null = null;
@@ -35,14 +35,14 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
         const result = await insertEvent(integrationId, eventType, event);
 
         if (eventType === 'workflow_job') {
-            await postToConnections({
+            await postToConnections('workflows', {
                 eventType,
                 integrationId,
                 payload: result,
             });
             await sendWorkflowJobAlerts(integrationId, event as unknown as WorkflowJobEvent);
         } else if (eventType === 'workflow_run') {
-            await postToConnections({
+            await postToConnections('workflows', {
                 eventType,
                 integrationId,
                 payload: result,
@@ -54,9 +54,9 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
     }
 };
 
-const postToConnections = async <T>(params: StreamEvent<T>) => {
+const postToConnections = async <T>(channel: WebSocketChannel, params: StreamEvent<T>) => {
     const logger = getLogger();
-    const connections = await getConnections(params.integrationId);
+    const connections = await getConnections(params.integrationId, channel);
 
     const promises = [];
     for (const connection of connections) {

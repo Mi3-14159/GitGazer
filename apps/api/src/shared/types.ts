@@ -1,10 +1,12 @@
 import {RequestContext} from '@aws-lambda-powertools/event-handler/types';
+import {type WebSocketChannel} from '@gitgazer/db/types';
 
 export type WebsocketConnection = {
     integrationId: string;
     connectionId: string;
     userId: number;
     connectedAt: string;
+    channel: WebSocketChannel;
 };
 
 export type AppContext = {

@@ -246,6 +246,13 @@
       "when": 1774559117032,
       "tag": "0034_dry_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1774988215618,
+      "tag": "0035_handy_blue_shield",
+      "breakpoints": true
     }
   ]
 }

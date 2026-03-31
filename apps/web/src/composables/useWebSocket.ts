@@ -6,6 +6,9 @@ export interface UseWebSocketOptions {
     /** The WebSocket endpoint URL (without token query params). */
     endpoint: string;
 
+    /** Channel name sent as a query parameter to identify the subscription. */
+    channel: string;
+
     /** Fetches a short-lived auth token appended as `?token=<value>`. */
     fetchToken: () => Promise<string>;
 
@@ -44,7 +47,7 @@ export interface UseWebSocketReturn {
  * with automatic token renewal and reconnection.
  */
 export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
-    const {endpoint, fetchToken, onMessage, renewalBufferSeconds = 30, reconnectDelayMs = 5000} = options;
+    const {endpoint, channel, fetchToken, onMessage, renewalBufferSeconds = 30, reconnectDelayMs = 5000} = options;
 
     const status = ref<WebSocketStatus>('idle');
 
@@ -137,7 +140,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
             const token = await fetchToken();
             scheduleTokenRenewal(token);
 
-            const wsUrl = `${endpoint}?token=${encodeURIComponent(token)}`;
+            const wsUrl = `${endpoint}?token=${encodeURIComponent(token)}&channel=${encodeURIComponent(channel)}`;
             const newWs = new WebSocket(wsUrl);
 
             await new Promise<void>((resolve, reject) => {

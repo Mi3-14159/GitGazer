@@ -39,6 +39,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
     const {connect: connectToWebSocket} = useWebSocket({
         endpoint: WS_ENDPOINT,
+        channel: 'workflows',
         fetchToken: fetchWebSocketToken,
         onMessage: (data) => {
             const message = data as StreamEvent<WorkflowRunWithRelations | WorkflowJob>;

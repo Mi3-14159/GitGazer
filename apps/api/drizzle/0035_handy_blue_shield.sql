@@ -1,0 +1,2 @@
+ALTER TABLE "gitgazer"."ws_connections" ADD COLUMN "channel" varchar(30) NOT NULL;--> statement-breakpoint
+CREATE INDEX "ws_connections_integration_channel_idx" ON "gitgazer"."ws_connections" USING btree ("integration_id","channel");

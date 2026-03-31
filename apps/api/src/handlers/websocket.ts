@@ -2,7 +2,7 @@ import config, {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {db} from '@gitgazer/db/client';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
-import {WSToken} from '@gitgazer/db/types';
+import {WEBSOCKET_CHANNELS, WSToken, type WebSocketChannel} from '@gitgazer/db/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
 import {createHmac} from 'crypto';
 import {eq} from 'drizzle-orm';
@@ -111,6 +111,12 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
         return {statusCode: 401, body: 'Unauthorized: Invalid authentication token'};
     }
 
+    const channel = event.queryStringParameters?.channel;
+    if (!channel || !(WEBSOCKET_CHANNELS as readonly string[]).includes(channel)) {
+        logger.info('Connection denied: Invalid or missing channel', {channel});
+        return {statusCode: 400, body: 'Bad request: Invalid or missing channel parameter'};
+    }
+
     const integrations = tokenPayload.integrations;
     const userId = tokenPayload.userId;
     if (integrations.length === 0) {
@@ -123,6 +129,7 @@ const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2
             integrationId,
             connectionId: event.requestContext.connectionId,
             userId,
+            channel: channel as WebSocketChannel,
         }));
 
         await db.insert(wsConnections).values(values);
