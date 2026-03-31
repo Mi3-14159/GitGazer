@@ -1,4 +1,5 @@
 import {useAuth} from '@/composables/useAuth';
+import {useWebSocket} from '@/composables/useWebSocket';
 import {
     EmitterWebhookEventName,
     GetWorkflowsResponse,
@@ -8,7 +9,6 @@ import {
     WorkflowJob,
     WorkflowRunWithRelations,
     WorkflowsRequestParameters,
-    WSToken,
 } from '@common/types';
 import {defineStore} from 'pinia';
 import {reactive, ref} from 'vue';
@@ -22,9 +22,6 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
     const isLoading = ref(false);
     const hasMore = ref(true);
-    let ws: WebSocket | null = null;
-    let tokenRenewalTimer: ReturnType<typeof setTimeout> | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let cursor: PaginationCursor | undefined;
     let activeFilters: WorkflowFilters = {};
     let fetchAbortController: AbortController | null = null;
@@ -40,142 +37,14 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         return data.token;
     };
 
-    const getTokenExpiry = (token: string): number => {
-        try {
-            const parts = token.split('.');
-            if (parts.length < 2) return 0;
-            const payloadEncoded = parts[0];
-            const payloadJson = atob(payloadEncoded.replace(/-/g, '+').replace(/_/g, '/'));
-            const payload = JSON.parse(payloadJson) as WSToken;
-            return payload.exp;
-        } catch (error) {
-            console.error('Failed to parse token expiry', error);
-            return 0;
-        }
-    };
-
-    const scheduleTokenRenewal = (token: string) => {
-        // Clear any existing renewal timer
-        if (tokenRenewalTimer) {
-            clearTimeout(tokenRenewalTimer);
-            tokenRenewalTimer = null;
-        }
-
-        const expiryTime = getTokenExpiry(token);
-        if (!expiryTime) {
-            console.warn('Could not determine token expiry, skipping renewal schedule');
-            return;
-        }
-
-        const now = Math.floor(Date.now() / 1000);
-        const timeUntilExpiry = expiryTime - now;
-
-        // Renew 30 seconds before expiry
-        const renewalDelay = Math.max(0, (timeUntilExpiry - 30) * 1000);
-
-        tokenRenewalTimer = setTimeout(async () => {
-            try {
-                // Store old connection to close after new one is established
-                const oldWs = ws;
-                ws = null; // Allow new connection to be created
-
-                await connectToWebSocket();
-
-                // Close old connection after new one is established
-                if (oldWs && oldWs.readyState === WebSocket.OPEN) {
-                    setTimeout(() => {
-                        oldWs.onclose = null; // Prevent old handler from interfering
-                        oldWs.close(1000, 'Token renewal');
-                    }, 3000);
-                }
-            } catch (error) {
-                console.error('Failed to renew WebSocket token', error);
-                // Attempt reconnection after a delay
-                scheduleReconnect();
-            }
-        }, renewalDelay);
-    };
-
-    const scheduleReconnect = () => {
-        if (reconnectTimer) return;
-        reconnectTimer = setTimeout(() => {
-            reconnectTimer = null;
-            connectToWebSocket();
-        }, 5000);
-    };
-
-    const connectToWebSocket = async (): Promise<void> => {
-        if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
-            return;
-        }
-
-        if (!WS_ENDPOINT) {
-            console.warn('WebSocket endpoint not configured');
-            return;
-        }
-
-        try {
-            const token = await fetchWebSocketToken();
-
-            scheduleTokenRenewal(token);
-
-            // Connect with token as query parameter
-            const wsUrl = `${WS_ENDPOINT}?token=${encodeURIComponent(token)}`;
-            const newWs = new WebSocket(wsUrl);
-
-            // Wait for the connection to be established
-            await new Promise<void>((resolve, reject) => {
-                newWs.onopen = () => {
-                    resolve();
-                };
-
-                newWs.onerror = (error) => {
-                    console.error('WebSocket error', error);
-                    reject(error);
-                };
-            });
-
-            // Connection is now open, assign it and set up remaining handlers
-            ws = newWs;
-
-            ws.onmessage = (event) => {
-                try {
-                    const message = JSON.parse(event.data) as StreamEvent<WorkflowRunWithRelations | WorkflowJob>;
-                    handleWorkflow(message.eventType, message.payload);
-                } catch (error) {
-                    console.error('Failed to parse WebSocket message', error);
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error', error);
-            };
-
-            ws.onclose = (event) => {
-                console.log('WebSocket disconnected', event.code, event.reason);
-                ws = null;
-
-                // Clear timers on disconnect
-                if (tokenRenewalTimer) {
-                    clearTimeout(tokenRenewalTimer);
-                    tokenRenewalTimer = null;
-                }
-                if (reconnectTimer) {
-                    clearTimeout(reconnectTimer);
-                    reconnectTimer = null;
-                }
-
-                // Attempt to reconnect after a delay if not a normal or intentional closure
-                // Code 1000 is normal closure, including our token renewal closure
-                if (event.code !== 1000) {
-                    scheduleReconnect();
-                }
-            };
-        } catch (error) {
-            console.error('Failed to connect to WebSocket', error);
-            throw error;
-        }
-    };
+    const {connect: connectToWebSocket} = useWebSocket({
+        endpoint: WS_ENDPOINT,
+        fetchToken: fetchWebSocketToken,
+        onMessage: (data) => {
+            const message = data as StreamEvent<WorkflowRunWithRelations | WorkflowJob>;
+            handleWorkflow(message.eventType, message.payload);
+        },
+    });
 
     const getJobs = async (params?: WorkflowsRequestParameters, signal?: AbortSignal) => {
         isLoading.value = true;
