@@ -19,7 +19,14 @@ const toNotificationRule = (row: typeof notificationRules.$inferSelect): Notific
 });
 
 const describeRuleFilter = (rule: NotificationRuleUpdate['rule']): string => {
-    return [rule.owner, rule.repository_name, rule.workflow_name, rule.head_branch].map((v) => v || '*').join('/');
+    const parts = [rule.owner, rule.repository_name, rule.workflow_name, rule.head_branch];
+    const hasAnyFilter = parts.some(Boolean) || (rule.topics && rule.topics.length > 0);
+    if (!hasAnyFilter) return 'all (no filters)';
+    const base = parts.map((v) => v || 'any').join('/');
+    if (rule.topics && rule.topics.length > 0) {
+        return `${base} [topics: ${rule.topics.join(', ')}]`;
+    }
+    return base;
 };
 
 export const getNotificationRules = async (params: {integrationIds: string[]; limit?: number}): Promise<NotificationRule[]> => {

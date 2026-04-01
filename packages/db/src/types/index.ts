@@ -79,18 +79,24 @@ export const isNotificationRuleChannel = (channel: any): channel is Notification
 };
 
 export type NotificationRuleRule = {
-    head_branch: string;
-    owner: string;
-    repository_name: string;
-    workflow_name: string;
+    head_branch?: string;
+    owner?: string;
+    repository_name?: string;
+    workflow_name?: string;
+    topics?: string[];
 };
 
 export const isNotificationRuleRule = (rule: any): rule is NotificationRuleRule => {
+    if (typeof rule !== 'object' || rule === null) return false;
+    const isOptionalString = (v: unknown) => v === undefined || typeof v === 'string';
+    const isOptionalStringArray = (v: unknown) =>
+        v === undefined || (Array.isArray(v) && v.length <= 50 && v.every((t: unknown) => typeof t === 'string' && t.length <= 100));
     return (
-        typeof rule.head_branch === 'string' &&
-        typeof rule.owner === 'string' &&
-        typeof rule.repository_name === 'string' &&
-        typeof rule.workflow_name === 'string'
+        isOptionalString(rule.head_branch) &&
+        isOptionalString(rule.owner) &&
+        isOptionalString(rule.repository_name) &&
+        isOptionalString(rule.workflow_name) &&
+        isOptionalStringArray(rule.topics)
     );
 };
 

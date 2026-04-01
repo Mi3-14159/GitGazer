@@ -32,26 +32,43 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
             const conditions = [
                 eq(notificationRules.enabled, true),
                 or(
+                    sql`${notificationRules.rule}->>'owner' IS NULL`,
                     sql`${notificationRules.rule}->>'owner' = ''`,
-                    sql`${notificationRules.rule}->>'owner' = '*'`,
                     sql`${notificationRules.rule}->>'owner' = ${owner}`,
                 ),
                 or(
+                    sql`${notificationRules.rule}->>'repository_name' IS NULL`,
                     sql`${notificationRules.rule}->>'repository_name' = ''`,
-                    sql`${notificationRules.rule}->>'repository_name' = '*'`,
                     sql`${notificationRules.rule}->>'repository_name' = ${repository_name}`,
                 ),
                 or(
+                    sql`${notificationRules.rule}->>'workflow_name' IS NULL`,
                     sql`${notificationRules.rule}->>'workflow_name' = ''`,
-                    sql`${notificationRules.rule}->>'workflow_name' = '*'`,
                     sql`${notificationRules.rule}->>'workflow_name' = ${workflow_name}`,
                 ),
                 or(
+                    sql`${notificationRules.rule}->>'head_branch' IS NULL`,
                     sql`${notificationRules.rule}->>'head_branch' = ''`,
-                    sql`${notificationRules.rule}->>'head_branch' = '*'`,
                     sql`${notificationRules.rule}->>'head_branch' = ${head_branch}`,
                 ),
             ];
+
+            const topicFilterConditions = [
+                sql`${notificationRules.rule}->'topics' IS NULL`,
+                sql`jsonb_array_length(COALESCE(${notificationRules.rule}->'topics', '[]'::jsonb)) = 0`,
+            ];
+
+            const repoTopics = event.repository.topics ?? [];
+            if (repoTopics.length > 0) {
+                topicFilterConditions.push(
+                    sql`${notificationRules.rule}->'topics' ?| ARRAY[${sql.join(
+                        repoTopics.map((t) => sql`${t}`),
+                        sql`,`,
+                    )}]`,
+                );
+            }
+
+            conditions.push(or(...topicFilterConditions));
 
             // If this is a dependabot event, only include rules with ignore_dependabot = false
             if (isDependabotEvent) {

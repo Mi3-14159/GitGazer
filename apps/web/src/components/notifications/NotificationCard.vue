@@ -27,7 +27,7 @@
 
     function hasActiveFilters(rule: NotificationRule) {
         const {rule: r} = rule;
-        return !!(r.owner || r.repository_name || r.workflow_name || r.head_branch);
+        return !!(r.owner || r.repository_name || r.workflow_name || r.head_branch || r.topics?.length);
     }
 
     function toggleWebhookVisibility() {

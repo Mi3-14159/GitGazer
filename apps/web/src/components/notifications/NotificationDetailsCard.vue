@@ -5,8 +5,8 @@
     import Label from '@/components/ui/Label.vue';
     import Switch from '@/components/ui/Switch.vue';
     import {Integration, NotificationRule, NotificationRuleChannelType} from '@common/types';
-    import {ChevronDown} from 'lucide-vue-next';
-    import {onMounted, ref} from 'vue';
+    import {ChevronDown, X} from 'lucide-vue-next';
+    import {computed, ref, watch} from 'vue';
 
     const props = defineProps<{
         integrations: Integration[];
@@ -17,24 +17,55 @@
         saveError?: string;
     }>();
 
-    const notificationRule = ref<NotificationRule>({
+    const createDefaultRule = (): NotificationRule => ({
         id: '',
         integrationId: '',
         enabled: false,
         createdAt: '',
         updatedAt: '',
         ignore_dependabot: false,
-        rule: {owner: '', repository_name: '', workflow_name: '', head_branch: ''},
+        rule: {owner: '', repository_name: '', workflow_name: '', head_branch: '', topics: []},
         channels: [{type: NotificationRuleChannelType.SLACK, webhook_url: ''}],
     });
 
-    onMounted(() => {
-        if (props.existingRule) {
-            notificationRule.value = {...props.existingRule};
-        }
-    });
+    const notificationRule = ref<NotificationRule>(createDefaultRule());
 
     const errorMsg = ref('');
+    const topicInput = ref('');
+
+    watch(
+        () => props.existingRule,
+        (rule) => {
+            if (rule) {
+                notificationRule.value = {
+                    ...rule,
+                    rule: {...rule.rule, topics: rule.rule.topics ?? []},
+                };
+            } else {
+                notificationRule.value = createDefaultRule();
+            }
+            topicInput.value = '';
+            errorMsg.value = '';
+        },
+        {immediate: true},
+    );
+
+    const topics = computed(() => notificationRule.value.rule.topics ?? []);
+
+    const addTopic = () => {
+        const topic = topicInput.value
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '');
+        if (topic && !topics.value.includes(topic) && topics.value.length < 50) {
+            notificationRule.value.rule.topics = [...topics.value, topic];
+        }
+        topicInput.value = '';
+    };
+
+    const removeTopic = (topic: string) => {
+        notificationRule.value.rule.topics = topics.value.filter((t) => t !== topic);
+    };
 
     const handleSave = () => {
         if (!notificationRule.value.integrationId) {
@@ -108,6 +139,45 @@
                         placeholder="e.g., main, feature/*"
                     />
                 </div>
+            </div>
+
+            <div class="space-y-2">
+                <Label>Topics</Label>
+                <div class="flex gap-2">
+                    <Input
+                        v-model="topicInput"
+                        placeholder="e.g., frontend, backend"
+                        @keydown.enter.prevent="addTopic"
+                    />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        @click="addTopic"
+                    >
+                        Add
+                    </Button>
+                </div>
+                <div
+                    v-if="topics.length > 0"
+                    class="flex flex-wrap gap-1 mt-1"
+                >
+                    <span
+                        v-for="topic in topics"
+                        :key="topic"
+                        class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+                    >
+                        {{ topic }}
+                        <button
+                            type="button"
+                            class="text-muted-foreground hover:text-foreground"
+                            @click="removeTopic(topic)"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </span>
+                </div>
+                <p class="text-xs text-muted-foreground">Filter by repository topics. Leave empty to match all.</p>
             </div>
 
             <div class="flex items-center gap-2">

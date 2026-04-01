@@ -47,6 +47,7 @@ describe('notifications controller', () => {
                         repository_name: 'r',
                         workflow_name: 'w',
                         head_branch: 'b',
+                        topics: [],
                     },
                 } as any,
                 integrationId: 'integrationA',
@@ -71,7 +72,7 @@ describe('notifications controller', () => {
                                         channels: [],
                                         enabled: true,
                                         ignore_dependabot: false,
-                                        rule: {owner: 'o', repository_name: 'r', workflow_name: 'w', head_branch: 'b'},
+                                        rule: {owner: 'o', repository_name: 'r', workflow_name: 'w', head_branch: 'b', topics: []},
                                         createdAt: now,
                                         updatedAt: now,
                                     },
@@ -92,6 +93,7 @@ describe('notifications controller', () => {
                 repository_name: 'r',
                 workflow_name: 'w',
                 head_branch: 'b',
+                topics: [],
             },
         };
 
@@ -117,6 +119,94 @@ describe('notifications controller', () => {
         );
     });
 
+    it('upsertNotificationRule includes topics in event log message when topics are set', async () => {
+        const now = new Date();
+        mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            const mockTx = {
+                insert: () => ({
+                    values: () => ({
+                        onConflictDoUpdate: () => ({
+                            returning: () =>
+                                Promise.resolve([
+                                    {
+                                        id: 'uuid-topics',
+                                        integrationId: 'integrationA',
+                                        channels: [],
+                                        enabled: true,
+                                        ignore_dependabot: false,
+                                        rule: {
+                                            owner: 'o',
+                                            repository_name: 'r',
+                                            workflow_name: 'w',
+                                            head_branch: 'b',
+                                            topics: ['frontend', 'backend'],
+                                        },
+                                        createdAt: now,
+                                        updatedAt: now,
+                                    },
+                                ]),
+                        }),
+                    }),
+                }),
+            };
+            return params.callback(mockTx);
+        });
+
+        const out = await notifications.upsertNotificationRule({
+            rule: {
+                enabled: true,
+                channels: [],
+                ignore_dependabot: false,
+                rule: {owner: 'o', repository_name: 'r', workflow_name: 'w', head_branch: 'b', topics: ['frontend', 'backend']},
+            } as any,
+            integrationId: 'integrationA',
+            userIntegrationIds: ['integrationA'],
+            createOnly: true,
+        });
+
+        expect(out.id).toBe('uuid-topics');
+        expect(out.rule.topics).toEqual(['frontend', 'backend']);
+
+        expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('[topics: frontend, backend]'),
+            }),
+        );
+    });
+
+    it('getNotificationRules passes through rule as-is', async () => {
+        const now = new Date();
+        mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            const mockTx = {
+                select: () => ({
+                    from: () =>
+                        Promise.resolve([
+                            {
+                                id: 'uuid-old',
+                                integrationId: 'integrationA',
+                                channels: [],
+                                enabled: true,
+                                ignore_dependabot: false,
+                                rule: {head_branch: 'main'},
+                                createdAt: now,
+                                updatedAt: now,
+                            },
+                        ]),
+                }),
+            };
+            return params.callback(mockTx);
+        });
+
+        const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
+
+        expect(out).toHaveLength(1);
+        expect(out[0].rule).toEqual({head_branch: 'main'});
+        expect(out[0].rule.owner).toBeUndefined();
+        expect(out[0].rule.repository_name).toBeUndefined();
+        expect(out[0].rule.workflow_name).toBeUndefined();
+        expect(out[0].rule.topics).toBeUndefined();
+    });
+
     it('upsertNotificationRule succeeds even when event log entry fails', async () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
@@ -132,7 +222,7 @@ describe('notifications controller', () => {
                                         channels: [],
                                         enabled: true,
                                         ignore_dependabot: false,
-                                        rule: {owner: '*', repository_name: '*', workflow_name: '*', head_branch: '*'},
+                                        rule: {topics: []},
                                         createdAt: now,
                                         updatedAt: now,
                                     },
@@ -150,7 +240,7 @@ describe('notifications controller', () => {
                 enabled: true,
                 channels: [],
                 ignore_dependabot: false,
-                rule: {owner: '*', repository_name: '*', workflow_name: '*', head_branch: '*'},
+                rule: {topics: []},
             } as any,
             integrationId: 'integrationA',
             userIntegrationIds: ['integrationA'],

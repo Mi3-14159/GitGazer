@@ -46,6 +46,14 @@
             >
                 No Dependabot
             </Badge>
+            <Badge
+                v-for="topic in rule.rule.topics"
+                :key="topic"
+                variant="outline"
+                class="text-xs h-5 px-1.5"
+            >
+                #{{ topic }}
+            </Badge>
         </div>
     </div>
 </template>
