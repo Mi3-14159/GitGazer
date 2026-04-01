@@ -253,6 +253,13 @@
       "when": 1774988215618,
       "tag": "0035_handy_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1775073257954,
+      "tag": "0036_absent_sphinx",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,7 @@
     const createDefaultRule = (): NotificationRule => ({
         id: '',
         integrationId: '',
+        label: '',
         enabled: false,
         createdAt: '',
         updatedAt: '',
@@ -68,6 +69,10 @@
     };
 
     const handleSave = () => {
+        if (!notificationRule.value.label.trim()) {
+            errorMsg.value = 'Label is required';
+            return;
+        }
         if (!notificationRule.value.integrationId) {
             errorMsg.value = 'Integration is required';
             return;
@@ -85,6 +90,15 @@
     <div>
         <h3 class="text-lg font-semibold mb-4">{{ props.existingRule ? 'Edit Notification Rule' : 'New Notification Rule' }}</h3>
         <div class="space-y-4">
+            <div class="space-y-2">
+                <Label>Label *</Label>
+                <Input
+                    v-model="notificationRule.label"
+                    placeholder="e.g., Team Alpha CI alerts"
+                    maxlength="100"
+                />
+            </div>
+
             <div class="space-y-2">
                 <Label>Integration *</Label>
                 <div class="relative">

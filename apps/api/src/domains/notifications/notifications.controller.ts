@@ -10,6 +10,7 @@ import {getLogger} from '@/shared/logger';
 const toNotificationRule = (row: typeof notificationRules.$inferSelect): NotificationRule => ({
     integrationId: row.integrationId,
     id: row.id,
+    label: row.label,
     channels: row.channels,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -65,6 +66,7 @@ export const upsertNotificationRule = async (params: {
                 .values({
                     integrationId: params.integrationId,
                     id: params.ruleId,
+                    label: params.rule.label,
                     channels: params.rule.channels,
                     enabled: params.rule.enabled,
                     ignore_dependabot: params.rule.ignore_dependabot,
@@ -73,6 +75,7 @@ export const upsertNotificationRule = async (params: {
                 .onConflictDoUpdate({
                     target: [notificationRules.integrationId, notificationRules.id],
                     set: {
+                        label: params.rule.label,
                         channels: params.rule.channels,
                         enabled: params.rule.enabled,
                         ignore_dependabot: params.rule.ignore_dependabot,
@@ -95,7 +98,7 @@ export const upsertNotificationRule = async (params: {
             category: 'notification',
             type: 'info',
             title: `Notification rule ${action}`,
-            message: `Notification rule for ${filterDesc} was ${action} (channels: ${channels}, enabled: ${params.rule.enabled})`,
+            message: `Notification rule "${params.rule.label}" for ${filterDesc} was ${action} (channels: ${channels}, enabled: ${params.rule.enabled})`,
             metadata: {integrationId: params.integrationId},
         });
     } catch (error) {

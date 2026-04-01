@@ -74,6 +74,7 @@ export const notificationRules = gitgazerSchema
                 .notNull()
                 .references(() => integrations.integrationId, {onDelete: 'cascade'}),
             id: uuid('id').defaultRandom().notNull(),
+            label: varchar('label', {length: 100}).notNull(),
             channels: jsonb('channels').notNull().$type<NotificationRuleChannel[]>(),
             enabled: boolean('enabled').notNull().default(true),
             ignore_dependabot: boolean('ignore_dependabot').notNull().default(false),

@@ -12,6 +12,7 @@ import type * as schema from '../schema';
 export type NotificationRule = {
     integrationId: string;
     id?: string;
+    label: string;
     channels: NotificationRuleChannel[];
     createdAt: string;
     updatedAt: string;
@@ -24,6 +25,7 @@ export type NotificationRule = {
 export const isNotificationRule = (rule: any): rule is NotificationRule => {
     return (
         typeof rule.integrationId === 'string' &&
+        typeof rule.label === 'string' &&
         Array.isArray(rule.channels) &&
         rule.channels.every(isNotificationRuleChannel) &&
         typeof rule.createdAt === 'string' &&
@@ -171,6 +173,9 @@ export type EventLogFilters = {
 
 export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpdate => {
     return (
+        typeof rule.label === 'string' &&
+        rule.label.trim().length > 0 &&
+        rule.label.length <= 100 &&
         Array.isArray(rule.channels) &&
         rule.channels.every(isNotificationRuleChannel) &&
         typeof rule.enabled === 'boolean' &&

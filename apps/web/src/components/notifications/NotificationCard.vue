@@ -42,7 +42,10 @@
                 <!-- Top Row: Name + Actions -->
                 <div class="flex items-start justify-between gap-2">
                     <div class="flex-1 min-w-0">
-                        <h3 class="font-semibold text-base break-words min-w-0">{{ integrationLabel }}</h3>
+                        <h3 class="font-semibold text-base break-words min-w-0">{{ rule.label }}</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">
+                            {{ integrationLabel }}
+                        </p>
                         <div class="flex items-center gap-1.5 flex-wrap mt-1">
                             <Badge
                                 v-if="rule.enabled"

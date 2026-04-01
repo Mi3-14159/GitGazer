@@ -39,6 +39,7 @@ describe('notifications controller', () => {
         await expect(
             notifications.upsertNotificationRule({
                 rule: {
+                    label: 'Test rule',
                     enabled: true,
                     channels: [],
                     ignore_dependabot: false,
@@ -69,6 +70,7 @@ describe('notifications controller', () => {
                                     {
                                         id: 'uuid-123',
                                         integrationId: 'integrationA',
+                                        label: 'CI alerts',
                                         channels: [],
                                         enabled: true,
                                         ignore_dependabot: false,
@@ -85,6 +87,7 @@ describe('notifications controller', () => {
         });
 
         const rule: any = {
+            label: 'CI alerts',
             enabled: true,
             channels: [],
             ignore_dependabot: false,
@@ -107,6 +110,7 @@ describe('notifications controller', () => {
         expect(mockWithRlsTransaction).toHaveBeenCalledTimes(1);
         expect(out.id).toBe('uuid-123');
         expect(out.integrationId).toBe('integrationA');
+        expect(out.label).toBe('CI alerts');
 
         expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -115,6 +119,11 @@ describe('notifications controller', () => {
                 type: 'info',
                 title: 'Notification rule created',
                 message: expect.stringContaining('o/r/w/b'),
+            }),
+        );
+        expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('"CI alerts"'),
             }),
         );
     });
@@ -131,6 +140,7 @@ describe('notifications controller', () => {
                                     {
                                         id: 'uuid-topics',
                                         integrationId: 'integrationA',
+                                        label: 'Topic rule',
                                         channels: [],
                                         enabled: true,
                                         ignore_dependabot: false,
@@ -154,6 +164,7 @@ describe('notifications controller', () => {
 
         const out = await notifications.upsertNotificationRule({
             rule: {
+                label: 'Topic rule',
                 enabled: true,
                 channels: [],
                 ignore_dependabot: false,
@@ -184,6 +195,7 @@ describe('notifications controller', () => {
                             {
                                 id: 'uuid-old',
                                 integrationId: 'integrationA',
+                                label: 'Old rule',
                                 channels: [],
                                 enabled: true,
                                 ignore_dependabot: false,
@@ -201,6 +213,7 @@ describe('notifications controller', () => {
 
         expect(out).toHaveLength(1);
         expect(out[0].rule).toEqual({head_branch: 'main'});
+        expect(out[0].label).toBe('Old rule');
         expect(out[0].rule.owner).toBeUndefined();
         expect(out[0].rule.repository_name).toBeUndefined();
         expect(out[0].rule.workflow_name).toBeUndefined();
@@ -219,6 +232,7 @@ describe('notifications controller', () => {
                                     {
                                         id: 'uuid-456',
                                         integrationId: 'integrationA',
+                                        label: 'Failing rule',
                                         channels: [],
                                         enabled: true,
                                         ignore_dependabot: false,
@@ -237,6 +251,7 @@ describe('notifications controller', () => {
 
         const out = await notifications.upsertNotificationRule({
             rule: {
+                label: 'Failing rule',
                 enabled: true,
                 channels: [],
                 ignore_dependabot: false,
