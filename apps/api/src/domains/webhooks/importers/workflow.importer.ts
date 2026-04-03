@@ -1,63 +1,83 @@
+import {upsertEnterprises, upsertOrganizations, upsertRepositories, upsertUsers} from '@/domains/webhooks/importers/shared';
 import {RdsTransaction} from '@gitgazer/db/client';
-import {enterprises, organizations, repositories, user} from '@gitgazer/db/schema/github/workflows';
-import {WorkflowJobEvent, WorkflowRunEvent} from '@gitgazer/db/types';
-import {InferSelectModel} from 'drizzle-orm';
-import {upsertEnterprise, upsertOrganization, upsertRepository, upsertUsers} from './shared';
+import {EnterpriseSelect, OrganizationSelect, RepositorySelect, UserSelect, WorkflowJobEvent, WorkflowRunEvent} from '@gitgazer/db/types';
+import {isEnterprise} from './types';
 
 export const importWorkflow = async (
+    tx: RdsTransaction,
     integrationId: string,
     event: WorkflowJobEvent | WorkflowRunEvent,
-    tx: RdsTransaction,
 ): Promise<{
-    enterprise: InferSelectModel<typeof enterprises>;
-    organization: InferSelectModel<typeof organizations>;
-    repository: InferSelectModel<typeof repositories>;
-    owner: InferSelectModel<typeof user>;
-    sender: InferSelectModel<typeof user>;
-    actor?: InferSelectModel<typeof user>;
+    enterprise?: EnterpriseSelect;
+    organization?: OrganizationSelect;
+    repository: RepositorySelect;
+    owner: UserSelect;
+    sender: UserSelect;
+    actor?: UserSelect;
 }> => {
-    const enterprisePayload =
-        'enterprise' in event && event.enterprise ? {id: (event.enterprise as any).id, name: (event.enterprise as any).name} : undefined;
-    const {enterprise, enterpriseId} = await upsertEnterprise(tx, integrationId, enterprisePayload);
+    let enterprise: EnterpriseSelect | undefined = undefined;
+    if ('enterprise' in event && event.enterprise && isEnterprise(event.enterprise)) {
+        const result = await upsertEnterprises(tx, [
+            {
+                name: event.enterprise.name,
+                id: event.enterprise.id,
+                integrationId,
+            },
+        ]);
+        enterprise = result.enterprises[0];
+    }
 
-    const orgPayload = event.organization
-        ? {id: event.organization.id, login: event.organization.login, description: event.organization.description}
-        : undefined;
-    const {organization, organizationId} = await upsertOrganization(tx, integrationId, enterpriseId, orgPayload);
+    let organization: OrganizationSelect | undefined = undefined;
+    if (event.organization) {
+        const result = await upsertOrganizations(tx, [
+            {
+                id: event.organization.id,
+                login: event.organization.login,
+                description: event.organization.description,
+                integrationId,
+                enterpriseId: enterprise?.id,
+            },
+        ]);
 
-    const userPayloads = [
-        {id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type},
-        {id: event.sender.id, login: event.sender.login, type: event.sender.type},
+        organization = result.organizations[0];
+    }
+
+    const userPayloads: UserSelect[] = [
+        {integrationId, id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type},
+        {integrationId, id: event.sender.id, login: event.sender.login, type: event.sender.type},
     ];
-    if ('workflow_run' in event) {
+    if ('workflow_run' in event && event.workflow_run) {
         userPayloads.push({
+            integrationId,
             id: event.workflow_run.actor.id,
             login: event.workflow_run.actor.login,
             type: event.workflow_run.actor.type,
         });
     }
 
-    const userMap = await upsertUsers(tx, integrationId, userPayloads);
+    const {users} = await upsertUsers(tx, userPayloads);
 
-    const repository = await upsertRepository(tx, {
-        integrationId,
-        organizationId,
-        id: event.repository.id,
-        name: event.repository.name,
-        private: event.repository.private,
-        createdAt: new Date(event.repository.created_at),
-        updatedAt: new Date(event.repository.updated_at),
-        ownerId: event.repository.owner.id,
-        defaultBranch: event.repository.default_branch,
-        topics: event.repository.topics,
-    });
+    const upsertRepositoriesResult = await upsertRepositories(tx, [
+        {
+            integrationId,
+            organizationId: organization?.id,
+            id: event.repository.id,
+            name: event.repository.name,
+            private: event.repository.private,
+            createdAt: new Date(event.repository.created_at),
+            updatedAt: new Date(event.repository.updated_at),
+            ownerId: event.repository.owner.id,
+            defaultBranch: event.repository.default_branch,
+            topics: event.repository.topics,
+        },
+    ]);
 
     return {
-        enterprise: enterprise[0],
-        organization: organization[0],
-        repository,
-        owner: userMap.get(event.repository.owner.id)!,
-        sender: userMap.get(event.sender.id)!,
-        actor: 'workflow_run' in event ? userMap.get(event.workflow_run.actor.id)! : undefined,
+        enterprise,
+        organization,
+        repository: upsertRepositoriesResult.repositories[0],
+        owner: users.find((user) => user.id === event.repository.owner.id)!,
+        sender: users.find((user) => user.id === event.sender.id)!,
+        actor: 'workflow_run' in event ? users.find((user) => user.id === event.workflow_run.actor.id)! : undefined,
     };
 };

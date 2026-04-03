@@ -1,47 +1,35 @@
+import {upsertWorkflowRunPullRequestAssociations, upsertWorkflowRuns} from '@/domains/webhooks/importers/shared';
 import {RdsTransaction} from '@gitgazer/db/client';
-import {workflowRunPullRequests, workflowRuns} from '@gitgazer/db/schema/github/workflows';
-import {WorkflowRunEvent} from '@gitgazer/db/types';
-import {InferSelectModel} from 'drizzle-orm/table';
+import {WorkflowRun, WorkflowRunEvent} from '@gitgazer/db/types';
 
 export const importWorkflowRun = async (
+    tx: RdsTransaction,
     integrationId: string,
     event: WorkflowRunEvent,
-    tx: RdsTransaction,
 ): Promise<{
-    workflowRun: InferSelectModel<typeof workflowRuns>;
+    workflowRun: WorkflowRun;
+    stale: boolean;
 }> => {
-    const workflowRun = await tx
-        .insert(workflowRuns)
-        .values({
+    const {workflowRuns, stale} = await upsertWorkflowRuns(tx, [
+        {
             integrationId,
-            id: event.workflow_run.id,
             repositoryId: event.repository.id,
-            createdAt: new Date(event.workflow_run.created_at),
-            updatedAt: new Date(event.workflow_run.updated_at),
-            name: event.workflow_run.name,
-            headBranch: event.workflow_run.head_branch,
-            runAttempt: event.workflow_run.run_attempt,
-            status: event.workflow_run.status,
-            conclusion: event.workflow_run.conclusion,
-            workflowId: event.workflow_run.workflow_id,
-            runStartedAt: new Date(event.workflow_run.run_started_at),
-            headCommitAuthorName: event.workflow_run.head_commit.author.name,
-            headCommitMessage: event.workflow_run.head_commit.message,
+            id: event.workflow_run.id,
             actorId: event.workflow_run.actor.id,
             event: event.workflow_run.event,
-        })
-        .onConflictDoUpdate({
-            target: [workflowRuns.integrationId, workflowRuns.id],
-            set: {
-                updatedAt: new Date(event.workflow_run.updated_at),
-                runAttempt: event.workflow_run.run_attempt,
-                status: event.workflow_run.status,
-                conclusion: event.workflow_run.conclusion,
-                runStartedAt: new Date(event.workflow_run.run_started_at),
-                event: event.workflow_run.event,
-            },
-        })
-        .returning();
+            conclusion: event.workflow_run.conclusion,
+            createdAt: new Date(event.workflow_run.created_at),
+            headBranch: event.workflow_run.head_branch,
+            name: event.workflow_run.name,
+            runAttempt: event.workflow_run.run_attempt,
+            status: event.workflow_run.status,
+            runStartedAt: new Date(event.workflow_run.run_started_at),
+            updatedAt: new Date(event.workflow_run.updated_at),
+            workflowId: event.workflow_run.workflow_id,
+            headCommitAuthorName: event.workflow_run.head_commit.author.name,
+            headCommitMessage: event.workflow_run.head_commit.message,
+        },
+    ]);
 
     // Insert pull request associations if the workflow run is part of pull requests
     if (event.workflow_run.pull_requests && Array.isArray(event.workflow_run.pull_requests) && event.workflow_run.pull_requests.length > 0) {
@@ -51,10 +39,8 @@ export const importWorkflowRun = async (
             pullRequestId: pr.id,
         }));
 
-        await tx.insert(workflowRunPullRequests).values(pullRequestAssociations).onConflictDoNothing();
+        await upsertWorkflowRunPullRequestAssociations(tx, pullRequestAssociations);
     }
 
-    return {
-        workflowRun: workflowRun[0],
-    };
+    return {workflowRun: workflowRuns[0], stale};
 };

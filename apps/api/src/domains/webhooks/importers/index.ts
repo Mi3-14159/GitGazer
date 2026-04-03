@@ -1,22 +1,28 @@
+import {importPullRequestReview} from '@/domains/webhooks/importers/pull-request-review.importer';
+import {importPullRequest} from '@/domains/webhooks/importers/pull-request.importer';
+import {importWorkflowJob} from '@/domains/webhooks/importers/workflow-job.importer';
+import {importWorkflowRun} from '@/domains/webhooks/importers/workflow-run.importer';
+import {importWorkflow} from '@/domains/webhooks/importers/workflow.importer';
 import {getLogger} from '@/shared/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {events, gitgazerWriter} from '@gitgazer/db/schema';
 import {EventPayloadMap, PullRequest, PullRequestReview, PullRequestReviewEvent, WorkflowJob, WorkflowRunWithRelations} from '@gitgazer/db/types';
 import {EmitterWebhookEventName} from '@octokit/webhooks';
 import {InferSelectModel} from 'drizzle-orm/table';
-import {importPullRequestReview} from './pull-request-review.importer';
-import {importPullRequest} from './pull-request.importer';
-import {importWorkflowJob} from './workflow-job.importer';
-import {importWorkflowRun} from './workflow-run.importer';
-import {importWorkflow} from './workflow.importer';
 
 const logger = getLogger();
+
+export type InsertEventResult = {
+    data: InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations | PullRequest | PullRequestReview;
+    stale: boolean;
+};
 
 export const insertEvent = async <T extends EmitterWebhookEventName & keyof EventPayloadMap>(
     integrationId: string,
     eventType: T,
     event: EventPayloadMap[T],
-): Promise<InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations | PullRequest | PullRequestReview> => {
+): Promise<InsertEventResult> => {
+    logger.info(`Inserting event for integration ${integrationId}, event type ${eventType}`);
     const result = await withRlsTransaction({
         integrationIds: [integrationId],
         userName: gitgazerWriter.name,
@@ -31,14 +37,14 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
                 .returning();
 
             if (eventType === 'workflow_job' && 'workflow_job' in event) {
-                await importWorkflow(integrationId, event as EventPayloadMap['workflow_job'], tx);
-                const {workflowJob} = await importWorkflowJob(integrationId, event as EventPayloadMap['workflow_job'], tx);
+                await importWorkflow(tx, integrationId, event as EventPayloadMap['workflow_job']);
+                const {workflowJob, stale} = await importWorkflowJob(tx, integrationId, event as EventPayloadMap['workflow_job']);
 
-                logger.info(`Inserted workflow job event for integration ${integrationId}, job id ${workflowJob.id}`);
-                return workflowJob;
+                logger.info(`Inserted workflow job event for integration ${integrationId}, job id ${workflowJob.id}`, {stale});
+                return {data: workflowJob, stale};
             } else if (eventType === 'workflow_run' && 'workflow_run' in event) {
-                const {repository, organization, owner} = await importWorkflow(integrationId, event as EventPayloadMap['workflow_run'], tx);
-                const {workflowRun} = await importWorkflowRun(integrationId, event as EventPayloadMap['workflow_run'], tx);
+                const {repository, organization, owner} = await importWorkflow(tx, integrationId, event as EventPayloadMap['workflow_run']);
+                const {workflowRun, stale} = await importWorkflowRun(tx, integrationId, event as EventPayloadMap['workflow_run']);
 
                 const response: WorkflowRunWithRelations = {
                     ...workflowRun,
@@ -46,26 +52,26 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
                     repository: {
                         ...repository,
                         owner,
-                        organization,
+                        organization: organization ?? null,
                     },
                 };
 
-                logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`);
-                return response;
+                logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`, {stale});
+                return {data: response, stale};
             } else if (eventType === 'pull_request' && 'pull_request' in event) {
                 const {pullRequest} = await importPullRequest(integrationId, event as EventPayloadMap['pull_request'], tx);
 
                 logger.info(`Inserted pull request event for integration ${integrationId}, PR id ${pullRequest.id}`);
-                return pullRequest;
+                return {data: pullRequest, stale: false};
             } else if (eventType === 'pull_request_review' && 'review' in event) {
                 const {pullRequestReview} = await importPullRequestReview(integrationId, event as PullRequestReviewEvent, tx);
 
                 logger.info(`Inserted pull request review event for integration ${integrationId}, review id ${pullRequestReview.id}`);
-                return pullRequestReview;
+                return {data: pullRequestReview, stale: false};
             }
 
             logger.info(`Inserted generic event for integration ${integrationId}, event type ${eventType}`);
-            return ev[0];
+            return {data: ev[0], stale: false};
         },
     });
 

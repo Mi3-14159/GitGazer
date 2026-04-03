@@ -147,6 +147,16 @@ data "aws_iam_policy_document" "api" {
       aws_secretsmanager_secret.lambda_config.arn,
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "sqs:SendMessage",
+    ]
+    resources = [
+      aws_sqs_queue.webhook_events.arn
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "api" {

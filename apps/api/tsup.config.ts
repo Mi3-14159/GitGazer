@@ -32,4 +32,10 @@ export default defineConfig([
         entry: {index: 'src/handlers/websocket.ts'},
         outDir: 'dist/websocket',
     },
+    {
+        name: 'worker',
+        ...shared,
+        entry: {index: 'src/handlers/worker.ts'},
+        outDir: 'dist/worker',
+    },
 ]);

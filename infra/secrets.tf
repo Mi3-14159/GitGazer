@@ -65,6 +65,7 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       privateKey    = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]
       webhookSecret = data.aws_kms_secrets.this.plaintext["gh_app_webhook_secret"]
     }
-    wsTokenSecret = random_password.ws_token_secret.result
+    wsTokenSecret   = random_password.ws_token_secret.result
+    webhookQueueUrl = aws_sqs_queue.webhook_events.url
   })
 }

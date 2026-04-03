@@ -191,7 +191,7 @@ export const workflowJobs = githubSchema
             createdAt: timestamp('created_at', {
                 withTimezone: true,
             }).notNull(),
-            headBranch: text('head_branch').notNull(),
+            headBranch: text('head_branch'),
             name: text('name').notNull(),
             runnerGroupName: text('runner_group_name'),
             runAttempt: integer('run_attempt').notNull(),

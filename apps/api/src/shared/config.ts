@@ -122,6 +122,12 @@ const config = convict({
         env: 'WS_TOKEN_SECRET',
         sensitive: true,
     },
+    webhookQueueUrl: {
+        doc: 'SQS queue URL for async webhook event processing',
+        format: String,
+        default: '',
+        env: 'WEBHOOK_QUEUE_URL',
+    },
 });
 
 /**

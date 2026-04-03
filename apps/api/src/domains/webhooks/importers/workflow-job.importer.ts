@@ -1,26 +1,22 @@
 import {RdsTransaction} from '@gitgazer/db/client';
-import {workflowJobs} from '@gitgazer/db/schema/github/workflows';
-import {WorkflowJobEvent} from '@gitgazer/db/types';
-import {InferSelectModel} from 'drizzle-orm/table';
+import {WorkflowJob, WorkflowJobEvent} from '@gitgazer/db/types';
+import {upsertWorkflowJobs} from './shared';
 
 export const importWorkflowJob = async (
+    tx: RdsTransaction,
     integrationId: string,
     event: WorkflowJobEvent,
-    tx: RdsTransaction,
 ): Promise<{
-    workflowJob: InferSelectModel<typeof workflowJobs>;
+    workflowJob: WorkflowJob;
+    stale: boolean;
 }> => {
-    const completedAt = event.workflow_job.completed_at ? new Date(event.workflow_job.completed_at) : null;
-    const conclusion = event.workflow_job.conclusion;
-
-    const workflowJob = await tx
-        .insert(workflowJobs)
-        .values({
+    const {workflowJobs, stale} = await upsertWorkflowJobs(tx, [
+        {
             integrationId,
-            id: event.workflow_job.id,
             repositoryId: event.repository.id,
-            completedAt,
-            conclusion,
+            id: event.workflow_job.id,
+            completedAt: event.workflow_job.completed_at ? new Date(event.workflow_job.completed_at) : null,
+            conclusion: event.workflow_job.conclusion ?? null,
             createdAt: new Date(event.workflow_job.created_at),
             headBranch: event.workflow_job.head_branch,
             name: event.workflow_job.name,
@@ -29,18 +25,10 @@ export const importWorkflowJob = async (
             runId: event.workflow_job.run_id,
             startedAt: new Date(event.workflow_job.started_at),
             status: event.workflow_job.status,
-            workflowName: event.workflow_job.workflow_name,
+            workflowName: event.workflow_job.name,
             workflowRunId: event.workflow_job.run_id,
-        } as any)
-        .onConflictDoUpdate({
-            target: [workflowJobs.integrationId, workflowJobs.id],
-            set: {
-                completedAt,
-                conclusion,
-                status: event.workflow_job.status,
-            },
-        })
-        .returning();
+        },
+    ]);
 
-    return {workflowJob: workflowJob[0]};
+    return {workflowJob: workflowJobs[0], stale};
 };

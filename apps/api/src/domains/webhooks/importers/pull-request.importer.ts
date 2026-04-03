@@ -1,50 +1,67 @@
+import {upsertEnterprises, upsertOrganizations, upsertPullRequests, upsertRepositories, upsertUsers} from '@/domains/webhooks/importers/shared';
+import {isEnterprise} from '@/domains/webhooks/importers/types';
 import {RdsTransaction} from '@gitgazer/db/client';
-import {enterprises, organizations, pullRequests, user} from '@gitgazer/db/schema/github/workflows';
-import {PullRequestEvent} from '@gitgazer/db/types';
-import {InferSelectModel} from 'drizzle-orm/table';
-import {upsertEnterprise, upsertOrganization, upsertRepository, upsertUsers} from './shared';
+import {EnterpriseSelect, OrganizationSelect, PullRequest, PullRequestEvent, UserSelect} from '@gitgazer/db/types';
 
 export const importPullRequest = async (
     integrationId: string,
     event: PullRequestEvent,
     tx: RdsTransaction,
 ): Promise<{
-    enterprise: InferSelectModel<typeof enterprises>;
-    organization: InferSelectModel<typeof organizations>;
-    user: InferSelectModel<typeof user>;
-    pullRequest: InferSelectModel<typeof pullRequests>;
+    enterprise?: EnterpriseSelect;
+    organization?: OrganizationSelect;
+    user: UserSelect;
+    pullRequest: PullRequest;
 }> => {
-    const enterprisePayload =
-        'enterprise' in event && event.enterprise ? {id: (event.enterprise as any).id, name: (event.enterprise as any).name} : undefined;
-    const {enterprise, enterpriseId} = await upsertEnterprise(tx, integrationId, enterprisePayload);
+    let enterprise: EnterpriseSelect | undefined = undefined;
+    if ('enterprise' in event && event.enterprise && isEnterprise(event.enterprise)) {
+        const result = await upsertEnterprises(tx, [
+            {
+                name: event.enterprise.name,
+                id: event.enterprise.id,
+                integrationId,
+            },
+        ]);
+        enterprise = result.enterprises[0];
+    }
 
-    const orgPayload = event.organization
-        ? {id: event.organization.id, login: event.organization.login, description: event.organization.description}
-        : undefined;
-    const {organization, organizationId} = await upsertOrganization(tx, integrationId, enterpriseId, orgPayload);
+    let organization: OrganizationSelect | undefined = undefined;
+    if (event.organization) {
+        const result = await upsertOrganizations(tx, [
+            {
+                id: event.organization.id,
+                login: event.organization.login,
+                description: event.organization.description,
+                integrationId,
+                enterpriseId: enterprise?.id,
+            },
+        ]);
 
-    await upsertRepository(tx, {
-        integrationId,
-        organizationId,
-        id: event.repository.id,
-        name: event.repository.name,
-        private: event.repository.private,
-        createdAt: new Date(event.repository.created_at),
-        updatedAt: new Date(event.repository.updated_at),
-        ownerId: event.repository.owner.id,
-        defaultBranch: event.repository.default_branch,
-        topics: event.repository.topics,
-    });
+        organization = result.organizations[0];
+    }
 
-    const userMap = await upsertUsers(tx, integrationId, [
-        {id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type},
-        {id: event.pull_request.user.id, login: event.pull_request.user.login, type: event.pull_request.user.type},
+    await upsertRepositories(tx, [
+        {
+            integrationId,
+            organizationId: organization?.id,
+            id: event.repository.id,
+            name: event.repository.name,
+            private: event.repository.private,
+            createdAt: new Date(event.repository.created_at),
+            updatedAt: new Date(event.repository.updated_at),
+            ownerId: event.repository.owner.id,
+            defaultBranch: event.repository.default_branch,
+            topics: event.repository.topics,
+        },
     ]);
 
-    // Insert/update pull request
-    const result = await tx
-        .insert(pullRequests)
-        .values({
+    const {users} = await upsertUsers(tx, [
+        {integrationId, id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type},
+        {integrationId, id: event.pull_request.user.id, login: event.pull_request.user.login, type: event.pull_request.user.type},
+    ]);
+
+    const {pullRequests} = await upsertPullRequests(tx, [
+        {
             integrationId,
             repositoryId: event.repository.id,
             id: event.pull_request.id,
@@ -65,30 +82,13 @@ export const importPullRequest = async (
             deletions: event.pull_request.deletions,
             changedFiles: event.pull_request.changed_files,
             commits: event.pull_request.commits,
-        })
-        .onConflictDoUpdate({
-            target: [pullRequests.integrationId, pullRequests.id],
-            set: {
-                state: event.pull_request.state,
-                title: event.pull_request.title,
-                body: event.pull_request.body ?? null,
-                draft: event.pull_request.draft,
-                merged: event.pull_request.merged ?? null,
-                updatedAt: new Date(event.pull_request.updated_at),
-                closedAt: event.pull_request.closed_at ? new Date(event.pull_request.closed_at) : null,
-                mergedAt: event.pull_request.merged_at ? new Date(event.pull_request.merged_at) : null,
-                additions: event.pull_request.additions,
-                deletions: event.pull_request.deletions,
-                changedFiles: event.pull_request.changed_files,
-                commits: event.pull_request.commits,
-            },
-        })
-        .returning();
+        },
+    ]);
 
     return {
-        enterprise: enterprise[0],
-        organization: organization[0],
-        user: userMap.get(event.pull_request.user.id)!,
-        pullRequest: result[0],
+        enterprise,
+        organization,
+        user: users.find((user) => user.id === event.pull_request.user.id)!,
+        pullRequest: pullRequests[0],
     };
 };

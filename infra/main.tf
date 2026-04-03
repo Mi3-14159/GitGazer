@@ -51,4 +51,5 @@ locals {
     "https://app.gitgazer.localhost:5173",
     try("https://${var.custom_domain_config.domain_name}", null),
   ])
+  worker_lambda_timeout_seconds = 120
 }

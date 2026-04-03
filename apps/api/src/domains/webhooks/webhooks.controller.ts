@@ -1,8 +1,6 @@
-import {sendWorkflowJobAlerts} from '@/domains/alerting/alerting.controller';
-import {insertEvent} from '@/domains/webhooks/importers/index';
+import {sendWebhookEvent} from '@/shared/clients/sqs.client';
 import {deleteConnection, getConnections} from '@/shared/clients/websocket.client';
 import config from '@/shared/config';
-import {ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@/shared/logger';
 import {
     ApiGatewayManagementApiClient,
@@ -10,7 +8,7 @@ import {
     GoneException,
     PostToConnectionCommand,
 } from '@aws-sdk/client-apigatewaymanagementapi';
-import {EventPayloadMap, StreamEvent, type WebSocketChannel, WorkflowJobEvent} from '@gitgazer/db/types';
+import {EventPayloadMap, StreamEvent, type WebSocketChannel} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 
 let apiClient: ApiGatewayManagementApiClient | null = null;
@@ -31,30 +29,11 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
     eventType: T,
     event: EventPayloadMap[T],
 ): Promise<void> => {
-    try {
-        const result = await insertEvent(integrationId, eventType, event);
-
-        if (eventType === 'workflow_job') {
-            await postToConnections('workflows', {
-                eventType,
-                integrationId,
-                payload: result,
-            });
-            await sendWorkflowJobAlerts(integrationId, event as unknown as WorkflowJobEvent);
-        } else if (eventType === 'workflow_run') {
-            await postToConnections('workflows', {
-                eventType,
-                integrationId,
-                payload: result,
-            });
-        }
-    } catch (error) {
-        getLogger().error(`Error handling event: ${error instanceof Error ? error.stack : JSON.stringify(error)}`);
-        throw ensureHttpError(error);
-    }
+    const queueUrl = config.get('webhookQueueUrl');
+    await sendWebhookEvent(queueUrl, {integrationId, eventType, payload: event});
 };
 
-const postToConnections = async <T>(channel: WebSocketChannel, params: StreamEvent<T>) => {
+export const postToConnections = async <T>(channel: WebSocketChannel, params: StreamEvent<T>) => {
     const logger = getLogger();
     const connections = await getConnections(params.integrationId, channel);
 
