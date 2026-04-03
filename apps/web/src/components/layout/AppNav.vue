@@ -2,10 +2,9 @@
     import {useTour} from '@/composables/useTour';
     import {Activity, Bell, LayoutDashboard, PlayCircle, ScrollText, Webhook} from 'lucide-vue-next';
     import {computed} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
+    import {RouterLink, useRoute} from 'vue-router';
 
     const route = useRoute();
-    const router = useRouter();
     const {isActive: tourActive, currentStepConfig} = useTour();
 
     const tabs = [
@@ -24,11 +23,6 @@
         if (currentStepConfig.value.target === '[data-tour="nav-bar"]') return null;
         return tabs.find((tab) => tab.path === currentStepConfig.value?.route)?.value ?? null;
     });
-
-    function navigateTab(tab: (typeof tabs)[number]) {
-        if (route.path === tab.path) return;
-        router.push(tab.path);
-    }
 </script>
 
 <template>
@@ -37,22 +31,22 @@
             data-tour="nav-bar"
             class="grid w-full grid-cols-6 rounded-lg bg-muted p-1"
         >
-            <button
+            <RouterLink
                 v-for="tab in tabs"
                 :key="tab.value"
+                :to="tab.path"
                 :class="[
-                    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
+                    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer no-underline',
                     activeTab === tab.value ? 'bg-background text-foreground shadow' : 'text-muted-foreground hover:text-foreground',
                     tourHighlightTab === tab.value && 'tour-nav-highlight',
                 ]"
-                @click="navigateTab(tab)"
             >
                 <component
                     :is="tab.icon"
                     class="h-4 w-4"
                 />
                 <span class="hidden sm:inline">{{ tab.label }}</span>
-            </button>
+            </RouterLink>
         </nav>
     </div>
 </template>
