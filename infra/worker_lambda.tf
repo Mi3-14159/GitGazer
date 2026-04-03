@@ -131,18 +131,17 @@ data "aws_s3_object" "worker_lambda_function_archive" {
 }
 
 resource "aws_lambda_function" "worker" {
-  description                    = "Processes webhook events from SQS"
-  function_name                  = "${var.name_prefix}-worker-${terraform.workspace}"
-  role                           = aws_iam_role.worker.arn
-  handler                        = "index.handler"
-  runtime                        = "nodejs24.x"
-  s3_bucket                      = module.lambda_store.s3_bucket_id
-  s3_key                         = data.aws_s3_object.worker_lambda_function_archive.key
-  s3_object_version              = data.aws_s3_object.worker_lambda_function_archive.version_id
-  timeout                        = local.worker_lambda_timeout_seconds
-  publish                        = true
-  memory_size                    = 256
-  reserved_concurrent_executions = 1
+  description       = "Processes webhook events from SQS"
+  function_name     = "${var.name_prefix}-worker-${terraform.workspace}"
+  role              = aws_iam_role.worker.arn
+  handler           = "index.handler"
+  runtime           = "nodejs24.x"
+  s3_bucket         = module.lambda_store.s3_bucket_id
+  s3_key            = data.aws_s3_object.worker_lambda_function_archive.key
+  s3_object_version = data.aws_s3_object.worker_lambda_function_archive.version_id
+  timeout           = local.worker_lambda_timeout_seconds
+  publish           = true
+  memory_size       = 256
 
   environment {
     variables = {
