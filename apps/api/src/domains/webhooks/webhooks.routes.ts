@@ -4,10 +4,11 @@ import {getLogger} from '@/shared/logger';
 import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
 import {EventPayloadMap} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
+import {verifyGithubSign} from './webhooks.middleware';
 
 const router = new Router();
 
-router.post('/api/import/:integrationId', [], async (reqCtx) => {
+router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => {
     const logger = getLogger();
 
     const githubEventType = reqCtx.event?.headers?.['x-github-event'];
