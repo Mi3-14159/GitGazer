@@ -69,10 +69,21 @@
 
     const HOUR_MS = 3_600_000;
 
-    const dataInfo = computed(() => {
+    /** Collect all unique, sorted period strings from either data or series. */
+    const allPeriods = computed<string[]>(() => {
         const data = props.metric?.data;
-        if (!data || data.length < 2) return {stepMs: 0};
-        const stepMs = new Date(data[1].period).getTime() - new Date(data[0].period).getTime();
+        if (data?.length) return data.map((d) => d.period);
+        const series = props.metric?.series;
+        if (!series?.length) return [];
+        const set = new Set<string>();
+        for (const s of series) for (const d of s.data) set.add(d.period);
+        return Array.from(set).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    });
+
+    const dataInfo = computed(() => {
+        const periods = allPeriods.value;
+        if (periods.length < 2) return {stepMs: 0};
+        const stepMs = new Date(periods[1]).getTime() - new Date(periods[0]).getTime();
         return {stepMs};
     });
 
@@ -153,10 +164,12 @@
 
     const chartOption = computed(() => {
         const data = props.metric?.data;
+        const seriesData = props.metric?.series;
+        const periods = allPeriods.value;
         const barColor = props.color ?? '#6366f1';
         const chartType = selectedChartType.value;
 
-        if (!data?.length) {
+        if (!periods.length) {
             return {
                 title: [
                     {
@@ -170,11 +183,8 @@
         }
 
         const {stepMs} = dataInfo.value;
-        const labels = data.map((d) => formatPeriod(d.period, stepMs));
-        const labelInterval = data.length <= 10 ? 0 : Math.max(0, Math.floor(data.length / 5) - 1);
-        const periods = data.map((d) => d.period);
-
-        const seriesData = props.metric?.series;
+        const labels = periods.map((p) => formatPeriod(p, stepMs));
+        const labelInterval = periods.length <= 10 ? 0 : Math.max(0, Math.floor(periods.length / 5) - 1);
 
         const unitLabel = props.metric?.unit ?? '';
 
@@ -205,13 +215,7 @@
 
         return {
             ...base,
-            series: [
-                buildSingleSeries(
-                    data.map((d) => d.value),
-                    barColor,
-                    chartType,
-                ),
-            ],
+            series: [buildSingleSeries(data?.map((d) => d.value) ?? [], barColor, chartType)],
         };
     });
 </script>
