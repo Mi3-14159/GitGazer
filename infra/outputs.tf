@@ -7,3 +7,13 @@ output "websocket_endpoint" {
   description = "The WebSocket API endpoint URL"
   value       = "${aws_apigatewayv2_api.websocket.api_endpoint}/${aws_apigatewayv2_stage.websocket_ws.name}"
 }
+
+output "bastion_instance_id" {
+  description = "Instance ID of the bastion host (use with SSM Session Manager)"
+  value       = aws_instance.bastion.id
+}
+
+output "bastion_ssm_port_forward_command" {
+  description = "Command to start an SSM port-forwarding session to the RDS Proxy"
+  value       = "aws ssm start-session --target ${aws_instance.bastion.id} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{\"host\":[\"${module.rds_proxy.proxy_endpoint}\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"5432\"]}'"
+}

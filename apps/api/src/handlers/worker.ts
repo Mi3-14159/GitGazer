@@ -1,12 +1,14 @@
 import {processRecord} from '@/domains/webhooks/worker/batch-processor';
 import {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
+import {initDb} from '@gitgazer/db/client';
 import type {SQSBatchResponse, SQSEvent} from 'aws-lambda';
 
 const logger = getLogger();
 let initPromise: Promise<void> | null = null;
 
 const init = async (): Promise<void> => {
+    await initDb();
     await loadConfig();
 };
 

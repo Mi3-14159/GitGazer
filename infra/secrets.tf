@@ -53,11 +53,6 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       apiDomainName = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
       apiStage      = aws_apigatewayv2_stage.websocket_ws.name
     }
-    rds = {
-      database    = "postgres"
-      secretArn   = module.db.cluster_master_user_secret[0].secret_arn
-      resourceArn = module.db.cluster_arn
-    }
     uiBucketName  = module.ui_bucket.s3_bucket_id
     importUrlBase = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
     githubApp = {

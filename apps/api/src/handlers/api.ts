@@ -2,6 +2,7 @@ import {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {createApp} from '@/shared/router';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
+import {initDb} from '@gitgazer/db/client';
 import {APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context} from 'aws-lambda';
 
 const logger = getLogger();
@@ -10,6 +11,7 @@ let app: Router | null = null;
 let initPromise: Promise<void> | null = null;
 
 const init = async (): Promise<void> => {
+    await initDb();
     await loadConfig();
     app = createApp();
 };

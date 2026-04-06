@@ -47,7 +47,7 @@ variable "gh_app" {
   description = "GitHub App configuration (ID, KMS-encrypted private key and webhook secret)"
 }
 
-variable "callback_uls" {
+variable "callback_urls" {
   type        = list(string)
   description = "List of callback URLs for the Cognito User Pool Client"
   default     = []
@@ -76,8 +76,9 @@ variable "db_config" {
     engine_version              = optional(string, "17.7")
     engine_mode                 = optional(string, "provisioned")
     instance_class              = optional(string, "db.serverless")
-    vpc_id                      = string
-    subnets                     = list(string)
+    vpc_id                      = optional(string)
+    availability_zones          = optional(list(string))
+    subnets                     = optional(list(string))
     cluster_monitoring_interval = optional(number, 0)
     serverlessv2_scaling_configuration = optional(object({
       max_capacity             = number
@@ -92,6 +93,25 @@ variable "db_config" {
       one = {}
     })
     cluster_performance_insights_retention_period = optional(number, 7)
+    enable_http_endpoint                          = optional(bool, true)
   })
   description = "Configuration for the RDS database"
+}
+
+variable "vpc" {
+  type = object({
+    create = bool
+    config = optional(object({
+      cidr_block         = string
+      azs                = list(string)
+      public_subnets     = list(string)
+      private_subnets    = list(string)
+      enable_nat_gateway = optional(bool, true)
+      single_nat_gateway = optional(bool, false)
+    }))
+  })
+  default = {
+    create = false
+  }
+  description = "Configuration for the VPC"
 }

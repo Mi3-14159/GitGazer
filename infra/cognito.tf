@@ -40,7 +40,7 @@ resource "aws_cognito_user_pool_client" "this" {
   user_pool_id    = aws_cognito_user_pool.this.id
   generate_secret = true
   callback_urls = distinct(compact(concat(
-    var.callback_uls,
+    var.callback_urls,
     formatlist("%s/api/auth/callback", local.cors_allowed_origins),
   )))
   logout_urls = distinct(compact(concat(

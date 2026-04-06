@@ -32,6 +32,11 @@ resource "aws_iam_role_policy_attachment" "worker_tracing_application_signals" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaApplicationSignalsExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy_attachment" "worker_vpc_access" {
+  role       = aws_iam_role.worker.id
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
 data "aws_iam_policy_document" "worker" {
   statement {
     effect = "Allow"
@@ -73,24 +78,9 @@ data "aws_iam_policy_document" "worker" {
   statement {
     effect = "Allow"
     actions = [
-      "rds-data:ExecuteStatement",
-      "rds-data:BatchExecuteStatement",
-      "rds-data:BeginTransaction",
-      "rds-data:CommitTransaction",
-      "rds-data:RollbackTransaction",
-    ]
-    resources = [
-      module.db.cluster_arn,
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
       "secretsmanager:GetSecretValue",
     ]
     resources = [
-      module.db.cluster_master_user_secret[0].secret_arn,
       aws_secretsmanager_secret.lambda_config.arn,
     ]
   }
@@ -102,10 +92,9 @@ data "aws_iam_policy_document" "worker" {
       "kms:GenerateDataKey",
       "kms:Encrypt",
     ]
-    resources = distinct([
+    resources = [
       aws_kms_key.this.arn,
-      module.db.cluster_master_user_secret[0].kms_key_id
-    ])
+    ]
   }
 
   statement {
@@ -115,6 +104,14 @@ data "aws_iam_policy_document" "worker" {
     ]
     resources = [
       "${aws_apigatewayv2_api.websocket.execution_arn}/*",
+    ]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = ["rds-db:connect"]
+    resources = [
+      "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${local.rds_proxy_resource_id}/*"
     ]
   }
 }
@@ -151,8 +148,8 @@ resource "aws_lambda_function" "worker" {
       POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
       RDS_DATABASE                        = "postgres"
-      RDS_SECRET_ARN                      = module.db.cluster_master_user_secret[0].secret_arn
-      RDS_RESOURCE_ARN                    = module.db.cluster_arn
+      RDS_DB_USER                         = module.db.cluster_master_username
+      RDS_PROXY_ENDPOINT                  = module.rds_proxy.proxy_endpoint
       CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
     }
@@ -169,6 +166,11 @@ resource "aws_lambda_function" "worker" {
 
   tracing_config {
     mode = var.enable_lambda_tracing ? "Active" : "PassThrough"
+  }
+
+  vpc_config {
+    subnet_ids         = local.private_subnets
+    security_group_ids = [aws_security_group.lambda.id]
   }
 }
 

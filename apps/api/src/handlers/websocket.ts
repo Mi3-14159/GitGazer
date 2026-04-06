@@ -1,6 +1,6 @@
 import config, {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
-import {db} from '@gitgazer/db/client';
+import {db, initDb} from '@gitgazer/db/client';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
 import {WEBSOCKET_CHANNELS, WSToken, type WebSocketChannel} from '@gitgazer/db/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
@@ -12,6 +12,7 @@ const logger = getLogger();
 let initPromise: Promise<void> | null = null;
 
 const init = async (): Promise<void> => {
+    await initDb();
     await loadConfig();
 };
 
