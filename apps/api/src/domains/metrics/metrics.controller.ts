@@ -10,7 +10,6 @@ import {
     getPRMergeRate,
     getPRReviewTime,
     getPRSize,
-    getWorkflowQueueTime,
 } from '@gitgazer/db/queries/metrics';
 import type {MetricResult, MetricsFilter} from '@gitgazer/db/types/metrics';
 
@@ -29,7 +28,6 @@ const metricQueryMap = {
     contributor_count: getContributorCount,
     ci_duration: getCIDuration,
     pr_cycle_time: getPRCycleTime,
-    workflow_queue_time: getWorkflowQueueTime,
     pr_size: getPRSize,
     pr_review_time: getPRReviewTime,
 } as const satisfies Record<string, (params: MetricsControllerParams) => Promise<MetricResult>>;

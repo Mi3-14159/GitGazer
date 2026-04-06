@@ -170,9 +170,7 @@ function buildUnionFilters(filter: MetricsFilter, repoIds: number[] | undefined)
         ? sql`AND ${pullRequests.baseBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId})`
         : sql``;
     const wrUserFilter = filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
-    const prUserFilter = filter.usersOnly
-        ? sql`AND ${pullRequests.authorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')`
-        : sql``;
+    const prUserFilter = filter.usersOnly ? sql`AND ${pullRequests.authorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
     return {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter};
 }
 
@@ -587,37 +585,6 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
                 value: Math.round((Number(r.value) || 0) * 100) / 100,
             }));
             return {metric: 'PR Cycle Time', unit: 'hours', data};
-        },
-    });
-}
-
-export async function getWorkflowQueueTime({integrationIds, filter}: MetricsParams): Promise<MetricResult> {
-    const granularity = filter.granularity ?? 'week';
-    const {from, to} = getDateRange(filter);
-
-    return withRlsTransaction({
-        integrationIds,
-        callback: async (tx) => {
-            const conditions = buildWorkflowJobConditions(filter, from, to);
-            const groupExprs = getGroupByExpressions(filter);
-            const truncated = dateTruncExpression(granularity, sql`${workflowJobs.createdAt}`);
-
-            if (groupExprs) {
-                const rows = await tx.execute(
-                    sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(GREATEST(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60, 0)) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
-                );
-                const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Workflow Queue Time', unit: 'minutes', data: [], series};
-            }
-
-            const rows = await tx.execute(
-                sql`SELECT ${truncated} as period, avg(GREATEST(extract(epoch from (${workflowJobs.startedAt} - ${workflowJobs.createdAt})) / 60, 0)) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
-            );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
-            return {metric: 'Workflow Queue Time', unit: 'minutes', data};
         },
     });
 }

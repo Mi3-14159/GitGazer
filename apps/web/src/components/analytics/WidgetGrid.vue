@@ -72,7 +72,6 @@
         activity_volume: '#f97316',
         ci_duration: '#06b6d4',
         pr_cycle_time: '#6366f1',
-        workflow_queue_time: '#f59e0b',
         contributor_count: '#ec4899',
         pr_size: '#8b5cf6',
         pr_review_time: '#14b8a6',

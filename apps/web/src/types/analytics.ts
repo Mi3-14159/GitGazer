@@ -7,7 +7,6 @@ export type WidgetType =
     | 'activity_volume'
     | 'ci_duration'
     | 'pr_cycle_time'
-    | 'workflow_queue_time'
     | 'contributor_count'
     | 'pr_size'
     | 'pr_review_time';
@@ -66,13 +65,6 @@ export const widgetDefinitions: WidgetDefinition[] = [
     {type: 'activity_volume', title: 'Activity Volume', description: 'Workflow runs and PRs per period', category: 'SPACE', defaultSize: 'medium'},
     {type: 'ci_duration', title: 'CI Duration', description: 'Average CI pipeline duration', category: 'SPACE', defaultSize: 'medium'},
     {type: 'pr_cycle_time', title: 'PR Cycle Time', description: 'Time from PR open to merge', category: 'SPACE', defaultSize: 'medium'},
-    {
-        type: 'workflow_queue_time',
-        title: 'Workflow Queue Time',
-        description: 'Time workflows spend waiting',
-        category: 'SPACE',
-        defaultSize: 'medium',
-    },
     {type: 'contributor_count', title: 'Contributor Count', description: 'Active contributors per period', category: 'SPACE', defaultSize: 'medium'},
     {type: 'pr_size', title: 'PR Size', description: 'Average pull request size (additions + deletions)', category: 'SPACE', defaultSize: 'medium'},
     {
@@ -107,10 +99,9 @@ export const defaultDashboards: Dashboard[] = [
             {id: 'space-2', type: 'activity_volume', title: 'Activity Volume', size: 'medium'},
             {id: 'space-3', type: 'ci_duration', title: 'CI Duration', size: 'medium'},
             {id: 'space-4', type: 'pr_cycle_time', title: 'PR Cycle Time', size: 'medium'},
-            {id: 'space-5', type: 'workflow_queue_time', title: 'Workflow Queue Time', size: 'medium'},
-            {id: 'space-6', type: 'contributor_count', title: 'Contributor Count', size: 'medium'},
-            {id: 'space-7', type: 'pr_size', title: 'PR Size', size: 'medium'},
-            {id: 'space-8', type: 'pr_review_time', title: 'PR Review Time', size: 'medium'},
+            {id: 'space-5', type: 'contributor_count', title: 'Contributor Count', size: 'medium'},
+            {id: 'space-6', type: 'pr_size', title: 'PR Size', size: 'medium'},
+            {id: 'space-7', type: 'pr_review_time', title: 'PR Review Time', size: 'medium'},
         ],
     },
 ];
@@ -125,11 +116,8 @@ export const widgetCalculationInfo: Record<WidgetType, string> = {
         'Percentage of completed workflow runs that failed or timed out. Calculated as (failed + timed_out) ÷ total completed runs × 100. Best used with the Default Branch Only filter.',
     pr_merge_rate: 'Percentage of closed pull requests that were merged. Calculated as merged PRs ÷ total closed PRs × 100.',
     activity_volume: 'Total number of workflow runs triggered and pull requests opened per time period across all tracked repositories.',
-    ci_duration:
-        'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time. See Workflow Queue Time for queue duration.',
+    ci_duration: 'Average execution time of CI jobs from start to completion. Measured per workflow job, excluding queue wait time.',
     pr_cycle_time: 'Median elapsed time from PR creation to merge for merged pull requests. Excludes PRs closed without merging.',
-    workflow_queue_time:
-        'Average time a CI workflow run spends in the queued state before a runner picks it up. High values indicate runner capacity constraints.',
     contributor_count:
         'Number of unique contributors who triggered at least one workflow run or authored at least one pull request during the period.',
     pr_size:
