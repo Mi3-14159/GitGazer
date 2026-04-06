@@ -1,20 +1,29 @@
+import {RDSDataClient} from '@aws-sdk/client-rds-data';
 import {Signer} from '@aws-sdk/rds-signer';
 import {sql} from 'drizzle-orm';
-import {drizzle, type NodePgDatabase} from 'drizzle-orm/node-postgres';
+import {drizzle as drizzleDataApi} from 'drizzle-orm/aws-data-api/pg';
+import {drizzle as drizzleNodePg, type NodePgDatabase} from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import * as schema from './schema';
 import {gitgazerReader} from './schema';
 
 type DbClient = NodePgDatabase<typeof schema>;
+type ConnectionMode = 'rds-proxy' | 'data-api';
 
 let _db: DbClient | null = null;
 let _pool: pg.Pool | null = null;
 let _initPromise: Promise<void> | null = null;
 let _signer: Signer | null = null;
 
-async function initialize(): Promise<void> {
-    if (_db) return;
+function getConnectionMode(): ConnectionMode {
+    const mode = process.env['DB_CONNECTION_MODE'] || 'rds-proxy';
+    if (mode !== 'rds-proxy' && mode !== 'data-api') {
+        throw new Error(`Invalid DB_CONNECTION_MODE: ${mode}. Must be 'rds-proxy' or 'data-api'.`);
+    }
+    return mode;
+}
 
+function initializeRdsProxy(): void {
     const proxyEndpoint = process.env['RDS_PROXY_ENDPOINT'];
     const database = process.env['RDS_DATABASE'];
     const dbUser = process.env['RDS_DB_USER'];
@@ -41,10 +50,43 @@ async function initialize(): Promise<void> {
         idleTimeoutMillis: 10 * 60 * 1000, // recycle idle connections before IAM token expiry (15 min)
     });
 
-    _db = drizzle(_pool, {
+    _db = drizzleNodePg(_pool, {
         schema,
         logger: process.env['DB_LOGGING'] === 'true',
     });
+}
+
+function initializeDataApi(): void {
+    const database = process.env['RDS_DATABASE'];
+    const resourceArn = process.env['RDS_RESOURCE_ARN'];
+    const secretArn = process.env['RDS_SECRET_ARN'];
+
+    if (!database || !resourceArn || !secretArn) {
+        throw new Error('Missing required environment variables for Data API: RDS_DATABASE, RDS_RESOURCE_ARN, RDS_SECRET_ARN');
+    }
+
+    const client = new RDSDataClient({});
+
+    // Both adapters extend PgDatabase and share the same runtime API surface.
+    // The cast is safe — only the raw execute() return wrapper differs.
+    _db = drizzleDataApi(client, {
+        database,
+        resourceArn,
+        secretArn,
+        schema,
+        logger: process.env['DB_LOGGING'] === 'true',
+    }) as unknown as DbClient;
+}
+
+async function initialize(): Promise<void> {
+    if (_db) return;
+
+    const mode = getConnectionMode();
+    if (mode === 'data-api') {
+        initializeDataApi();
+    } else {
+        initializeRdsProxy();
+    }
 }
 
 export async function initDb(): Promise<void> {

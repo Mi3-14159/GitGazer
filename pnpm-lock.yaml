@@ -245,6 +245,9 @@ importers:
         specifier: ^8.13.0
         version: 8.20.0
     devDependencies:
+      '@aws-sdk/client-rds-data':
+        specifier: ^3.873.0
+        version: 3.873.0
       '@aws-sdk/rds-signer':
         specifier: ^3.1024.0
         version: 3.1024.0

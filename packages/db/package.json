@@ -6,6 +6,7 @@
     "pg": "^8.13.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-rds-data": "^3.873.0",
     "@aws-sdk/rds-signer": "^3.1024.0",
     "@types/pg": "^8.11.0"
   },
