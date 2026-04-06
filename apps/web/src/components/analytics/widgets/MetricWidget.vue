@@ -67,37 +67,6 @@
         return map[props.size];
     });
 
-    const changePercent = computed(() => {
-        if (!props.metric) return null;
-        const {current, previous} = props.metric.summary;
-        if (previous === 0) return null;
-        return Math.round(((current - previous) / previous) * 100);
-    });
-
-    const formattedValue = computed(() => {
-        if (!props.metric) return '—';
-        const val = props.metric.summary.current;
-        if (props.metric.unit === '%') return `${val.toFixed(1)}%`;
-        if (props.metric.unit === 'hours') return `${val.toFixed(1)}h`;
-        if (props.metric.unit === 'minutes') return `${val.toFixed(0)}m`;
-        if (props.metric.unit === 'seconds') return `${val.toFixed(0)}s`;
-        if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
-        return val % 1 === 0 ? String(val) : val.toFixed(1);
-    });
-
-    const trendText = computed(() => {
-        if (changePercent.value === null) return '';
-        const arrow = props.metric?.summary.trend === 'up' ? '▲' : props.metric?.summary.trend === 'down' ? '▼' : '—';
-        return `${arrow} ${Math.abs(changePercent.value)}%`;
-    });
-
-    const trendColor = computed(() => {
-        if (!props.metric) return '#9ca3af';
-        if (props.metric.summary.trend === 'up') return '#22c55e';
-        if (props.metric.summary.trend === 'down') return '#ef4444';
-        return '#9ca3af';
-    });
-
     const HOUR_MS = 3_600_000;
 
     const dataInfo = computed(() => {
@@ -289,27 +258,12 @@
                         {{ description }}
                     </Tooltip>
                 </div>
-                <div class="flex items-center gap-2">
-                    <ChartTypeToggle
-                        v-if="metric"
-                        v-model="selectedChartType"
-                        :has-multi-series="hasMultiSeries"
-                        :disabled="isLoading"
-                    />
-                    <div
-                        v-if="metric"
-                        class="text-right"
-                    >
-                        <span class="text-xl font-bold text-foreground">{{ formattedValue }}</span>
-                        <div
-                            v-if="trendText"
-                            class="text-[11px] font-medium"
-                            :style="{color: trendColor}"
-                        >
-                            {{ trendText }}
-                        </div>
-                    </div>
-                </div>
+                <ChartTypeToggle
+                    v-if="metric"
+                    v-model="selectedChartType"
+                    :has-multi-series="hasMultiSeries"
+                    :disabled="isLoading"
+                />
             </div>
             <Transition name="fade">
                 <div

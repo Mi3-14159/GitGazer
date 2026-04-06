@@ -29,24 +29,16 @@ export type MetricDataPoint = {
     value: number;
 };
 
-export type MetricSummary = {
-    current: number;
-    previous: number;
-    trend: 'up' | 'down' | 'stable';
-};
-
 export type MetricSeries = {
     groupKey: string;
     groupLabel: string;
     data: MetricDataPoint[];
-    summary: MetricSummary;
 };
 
 export type MetricResult = {
     metric: string;
     unit: string;
     data: MetricDataPoint[];
-    summary: MetricSummary;
     series?: MetricSeries[];
 };
 
@@ -71,7 +63,7 @@ export type SpaceMetricsResponse = {
 function isMetricResult(value: unknown): value is MetricResult {
     if (typeof value !== 'object' || value === null) return false;
     const v = value as Record<string, unknown>;
-    return typeof v.metric === 'string' && typeof v.unit === 'string' && Array.isArray(v.data) && typeof v.summary === 'object';
+    return typeof v.metric === 'string' && typeof v.unit === 'string' && Array.isArray(v.data);
 }
 
 export const isDoraMetricsResponse = (value: unknown): value is DoraMetricsResponse => {
