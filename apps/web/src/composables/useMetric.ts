@@ -1,8 +1,8 @@
 import {useAuth} from '@/composables/useAuth';
 import type {WidgetType} from '@/types/analytics';
 import {parseApiResponse} from '@/utils/apiResponse';
-import type {DoraMetricsResponse, MetricsFilter, SpaceMetricsResponse} from '@common/types';
-import {isDoraMetricsResponse, isSpaceMetricsResponse} from '@common/types';
+import type {MetricResult, MetricsFilter} from '@common/types';
+import {isMetricResult} from '@common/types';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
@@ -12,22 +12,6 @@ let repositoriesCache: {id: number; name: string}[] | null = null;
 let repositoriesInflight: Promise<{id: number; name: string}[]> | null = null;
 let topicsCache: string[] | null = null;
 let topicsInflight: Promise<string[]> | null = null;
-
-/** Maps each widget type to a field in a DoraMetricsResponse or SpaceMetricsResponse. */
-export const metricFieldMap: Record<WidgetType, {endpoint: 'dora' | 'space'; field: string}> = {
-    deployment_frequency: {endpoint: 'dora', field: 'deploymentFrequency'},
-    lead_time: {endpoint: 'dora', field: 'leadTimeForChanges'},
-    mttr: {endpoint: 'dora', field: 'meanTimeToRecovery'},
-    change_failure_rate: {endpoint: 'dora', field: 'changeFailureRate'},
-    pr_merge_rate: {endpoint: 'space', field: 'prMergeRate'},
-    activity_volume: {endpoint: 'space', field: 'activityVolume'},
-    ci_duration: {endpoint: 'space', field: 'ciDuration'},
-    pr_cycle_time: {endpoint: 'space', field: 'prCycleTime'},
-    workflow_queue_time: {endpoint: 'space', field: 'workflowQueueTime'},
-    contributor_count: {endpoint: 'space', field: 'contributorCount'},
-    pr_size: {endpoint: 'space', field: 'prSize'},
-    pr_review_time: {endpoint: 'space', field: 'prReviewTime'},
-};
 
 function buildQueryString(filter: MetricsFilter): string {
     const params = new URLSearchParams();
@@ -46,18 +30,12 @@ function buildQueryString(filter: MetricsFilter): string {
 export function useMetrics() {
     const {fetchWithAuth} = useAuth();
 
-    async function fetchDoraMetrics(filter: MetricsFilter, signal?: AbortSignal): Promise<DoraMetricsResponse> {
+    async function fetchWidgetMetric(widgetType: WidgetType, filter: MetricsFilter, signal?: AbortSignal): Promise<MetricResult> {
         const qs = buildQueryString(filter);
-        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/dora${qs ? `?${qs}` : ''}`, {signal});
+        const sep = qs ? '&' : '';
+        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/widget?metricName=${widgetType}${sep}${qs}`, {signal});
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return parseApiResponse(res, isDoraMetricsResponse);
-    }
-
-    async function fetchSpaceMetrics(filter: MetricsFilter, signal?: AbortSignal): Promise<SpaceMetricsResponse> {
-        const qs = buildQueryString(filter);
-        const res = await fetchWithAuth(`${API_ENDPOINT}/metrics/space${qs ? `?${qs}` : ''}`, {signal});
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return parseApiResponse(res, isSpaceMetricsResponse);
+        return parseApiResponse(res, isMetricResult);
     }
 
     async function fetchRepositories(): Promise<{id: number; name: string}[]> {
@@ -92,5 +70,5 @@ export function useMetrics() {
         return topicsInflight;
     }
 
-    return {fetchDoraMetrics, fetchSpaceMetrics, fetchRepositories, fetchTopics};
+    return {fetchWidgetMetric, fetchRepositories, fetchTopics};
 }

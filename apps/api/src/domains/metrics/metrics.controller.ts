@@ -12,35 +12,35 @@ import {
     getPRSize,
     getWorkflowQueueTime,
 } from '@gitgazer/db/queries/metrics';
-import type {DoraMetricsResponse, MetricsFilter, SpaceMetricsResponse} from '@gitgazer/db/types/metrics';
+import type {MetricResult, MetricsFilter} from '@gitgazer/db/types/metrics';
 
 type MetricsControllerParams = {
     integrationIds: string[];
     filter: MetricsFilter;
 };
 
-export const getDoraMetrics = async ({integrationIds, filter}: MetricsControllerParams): Promise<DoraMetricsResponse> => {
-    const [deploymentFrequency, leadTimeForChanges, changeFailureRate, meanTimeToRecovery] = await Promise.all([
-        getDeploymentFrequency({integrationIds, filter}),
-        getLeadTimeForChanges({integrationIds, filter}),
-        getChangeFailureRate({integrationIds, filter}),
-        getMeanTimeToRecovery({integrationIds, filter}),
-    ]);
+const metricQueryMap = {
+    deployment_frequency: getDeploymentFrequency,
+    lead_time: getLeadTimeForChanges,
+    change_failure_rate: getChangeFailureRate,
+    mttr: getMeanTimeToRecovery,
+    pr_merge_rate: getPRMergeRate,
+    activity_volume: getActivityVolume,
+    contributor_count: getContributorCount,
+    ci_duration: getCIDuration,
+    pr_cycle_time: getPRCycleTime,
+    workflow_queue_time: getWorkflowQueueTime,
+    pr_size: getPRSize,
+    pr_review_time: getPRReviewTime,
+} as const satisfies Record<string, (params: MetricsControllerParams) => Promise<MetricResult>>;
 
-    return {deploymentFrequency, leadTimeForChanges, changeFailureRate, meanTimeToRecovery};
-};
+export type MetricName = keyof typeof metricQueryMap;
+export const VALID_METRIC_NAMES = new Set<string>(Object.keys(metricQueryMap));
 
-export const getSpaceMetrics = async ({integrationIds, filter}: MetricsControllerParams): Promise<SpaceMetricsResponse> => {
-    const [prMergeRate, activityVolume, contributorCount, ciDuration, prCycleTime, workflowQueueTime, prSize, prReviewTime] = await Promise.all([
-        getPRMergeRate({integrationIds, filter}),
-        getActivityVolume({integrationIds, filter}),
-        getContributorCount({integrationIds, filter}),
-        getCIDuration({integrationIds, filter}),
-        getPRCycleTime({integrationIds, filter}),
-        getWorkflowQueueTime({integrationIds, filter}),
-        getPRSize({integrationIds, filter}),
-        getPRReviewTime({integrationIds, filter}),
-    ]);
-
-    return {prMergeRate, activityVolume, contributorCount, ciDuration, prCycleTime, workflowQueueTime, prSize, prReviewTime};
+export const getWidgetMetric = async ({
+    integrationIds,
+    filter,
+    metricName,
+}: MetricsControllerParams & {metricName: MetricName}): Promise<MetricResult> => {
+    return metricQueryMap[metricName]({integrationIds, filter});
 };

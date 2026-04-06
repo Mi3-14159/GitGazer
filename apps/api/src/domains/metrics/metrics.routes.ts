@@ -1,6 +1,6 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import {getCustomQuerySchema, runCustomQuery} from '@/domains/metrics/custom-metrics.controller';
-import {getDoraMetrics, getSpaceMetrics} from '@/domains/metrics/metrics.controller';
+import type {MetricName} from '@/domains/metrics/metrics.controller';
+import {getWidgetMetric, VALID_METRIC_NAMES} from '@/domains/metrics/metrics.controller';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {listRepositories, listTopics} from '@gitgazer/db/queries/metrics';
@@ -33,145 +33,51 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
     };
 }
 
-router.get('/api/metrics/dora', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+function resolveIntegrationIds(reqCtx: AppRequestContext, event: APIGatewayProxyEventV2): string[] | null {
     const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
-    if (!userIntegrationIds.length) {
-        return new Response(JSON.stringify({message: 'No integrations found for user'}), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
-    }
-
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const filter = parseMetricsFilter(event);
+    if (!userIntegrationIds.length) return null;
     const requestedId = event.queryStringParameters?.integrationId;
-    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+    return requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+}
 
-    const metrics = await getDoraMetrics({integrationIds, filter});
-
-    return new Response(JSON.stringify(metrics), {
-        status: HttpStatusCodes.OK,
+function jsonResponse(body: unknown, status: number = HttpStatusCodes.OK): Response {
+    return new Response(JSON.stringify(body), {
+        status,
         headers: {'Content-Type': 'application/json'},
     });
-});
+}
 
-router.get('/api/metrics/space', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
-    if (!userIntegrationIds.length) {
-        return new Response(JSON.stringify({message: 'No integrations found for user'}), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
+router.get('/api/metrics/widget', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const integrationIds = resolveIntegrationIds(reqCtx, event);
+    if (!integrationIds) return jsonResponse({message: 'No integrations found for user'});
+
+    const metricName = event.queryStringParameters?.metricName;
+    if (!metricName || !VALID_METRIC_NAMES.has(metricName)) {
+        throw new BadRequestError(`Invalid metric name. Valid values: ${[...VALID_METRIC_NAMES].join(', ')}`);
     }
 
-    const event = reqCtx.event as APIGatewayProxyEventV2;
     const filter = parseMetricsFilter(event);
-    const requestedId = event.queryStringParameters?.integrationId;
-    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
-
-    const metrics = await getSpaceMetrics({integrationIds, filter});
-
-    return new Response(JSON.stringify(metrics), {
-        status: HttpStatusCodes.OK,
-        headers: {'Content-Type': 'application/json'},
-    });
+    const metric = await getWidgetMetric({integrationIds, filter, metricName: metricName as MetricName});
+    return jsonResponse(metric);
 });
 
 router.get('/api/metrics/repositories', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
-    if (!userIntegrationIds.length) {
-        return new Response(JSON.stringify([]), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
-    }
-
     const event = reqCtx.event as APIGatewayProxyEventV2;
-    const requestedId = event.queryStringParameters?.integrationId;
-    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+    const integrationIds = resolveIntegrationIds(reqCtx, event);
+    if (!integrationIds) return jsonResponse([]);
 
     const repos = await listRepositories({integrationIds});
-
-    return new Response(JSON.stringify(repos), {
-        status: HttpStatusCodes.OK,
-        headers: {'Content-Type': 'application/json'},
-    });
+    return jsonResponse(repos);
 });
 
 router.get('/api/metrics/topics', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
-    if (!userIntegrationIds.length) {
-        return new Response(JSON.stringify([]), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
-    }
-
     const event = reqCtx.event as APIGatewayProxyEventV2;
-    const requestedId = event.queryStringParameters?.integrationId;
-    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+    const integrationIds = resolveIntegrationIds(reqCtx, event);
+    if (!integrationIds) return jsonResponse([]);
 
     const topics = await listTopics({integrationIds});
-
-    return new Response(JSON.stringify(topics), {
-        status: HttpStatusCodes.OK,
-        headers: {'Content-Type': 'application/json'},
-    });
-});
-
-router.post('/api/metrics/custom/query', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
-    if (!userIntegrationIds.length) {
-        return new Response(JSON.stringify({message: 'No integrations found for user'}), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
-    }
-
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const requestedId = event.queryStringParameters?.integrationId;
-    const integrationIds = requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
-
-    let body: {query?: string};
-    try {
-        body = JSON.parse(event.body ?? '{}');
-    } catch {
-        throw new BadRequestError('Invalid JSON body');
-    }
-
-    if (!body.query || typeof body.query !== 'string' || !body.query.trim()) {
-        throw new BadRequestError('Missing or invalid "query" field');
-    }
-
-    try {
-        const result = await runCustomQuery({integrationIds, query: body.query});
-        return new Response(JSON.stringify(result), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
-    } catch (e) {
-        const message = e instanceof Error ? e.message : 'Query execution failed';
-        return new Response(JSON.stringify({error: message}), {
-            status: 422,
-            headers: {'Content-Type': 'application/json'},
-        });
-    }
-});
-
-router.get('/api/metrics/custom/schema', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
-    if (!userIntegrationIds.length) {
-        return new Response(JSON.stringify([]), {
-            status: HttpStatusCodes.OK,
-            headers: {'Content-Type': 'application/json'},
-        });
-    }
-
-    const schema = await getCustomQuerySchema({integrationIds: userIntegrationIds});
-    return new Response(JSON.stringify(schema), {
-        status: HttpStatusCodes.OK,
-        headers: {'Content-Type': 'application/json'},
-    });
+    return jsonResponse(topics);
 });
 
 export default router;

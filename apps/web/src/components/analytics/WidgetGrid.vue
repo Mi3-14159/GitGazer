@@ -6,12 +6,12 @@
     import CardDescription from '@/components/ui/CardDescription.vue';
     import CardHeader from '@/components/ui/CardHeader.vue';
     import CardTitle from '@/components/ui/CardTitle.vue';
-    import {metricFieldMap, useMetrics} from '@/composables/useMetric';
+    import {useMetrics} from '@/composables/useMetric';
     import type {Dashboard, WidgetType} from '@/types/analytics';
     import {widgetCalculationInfo} from '@/types/analytics';
     import type {MetricResult, MetricsFilter} from '@common/types';
     import {Lock} from 'lucide-vue-next';
-    import {onBeforeUnmount, ref, toRef, watch} from 'vue';
+    import {onBeforeUnmount, reactive, toRef, watch} from 'vue';
 
     const COMING_SOON_WIDGETS: ReadonlySet<WidgetType> = new Set(['lead_time']);
 
@@ -20,55 +20,48 @@
         filter: MetricsFilter;
     }>();
 
-    const {fetchDoraMetrics, fetchSpaceMetrics} = useMetrics();
-    const metrics = ref<Partial<Record<WidgetType, MetricResult>>>({});
-    const isLoading = ref(false);
-    let abortController: AbortController | null = null;
+    const {fetchWidgetMetric} = useMetrics();
+    const metrics = reactive<Record<string, MetricResult | null>>({});
+    const loadingWidgets = reactive<Record<string, boolean>>({});
+    const abortControllers = new Map<string, AbortController>();
 
-    function needsEndpoint(endpoint: 'dora' | 'space'): boolean {
-        return props.dashboard.widgets.some((w) => !COMING_SOON_WIDGETS.has(w.type) && metricFieldMap[w.type]?.endpoint === endpoint);
-    }
-
-    async function loadMetrics() {
+    async function loadWidgetMetric(widgetType: WidgetType) {
         const filter = props.filter;
         if (!filter.from && !filter.to) return;
+        if (COMING_SOON_WIDGETS.has(widgetType)) return;
 
-        abortController?.abort();
+        abortControllers.get(widgetType)?.abort();
         const controller = new AbortController();
-        abortController = controller;
+        abortControllers.set(widgetType, controller);
 
-        isLoading.value = true;
+        loadingWidgets[widgetType] = true;
         try {
-            const result: Partial<Record<WidgetType, MetricResult>> = {};
-            const [dora, space] = await Promise.all([
-                needsEndpoint('dora') ? fetchDoraMetrics(filter, controller.signal) : null,
-                needsEndpoint('space') ? fetchSpaceMetrics(filter, controller.signal) : null,
-            ]);
-
+            const result = await fetchWidgetMetric(widgetType, filter, controller.signal);
             if (controller.signal.aborted) return;
-
-            for (const widget of props.dashboard.widgets) {
-                const mapping = metricFieldMap[widget.type];
-                if (!mapping) continue;
-                const response = mapping.endpoint === 'dora' ? dora : space;
-                if (response) {
-                    result[widget.type] = (response as Record<string, MetricResult>)[mapping.field] ?? undefined;
-                }
-            }
-            metrics.value = result;
+            metrics[widgetType] = result;
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') return;
-            metrics.value = {};
+            metrics[widgetType] = null;
         } finally {
             if (!controller.signal.aborted) {
-                isLoading.value = false;
+                loadingWidgets[widgetType] = false;
             }
         }
     }
 
-    onBeforeUnmount(() => abortController?.abort());
+    function loadAllWidgets() {
+        for (const widget of props.dashboard.widgets) {
+            loadWidgetMetric(widget.type);
+        }
+    }
 
-    watch([toRef(props, 'dashboard'), toRef(props, 'filter')], loadMetrics, {deep: true, immediate: true});
+    onBeforeUnmount(() => {
+        for (const controller of abortControllers.values()) {
+            controller.abort();
+        }
+    });
+
+    watch([toRef(props, 'dashboard'), toRef(props, 'filter')], loadAllWidgets, {deep: true, immediate: true});
 
     const widgetColorMap: Record<string, string> = {
         deployment_frequency: '#22c55e',
@@ -115,7 +108,7 @@
                     :size="widget.size"
                     :description="widgetCalculationInfo[widget.type]"
                     :metric="metrics[widget.type] ?? null"
-                    :is-loading="isLoading && !COMING_SOON_WIDGETS.has(widget.type)"
+                    :is-loading="!!loadingWidgets[widget.type]"
                     :color="widgetColorMap[widget.type]"
                     :coming-soon="COMING_SOON_WIDGETS.has(widget.type)"
                 />

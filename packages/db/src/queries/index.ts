@@ -1,4 +1,3 @@
-export * from './customQuery';
 export * from './metrics';
 
 export const integrationsQueryRelations = {
