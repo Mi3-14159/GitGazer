@@ -1,4 +1,6 @@
 data "aws_ami" "amazon_linux_2023" {
+  count = var.enable_bastion ? 1 : 0
+
   most_recent = true
   owners      = ["amazon"]
 
@@ -19,11 +21,15 @@ data "aws_ami" "amazon_linux_2023" {
 }
 
 resource "aws_iam_role" "bastion" {
+  count = var.enable_bastion ? 1 : 0
+
   name               = "${var.name_prefix}-bastion-${terraform.workspace}"
-  assume_role_policy = data.aws_iam_policy_document.bastion_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.bastion_assume_role[0].json
 }
 
 data "aws_iam_policy_document" "bastion_assume_role" {
+  count = var.enable_bastion ? 1 : 0
+
   statement {
     effect = "Allow"
     principals {
@@ -35,16 +41,22 @@ data "aws_iam_policy_document" "bastion_assume_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "bastion_ssm" {
-  role       = aws_iam_role.bastion.name
+  count = var.enable_bastion ? 1 : 0
+
+  role       = aws_iam_role.bastion[0].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_instance_profile" "bastion" {
+  count = var.enable_bastion ? 1 : 0
+
   name = "${var.name_prefix}-bastion-${terraform.workspace}"
-  role = aws_iam_role.bastion.name
+  role = aws_iam_role.bastion[0].name
 }
 
 resource "aws_security_group" "bastion" {
+  count = var.enable_bastion ? 1 : 0
+
   name_prefix = "${var.name_prefix}-bastion-${terraform.workspace}"
   description = "Bastion host / egress only / access via SSM Session Manager"
   vpc_id      = local.vpc_id
@@ -58,21 +70,25 @@ resource "aws_security_group" "bastion" {
 }
 
 resource "aws_security_group_rule" "bastion_to_rds_proxy" {
+  count = var.enable_bastion ? 1 : 0
+
   description              = "Allow bastion host to connect to RDS Proxy for database access"
   type                     = "ingress"
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.bastion.id
+  source_security_group_id = aws_security_group.bastion[0].id
   security_group_id        = aws_security_group.rds_proxy.id
 }
 
 resource "aws_instance" "bastion" {
-  ami                    = data.aws_ami.amazon_linux_2023.id
+  count = var.enable_bastion ? 1 : 0
+
+  ami                    = data.aws_ami.amazon_linux_2023[0].id
   instance_type          = "t4g.nano"
   subnet_id              = local.private_subnets[0]
-  iam_instance_profile   = aws_iam_instance_profile.bastion.name
-  vpc_security_group_ids = [aws_security_group.bastion.id]
+  iam_instance_profile   = aws_iam_instance_profile.bastion[0].name
+  vpc_security_group_ids = [aws_security_group.bastion[0].id]
 
   metadata_options {
     http_tokens   = "required" # IMDSv2 only

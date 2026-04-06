@@ -98,6 +98,12 @@ variable "db_config" {
   description = "Configuration for the RDS database"
 }
 
+variable "enable_bastion" {
+  type        = bool
+  description = "Whether to create a bastion host for database access via SSM Session Manager"
+  default     = false
+}
+
 variable "vpc" {
   type = object({
     create = bool

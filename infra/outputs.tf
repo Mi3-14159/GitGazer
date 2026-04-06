@@ -10,10 +10,10 @@ output "websocket_endpoint" {
 
 output "bastion_instance_id" {
   description = "Instance ID of the bastion host (use with SSM Session Manager)"
-  value       = aws_instance.bastion.id
+  value       = var.enable_bastion ? aws_instance.bastion[0].id : null
 }
 
 output "bastion_ssm_port_forward_command" {
   description = "Command to start an SSM port-forwarding session to the RDS Proxy"
-  value       = "aws ssm start-session --target ${aws_instance.bastion.id} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{\"host\":[\"${module.rds_proxy.proxy_endpoint}\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"5432\"]}'"
+  value       = var.enable_bastion ? "aws ssm start-session --target ${aws_instance.bastion[0].id} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{\"host\":[\"${module.rds_proxy.proxy_endpoint}\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"5432\"]}' " : null
 }
