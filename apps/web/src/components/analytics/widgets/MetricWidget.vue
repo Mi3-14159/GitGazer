@@ -67,43 +67,23 @@
         return map[props.size];
     });
 
-    const changePercent = computed(() => {
-        if (!props.metric) return null;
-        const {current, previous} = props.metric.summary;
-        if (previous === 0) return null;
-        return Math.round(((current - previous) / previous) * 100);
-    });
-
-    const formattedValue = computed(() => {
-        if (!props.metric) return '—';
-        const val = props.metric.summary.current;
-        if (props.metric.unit === '%') return `${val.toFixed(1)}%`;
-        if (props.metric.unit === 'hours') return `${val.toFixed(1)}h`;
-        if (props.metric.unit === 'minutes') return `${val.toFixed(0)}m`;
-        if (props.metric.unit === 'seconds') return `${val.toFixed(0)}s`;
-        if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
-        return val % 1 === 0 ? String(val) : val.toFixed(1);
-    });
-
-    const trendText = computed(() => {
-        if (changePercent.value === null) return '';
-        const arrow = props.metric?.summary.trend === 'up' ? '▲' : props.metric?.summary.trend === 'down' ? '▼' : '—';
-        return `${arrow} ${Math.abs(changePercent.value)}%`;
-    });
-
-    const trendColor = computed(() => {
-        if (!props.metric) return '#9ca3af';
-        if (props.metric.summary.trend === 'up') return '#22c55e';
-        if (props.metric.summary.trend === 'down') return '#ef4444';
-        return '#9ca3af';
-    });
-
     const HOUR_MS = 3_600_000;
 
-    const dataInfo = computed(() => {
+    /** Collect all unique, sorted period strings from either data or series. */
+    const allPeriods = computed<string[]>(() => {
         const data = props.metric?.data;
-        if (!data || data.length < 2) return {stepMs: 0};
-        const stepMs = new Date(data[1].period).getTime() - new Date(data[0].period).getTime();
+        if (data?.length) return data.map((d) => d.period);
+        const series = props.metric?.series;
+        if (!series?.length) return [];
+        const set = new Set<string>();
+        for (const s of series) for (const d of s.data) set.add(d.period);
+        return Array.from(set).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    });
+
+    const dataInfo = computed(() => {
+        const periods = allPeriods.value;
+        if (periods.length < 2) return {stepMs: 0};
+        const stepMs = new Date(periods[1]).getTime() - new Date(periods[0]).getTime();
         return {stepMs};
     });
 
@@ -184,10 +164,12 @@
 
     const chartOption = computed(() => {
         const data = props.metric?.data;
+        const seriesData = props.metric?.series;
+        const periods = allPeriods.value;
         const barColor = props.color ?? '#6366f1';
         const chartType = selectedChartType.value;
 
-        if (!data?.length) {
+        if (!periods.length) {
             return {
                 title: [
                     {
@@ -201,11 +183,8 @@
         }
 
         const {stepMs} = dataInfo.value;
-        const labels = data.map((d) => formatPeriod(d.period, stepMs));
-        const labelInterval = data.length <= 10 ? 0 : Math.max(0, Math.floor(data.length / 5) - 1);
-        const periods = data.map((d) => d.period);
-
-        const seriesData = props.metric?.series;
+        const labels = periods.map((p) => formatPeriod(p, stepMs));
+        const labelInterval = periods.length <= 10 ? 0 : Math.max(0, Math.floor(periods.length / 5) - 1);
 
         const unitLabel = props.metric?.unit ?? '';
 
@@ -236,13 +215,7 @@
 
         return {
             ...base,
-            series: [
-                buildSingleSeries(
-                    data.map((d) => d.value),
-                    barColor,
-                    chartType,
-                ),
-            ],
+            series: [buildSingleSeries(data?.map((d) => d.value) ?? [], barColor, chartType)],
         };
     });
 </script>
@@ -289,27 +262,12 @@
                         {{ description }}
                     </Tooltip>
                 </div>
-                <div class="flex items-center gap-2">
-                    <ChartTypeToggle
-                        v-if="metric"
-                        v-model="selectedChartType"
-                        :has-multi-series="hasMultiSeries"
-                        :disabled="isLoading"
-                    />
-                    <div
-                        v-if="metric"
-                        class="text-right"
-                    >
-                        <span class="text-xl font-bold text-foreground">{{ formattedValue }}</span>
-                        <div
-                            v-if="trendText"
-                            class="text-[11px] font-medium"
-                            :style="{color: trendColor}"
-                        >
-                            {{ trendText }}
-                        </div>
-                    </div>
-                </div>
+                <ChartTypeToggle
+                    v-if="metric"
+                    v-model="selectedChartType"
+                    :has-multi-series="hasMultiSeries"
+                    :disabled="isLoading"
+                />
             </div>
             <Transition name="fade">
                 <div

@@ -48,10 +48,7 @@ locals {
     "user" = {
       methods = ["GET"]
     },
-    "metrics/dora" = {
-      methods = ["GET"]
-    },
-    "metrics/space" = {
+    "metrics/widget" = {
       methods = ["GET"]
     },
     "metrics/repositories" = {
@@ -60,12 +57,7 @@ locals {
     "metrics/topics" = {
       methods = ["GET"]
     },
-    "metrics/custom/query" = {
-      methods = ["POST"]
-    },
-    "metrics/custom/schema" = {
-      methods = ["GET"]
-    },
+
     "github/webhook" = {
       methods = ["POST"]
     },
