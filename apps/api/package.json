@@ -27,7 +27,7 @@
     "ajv-formats": "^3.0.1",
     "aws-jwt-verify": "^5.1.1",
     "drizzle-kit": "^0.31.10",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "pg": "^8.20.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
