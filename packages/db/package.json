@@ -12,7 +12,7 @@
   },
   "name": "@gitgazer/db",
   "peerDependencies": {
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.2"
   },
   "private": true,
   "scripts": {
