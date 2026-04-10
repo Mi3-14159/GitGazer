@@ -27,6 +27,30 @@ locals {
     "integrations/{integrationId}/github-app/{installationId}/events" = {
       methods = ["PATCH"]
     },
+    "integrations/{integrationId}/rotate-secret" = {
+      methods = ["POST"]
+    },
+    "integrations/{integrationId}/members" = {
+      methods = ["GET"]
+    },
+    "integrations/{integrationId}/members/{userId}/role" = {
+      methods = ["PATCH"]
+    },
+    "integrations/{integrationId}/members/{userId}" = {
+      methods = ["DELETE"]
+    },
+    "integrations/{integrationId}/invitations" = {
+      methods = ["GET", "POST"]
+    },
+    "integrations/{integrationId}/invitations/{invitationId}/resend" = {
+      methods = ["POST"]
+    },
+    "integrations/{integrationId}/invitations/{invitationId}" = {
+      methods = ["DELETE"]
+    },
+    "invitations/accept" = {
+      methods = ["POST"]
+    },
     "auth/cognito/user" = {
       methods = ["GET"]
     },
