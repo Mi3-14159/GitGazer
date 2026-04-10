@@ -97,7 +97,7 @@ resource "aws_instance" "bastion" {
   iam_instance_profile   = aws_iam_instance_profile.bastion[0].name
   vpc_security_group_ids = [aws_security_group.bastion[0].id]
 
-  user_data = base64encode(<<-EOF
+  user_data_base64 = base64encode(<<-EOF
     #!/bin/bash
     dnf install -y amazon-ssm-agent
     systemctl enable --now amazon-ssm-agent
