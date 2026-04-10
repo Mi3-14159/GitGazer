@@ -6,7 +6,7 @@ export type {EmitterWebhookEventName} from '@octokit/webhooks';
 export type * from '@octokit/webhooks-types';
 export * from './metrics';
 
-import type {integrationsQueryRelations, workflowRunRelations} from '../queries';
+import type {integrationsQueryRelations, memberQueryRelations, workflowRunRelations} from '../queries';
 import type * as schema from '../schema';
 
 export type NotificationRule = {
@@ -341,9 +341,32 @@ export type EnterpriseSelect = typeof schema.enterprises.$inferSelect;
 export type EnterpriseInsert = typeof schema.enterprises.$inferInsert;
 export type WorkflowRunPullRequestSelect = typeof schema.workflowRunPullRequests.$inferSelect;
 export type WorkflowRunPullRequestInsert = typeof schema.workflowRunPullRequests.$inferInsert;
+export type IntegrationInvitationSelect = typeof schema.integrationInvitations.$inferSelect;
+export type IntegrationInvitationInsert = typeof schema.integrationInvitations.$inferInsert;
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
 export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
+export type IntegrationMember = BuildQueryResult<Schema, Schema['userAssignments'], {with: typeof memberQueryRelations}>;
 
 export const WEBSOCKET_CHANNELS = ['workflows', 'events_log'] as const;
 export type WebSocketChannel = (typeof WEBSOCKET_CHANNELS)[number];
+
+// Member / invitation management
+export const MEMBER_ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
+export type MemberRole = (typeof MEMBER_ROLES)[number];
+
+export const INVITATION_STATUSES = ['pending', 'accepted', 'expired'] as const;
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
+
+export type IntegrationInvitationUser = Pick<typeof schema.users.$inferSelect, 'id' | 'name' | 'email' | 'picture'>;
+
+export type IntegrationInvitation = Omit<IntegrationInvitationSelect, 'invitedBy' | 'inviteeId'> & {
+    invitedByUser: IntegrationInvitationUser | null;
+    invitee: IntegrationInvitationUser | null;
+};
+
+export type CreateInvitationInput = {
+    email?: string;
+    role: MemberRole;
+    sendEmail: boolean;
+};

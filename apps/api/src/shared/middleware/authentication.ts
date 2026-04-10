@@ -98,15 +98,24 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
 
     let userId: number;
     try {
+        const email = (idPayload.email as string) || null;
+        const name = (idPayload.name as string) || null;
+        const picture = (idPayload.picture as string) || null;
+
         const user = await db
             .insert(users)
             .values({
                 cognitoId: idPayload.sub,
+                email,
+                name,
+                picture,
             })
             .onConflictDoUpdate({
                 target: users.cognitoId,
                 set: {
-                    cognitoId: idPayload.sub,
+                    email,
+                    name,
+                    picture,
                 },
             })
             .returning({id: users.id});

@@ -128,6 +128,32 @@ const config = convict({
         default: '',
         env: 'WEBHOOK_QUEUE_URL',
     },
+    sesConfig: {
+        emailEnabled: {
+            doc: 'Whether invitation email sending via SES is enabled (opt-in feature)',
+            format: Boolean,
+            default: false,
+            env: 'SES_EMAIL_ENABLED',
+        },
+        fromEmail: {
+            doc: 'Email address for sending notifications via AWS SES',
+            format: String,
+            default: '',
+            env: 'SES_FROM_EMAIL',
+        },
+        configurationSet: {
+            doc: 'AWS SES Configuration Set name for applying custom sending rules',
+            format: String,
+            default: '',
+            env: 'SES_CONFIGURATION_SET',
+        },
+        appUrl: {
+            doc: 'Frontend application URL used in email links',
+            format: String,
+            default: '',
+            env: 'APP_URL',
+        },
+    },
 });
 
 /**

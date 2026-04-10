@@ -45,6 +45,12 @@ const router = createRouter({
                     component: () => import('@/views/IntegrationsPage.vue'),
                     meta: {title: 'Integrations'},
                 },
+                {
+                    path: 'integrations/:integrationId/users',
+                    name: 'integration-users',
+                    component: () => import('@/views/IntegrationUsersPage.vue'),
+                    meta: {title: 'Manage Users'},
+                },
 
                 {
                     path: '',
@@ -56,6 +62,12 @@ const router = createRouter({
             path: '/login',
             name: 'login',
             component: Login,
+        },
+        {
+            path: '/invite/:token',
+            name: 'accept-invitation',
+            component: () => import('@/views/AcceptInvitationPage.vue'),
+            meta: {title: 'Accept Invitation'},
         },
         {
             path: '/:pathMatch(.*)*',

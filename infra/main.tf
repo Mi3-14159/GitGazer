@@ -56,4 +56,5 @@ locals {
   vpc_id                        = coalesce(try(var.db_config.vpc_id, null), try(module.vpc.vpc_id, null))
   private_subnets               = coalescelist(try(var.db_config.subnets, []), try(module.vpc.private_subnets, []))
   availability_zones            = coalescelist(try(var.db_config.availability_zones, []), try(module.vpc.azs, []))
+  ses_domain                    = var.ses_config.domain != null ? var.ses_config.domain : var.custom_domain_config.domain_name
 }

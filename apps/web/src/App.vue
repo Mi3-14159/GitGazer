@@ -13,10 +13,26 @@
     document.title = 'GitGazer';
 
     const initializeAuth = async () => {
+        // Skip auth redirect for pages that handle their own auth flow
+        const publicPaths = ['/login', '/invite/'];
+        if (publicPaths.some((p) => router.currentRoute.value.path.startsWith(p))) {
+            return;
+        }
+
         try {
             const authenticated = await isAuthenticated();
             if (!authenticated) {
                 await router.push('/login');
+                return;
+            }
+
+            // Check for pending invite redirect after OAuth sign-in
+            const inviteRedirect = sessionStorage.getItem('gitgazer:invite-redirect');
+            if (inviteRedirect?.startsWith('/invite/')) {
+                sessionStorage.removeItem('gitgazer:invite-redirect');
+                await router.push(inviteRedirect);
+            } else if (inviteRedirect) {
+                sessionStorage.removeItem('gitgazer:invite-redirect');
             }
         } catch (error) {
             console.debug('User not authenticated, redirecting to login');

@@ -35,9 +35,7 @@ export function parseDateFilters(
  * Extract column filters from query parameters for workflow listing.
  * Mutates queryStringParameters by removing consumed keys.
  */
-export function parseWorkflowColumnFilters(
-    queryStringParameters: Record<string, string | undefined> | null | undefined,
-): WorkflowFilters {
+export function parseWorkflowColumnFilters(queryStringParameters: Record<string, string | undefined> | null | undefined): WorkflowFilters {
     const filters: WorkflowFilters = {};
 
     if (!queryStringParameters) return filters;

@@ -102,6 +102,7 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
             await tx.insert(userAssignments).values({
                 integrationId: integration.integrationId,
                 userId: ownerId,
+                role: 'owner',
             });
 
             return integration;

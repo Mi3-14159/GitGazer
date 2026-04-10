@@ -1,7 +1,10 @@
+import {relations} from 'drizzle-orm';
 import {bigint, boolean, index, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,
+    INVITATION_STATUSES,
+    MEMBER_ROLES,
     WEBSOCKET_CHANNELS,
     type EventLogEntryMetadata,
     type NotificationRuleChannel,
@@ -14,6 +17,9 @@ export const gitgazerSchema = pgSchema('gitgazer');
 export const users = gitgazerSchema.table('users', {
     id: bigint('id', {mode: 'number'}).primaryKey().notNull().generatedAlwaysAsIdentity(),
     cognitoId: uuid('cognito_id').notNull().unique(),
+    email: varchar('email', {length: 255}),
+    name: varchar('name', {length: 255}),
+    picture: text('picture'),
 });
 
 export const wsConnections = gitgazerSchema.table(
@@ -66,6 +72,48 @@ export const eventLogEntries = gitgazerSchema
     )
     .enableRLS();
 
+export const integrationInvitations = gitgazerSchema
+    .table(
+        'integration_invitations',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            id: uuid('id').defaultRandom().notNull(),
+            email: varchar('email', {length: 255}),
+            role: varchar('role', {length: 20, enum: MEMBER_ROLES}).notNull().default('member'),
+            invitedBy: bigint('invited_by', {mode: 'number'})
+                .notNull()
+                .references(() => users.id, {onDelete: 'cascade'}),
+            inviteeId: bigint('invitee_id', {mode: 'number'}).references(() => users.id, {onDelete: 'set null'}),
+            inviteToken: uuid('invite_token').defaultRandom().notNull().unique(),
+            status: varchar('status', {length: 20, enum: INVITATION_STATUSES}).notNull().default('pending'),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+            expiresAt: timestamp('expires_at', {withTimezone: true}).notNull(),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.id]}),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+            index('integration_invitations_email_idx').on(table.integrationId, table.email),
+            index('integration_invitations_token_idx').on(table.inviteToken),
+        ],
+    )
+    .enableRLS();
+
+export const integrationInvitationsRelations = relations(integrationInvitations, ({one}) => ({
+    invitedByUser: one(users, {
+        fields: [integrationInvitations.invitedBy],
+        references: [users.id],
+        relationName: 'invitedByUser',
+    }),
+    invitee: one(users, {
+        fields: [integrationInvitations.inviteeId],
+        references: [users.id],
+        relationName: 'invitee',
+    }),
+}));
+
 export const notificationRules = gitgazerSchema
     .table(
         'notification_rules',
@@ -74,7 +122,7 @@ export const notificationRules = gitgazerSchema
                 .notNull()
                 .references(() => integrations.integrationId, {onDelete: 'cascade'}),
             id: uuid('id').defaultRandom().notNull(),
-            label: varchar('label', {length: 100}).notNull(),
+            label: varchar('label', {length: 100}).notNull().default(''),
             channels: jsonb('channels').notNull().$type<NotificationRuleChannel[]>(),
             enabled: boolean('enabled').notNull().default(true),
             ignore_dependabot: boolean('ignore_dependabot').notNull().default(false),

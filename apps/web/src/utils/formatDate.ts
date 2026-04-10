@@ -25,6 +25,11 @@ export function formatTimeSince(dateStr: string | Date | undefined): string | nu
     return formatDate(dateStr);
 }
 
+export function formatCalendarDate(dateStr: string | Date | undefined): string {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+}
+
 export function formatEventName(event: string): string {
     return event
         .split('_')

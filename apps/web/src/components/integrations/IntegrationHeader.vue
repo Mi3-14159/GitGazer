@@ -3,8 +3,11 @@
     import Input from '@/components/ui/Input.vue';
     import {formatTimeSince} from '@/utils/formatDate';
     import type {Integration} from '@common/types';
-    import {Activity, Trash2} from 'lucide-vue-next';
+    import {Activity, Trash2, Users} from 'lucide-vue-next';
     import {nextTick, ref} from 'vue';
+    import {useRouter} from 'vue-router';
+
+    const router = useRouter();
 
     const props = defineProps<{
         integration: Integration;
@@ -98,13 +101,26 @@
                 {{ getLastActivity() }}
             </span>
         </div>
-        <Button
-            variant="ghost"
-            size="sm"
-            class="h-8 w-8 p-0 text-destructive hover:text-destructive shrink-0"
-            @click="emit('delete', integration)"
-        >
-            <Trash2 class="h-3.5 w-3.5" />
-        </Button>
+        <div class="flex items-center gap-1 shrink-0">
+            <Button
+                variant="outline"
+                size="sm"
+                class="h-8 gap-1.5"
+                @click="
+                    router.push({name: 'integration-users', params: {integrationId: integration.integrationId}, query: {label: integration.label}})
+                "
+            >
+                <Users class="h-3.5 w-3.5" />
+                <span class="hidden sm:inline">Manage Users</span>
+            </Button>
+            <Button
+                variant="ghost"
+                size="sm"
+                class="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                @click="emit('delete', integration)"
+            >
+                <Trash2 class="h-3.5 w-3.5" />
+            </Button>
+        </div>
     </div>
 </template>

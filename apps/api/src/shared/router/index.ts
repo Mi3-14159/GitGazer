@@ -2,6 +2,7 @@ import authRoutes from '@/domains/auth/auth.routes';
 import eventLogRoutes from '@/domains/event-log/event-log.routes';
 import githubAppRoutes from '@/domains/github-app/github-app.routes';
 import integrationsRoutes from '@/domains/integrations/integrations.routes';
+import membersRoutes from '@/domains/members/members.routes';
 import metricsRoutes from '@/domains/metrics/metrics.routes';
 import notificationsRoutes from '@/domains/notifications/notifications.routes';
 import overviewRoutes from '@/domains/overview/overview.routes';
@@ -47,6 +48,7 @@ export const createApp = (): Router => {
     app.includeRouter(workflowsRoutes);
     app.includeRouter(overviewRoutes);
     app.includeRouter(integrationsRoutes);
+    app.includeRouter(membersRoutes);
     app.includeRouter(metricsRoutes);
 
     logger.info('Routes setup completed');

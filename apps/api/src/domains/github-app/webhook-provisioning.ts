@@ -12,11 +12,11 @@ import {
     updateRepoWebhookSecret,
 } from '@/shared/clients/github-app.client';
 import config from '@/shared/config';
-import { getLogger } from '@/shared/logger';
-import { db, RdsTransaction, withRlsTransaction } from '@gitgazer/db/client';
-import { gitgazerWriter } from '@gitgazer/db/schema/app';
-import { githubAppInstallations, githubAppWebhooks, integrations } from '@gitgazer/db/schema/github/workflows';
-import { and, eq } from 'drizzle-orm';
+import {getLogger} from '@/shared/logger';
+import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {gitgazerWriter} from '@gitgazer/db/schema/app';
+import {githubAppInstallations, githubAppWebhooks, integrations} from '@gitgazer/db/schema/github/workflows';
+import {and, eq} from 'drizzle-orm';
 
 const getWebhookUrl = (integrationId: string): string => {
     const importUrlBase = config.get('importUrlBase');

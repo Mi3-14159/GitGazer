@@ -154,6 +154,20 @@ data "aws_iam_policy_document" "api" {
       "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${local.rds_proxy_resource_id}/*"
     ]
   }
+
+  dynamic "statement" {
+    for_each = var.ses_config.enabled ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "ses:SendEmail",
+      ]
+      resources = [
+        aws_ses_domain_identity.this[0].arn,
+        aws_ses_configuration_set.this[0].arn,
+      ]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "api" {

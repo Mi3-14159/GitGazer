@@ -62,5 +62,11 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
     }
     wsTokenSecret   = random_password.ws_token_secret.result
     webhookQueueUrl = aws_sqs_queue.webhook_events.url
+    sesConfig = var.ses_config.enabled ? {
+      emailEnabled     = false
+      fromEmail        = "${var.ses_config.from_prefix}@${local.ses_domain}"
+      configurationSet = aws_ses_configuration_set.this[0].name
+      appUrl           = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}"
+    } : null
   })
 }

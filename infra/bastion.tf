@@ -6,7 +6,7 @@ data "aws_ami" "amazon_linux_2023" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-arm64"]
+    values = ["al2023-ami-2023*-kernel-*-arm64"]
   }
 
   filter {
@@ -45,6 +45,13 @@ resource "aws_iam_role_policy_attachment" "bastion_ssm" {
 
   role       = aws_iam_role.bastion[0].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "bastion_logs" {
+  count = var.enable_bastion ? 1 : 0
+
+  role       = aws_iam_role.bastion[0].name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
 resource "aws_iam_instance_profile" "bastion" {
@@ -89,6 +96,13 @@ resource "aws_instance" "bastion" {
   subnet_id              = local.private_subnets[0]
   iam_instance_profile   = aws_iam_instance_profile.bastion[0].name
   vpc_security_group_ids = [aws_security_group.bastion[0].id]
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    dnf install -y amazon-ssm-agent
+    systemctl enable --now amazon-ssm-agent
+  EOF
+  )
 
   metadata_options {
     http_tokens   = "required" # IMDSv2 only

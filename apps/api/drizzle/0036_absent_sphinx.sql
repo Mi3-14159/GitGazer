@@ -1,1 +1,0 @@
-ALTER TABLE "gitgazer"."notification_rules" ADD COLUMN "label" varchar(100) NOT NULL;

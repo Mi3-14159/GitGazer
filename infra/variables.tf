@@ -104,6 +104,18 @@ variable "enable_bastion" {
   default     = false
 }
 
+variable "ses_config" {
+  type = object({
+    enabled     = bool
+    domain      = optional(string)
+    from_prefix = optional(string, "noreply")
+  })
+  description = "SES configuration for sending invitation emails. Domain defaults to custom_domain_config.domain_name if not set."
+  default = {
+    enabled = false
+  }
+}
+
 variable "vpc" {
   type = object({
     create = bool

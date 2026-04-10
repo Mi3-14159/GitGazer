@@ -1,5 +1,5 @@
 {
-  "id": "a6a80ea3-2ee5-4130-823f-c89af3aabac9",
+  "id": "d90b5002-1fe1-437e-9da2-acbf995e3669",
   "prevId": "db1bbec9-7840-4d4a-b34c-23cff9d843dd",
   "version": "7",
   "dialect": "postgresql",
@@ -159,6 +159,199 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
+    "gitgazer.integration_invitations": {
+      "name": "integration_invitations",
+      "schema": "gitgazer",
+      "columns": {
+        "integration_id": {
+          "name": "integration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'member'"
+        },
+        "invited_by": {
+          "name": "invited_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invitee_id": {
+          "name": "invitee_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invite_token": {
+          "name": "invite_token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "integration_invitations_email_idx": {
+          "name": "integration_invitations_email_idx",
+          "columns": [
+            {
+              "expression": "integration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "integration_invitations_token_idx": {
+          "name": "integration_invitations_token_idx",
+          "columns": [
+            {
+              "expression": "invite_token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "integration_invitations_integration_id_integrations_integration_id_fk": {
+          "name": "integration_invitations_integration_id_integrations_integration_id_fk",
+          "tableFrom": "integration_invitations",
+          "tableTo": "integrations",
+          "schemaTo": "github",
+          "columnsFrom": [
+            "integration_id"
+          ],
+          "columnsTo": [
+            "integration_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "integration_invitations_invited_by_users_id_fk": {
+          "name": "integration_invitations_invited_by_users_id_fk",
+          "tableFrom": "integration_invitations",
+          "tableTo": "users",
+          "schemaTo": "gitgazer",
+          "columnsFrom": [
+            "invited_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "integration_invitations_invitee_id_users_id_fk": {
+          "name": "integration_invitations_invitee_id_users_id_fk",
+          "tableFrom": "integration_invitations",
+          "tableTo": "users",
+          "schemaTo": "gitgazer",
+          "columnsFrom": [
+            "invitee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "integration_invitations_integration_id_id_pk": {
+          "name": "integration_invitations_integration_id_id_pk",
+          "columns": [
+            "integration_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "integration_invitations_invite_token_unique": {
+          "name": "integration_invitations_invite_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "invite_token"
+          ]
+        }
+      },
+      "policies": {
+        "tenant separation writer": {
+          "name": "tenant separation writer",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "gitgazer_writer"
+          ],
+          "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])"
+        },
+        "tenant separation reader": {
+          "name": "tenant separation reader",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "gitgazer_reader"
+          ],
+          "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
     "gitgazer.notification_rules": {
       "name": "notification_rules",
       "schema": "gitgazer",
@@ -180,7 +373,8 @@
           "name": "label",
           "type": "varchar(100)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "''"
         },
         "channels": {
           "name": "channels",
@@ -299,6 +493,24 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "picture": {
+          "name": "picture",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -1749,6 +1961,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "role": {
+          "name": "role",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'viewer'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1865,7 +2084,7 @@
           "name": "head_branch",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "name": {
           "name": "name",

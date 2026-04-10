@@ -1,5 +1,14 @@
 export * from './metrics';
 
+export const memberQueryRelations = {
+    user: true,
+} as const;
+
+export const invitationQueryRelations = {
+    invitedByUser: true,
+    invitee: true,
+} as const;
+
 export const integrationsQueryRelations = {
     githubAppInstallations: {
         with: {

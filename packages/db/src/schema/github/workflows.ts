@@ -1,5 +1,6 @@
 import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
+import {MEMBER_ROLES} from '../../types';
 import {users} from '../gitgazer';
 import {analystTenantSeparationPolicy, githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
@@ -33,11 +34,19 @@ export const userAssignments = githubSchema
             userId: bigint('user_id', {mode: 'number'})
                 .notNull()
                 .references(() => users.id),
+            role: varchar('role', {length: 20, enum: MEMBER_ROLES}).notNull().default('viewer'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         (table) => [primaryKey({columns: [table.userId, table.integrationId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
     )
     .enableRLS();
+
+export const userAssignmentsRelations = relations(userAssignments, ({one}) => ({
+    user: one(users, {
+        fields: [userAssignments.userId],
+        references: [users.id],
+    }),
+}));
 
 export const events = githubSchema
     .table(
