@@ -16,7 +16,7 @@ export default defineConfig({
     schema: '../../packages/db/src/schema/index.ts',
     schemaFilter: ['gitgazer', 'github'],
     dialect: 'postgresql',
-    breakpoints: false,
+    breakpoints: true,
     dbCredentials: {
         host,
         port: 5432,
