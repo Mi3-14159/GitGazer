@@ -27,12 +27,18 @@ vi.mock('@/shared/clients/ses.client', () => ({
     sendInvitationEmail: (...args: any[]) => mockSendInvitationEmail(...args),
 }));
 
+const mockCreateEventLogEntry = vi.fn();
+vi.mock('@/domains/event-log/event-log.controller', () => ({
+    createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
+}));
+
 let controller: typeof import('./members.controller');
 
 describe('members controller', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
         mockSendInvitationEmail.mockResolvedValue(undefined);
+        mockCreateEventLogEntry.mockResolvedValue({});
         controller = await import('./members.controller');
     });
 
@@ -166,7 +172,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'admin'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'admin', name: 'Admin User', email: 'admin@example.com'}]),
+                            }),
                         }),
                     }),
                 };
@@ -190,7 +198,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'member'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'member', name: 'Alex Rivera', email: 'alex@example.com'}]),
+                            }),
                         }),
                     }),
                     update: () => ({
@@ -216,6 +226,16 @@ describe('members controller', () => {
             ).resolves.toBeUndefined();
 
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({userName: 'gitgazer_writer'}));
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'info',
+                    title: 'Member role changed',
+                    message: 'Alex Rivera role changed from "member" to "admin"',
+                    metadata: {integrationId: 'int-1', targetUserId: 2, role: 'admin', previousRole: 'member'},
+                }),
+            );
         });
     });
 
@@ -239,7 +259,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'owner'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'owner', name: 'Owner', email: 'owner@example.com'}]),
+                            }),
                         }),
                     }),
                 };
@@ -262,7 +284,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'admin'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'admin', name: 'Admin User', email: 'admin@example.com'}]),
+                            }),
                         }),
                     }),
                 };
@@ -531,7 +555,7 @@ describe('members controller', () => {
                 const mockTx = {
                     delete: () => ({
                         where: () => ({
-                            returning: () => Promise.resolve([{id: 'inv-1', status: 'pending'}]),
+                            returning: () => Promise.resolve([{id: 'inv-1', status: 'pending', email: 'jamie@example.com'}]),
                         }),
                     }),
                 };
@@ -547,6 +571,16 @@ describe('members controller', () => {
             ).resolves.toBeUndefined();
 
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({userName: 'gitgazer_writer'}));
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'info',
+                    title: 'Invitation revoked',
+                    message: 'Invitation for jamie@example.com was revoked',
+                    metadata: {integrationId: 'int-1', targetEmail: 'jamie@example.com', invitationId: 'inv-1'},
+                }),
+            );
         });
     });
 
@@ -606,7 +640,7 @@ describe('members controller', () => {
                         from: () => ({
                             where: () => {
                                 selectCallCount++;
-                                // First select: fetch invitation; second: check membership
+                                // First select: fetch invitation; second: check membership; third: resolve user name
                                 if (selectCallCount === 1) {
                                     return Promise.resolve([
                                         {
@@ -620,7 +654,11 @@ describe('members controller', () => {
                                         },
                                     ]);
                                 }
-                                return Promise.resolve([]);
+                                if (selectCallCount === 2) {
+                                    return Promise.resolve([]);
+                                }
+                                // Third: user name lookup
+                                return Promise.resolve([{name: 'Jamie Lee', email: 'jamie@example.com'}]);
                             },
                         }),
                     }),
@@ -660,6 +698,16 @@ describe('members controller', () => {
                     role: 'member',
                 },
             ]);
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'success',
+                    title: 'Invitation accepted',
+                    message: 'Jamie Lee accepted an invitation and joined with role "member"',
+                    metadata: {integrationId: 'int-1', targetUserId: 99, role: 'member', invitationId: 'inv-1'},
+                }),
+            );
         });
 
         it('throws BadRequestError when user is already a member without consuming the invitation', async () => {
@@ -731,7 +779,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([]),
+                            }),
                         }),
                     }),
                 };
@@ -748,7 +798,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'owner'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'owner', name: 'Owner', email: 'owner@example.com'}]),
+                            }),
                         }),
                     }),
                 };
@@ -766,7 +818,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'member'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'member', name: 'Test User', email: 'test@example.com'}]),
+                            }),
                         }),
                     }),
                     delete: () => {
@@ -783,6 +837,15 @@ describe('members controller', () => {
 
             expect(deleteCalled).toBe(true);
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({userName: 'gitgazer_writer'}));
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'info',
+                    title: 'Member left',
+                    message: 'Test User left the integration',
+                }),
+            );
         });
 
         it('allows viewer to leave', async () => {
@@ -791,7 +854,9 @@ describe('members controller', () => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'viewer'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'viewer', name: 'Viewer User', email: 'viewer@example.com'}]),
+                            }),
                         }),
                     }),
                     delete: () => {

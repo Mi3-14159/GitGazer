@@ -128,6 +128,11 @@ export type EventLogEntryMetadata = {
     installationId?: number;
     accountLogin?: string;
     webhookEvents?: string[];
+    targetUserId?: number;
+    targetEmail?: string;
+    role?: string;
+    previousRole?: string;
+    invitationId?: string;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;

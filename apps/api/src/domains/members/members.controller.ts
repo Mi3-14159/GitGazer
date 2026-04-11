@@ -1,3 +1,4 @@
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {sendInvitationEmail} from '@/shared/clients/ses.client';
 import config from '@/shared/config';
 import {getLogger} from '@/shared/logger';
@@ -72,19 +73,26 @@ export const changeRole = async (params: {
 
     logger.info(`Changing role for user ${targetUserId} in integration ${integrationId} to ${newRole}`);
 
+    let previousRole: string | undefined;
+    let targetUserName: string | undefined;
+
     const updated = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Fetch target's current role for fine-grained checks
+            // Fetch target's current role and name for fine-grained checks + audit
             const [target] = await tx
-                .select({role: userAssignments.role})
+                .select({role: userAssignments.role, name: users.name, email: users.email})
                 .from(userAssignments)
+                .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
 
             if (!target) {
                 throw new NotFoundError('User not found in this integration');
             }
+
+            previousRole = target.role;
+            targetUserName = target.name ?? target.email ?? undefined;
 
             // Only owners can manage other owners/admins
             if ((target.role === 'owner' || target.role === 'admin') && requestingRole !== 'owner') {
@@ -112,6 +120,17 @@ export const changeRole = async (params: {
     if (updated.length === 0) {
         throw new NotFoundError('User not found in this integration');
     }
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Member role changed',
+        message: `${targetUserName ?? `User ${targetUserId}`} role changed from "${previousRole}" to "${newRole}"`,
+        metadata: {integrationId, targetUserId, role: newRole, previousRole},
+    }).catch((err) => {
+        logger.error('Failed to write event log for role change', {error: err});
+    });
 };
 
 export const removeMember = async (params: {
@@ -130,19 +149,26 @@ export const removeMember = async (params: {
 
     logger.info(`Removing user ${targetUserId} from integration ${integrationId}`);
 
+    let removedUserName: string | undefined;
+    let removedUserRole: string | undefined;
+
     await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Fetch target's current role
+            // Fetch target's current role and name for authz checks + audit
             const [target] = await tx
-                .select({role: userAssignments.role})
+                .select({role: userAssignments.role, name: users.name, email: users.email})
                 .from(userAssignments)
+                .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
 
             if (!target) {
                 throw new NotFoundError('User not found in this integration');
             }
+
+            removedUserName = target.name ?? target.email ?? undefined;
+            removedUserRole = target.role;
 
             if (target.role === 'owner') {
                 logger.info('authz', {
@@ -174,6 +200,17 @@ export const removeMember = async (params: {
             await tx.delete(userAssignments).where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
         },
     });
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'warning',
+        title: 'Member removed',
+        message: `${removedUserName ?? `User ${targetUserId}`} was removed from the integration`,
+        metadata: {integrationId, targetUserId, role: removedUserRole},
+    }).catch((err) => {
+        logger.error('Failed to write event log for member removal', {error: err});
+    });
 };
 
 export const leaveIntegration = async (params: {integrationId: string; userId: number; integrationIds: string[]}): Promise<void> => {
@@ -186,18 +223,23 @@ export const leaveIntegration = async (params: {integrationId: string; userId: n
 
     logger.info(`User ${userId} is leaving integration ${integrationId}`);
 
+    let leavingUserName: string | undefined;
+
     await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
             const [member] = await tx
-                .select({role: userAssignments.role})
+                .select({role: userAssignments.role, name: users.name, email: users.email})
                 .from(userAssignments)
+                .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, userId)));
 
             if (!member) {
                 throw new NotFoundError('You are not a member of this integration');
             }
+
+            leavingUserName = member.name ?? member.email ?? undefined;
 
             if (member.role === 'owner') {
                 logger.info('authz', {
@@ -213,6 +255,17 @@ export const leaveIntegration = async (params: {integrationId: string; userId: n
 
             await tx.delete(userAssignments).where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, userId)));
         },
+    });
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Member left',
+        message: `${leavingUserName ?? `User ${userId}`} left the integration`,
+        metadata: {integrationId, targetUserId: userId},
+    }).catch((err) => {
+        logger.error('Failed to write event log for member leave', {error: err});
     });
 };
 
@@ -337,6 +390,17 @@ export const createInvitation = async (params: {
         },
     });
 
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Invitation created',
+        message: `Invitation created for ${input.email ?? 'link-only'} with role "${input.role}"`,
+        metadata: {integrationId, targetEmail: input.email?.toLowerCase(), role: input.role, invitationId: result.invitation.id},
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation creation', {error: err});
+    });
+
     if (input.sendEmail && input.email && config.get('sesConfig').emailEnabled) {
         await sendInvitationEmail({
             recipientEmail: input.email.toLowerCase(),
@@ -382,6 +446,19 @@ export const revokeInvitation = async (params: {integrationId: string; invitatio
     if (deleted.length === 0) {
         throw new NotFoundError('Invitation not found');
     }
+
+    const revokedEmail = deleted[0].email;
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Invitation revoked',
+        message: `Invitation for ${revokedEmail ?? 'link-only invite'} was revoked`,
+        metadata: {integrationId, targetEmail: revokedEmail ?? undefined, invitationId},
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation revocation', {error: err});
+    });
 };
 
 export const resendInvitation = async (params: {
@@ -455,6 +532,17 @@ export const resendInvitation = async (params: {
     }).catch((err) => {
         logger.error('Failed to send invitation email on resend', {error: err, invitationId});
     });
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Invitation resent',
+        message: `Invitation to ${resendResult.email} was resent`,
+        metadata: {integrationId, targetEmail: resendResult.email, invitationId},
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation resend', {error: err});
+    });
 };
 
 export const acceptInvitation = async (params: {inviteToken: string; acceptingUserId: number}): Promise<void> => {
@@ -465,7 +553,7 @@ export const acceptInvitation = async (params: {inviteToken: string; acceptingUs
 
     // The transaction ensures that we atomically check the invitation, claim it,
     // and add the user to the integration, preventing race conditions
-    await db.transaction(async (tx) => {
+    const acceptedInvitation = await db.transaction(async (tx) => {
         // Fetch the pending, non-expired invitation without mutating.
         const [invitation] = await tx
             .select()
@@ -514,5 +602,26 @@ export const acceptInvitation = async (params: {inviteToken: string; acceptingUs
             userId: acceptingUserId,
             role: invitation.role,
         });
+
+        // Resolve accepting user's name for the audit log
+        const [acceptingUser] = await tx.select({name: users.name, email: users.email}).from(users).where(eq(users.id, acceptingUserId));
+
+        return {...invitation, acceptingUserName: acceptingUser?.name ?? acceptingUser?.email ?? undefined};
+    });
+
+    await createEventLogEntry({
+        integrationId: acceptedInvitation.integrationId,
+        category: 'integration',
+        type: 'success',
+        title: 'Invitation accepted',
+        message: `${acceptedInvitation.acceptingUserName ?? `User ${acceptingUserId}`} accepted an invitation and joined with role "${acceptedInvitation.role}"`,
+        metadata: {
+            integrationId: acceptedInvitation.integrationId,
+            targetUserId: acceptingUserId,
+            role: acceptedInvitation.role,
+            invitationId: acceptedInvitation.id,
+        },
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation acceptance', {error: err});
     });
 };
