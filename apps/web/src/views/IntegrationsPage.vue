@@ -3,6 +3,7 @@
     import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
     import IntegrationCard from '@/components/integrations/IntegrationCard.vue';
     import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
+    import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
     import RotateSecretDialog from '@/components/integrations/RotateSecretDialog.vue';
     import UnlinkInstallationDialog from '@/components/integrations/UnlinkInstallationDialog.vue';
     import PageHeader from '@/components/PageHeader.vue';
@@ -39,6 +40,11 @@
         confirmUnlink,
         handleUnlink,
         handleSaveEvents,
+        showLeaveConfirm,
+        leavingIntegration,
+        isLeaving,
+        confirmLeave,
+        handleLeave,
         showAppLinkDialog,
         callbackInstallationId,
         appLinkError,
@@ -118,6 +124,7 @@
                 :webhook-url="getWebhookUrl(integration.integrationId)"
                 @save-label="handleSaveLabel"
                 @delete="confirmDelete"
+                @leave="confirmLeave"
                 @rotate="confirmRotate"
                 @unlink="confirmUnlink"
                 @save-events="handleSaveEvents"
@@ -143,6 +150,15 @@
             :integration="deletingIntegration"
             @update:open="showDeleteConfirm = $event"
             @confirm="handleDelete"
+        />
+
+        <!-- Leave Confirmation -->
+        <LeaveIntegrationDialog
+            :open="showLeaveConfirm"
+            :integration="leavingIntegration"
+            :is-leaving="isLeaving"
+            @update:open="showLeaveConfirm = $event"
+            @confirm="handleLeave"
         />
 
         <!-- Rotate Secret Confirmation -->

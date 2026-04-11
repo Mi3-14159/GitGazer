@@ -3,7 +3,7 @@
     import Input from '@/components/ui/Input.vue';
     import {formatTimeSince} from '@/utils/formatDate';
     import type {IntegrationWithRole} from '@common/types';
-    import {Activity, Trash2, Users} from 'lucide-vue-next';
+    import {Activity, LogOut, Trash2, Users} from 'lucide-vue-next';
     import {nextTick, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
@@ -13,12 +13,14 @@
         integration: IntegrationWithRole;
         canRename: boolean;
         canDelete: boolean;
+        canLeave: boolean;
         canManageMembers: boolean;
     }>();
 
     const emit = defineEmits<{
         'save-label': [id: string, label: string];
         delete: [integration: IntegrationWithRole];
+        leave: [integration: IntegrationWithRole];
     }>();
 
     const isEditing = ref(false);
@@ -120,6 +122,16 @@
             >
                 <Users class="h-3.5 w-3.5" />
                 <span class="hidden sm:inline">{{ canManageMembers ? 'Manage Users' : 'View Users' }}</span>
+            </Button>
+            <Button
+                v-if="canLeave"
+                variant="ghost"
+                size="sm"
+                class="h-8 gap-1.5 text-muted-foreground hover:text-destructive"
+                @click="emit('leave', integration)"
+            >
+                <LogOut class="h-3.5 w-3.5" />
+                <span class="hidden sm:inline">Leave</span>
             </Button>
             <Button
                 v-if="canDelete"

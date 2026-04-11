@@ -1,5 +1,6 @@
 import {useGithubApp} from '@/composables/useGithubApp';
 import {useIntegration} from '@/composables/useIntegration';
+import {useMembers} from '@/composables/useMembers';
 import type {IntegrationWithRole} from '@common/types';
 import {ref} from 'vue';
 
@@ -8,6 +9,7 @@ const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
 export function useIntegrationCrud() {
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
     const {linkInstallation, unlinkInstallation, updateWebhookEvents} = useGithubApp();
+    const {leaveIntegration: leaveIntegrationApi} = useMembers();
 
     const integrations = ref<IntegrationWithRole[]>([]);
 
@@ -34,6 +36,11 @@ export function useIntegrationCrud() {
     const showAppLinkDialog = ref(false);
     const callbackInstallationId = ref<number | null>(null);
     const appLinkError = ref('');
+
+    // Leave dialog
+    const showLeaveConfirm = ref(false);
+    const leavingIntegration = ref<IntegrationWithRole | null>(null);
+    const isLeaving = ref(false);
 
     function getWebhookUrl(integrationId: string): string {
         return `${IMPORT_URL_BASE}/${integrationId}`;
@@ -157,6 +164,24 @@ export function useIntegrationCrud() {
         }
     }
 
+    function confirmLeave(integration: IntegrationWithRole) {
+        leavingIntegration.value = integration;
+        showLeaveConfirm.value = true;
+    }
+
+    async function handleLeave() {
+        if (!leavingIntegration.value) return;
+        isLeaving.value = true;
+        try {
+            await leaveIntegrationApi(leavingIntegration.value.integrationId);
+            integrations.value = integrations.value.filter((i) => i.integrationId !== leavingIntegration.value!.integrationId);
+        } finally {
+            isLeaving.value = false;
+            showLeaveConfirm.value = false;
+            leavingIntegration.value = null;
+        }
+    }
+
     return {
         integrations,
         isLoadingIntegrations,
@@ -189,6 +214,12 @@ export function useIntegrationCrud() {
         appLinkError,
         handleLinkToExisting,
         handleCreateAndLink,
+        // Leave
+        showLeaveConfirm,
+        leavingIntegration,
+        isLeaving,
+        confirmLeave,
+        handleLeave,
         // Helpers
         getWebhookUrl,
         getEnabledEvents,

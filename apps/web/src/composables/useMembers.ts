@@ -85,6 +85,16 @@ export const useMembers = () => {
         }
     };
 
+    const leaveIntegration = async (integrationId: string): Promise<void> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/leave`, {
+            method: 'POST',
+        });
+        if (response.status !== 204) {
+            const body = await response.json().catch(() => null);
+            throw new Error(body?.message ?? `Failed to leave integration: ${response.status}`);
+        }
+    };
+
     return {
         getMembers,
         changeRole,
@@ -94,5 +104,6 @@ export const useMembers = () => {
         revokeInvitation,
         resendInvitation,
         acceptInvitation,
+        leaveIntegration,
     };
 };

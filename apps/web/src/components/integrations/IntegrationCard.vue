@@ -18,6 +18,7 @@
     const emit = defineEmits<{
         'save-label': [id: string, label: string];
         delete: [integration: IntegrationWithRole];
+        leave: [integration: IntegrationWithRole];
         rotate: [integrationId: string];
         unlink: [integrationId: string, installationId: number];
         'save-events': [integrationId: string, installationId: number, events: string[]];
@@ -36,9 +37,11 @@
                     :integration="integration"
                     :can-rename="can('admin')"
                     :can-delete="can('owner')"
+                    :can-leave="!can('owner')"
                     :can-manage-members="can('admin')"
                     @save-label="(id, label) => emit('save-label', id, label)"
                     @delete="(i) => emit('delete', i)"
+                    @leave="(i) => emit('leave', i)"
                 />
 
                 <WebhookCredentials
