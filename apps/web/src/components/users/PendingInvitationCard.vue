@@ -12,6 +12,7 @@
 
     const props = defineProps<{
         invitation: Invitation;
+        readonly?: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -89,7 +90,10 @@
                     </div>
                 </div>
 
-                <DropdownMenu v-model:open="menuOpen">
+                <DropdownMenu
+                    v-if="!readonly"
+                    v-model:open="menuOpen"
+                >
                     <template #trigger>
                         <Button
                             variant="ghost"

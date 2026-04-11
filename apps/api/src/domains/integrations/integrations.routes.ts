@@ -8,17 +8,24 @@ import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
+import {type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
 const router = new Router();
 
 router.get('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
+    const integrationRoles = reqCtx.appContext?.integrationRoles ?? {};
     const integrations = await getIntegrations({
         integrationIds: integrationIds,
     });
 
-    return new Response(JSON.stringify(integrations), {
+    const integrationsWithRoles: IntegrationWithRole[] = integrations.map((integration) => ({
+        ...integration,
+        role: integrationRoles[integration.integrationId] ?? 'viewer',
+    }));
+
+    return new Response(JSON.stringify(integrationsWithRoles), {
         status: HttpStatusCodes.OK,
         headers: {
             'Content-Type': 'application/json',

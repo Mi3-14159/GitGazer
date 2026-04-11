@@ -11,6 +11,7 @@
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
+    import {hasRole} from '@common/types';
     import {ExternalLink, Github, Plug, Plus} from 'lucide-vue-next';
     import {onMounted} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
@@ -164,7 +165,7 @@
         <GitHubAppLinkDialog
             :open="showAppLinkDialog"
             :installation-id="callbackInstallationId"
-            :integrations="integrations"
+            :integrations="integrations.filter((i) => hasRole(i.role, 'admin'))"
             :error="appLinkError"
             @update:open="showAppLinkDialog = $event"
             @link-to-existing="handleLinkToExisting"

@@ -6,21 +6,26 @@
     import Card from '@/components/ui/Card.vue';
     import CardContent from '@/components/ui/CardContent.vue';
     import {formatDate} from '@/utils/formatDate';
-    import type {Integration} from '@common/types';
+    import type {IntegrationWithRole, MemberRole} from '@common/types';
+    import {hasRole} from '@common/types';
     import {Calendar} from 'lucide-vue-next';
 
-    defineProps<{
-        integration: Integration;
+    const props = defineProps<{
+        integration: IntegrationWithRole;
         webhookUrl: string;
     }>();
 
     const emit = defineEmits<{
         'save-label': [id: string, label: string];
-        delete: [integration: Integration];
+        delete: [integration: IntegrationWithRole];
         rotate: [integrationId: string];
         unlink: [integrationId: string, installationId: number];
         'save-events': [integrationId: string, installationId: number, events: string[]];
     }>();
+
+    function can(minimumRole: MemberRole): boolean {
+        return hasRole(props.integration.role, minimumRole);
+    }
 </script>
 
 <template>
@@ -29,6 +34,9 @@
             <div class="space-y-3">
                 <IntegrationHeader
                     :integration="integration"
+                    :can-rename="can('admin')"
+                    :can-delete="can('owner')"
+                    :can-manage-members="can('admin')"
                     @save-label="(id, label) => emit('save-label', id, label)"
                     @delete="(i) => emit('delete', i)"
                 />
@@ -37,12 +45,14 @@
                     :integration-id="integration.integrationId"
                     :webhook-url="webhookUrl"
                     :secret="(integration as any).secret ?? ''"
+                    :can-rotate="can('admin')"
                     @rotate="(id) => emit('rotate', id)"
                 />
 
                 <WebhookEventEditor
                     v-if="integration.githubAppInstallations && integration.githubAppInstallations.length > 0"
                     :installations="integration.githubAppInstallations"
+                    :readonly="!can('admin')"
                     @save-events="(intId, instId, events) => emit('save-events', intId, instId, events)"
                 />
 
@@ -55,6 +65,7 @@
                         :key="inst.installationId"
                         :installation="inst"
                         :integration-id="integration.integrationId"
+                        :can-unlink="can('admin')"
                         @unlink="(intId, instId) => emit('unlink', intId, instId)"
                     />
                 </div>

@@ -8,8 +8,10 @@
     import InviteUserDialog from '@/components/users/InviteUserDialog.vue';
     import PendingInvitationCard from '@/components/users/PendingInvitationCard.vue';
     import UserCard from '@/components/users/UserCard.vue';
+    import {useIntegration} from '@/composables/useIntegration';
     import {useMembers} from '@/composables/useMembers';
     import type {Invitation, TeamMember, UserInviteFormData, UserRole} from '@/types/user';
+    import {hasRole, type MemberRole} from '@common/types';
     import {ArrowLeft, Clock, Loader2, Search, UserPlus, Users} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
@@ -25,9 +27,12 @@
         revokeInvitation: apiRevokeInvitation,
         resendInvitation: apiResendInvitation,
     } = useMembers();
+    const {getIntegrations} = useIntegration();
 
     const integrationId = computed(() => route.params.integrationId as string);
     const integrationLabel = computed(() => (route.query.label as string) || '');
+    const userRole = ref<MemberRole>('viewer');
+    const canManageMembers = computed(() => hasRole(userRole.value, 'admin'));
     const copiedLink = ref(false);
     const confirmRemoveUserId = ref<string | null>(null);
     const confirmRevokeInvitationId = ref<string | null>(null);
@@ -46,7 +51,16 @@
         loading.value = true;
         error.value = null;
         try {
-            const [apiMembers, apiInvitations] = await Promise.all([fetchMembers(integrationId.value), fetchInvitations(integrationId.value)]);
+            const [apiMembers, apiInvitations, apiIntegrations] = await Promise.all([
+                fetchMembers(integrationId.value),
+                fetchInvitations(integrationId.value),
+                getIntegrations(),
+            ]);
+
+            const currentIntegration = apiIntegrations?.find((i) => i.integrationId === integrationId.value);
+            if (currentIntegration) {
+                userRole.value = currentIntegration.role;
+            }
 
             members.value = apiMembers.map((m) => ({
                 id: String(m.userId),
@@ -205,6 +219,7 @@
                 </Button>
             </template>
             <Button
+                v-if="canManageMembers"
                 size="sm"
                 @click="showInviteDialog = true"
             >
@@ -270,6 +285,8 @@
                         v-for="member in filteredMembers"
                         :key="member.id"
                         :user="member"
+                        :readonly="!canManageMembers"
+                        :caller-role="userRole"
                         @change-role="handleChangeRole"
                         @remove="handleRemoveUser"
                     />
@@ -300,6 +317,7 @@
                         v-for="invitation in filteredInvitations"
                         :key="invitation.id"
                         :invitation="invitation"
+                        :readonly="!canManageMembers"
                         @resend="handleResend"
                         @revoke="handleRevoke"
                         @copy-link="handleCopyLink"

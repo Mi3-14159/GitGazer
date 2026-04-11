@@ -1,6 +1,6 @@
 import {useGithubApp} from '@/composables/useGithubApp';
 import {useIntegration} from '@/composables/useIntegration';
-import type {Integration} from '@common/types';
+import type {IntegrationWithRole} from '@common/types';
 import {ref} from 'vue';
 
 const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
@@ -9,15 +9,15 @@ export function useIntegrationCrud() {
     const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
     const {linkInstallation, unlinkInstallation, updateWebhookEvents} = useGithubApp();
 
-    const integrations = ref<Integration[]>([]);
+    const integrations = ref<IntegrationWithRole[]>([]);
 
     // Create/Edit dialog
     const showDialog = ref(false);
-    const editingIntegration = ref<Integration | null>(null);
+    const editingIntegration = ref<IntegrationWithRole | null>(null);
 
     // Delete dialog
     const showDeleteConfirm = ref(false);
-    const deletingIntegration = ref<Integration | null>(null);
+    const deletingIntegration = ref<IntegrationWithRole | null>(null);
 
     // Rotate secret dialog
     const showRotateConfirm = ref(false);
@@ -39,7 +39,7 @@ export function useIntegrationCrud() {
         return `${IMPORT_URL_BASE}/${integrationId}`;
     }
 
-    function getEnabledEvents(integration: Integration): string[] {
+    function getEnabledEvents(integration: IntegrationWithRole): string[] {
         const events = new Set<string>();
         integration.githubAppInstallations?.forEach((inst: any) => {
             inst.webhooks?.forEach((w: any) => {
@@ -65,17 +65,17 @@ export function useIntegrationCrud() {
 
     async function handleSave(label: string) {
         const created = await createIntegration(label);
-        integrations.value.push(created);
+        integrations.value.push({...created, role: 'owner'});
         showDialog.value = false;
     }
 
     async function handleSaveLabel(id: string, label: string) {
         const updated = await updateIntegration(id, label);
         const idx = integrations.value.findIndex((i) => i.integrationId === updated.integrationId);
-        if (idx !== -1) integrations.value[idx] = updated;
+        if (idx !== -1) integrations.value[idx] = {...updated, role: integrations.value[idx].role};
     }
 
-    function confirmDelete(integration: Integration) {
+    function confirmDelete(integration: IntegrationWithRole) {
         deletingIntegration.value = integration;
         showDeleteConfirm.value = true;
     }
@@ -99,7 +99,7 @@ export function useIntegrationCrud() {
         try {
             const updated = await rotateSecret(rotatingIntegrationId.value);
             const idx = integrations.value.findIndex((i) => i.integrationId === updated.integrationId);
-            if (idx !== -1) integrations.value[idx] = updated;
+            if (idx !== -1) integrations.value[idx] = {...updated, role: integrations.value[idx].role};
         } finally {
             isRotating.value = false;
             showRotateConfirm.value = false;
