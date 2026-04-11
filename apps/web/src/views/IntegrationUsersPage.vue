@@ -60,17 +60,19 @@
                 integrationIds: [],
             }));
 
-            invitations.value = apiInvitations.map((inv) => ({
-                id: inv.id,
-                email: inv.email ?? undefined,
-                role: inv.role as UserRole,
-                integrationIds: [],
-                invitedBy: inv.invitedByUser?.name ?? 'Unknown',
-                invitedAt: String(inv.createdAt),
-                expiresAt: String(inv.expiresAt),
-                status: inv.status as Invitation['status'],
-                inviteLink: inv.inviteToken ? `${APP_ORIGIN}/invite/${inv.inviteToken}` : undefined,
-            }));
+            invitations.value = apiInvitations
+                .filter((inv) => inv.status !== 'accepted')
+                .map((inv) => ({
+                    id: inv.id,
+                    email: inv.email ?? undefined,
+                    role: inv.role as UserRole,
+                    integrationIds: [],
+                    invitedBy: inv.invitedByUser?.name ?? 'Unknown',
+                    invitedAt: String(inv.createdAt),
+                    expiresAt: String(inv.expiresAt),
+                    status: inv.status as Invitation['status'],
+                    inviteLink: inv.inviteToken ? `${APP_ORIGIN}/invite/${inv.inviteToken}` : undefined,
+                }));
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to load data';
         } finally {
