@@ -2,7 +2,7 @@ import {sendInvitationEmail} from '@/shared/clients/ses.client';
 import config from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {BadRequestError, ForbiddenError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
-import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {invitationQueryRelations, memberQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationInvitations, users} from '@gitgazer/db/schema/gitgazer';
@@ -453,60 +453,56 @@ export const acceptInvitation = async (params: {inviteToken: string; acceptingUs
 
     logger.info(`Accepting invitation with token for user ${acceptingUserId}`);
 
-    // No integrationIds needed — the user doesn't belong to the integration yet.
-    // Uses gitgazerWriter to bypass RLS for cross-tenant invitation lookup by token.
-    await withRlsTransaction({
-        integrationIds: [],
-        userName: gitgazerWriter.name,
-        callback: async (tx: RdsTransaction) => {
-            // Fetch the pending, non-expired invitation without mutating.
-            const [invitation] = await tx
-                .select()
-                .from(integrationInvitations)
-                .where(
-                    and(
-                        eq(integrationInvitations.inviteToken, inviteToken),
-                        eq(integrationInvitations.status, 'pending'),
-                        gt(integrationInvitations.expiresAt, new Date()),
-                    ),
-                );
+    // The transaction ensures that we atomically check the invitation, claim it,
+    // and add the user to the integration, preventing race conditions
+    await db.transaction(async (tx) => {
+        // Fetch the pending, non-expired invitation without mutating.
+        const [invitation] = await tx
+            .select()
+            .from(integrationInvitations)
+            .where(
+                and(
+                    eq(integrationInvitations.inviteToken, inviteToken),
+                    eq(integrationInvitations.status, 'pending'),
+                    gt(integrationInvitations.expiresAt, new Date()),
+                ),
+            );
 
-            if (!invitation) {
-                throw new NotFoundError('Invitation not found or cannot be accepted');
-            }
+        if (!invitation) {
+            throw new NotFoundError('Invitation not found or cannot be accepted');
+        }
 
-            // Check if user is already a member before claiming the invitation
-            const [existingMember] = await tx
-                .select({userId: userAssignments.userId})
-                .from(userAssignments)
-                .where(and(eq(userAssignments.integrationId, invitation.integrationId), eq(userAssignments.userId, acceptingUserId)));
+        // Check if user is already a member before claiming the invitation
+        const [existingMember] = await tx
+            .select({userId: userAssignments.userId})
+            .from(userAssignments)
+            .where(and(eq(userAssignments.integrationId, invitation.integrationId), eq(userAssignments.userId, acceptingUserId)));
 
-            if (existingMember) {
-                throw new BadRequestError('You are already a member of this integration');
-            }
+        if (existingMember) {
+            throw new BadRequestError('You are already a member of this integration');
+        }
 
-            // Claim the invitation only after validation passes
-            const [claimed] = await tx
-                .update(integrationInvitations)
-                .set({status: 'accepted', inviteeId: acceptingUserId})
-                .where(
-                    and(
-                        eq(integrationInvitations.id, invitation.id),
-                        eq(integrationInvitations.integrationId, invitation.integrationId),
-                        eq(integrationInvitations.status, 'pending'),
-                    ),
-                )
-                .returning();
+        // Claim the invitation only after validation passes
+        const [claimed] = await tx
+            .update(integrationInvitations)
+            .set({status: 'accepted', inviteeId: acceptingUserId})
+            .where(
+                and(
+                    eq(integrationInvitations.id, invitation.id),
+                    eq(integrationInvitations.integrationId, invitation.integrationId),
+                    eq(integrationInvitations.status, 'pending'),
+                ),
+            )
+            .returning();
 
-            if (!claimed) {
-                throw new NotFoundError('Invitation not found or cannot be accepted');
-            }
+        if (!claimed) {
+            throw new NotFoundError('Invitation not found or cannot be accepted');
+        }
 
-            await tx.insert(userAssignments).values({
-                integrationId: invitation.integrationId,
-                userId: acceptingUserId,
-                role: invitation.role,
-            });
-        },
+        await tx.insert(userAssignments).values({
+            integrationId: invitation.integrationId,
+            userId: acceptingUserId,
+            role: invitation.role,
+        });
     });
 };

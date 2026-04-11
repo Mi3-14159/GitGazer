@@ -1,9 +1,11 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
+const mockDbTransaction = vi.fn();
 
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: (...args: any[]) => mockWithRlsTransaction(...args),
+    db: {transaction: (...args: any[]) => mockDbTransaction(...args)},
 }));
 
 vi.mock('@gitgazer/db/schema/gitgazer', () => ({
@@ -577,7 +579,7 @@ describe('members controller', () => {
 
     describe('acceptInvitation', () => {
         it('throws NotFoundError when invitation does not exist', async () => {
-            mockWithRlsTransaction.mockImplementation(async (params) => {
+            mockDbTransaction.mockImplementation(async (callback) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
@@ -585,7 +587,7 @@ describe('members controller', () => {
                         }),
                     }),
                 };
-                return params.callback(mockTx);
+                return callback(mockTx);
             });
 
             await expect(
@@ -599,7 +601,7 @@ describe('members controller', () => {
         it('throws NotFoundError when invitation has expired', async () => {
             // Expired invitations are filtered out by the WHERE clause,
             // so the select returns empty — same as "not found"
-            mockWithRlsTransaction.mockImplementation(async (params) => {
+            mockDbTransaction.mockImplementation(async (callback) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
@@ -607,7 +609,7 @@ describe('members controller', () => {
                         }),
                     }),
                 };
-                return params.callback(mockTx);
+                return callback(mockTx);
             });
 
             await expect(
@@ -623,7 +625,7 @@ describe('members controller', () => {
             const insertedValues: Record<string, unknown>[] = [];
             let selectCallCount = 0;
 
-            mockWithRlsTransaction.mockImplementation(async (params) => {
+            mockDbTransaction.mockImplementation(async (callback) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
@@ -668,7 +670,7 @@ describe('members controller', () => {
                         },
                     }),
                 };
-                return params.callback(mockTx);
+                return callback(mockTx);
             });
 
             await controller.acceptInvitation({
@@ -690,7 +692,7 @@ describe('members controller', () => {
             let updateCalled = false;
             let selectCallCount = 0;
 
-            mockWithRlsTransaction.mockImplementation(async (params) => {
+            mockDbTransaction.mockImplementation(async (callback) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
@@ -725,7 +727,7 @@ describe('members controller', () => {
                         };
                     },
                 };
-                return params.callback(mockTx);
+                return callback(mockTx);
             });
 
             await expect(
