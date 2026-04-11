@@ -1,4 +1,3 @@
-import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter, notificationRules} from '@gitgazer/db/schema';
 import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
@@ -49,14 +48,9 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
 export const upsertNotificationRule = async (params: {
     rule: NotificationRuleUpdate;
     integrationId: string;
-    userIntegrationIds: string[];
     createOnly?: boolean;
     ruleId?: string;
 }): Promise<NotificationRule> => {
-    if (!params.userIntegrationIds.includes(params.integrationId)) {
-        throw new ForbiddenError('Unauthorized to create/update notification rule for this integration');
-    }
-
     const result = await withRlsTransaction({
         integrationIds: [params.integrationId],
         userName: gitgazerWriter.name,
@@ -108,11 +102,7 @@ export const upsertNotificationRule = async (params: {
     return saved;
 };
 
-export const deleteNotificationRule = async (ruleId: string, integrationId: string, userIntegrationIds: string[]): Promise<void> => {
-    if (!userIntegrationIds.includes(integrationId)) {
-        throw new ForbiddenError('Unauthorized to delete notification rule for this integration');
-    }
-
+export const deleteNotificationRule = async (ruleId: string, integrationId: string): Promise<void> => {
     await withRlsTransaction({
         integrationIds: [integrationId],
         userName: gitgazerWriter.name,

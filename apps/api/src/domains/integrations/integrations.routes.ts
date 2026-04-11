@@ -3,6 +3,7 @@ import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from 
 import {deleteIntegration, getIntegrations, rotateSecret, upsertIntegration} from '@/domains/integrations/integrations.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {getLogger} from '@/shared/logger';
+import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
@@ -44,7 +45,6 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
     const {userId, integrations = []} = reqCtx.appContext ?? {};
 
     const integration = await upsertIntegration({
-        id: requestBody.id,
         label: requestBody.label,
         userId,
         integrationIds: integrations,
@@ -58,7 +58,7 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
     });
 });
 
-router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
     if (!reqCtx.event.body) {
         throw new BadRequestError('Missing request body');
     }
@@ -90,7 +90,7 @@ router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async
     });
 });
 
-router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx, requireRole('owner')], async (reqCtx: AppRequestContext) => {
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     await deleteIntegration(reqCtx.params.integrationId, integrationIds, reqCtx.appContext?.userId!);
 
@@ -99,13 +99,9 @@ router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx], as
     });
 });
 
-router.post('/api/integrations/:integrationId/rotate-secret', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/rotate-secret', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new BadRequestError('Integration not accessible');
-    }
 
     const integration = await rotateSecret({integrationId, integrationIds});
 
@@ -117,14 +113,9 @@ router.post('/api/integrations/:integrationId/rotate-secret', [addUserIntegratio
     });
 });
 
-router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     const integrationId = reqCtx.params.integrationId;
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new BadRequestError('Integration not accessible');
-    }
 
     if (!reqCtx.event.body) {
         throw new BadRequestError('Missing request body');
@@ -192,87 +183,85 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
     };
 });
 
-router.delete('/api/integrations/:integrationId/github-app/:installationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const installationId = parseInt(reqCtx.params.installationId, 10);
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.delete(
+    '/api/integrations/:integrationId/github-app/:installationId',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const installationId = parseInt(reqCtx.params.installationId, 10);
 
-    if (!integrationIds.includes(integrationId)) {
-        throw new BadRequestError('Integration not accessible');
-    }
+        if (isNaN(installationId)) {
+            throw new BadRequestError('Invalid installation ID');
+        }
 
-    if (isNaN(installationId)) {
-        throw new BadRequestError('Invalid installation ID');
-    }
+        // Delete webhooks from GitHub (app is still installed, webhooks won't auto-delete)
+        try {
+            await deprovisionAllWebhooks(integrationId, installationId);
+        } catch (error) {
+            getLogger().error('Failed to deprovision webhooks', {error});
+        }
 
-    // Delete webhooks from GitHub (app is still installed, webhooks won't auto-delete)
-    try {
-        await deprovisionAllWebhooks(integrationId, installationId);
-    } catch (error) {
-        getLogger().error('Failed to deprovision webhooks', {error});
-    }
+        // Unlink installation (set integration_id back to NULL)
+        await db
+            .update(githubAppInstallations)
+            .set({integrationId: null, updatedAt: new Date()})
+            .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
 
-    // Unlink installation (set integration_id back to NULL)
-    await db
-        .update(githubAppInstallations)
-        .set({integrationId: null, updatedAt: new Date()})
-        .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'info',
+            title: 'GitHub App unlinked',
+            message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
+            metadata: {integrationId, installationId},
+        });
 
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: 'info',
-        title: 'GitHub App unlinked',
-        message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
-        metadata: {integrationId, installationId},
-    });
+        return new Response(null, {
+            status: HttpStatusCodes.NO_CONTENT,
+        });
+    },
+);
 
-    return new Response(null, {
-        status: HttpStatusCodes.NO_CONTENT,
-    });
-});
+router.patch(
+    '/api/integrations/:integrationId/github-app/:installationId/events',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const installationId = parseInt(reqCtx.params.installationId, 10);
 
-router.patch('/api/integrations/:integrationId/github-app/:installationId/events', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const installationId = parseInt(reqCtx.params.installationId, 10);
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+        if (isNaN(installationId)) {
+            throw new BadRequestError('Invalid installation ID');
+        }
 
-    if (!integrationIds.includes(integrationId)) {
-        throw new BadRequestError('Integration not accessible');
-    }
+        if (!reqCtx.event.body) {
+            throw new BadRequestError('Missing request body');
+        }
 
-    if (isNaN(installationId)) {
-        throw new BadRequestError('Invalid installation ID');
-    }
+        let requestBody;
+        try {
+            requestBody = await reqCtx.req.json();
+        } catch {
+            throw new BadRequestError('Invalid request body');
+        }
 
-    if (!reqCtx.event.body) {
-        throw new BadRequestError('Missing request body');
-    }
+        const allowedEvents = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'];
+        if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
+            throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
+        }
 
-    let requestBody;
-    try {
-        requestBody = await reqCtx.req.json();
-    } catch {
-        throw new BadRequestError('Invalid request body');
-    }
+        await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
 
-    const allowedEvents = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'];
-    if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
-        throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
-    }
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'info',
+            title: 'Webhook events updated',
+            message: `Subscribed webhook events updated to: ${requestBody.events.join(', ')}`,
+            metadata: {integrationId, installationId, webhookEvents: requestBody.events},
+        });
 
-    await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
-
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: 'info',
-        title: 'Webhook events updated',
-        message: `Subscribed webhook events updated to: ${requestBody.events.join(', ')}`,
-        metadata: {integrationId, installationId, webhookEvents: requestBody.events},
-    });
-
-    return {events: requestBody.events};
-});
+        return {events: requestBody.events};
+    },
+);
 
 export default router;

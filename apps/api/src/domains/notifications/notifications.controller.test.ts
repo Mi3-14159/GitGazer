@@ -35,29 +35,6 @@ describe('notifications controller', () => {
         expect(mockWithRlsTransaction).not.toHaveBeenCalled();
     });
 
-    it('upsertNotificationRule throws when user is not in the integration group', async () => {
-        await expect(
-            notifications.upsertNotificationRule({
-                rule: {
-                    label: 'Test rule',
-                    enabled: true,
-                    channels: [],
-                    ignore_dependabot: false,
-                    rule: {
-                        owner: 'o',
-                        repository_name: 'r',
-                        workflow_name: 'w',
-                        head_branch: 'b',
-                        topics: [],
-                    },
-                } as any,
-                integrationId: 'integrationA',
-                userIntegrationIds: ['integrationB'],
-                createOnly: true,
-            }),
-        ).rejects.toThrow('Unauthorized to create/update notification rule for this integration');
-    });
-
     it('upsertNotificationRule generates an id when creating and persists rule via RDS', async () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
@@ -103,7 +80,6 @@ describe('notifications controller', () => {
         const out = await notifications.upsertNotificationRule({
             rule,
             integrationId: 'integrationA',
-            userIntegrationIds: ['integrationA'],
             createOnly: true,
         });
 
@@ -171,7 +147,6 @@ describe('notifications controller', () => {
                 rule: {owner: 'o', repository_name: 'r', workflow_name: 'w', head_branch: 'b', topics: ['frontend', 'backend']},
             } as any,
             integrationId: 'integrationA',
-            userIntegrationIds: ['integrationA'],
             createOnly: true,
         });
 
@@ -258,22 +233,13 @@ describe('notifications controller', () => {
                 rule: {topics: []},
             } as any,
             integrationId: 'integrationA',
-            userIntegrationIds: ['integrationA'],
             createOnly: true,
         });
 
         expect(out.id).toBe('uuid-456');
     });
 
-    it('deleteNotificationRule throws when user is not in the integration group', async () => {
-        await expect(notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationB'])).rejects.toThrow(
-            'Unauthorized to delete notification rule for this integration',
-        );
-
-        expect(mockWithRlsTransaction).not.toHaveBeenCalled();
-    });
-
-    it('deleteNotificationRule calls delete when authorized', async () => {
+    it('deleteNotificationRule calls delete and creates event log entry', async () => {
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
                 delete: () => ({
@@ -283,7 +249,7 @@ describe('notifications controller', () => {
             return params.callback(mockTx);
         });
 
-        await notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationA']);
+        await notifications.deleteNotificationRule('rule-1', 'integrationA');
 
         expect(mockWithRlsTransaction).toHaveBeenCalledTimes(1);
         expect(mockWithRlsTransaction).toHaveBeenCalledWith(
@@ -311,6 +277,6 @@ describe('notifications controller', () => {
         });
         mockCreateEventLogEntry.mockRejectedValue(new Error('DB down'));
 
-        await expect(notifications.deleteNotificationRule('rule-1', 'integrationA', ['integrationA'])).resolves.toBeUndefined();
+        await expect(notifications.deleteNotificationRule('rule-1', 'integrationA')).resolves.toBeUndefined();
     });
 });
