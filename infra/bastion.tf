@@ -109,12 +109,6 @@ resource "aws_instance" "bastion" {
     http_endpoint = "enabled"
   }
 
-  root_block_device {
-    volume_size = 30
-    volume_type = "gp3"
-    encrypted   = true
-  }
-
   tags = {
     Name = "${var.name_prefix}-bastion-${terraform.workspace}"
   }
