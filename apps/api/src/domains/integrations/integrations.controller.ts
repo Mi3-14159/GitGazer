@@ -7,7 +7,7 @@ import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
-import {Integration} from '@gitgazer/db/types';
+import {Integration, isMemberRole, type MemberRole} from '@gitgazer/db/types';
 import {and, eq, sql} from 'drizzle-orm';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
@@ -173,20 +173,28 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
     }
 };
 
-export const getUserIntegrations = async (userId: number): Promise<string[]> => {
+export const getUserIntegrationRoles = async (userId: number): Promise<Record<string, MemberRole>> => {
     const logger = getLogger();
-    logger.info(`Getting integrations for user ${userId}`);
+    logger.debug(`Getting integration roles for user ${userId}`);
     if (isNaN(userId)) {
         logger.warn(`Invalid user ID: ${userId}`);
-        return [];
+        return {};
     }
 
     const assignments = await db
-        .select({integrationId: userAssignments.integrationId})
+        .select({integrationId: userAssignments.integrationId, role: userAssignments.role})
         .from(userAssignments)
         .where(eq(userAssignments.userId, userId));
 
-    return assignments.map((a) => a.integrationId);
+    const roles: Record<string, MemberRole> = {};
+    for (const a of assignments) {
+        if (isMemberRole(a.role)) {
+            roles[a.integrationId] = a.role;
+        } else {
+            logger.warn(`Unexpected role value in user_assignments`, {userId, integrationId: a.integrationId, role: a.role});
+        }
+    }
+    return roles;
 };
 
 export const rotateSecret = async (params: {integrationId: string; integrationIds: string[]}): Promise<Integration> => {

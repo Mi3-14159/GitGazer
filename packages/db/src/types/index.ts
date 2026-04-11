@@ -355,6 +355,18 @@ export type WebSocketChannel = (typeof WEBSOCKET_CHANNELS)[number];
 export const MEMBER_ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 export type MemberRole = (typeof MEMBER_ROLES)[number];
 
+/** Lower rank = higher privilege. owner(0) > admin(1) > member(2) > viewer(3) */
+export const ROLE_RANK: Record<MemberRole, number> = {
+    owner: 0,
+    admin: 1,
+    member: 2,
+    viewer: 3,
+};
+
+export const hasRole = (userRole: MemberRole, requiredRole: MemberRole): boolean => ROLE_RANK[userRole] <= ROLE_RANK[requiredRole];
+
+export const isMemberRole = (value: string): value is MemberRole => (MEMBER_ROLES as readonly string[]).includes(value);
+
 export const INVITATION_STATUSES = ['pending', 'accepted', 'expired'] as const;
 export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 

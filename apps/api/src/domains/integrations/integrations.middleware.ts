@@ -1,4 +1,4 @@
-import {getUserIntegrations} from '@/domains/integrations/integrations.controller';
+import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
 import {getLogger} from '@/shared/logger';
 import {AppRequestContext} from '@/shared/types';
 import {NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
@@ -9,9 +9,10 @@ export const addUserIntegrationsToCtx: Middleware = async ({reqCtx, next}: {reqC
     logger.debug('running addUserIntegrationsToCtx middleware');
     const {userId} = reqCtx.appContext!;
 
-    const integrations = await getUserIntegrations(userId);
-    reqCtx.appContext!.integrations = integrations;
-    logger.debug('User integrations from RDS', {integrations});
+    const integrationRoles = await getUserIntegrationRoles(userId);
+    reqCtx.appContext!.integrationRoles = integrationRoles;
+    reqCtx.appContext!.integrations = Object.keys(integrationRoles);
+    logger.debug('User integrations from RDS', {integrations: reqCtx.appContext!.integrations});
 
     await next();
 };
