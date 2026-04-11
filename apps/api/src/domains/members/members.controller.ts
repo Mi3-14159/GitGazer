@@ -7,11 +7,10 @@ import {invitationQueryRelations, memberQueryRelations} from '@gitgazer/db/queri
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationInvitations, users} from '@gitgazer/db/schema/gitgazer';
 import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
-import type {CreateInvitationInput, IntegrationInvitation, IntegrationMember, MemberRole} from '@gitgazer/db/types';
+import {MEMBER_ROLES, type CreateInvitationInput, type IntegrationInvitation, type IntegrationMember, type MemberRole} from '@gitgazer/db/types';
 import {and, eq, gt} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const VALID_ROLES: readonly string[] = ['owner', 'admin', 'member', 'viewer'] satisfies readonly MemberRole[];
 
 export const getMembers = async (params: {integrationId: string; integrationIds: string[]}): Promise<IntegrationMember[]> => {
     const logger = getLogger();
@@ -50,7 +49,7 @@ export const changeRole = async (params: {
         throw new ForbiddenError('Integration not accessible');
     }
 
-    if (!VALID_ROLES.includes(newRole)) {
+    if (!MEMBER_ROLES.includes(newRole)) {
         throw new BadRequestError(`Invalid role: ${newRole}`);
     }
 
@@ -195,7 +194,7 @@ export const createInvitation = async (params: {
         throw new ForbiddenError('Integration not accessible');
     }
 
-    if (!VALID_ROLES.includes(input.role)) {
+    if (!MEMBER_ROLES.includes(input.role)) {
         throw new BadRequestError(`Invalid role: ${input.role}`);
     }
 
