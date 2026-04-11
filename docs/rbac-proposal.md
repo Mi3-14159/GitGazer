@@ -24,12 +24,12 @@ Roles form a strict linear hierarchy. A higher role inherits all permissions of 
 owner > admin > member > viewer
 ```
 
-| Rank | Role     | Description                                                    |
-| ---- | -------- | -------------------------------------------------------------- |
+| Rank | Role     | Description                                                                       |
+| ---- | -------- | --------------------------------------------------------------------------------- |
 | 0    | `owner`  | Full control including destructive operations. One per integration (the creator). |
-| 1    | `admin`  | Full management except integration deletion and ownership transfer. |
-| 2    | `member` | Day-to-day operational access. Cannot manage members or invitations. |
-| 3    | `viewer` | Read-only access to all data within the integration scope.     |
+| 1    | `admin`  | Full management except integration deletion and ownership transfer.               |
+| 2    | `member` | Day-to-day operational access. Cannot manage members or invitations.              |
+| 3    | `viewer` | Read-only access to all data within the integration scope.                        |
 
 ### Permission Matrix
 
@@ -37,31 +37,31 @@ Every protected API operation is assigned a minimum required role. A user with a
 
 #### Integration Management
 
-| Operation                              | Endpoint                                                          | owner | admin | member | viewer |
-| -------------------------------------- | ----------------------------------------------------------------- | :---: | :---: | :----: | :----: |
-| List integrations                      | `GET /api/integrations`                                           |  ✅   |  ✅   |   ✅   |   ✅   |
-| Create integration                     | `POST /api/integrations`                                          |  ✅   |  ✅   |   ✅   |   ✅   |
-| Rename integration                     | `PUT /api/integrations/:id`                                       |  ✅   |  ✅   |   ❌   |   ❌   |
-| **Delete integration**                 | `DELETE /api/integrations/:id`                                    |  ✅   |  ❌   |   ❌   |   ❌   |
-| Rotate webhook secret                  | `POST /api/integrations/:id/rotate-secret`                        |  ✅   |  ✅   |   ❌   |   ❌   |
-| Link GitHub App installation           | `POST /api/integrations/:id/github-app`                           |  ✅   |  ✅   |   ❌   |   ❌   |
-| Unlink GitHub App installation         | `DELETE /api/integrations/:id/github-app/:installationId`         |  ✅   |  ✅   |   ❌   |   ❌   |
-| Update webhook event subscriptions     | `PATCH /api/integrations/:id/github-app/:installationId/events`   |  ✅   |  ✅   |   ❌   |   ❌   |
+| Operation                          | Endpoint                                                        | owner | admin | member | viewer |
+| ---------------------------------- | --------------------------------------------------------------- | :---: | :---: | :----: | :----: |
+| List integrations                  | `GET /api/integrations`                                         |  ✅   |  ✅   |   ✅   |   ✅   |
+| Create integration                 | `POST /api/integrations`                                        |  ✅   |  ✅   |   ✅   |   ✅   |
+| Rename integration                 | `PUT /api/integrations/:id`                                     |  ✅   |  ✅   |   ❌   |   ❌   |
+| **Delete integration**             | `DELETE /api/integrations/:id`                                  |  ✅   |  ❌   |   ❌   |   ❌   |
+| Rotate webhook secret              | `POST /api/integrations/:id/rotate-secret`                      |  ✅   |  ✅   |   ❌   |   ❌   |
+| Link GitHub App installation       | `POST /api/integrations/:id/github-app`                         |  ✅   |  ✅   |   ❌   |   ❌   |
+| Unlink GitHub App installation     | `DELETE /api/integrations/:id/github-app/:installationId`       |  ✅   |  ✅   |   ❌   |   ❌   |
+| Update webhook event subscriptions | `PATCH /api/integrations/:id/github-app/:installationId/events` |  ✅   |  ✅   |   ❌   |   ❌   |
 
 > **Create integration** is available to all authenticated users because it creates a new, independent integration where the caller becomes the owner. It does not modify an existing integration.
 
 #### Member & Invitation Management
 
-| Operation                 | Endpoint                                                            | owner | admin | member | viewer |
-| ------------------------- | ------------------------------------------------------------------- | :---: | :---: | :----: | :----: |
-| List members              | `GET /api/integrations/:id/members`                                 |  ✅   |  ✅   |   ✅   |   ✅   |
-| Change member role        | `PATCH /api/integrations/:id/members/:userId/role`                  |  ✅   |  ✅   |   ❌   |   ❌   |
-| Remove member             | `DELETE /api/integrations/:id/members/:userId`                      |  ✅   |  ✅   |   ❌   |   ❌   |
-| List invitations          | `GET /api/integrations/:id/invitations`                             |  ✅   |  ✅   |   ✅   |   ✅   |
-| Create invitation         | `POST /api/integrations/:id/invitations`                            |  ✅   |  ✅   |   ❌   |   ❌   |
-| Resend invitation         | `POST /api/integrations/:id/invitations/:invitationId/resend`       |  ✅   |  ✅   |   ❌   |   ❌   |
-| Revoke invitation         | `DELETE /api/integrations/:id/invitations/:invitationId`            |  ✅   |  ✅   |   ❌   |   ❌   |
-| Accept invitation         | `POST /api/invitations/accept`                                      |  ✅   |  ✅   |   ✅   |   ✅   |
+| Operation          | Endpoint                                                      | owner | admin | member | viewer |
+| ------------------ | ------------------------------------------------------------- | :---: | :---: | :----: | :----: |
+| List members       | `GET /api/integrations/:id/members`                           |  ✅   |  ✅   |   ✅   |   ✅   |
+| Change member role | `PATCH /api/integrations/:id/members/:userId/role`            |  ✅   |  ✅   |   ❌   |   ❌   |
+| Remove member      | `DELETE /api/integrations/:id/members/:userId`                |  ✅   |  ✅   |   ❌   |   ❌   |
+| List invitations   | `GET /api/integrations/:id/invitations`                       |  ✅   |  ✅   |   ✅   |   ✅   |
+| Create invitation  | `POST /api/integrations/:id/invitations`                      |  ✅   |  ✅   |   ❌   |   ❌   |
+| Resend invitation  | `POST /api/integrations/:id/invitations/:invitationId/resend` |  ✅   |  ✅   |   ❌   |   ❌   |
+| Revoke invitation  | `DELETE /api/integrations/:id/invitations/:invitationId`      |  ✅   |  ✅   |   ❌   |   ❌   |
+| Accept invitation  | `POST /api/invitations/accept`                                |  ✅   |  ✅   |   ✅   |   ✅   |
 
 **Additional constraints** (enforced in controller logic, not middleware):
 
@@ -72,31 +72,31 @@ Every protected API operation is assigned a minimum required role. A user with a
 
 #### Notification Rules
 
-| Operation                 | Endpoint                                                     | owner | admin | member | viewer |
-| ------------------------- | ------------------------------------------------------------ | :---: | :---: | :----: | :----: |
-| List notification rules   | `GET /api/notifications`                                     |  ✅   |  ✅   |   ✅   |   ✅   |
-| Create notification rule  | `POST /api/integrations/:id/notifications`                   |  ✅   |  ✅   |   ✅   |   ❌   |
-| Update notification rule  | `PUT /api/integrations/:id/notifications/:ruleId`            |  ✅   |  ✅   |   ✅   |   ❌   |
-| Delete notification rule  | `DELETE /api/integrations/:id/notifications/:ruleId`         |  ✅   |  ✅   |   ✅   |   ❌   |
+| Operation                | Endpoint                                             | owner | admin | member | viewer |
+| ------------------------ | ---------------------------------------------------- | :---: | :---: | :----: | :----: |
+| List notification rules  | `GET /api/notifications`                             |  ✅   |  ✅   |   ✅   |   ✅   |
+| Create notification rule | `POST /api/integrations/:id/notifications`           |  ✅   |  ✅   |   ✅   |   ❌   |
+| Update notification rule | `PUT /api/integrations/:id/notifications/:ruleId`    |  ✅   |  ✅   |   ✅   |   ❌   |
+| Delete notification rule | `DELETE /api/integrations/:id/notifications/:ruleId` |  ✅   |  ✅   |   ✅   |   ❌   |
 
 #### Monitoring & Analytics (Read-Only)
 
-| Operation                 | Endpoint                         | owner | admin | member | viewer |
-| ------------------------- | -------------------------------- | :---: | :---: | :----: | :----: |
-| List workflows            | `GET /api/workflows`             |  ✅   |  ✅   |   ✅   |   ✅   |
-| Get overview              | `GET /api/overview`              |  ✅   |  ✅   |   ✅   |   ✅   |
-| Get metrics widget        | `GET /api/metrics/widget`        |  ✅   |  ✅   |   ✅   |   ✅   |
-| List repositories         | `GET /api/metrics/repositories`  |  ✅   |  ✅   |   ✅   |   ✅   |
-| List topics               | `GET /api/metrics/topics`        |  ✅   |  ✅   |   ✅   |   ✅   |
+| Operation          | Endpoint                        | owner | admin | member | viewer |
+| ------------------ | ------------------------------- | :---: | :---: | :----: | :----: |
+| List workflows     | `GET /api/workflows`            |  ✅   |  ✅   |   ✅   |   ✅   |
+| Get overview       | `GET /api/overview`             |  ✅   |  ✅   |   ✅   |   ✅   |
+| Get metrics widget | `GET /api/metrics/widget`       |  ✅   |  ✅   |   ✅   |   ✅   |
+| List repositories  | `GET /api/metrics/repositories` |  ✅   |  ✅   |   ✅   |   ✅   |
+| List topics        | `GET /api/metrics/topics`       |  ✅   |  ✅   |   ✅   |   ✅   |
 
 #### Event Log
 
-| Operation                 | Endpoint                         | owner | admin | member | viewer |
-| ------------------------- | -------------------------------- | :---: | :---: | :----: | :----: |
-| List event log entries    | `GET /api/event-log`             |  ✅   |  ✅   |   ✅   |   ✅   |
-| Get event log stats       | `GET /api/event-log/stats`       |  ✅   |  ✅   |   ✅   |   ✅   |
-| Toggle entry read status  | `PATCH /api/event-log/:id/read`  |  ✅   |  ✅   |   ✅   |   ✅   |
-| Mark all as read          | `POST /api/event-log/mark-all-read` |  ✅ |  ✅   |   ✅   |   ✅   |
+| Operation                | Endpoint                            | owner | admin | member | viewer |
+| ------------------------ | ----------------------------------- | :---: | :---: | :----: | :----: |
+| List event log entries   | `GET /api/event-log`                |  ✅   |  ✅   |   ✅   |   ✅   |
+| Get event log stats      | `GET /api/event-log/stats`          |  ✅   |  ✅   |   ✅   |   ✅   |
+| Toggle entry read status | `PATCH /api/event-log/:id/read`     |  ✅   |  ✅   |   ✅   |   ✅   |
+| Mark all as read         | `POST /api/event-log/mark-all-read` |  ✅   |  ✅   |   ✅   |   ✅   |
 
 > Event log read/mark operations are scoped to the user's own read state and don't modify shared data, so all roles are permitted.
 
@@ -104,16 +104,16 @@ Every protected API operation is assigned a minimum required role. A user with a
 
 These endpoints operate on the authenticated user's own identity, not on a specific integration:
 
-| Operation              | Endpoint                        | Requirement        |
-| ---------------------- | ------------------------------- | ------------------ |
-| Auth callback          | `GET /api/auth/callback`        | Public             |
-| Token refresh          | `POST /api/auth/refresh`        | Public             |
-| Logout                 | `GET /api/auth/logout`          | Public             |
-| WS token               | `GET /api/auth/ws-token`        | Authenticated      |
-| Get current user       | `GET /api/user`                 | Authenticated      |
-| Accept invitation      | `POST /api/invitations/accept`  | Authenticated      |
-| Webhook ingest         | `POST /api/import/:id`          | Signature-verified |
-| GitHub App webhook     | `POST /api/github/webhook`      | Signature-verified |
+| Operation          | Endpoint                       | Requirement        |
+| ------------------ | ------------------------------ | ------------------ |
+| Auth callback      | `GET /api/auth/callback`       | Public             |
+| Token refresh      | `POST /api/auth/refresh`       | Public             |
+| Logout             | `GET /api/auth/logout`         | Public             |
+| WS token           | `GET /api/auth/ws-token`       | Authenticated      |
+| Get current user   | `GET /api/user`                | Authenticated      |
+| Accept invitation  | `POST /api/invitations/accept` | Authenticated      |
+| Webhook ingest     | `POST /api/import/:id`         | Signature-verified |
+| GitHub App webhook | `POST /api/github/webhook`     | Signature-verified |
 
 ### Implementation Design
 
@@ -125,14 +125,13 @@ Define a declarative permission map in the shared types package:
 // packages/db/src/types/permissions.ts
 
 export const ROLE_RANK: Record<MemberRole, number> = {
-  owner: 0,
-  admin: 1,
-  member: 2,
-  viewer: 3,
+    owner: 0,
+    admin: 1,
+    member: 2,
+    viewer: 3,
 };
 
-export const hasRole = (userRole: MemberRole, requiredRole: MemberRole): boolean =>
-  ROLE_RANK[userRole] <= ROLE_RANK[requiredRole];
+export const hasRole = (userRole: MemberRole, requiredRole: MemberRole): boolean => ROLE_RANK[userRole] <= ROLE_RANK[requiredRole];
 ```
 
 #### 2. Authorization Middleware
@@ -142,31 +141,31 @@ A single reusable middleware that resolves the caller's role for the target inte
 ```typescript
 // apps/api/src/shared/middleware/requireRole.ts
 
-import { ROLE_RANK, type MemberRole } from '@gitgazer/db/types';
+import {ROLE_RANK, type MemberRole} from '@gitgazer/db/types';
 
 export const requireRole = (minimumRole: MemberRole) => {
-  return async (app: AppResolver, next: () => Promise<void>) => {
-    const integrationId = app.currentEvent.pathParameters?.integrationId;
-    const userId = app.appendContext.appContext.userId;
+    return async (app: AppResolver, next: () => Promise<void>) => {
+        const integrationId = app.currentEvent.pathParameters?.integrationId;
+        const userId = app.appendContext.appContext.userId;
 
-    if (!integrationId) {
-      return app.response.status(400).json({ message: 'Missing integrationId' });
-    }
+        if (!integrationId) {
+            return app.response.status(400).json({message: 'Missing integrationId'});
+        }
 
-    const userRole = await getUserRoleForIntegration(userId, integrationId);
+        const userRole = await getUserRoleForIntegration(userId, integrationId);
 
-    if (!userRole) {
-      return app.response.status(403).json({ message: 'Not a member of this integration' });
-    }
+        if (!userRole) {
+            return app.response.status(403).json({message: 'Not a member of this integration'});
+        }
 
-    if (ROLE_RANK[userRole] > ROLE_RANK[minimumRole]) {
-      return app.response.status(403).json({ message: 'Insufficient permissions' });
-    }
+        if (ROLE_RANK[userRole] > ROLE_RANK[minimumRole]) {
+            return app.response.status(403).json({message: 'Insufficient permissions'});
+        }
 
-    // Attach role to context for downstream controller logic
-    app.appendContext.appContext.role = userRole;
-    await next();
-  };
+        // Attach role to context for downstream controller logic
+        app.appendContext.appContext.role = userRole;
+        await next();
+    };
 };
 ```
 
@@ -178,15 +177,15 @@ Apply middleware declaratively at route registration:
 // Example: apps/api/src/domains/integrations/integrations.routes.ts
 
 router.delete(
-  '/api/integrations/:integrationId',
-  requireRole('owner'),     // ← only owner can delete
-  deleteIntegration
+    '/api/integrations/:integrationId',
+    requireRole('owner'), // ← only owner can delete
+    deleteIntegration,
 );
 
 router.put(
-  '/api/integrations/:integrationId',
-  requireRole('admin'),     // ← admin+ can rename
-  renameIntegration
+    '/api/integrations/:integrationId',
+    requireRole('admin'), // ← admin+ can rename
+    renameIntegration,
 );
 ```
 
