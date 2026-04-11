@@ -57,6 +57,16 @@ export const changeRole = async (params: {
 
     // Only owners can assign the owner role
     if (newRole === 'owner' && requestingRole !== 'owner') {
+        logger.info('authz', {
+            userId: requestingUserId,
+            integrationId,
+            role: requestingRole,
+            action: 'changeRole',
+            allowed: false,
+            reason: 'only owners can assign owner role',
+            targetUserId,
+            newRole,
+        });
         throw new ForbiddenError('Only owners can assign the owner role');
     }
 
@@ -78,6 +88,16 @@ export const changeRole = async (params: {
 
             // Only owners can manage other owners/admins
             if ((target.role === 'owner' || target.role === 'admin') && requestingRole !== 'owner') {
+                logger.info('authz', {
+                    userId: requestingUserId,
+                    integrationId,
+                    role: requestingRole,
+                    action: 'changeRole',
+                    allowed: false,
+                    reason: 'only owners can manage owners/admins',
+                    targetUserId,
+                    targetRole: target.role,
+                });
                 throw new ForbiddenError('Cannot change the role of an owner or admin');
             }
 
@@ -125,11 +145,29 @@ export const removeMember = async (params: {
             }
 
             if (target.role === 'owner') {
+                logger.info('authz', {
+                    userId: requestingUserId,
+                    integrationId,
+                    role: requestingRole,
+                    action: 'removeMember',
+                    allowed: false,
+                    reason: 'cannot remove owner',
+                    targetUserId,
+                });
                 throw new ForbiddenError('Cannot remove an owner from the integration');
             }
 
             // Only owners can remove admins
             if (target.role === 'admin' && requestingRole !== 'owner') {
+                logger.info('authz', {
+                    userId: requestingUserId,
+                    integrationId,
+                    role: requestingRole,
+                    action: 'removeMember',
+                    allowed: false,
+                    reason: 'only owners can remove admins',
+                    targetUserId,
+                });
                 throw new ForbiddenError('Only owners can remove admins');
             }
 
@@ -162,6 +200,14 @@ export const leaveIntegration = async (params: {integrationId: string; userId: n
             }
 
             if (member.role === 'owner') {
+                logger.info('authz', {
+                    userId,
+                    integrationId,
+                    role: 'owner',
+                    action: 'leaveIntegration',
+                    allowed: false,
+                    reason: 'owner cannot leave',
+                });
                 throw new ForbiddenError('The owner cannot leave the integration. Transfer ownership first.');
             }
 
