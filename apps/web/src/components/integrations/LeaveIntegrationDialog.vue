@@ -1,11 +1,11 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
-    import type {Integration} from '@common/types';
+    import type {IntegrationWithRole} from '@common/types';
 
     defineProps<{
         open: boolean;
-        integration: Integration | null;
+        integration: IntegrationWithRole | null;
         isLeaving: boolean;
     }>();
 

@@ -79,6 +79,7 @@ export function useIntegrationCrud() {
     async function handleSaveLabel(id: string, label: string) {
         const updated = await updateIntegration(id, label);
         const idx = integrations.value.findIndex((i) => i.integrationId === updated.integrationId);
+        // Preserve the local role — the update endpoint doesn't return it
         if (idx !== -1) integrations.value[idx] = {...updated, role: integrations.value[idx].role};
     }
 

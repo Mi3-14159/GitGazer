@@ -13,11 +13,11 @@ import {
 import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {hasRole, type MemberRole} from '@gitgazer/db/types';
+import {hasRole, isMemberRole} from '@gitgazer/db/types';
 
 const router = new Router();
 
-router.get('/api/integrations/:integrationId/members', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.get('/api/integrations/:integrationId/members', [addUserIntegrationsToCtx, requireRole('viewer')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
 
@@ -36,7 +36,7 @@ router.patch(
         const integrationId = reqCtx.params.integrationId;
         const targetUserId = parseInt(reqCtx.params.userId, 10);
         const integrationIds = reqCtx.appContext?.integrations ?? [];
-        const requestingUserId = reqCtx.appContext?.userId!;
+        const requestingUserId = reqCtx.appContext!.userId;
 
         if (isNaN(targetUserId)) {
             throw new BadRequestError('Invalid user ID');
@@ -49,14 +49,14 @@ router.patch(
             throw new BadRequestError('Invalid request body');
         }
 
-        if (!body.role || typeof body.role !== 'string') {
+        if (!body.role || !isMemberRole(body.role)) {
             throw new BadRequestError('Missing or invalid role');
         }
 
         await changeRole({
             integrationId,
             targetUserId,
-            newRole: body.role as MemberRole,
+            newRole: body.role,
             requestingUserId,
             requestingRole: reqCtx.appContext!.role!,
             integrationIds,
@@ -73,7 +73,7 @@ router.delete(
         const integrationId = reqCtx.params.integrationId;
         const targetUserId = parseInt(reqCtx.params.userId, 10);
         const integrationIds = reqCtx.appContext?.integrations ?? [];
-        const requestingUserId = reqCtx.appContext?.userId!;
+        const requestingUserId = reqCtx.appContext!.userId;
 
         if (isNaN(targetUserId)) {
             throw new BadRequestError('Invalid user ID');
@@ -91,17 +91,17 @@ router.delete(
     },
 );
 
-router.post('/api/integrations/:integrationId/leave', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/leave', [addUserIntegrationsToCtx, requireRole('viewer')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const userId = reqCtx.appContext?.userId!;
+    const userId = reqCtx.appContext!.userId;
 
     await leaveIntegration({integrationId, userId, integrationIds});
 
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.get('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.get('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx, requireRole('member')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
     const callerRole = reqCtx.appContext?.integrationRoles?.[integrationId];
@@ -121,7 +121,7 @@ router.get('/api/integrations/:integrationId/invitations', [addUserIntegrationsT
 router.post('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const requestingUserId = reqCtx.appContext?.userId!;
+    const requestingUserId = reqCtx.appContext!.userId;
 
     let body;
     try {
@@ -134,7 +134,7 @@ router.post('/api/integrations/:integrationId/invitations', [addUserIntegrations
         throw new BadRequestError('Invalid email');
     }
 
-    if (!body.role || typeof body.role !== 'string') {
+    if (!body.role || !isMemberRole(body.role)) {
         throw new BadRequestError('Missing or invalid role');
     }
 
@@ -142,7 +142,7 @@ router.post('/api/integrations/:integrationId/invitations', [addUserIntegrations
         integrationId,
         input: {
             email: body.email || undefined,
-            role: body.role as MemberRole,
+            role: body.role,
             sendEmail: body.sendEmail === true,
         },
         requestingUserId,
@@ -166,7 +166,7 @@ router.post(
         await resendInvitation({
             integrationId,
             invitationId,
-            resendingUserId: reqCtx.appContext?.userId!,
+            resendingUserId: reqCtx.appContext!.userId,
             integrationIds,
         });
 
