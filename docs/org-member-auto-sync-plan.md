@@ -46,8 +46,15 @@ To auto-add org members we need a reliable way to match a GitHub org member to a
 │            GitGazer API — github-app.controller                  │
 │  1. Upsert github_app_installations row                         │
 │  2. If account_type = "Organization":                            │
-│     → Fetch org members via GitHub API                           │
-│     → Store in new github_org_members table                      │
+│     → Dispatch org_member_sync task to SQS worker queue          │
+└────────────┬─────────────────────────────────────────────────────┘
+             │
+             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│            Worker Lambda (SQS consumer)                          │
+│  Receives org_member_sync task:                                  │
+│  1. Fetch all org members via GitHub API (paginated)             │
+│  2. Bulk upsert into github_org_members (batched)                │
 └────────────┬─────────────────────────────────────────────────────┘
              │
              │ Later: installation linked to integration
@@ -64,7 +71,7 @@ To auto-add org members we need a reliable way to match a GitHub org member to a
              ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │            Webhook: organization.member_added/removed            │
-│  1. Update github_org_members                                    │
+│  1. Update github_org_members (single-row, inline)               │
 │  2. If installation is linked to integration:                    │
 │     → Auto-add or remove user from user-assignments              │
 └──────────────────────────────────────────────────────────────────┘
@@ -140,25 +147,56 @@ This table is **not tenant-scoped** (no `integration_id` PK prefix) because inst
 - `packages/db/src/schema/github/workflows.ts` — add table definition
 - New Drizzle migration
 
-#### 2.2 Fetch org members on `installation.created`
+#### 2.2 Dispatch org member sync to worker
 
-When the GitHub App is installed on an **Organization** (`account_type = "Organization"`):
+A GitHub organization can have **thousands of members**. Fetching them via the GitHub API (paginated, 100/page) and bulk-upserting into the database is too slow and resource-intensive to run inline in a webhook handler (API Gateway has a 29s timeout; the REST Lambda has a 30s timeout). All full org member syncs are dispatched to the **worker Lambda** via the existing SQS webhook queue.
 
-1. Use the installation's Octokit client to call `octokit.orgs.listMembers({ org: account_login })` (paginated)
-2. Bulk upsert results into `github_org_members`
+##### Worker task: `org_member_sync`
+
+Extend the existing SQS message format with a new task type:
+
+```typescript
+interface OrgMemberSyncTask {
+    taskType: 'org_member_sync';
+    installationId: number;
+    accountLogin: string;
+}
+```
+
+The worker Lambda (`batch-processor.ts`) already processes SQS records. Add a branch that checks for `taskType === 'org_member_sync'` and delegates to a new `syncOrgMembers` function.
+
+##### Sync logic (runs in worker)
+
+1. Use the installation's Octokit client to call `octokit.orgs.listMembers({ org })` (paginated, per role)
+2. Batch upsert results into `github_org_members` in chunks of 500 rows
+3. On failure, the SQS retry/DLQ mechanism handles retries (no silent swallowing)
+
+##### Dispatch points
+
+The API Lambda dispatches an `org_member_sync` SQS message in these cases:
+
+- `installation.created` — when a GitHub App is installed on an Organization
+- `installation.new_permissions_accepted` — backfill for existing installations that accept the new `members:read` permission
+
+Because the work is async, the webhook handler returns immediately. The worker picks up the task from SQS and performs the potentially long-running sync.
 
 **Prerequisite**: The GitHub App must request the **`members:read`** permission. This is a GitHub App permission change (configured in the GitHub App settings on github.com), not a code change. Existing installations will receive an `installation.new_permissions_accepted` event when the org admin approves.
 
 **Files to change:**
 
+- `apps/api/src/shared/clients/sqs.client.ts` — add `sendOrgMemberSyncTask(queueUrl, task)` function
 - `apps/api/src/shared/clients/github-app.client.ts` — add `listOrgMembers(installationId, org)` function
-- `apps/api/src/domains/github-app/github-app.controller.ts` — call it in `installation.created` handler
+- `apps/api/src/domains/github-app/github-app.controller.ts` — dispatch SQS message in `installation.created` and `new_permissions_accepted` handlers
+- `apps/api/src/domains/webhooks/worker/batch-processor.ts` — handle `org_member_sync` task type
+- New helper: `apps/api/src/domains/github-app/org-member-sync.ts` — `syncOrgMembers` logic (fetch + batched upsert)
 
 #### 2.3 Subscribe to `organization` webhook events
 
 The GitHub App needs to receive `organization` events (`member_added`, `member_removed`, `member_invited`) to keep `github_org_members` in sync.
 
 Add `"organization"` to the default `webhook_events` list or handle it at the app level (not per-integration webhook).
+
+`organization.member_added` and `organization.member_removed` are **single-member operations** (one member per event). These are small enough to handle inline in the webhook handler — no SQS dispatch needed.
 
 **Files to change:**
 
@@ -246,17 +284,18 @@ When a member is removed from the org:
 
 Webhook delivery is not guaranteed. Add a periodic reconciliation job:
 
-1. Triggered on a schedule (e.g., daily via EventBridge → Lambda)
-2. For each linked installation with `account_type = "Organization"`:
-    - Re-fetch org members from GitHub API
-    - Diff against `github_org_members`
-    - Add/remove as needed
-3. Log drift detected in event log
+1. Triggered on a schedule (e.g., daily via EventBridge)
+2. For each installation with `account_type = "Organization"`: dispatch an `org_member_sync` SQS message
+3. The worker Lambda picks up each task and performs the same `syncOrgMembers` logic used during installation (Phase 2.2)
+4. After sync, diff `github_org_members` against `user-assignments` for linked integrations and reconcile
+5. Log drift detected in event log
+
+This reuses the same worker task and sync logic from Phase 2.2 — the EventBridge rule simply acts as a scheduled dispatcher.
 
 **Files to change:**
 
-- New Lambda handler or extend worker: `apps/api/src/handlers/org-sync-worker.ts`
-- `infra/` — EventBridge schedule rule + Lambda invocation
+- New Lambda handler: `apps/api/src/handlers/org-sync-scheduler.ts` — queries all org installations and dispatches SQS messages
+- `infra/` — EventBridge schedule rule + Lambda invocation for the scheduler
 
 ---
 
@@ -385,6 +424,15 @@ The following webhook event must be subscribed at the app level:
 
 **Decision**: Fetch and store org members on `installation.created` (Phase 2), but only create `user-assignments` on link (Phase 3). This keeps the member data ready but doesn't create assignments for an unlinked installation.
 
+### Inline processing vs. worker dispatch for full org sync
+
+| Approach                  | Pro                                   | Con                                                                    |
+| ------------------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| Inline in webhook handler | Simple, no extra infra                | Blocks webhook response; can timeout for large orgs (API GW 29s limit) |
+| Dispatch to SQS worker    | Non-blocking; retries via DLQ; scales | Adds async complexity; sync result not immediately visible             |
+
+**Decision**: Dispatch full org member syncs (thousands of members, paginated API calls) to the **SQS worker Lambda**. The existing webhook queue infrastructure (FIFO, DLQ, partial batch failures) provides reliable delivery and retry semantics. Single-member operations (`member_added`/`member_removed`) remain inline since they are bounded to one DB write each.
+
 ---
 
 ## Sequencing & Rollout
@@ -410,5 +458,6 @@ Phase 1 and Phase 6 are safe, backwards-compatible schema additions that can be 
 - **Never auto-grant owner**: The `owner` role cannot be assigned via org sync; escalation to owner remains manual
 - **RLS**: All `user-assignments` writes go through `withRlsTransaction` with `gitgazerWriter`
 - **Webhook signature verification**: `organization` events go through existing `verifyGithubSign` middleware
-- **Rate limiting**: GitHub API calls for member listing are paginated and bounded by org size
+- **Rate limiting**: GitHub API calls for member listing are paginated and bounded by org size; full syncs run in the worker Lambda (120s timeout) to avoid blocking webhook handlers
+- **Worker isolation**: Full org syncs are dispatched to SQS and processed by the worker Lambda, protecting the REST Lambda from timeouts on large orgs (several thousand members)
 - **No PII leakage**: `github_org_members` stores only GitHub public profile data (login, user ID, role)
