@@ -13,7 +13,7 @@ import {
 import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import type {MemberRole} from '@gitgazer/db/types';
+import {hasRole, type MemberRole} from '@gitgazer/db/types';
 
 const router = new Router();
 
@@ -104,12 +104,15 @@ router.post('/api/integrations/:integrationId/leave', [addUserIntegrationsToCtx]
 router.get('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
+    const callerRole = reqCtx.appContext?.integrationRoles?.[integrationId];
 
     const invitations = await getInvitations({integrationId, integrationIds});
 
-    const sanitized = invitations.map(({inviteToken: _token, ...rest}) => rest);
+    // Only admins+ can see invite tokens (needed for copy-link and resend actions)
+    const canSeeTokens = callerRole && hasRole(callerRole, 'admin');
+    const result = canSeeTokens ? invitations : invitations.map(({inviteToken: _token, ...rest}) => rest);
 
-    return new Response(JSON.stringify(sanitized), {
+    return new Response(JSON.stringify(result), {
         status: HttpStatusCodes.OK,
         headers: {'Content-Type': 'application/json'},
     });
