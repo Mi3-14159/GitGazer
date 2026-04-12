@@ -2,20 +2,25 @@
     import Button from '@/components/ui/Button.vue';
     import Input from '@/components/ui/Input.vue';
     import {formatTimeSince} from '@/utils/formatDate';
-    import type {Integration} from '@common/types';
-    import {Activity, Trash2, Users} from 'lucide-vue-next';
+    import type {IntegrationWithRole} from '@common/types';
+    import {Activity, LogOut, Trash2, Users} from 'lucide-vue-next';
     import {nextTick, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
     const router = useRouter();
 
     const props = defineProps<{
-        integration: Integration;
+        integration: IntegrationWithRole;
+        canRename: boolean;
+        canDelete: boolean;
+        canLeave: boolean;
+        canManageMembers: boolean;
     }>();
 
     const emit = defineEmits<{
         'save-label': [id: string, label: string];
-        delete: [integration: Integration];
+        delete: [integration: IntegrationWithRole];
+        leave: [integration: IntegrationWithRole];
     }>();
 
     const isEditing = ref(false);
@@ -87,8 +92,9 @@
             </template>
             <template v-else>
                 <h3
-                    class="font-semibold text-base cursor-pointer hover:text-primary transition-colors break-words min-w-0"
-                    @click="startEditing"
+                    class="font-semibold text-base break-words min-w-0"
+                    :class="canRename ? 'cursor-pointer hover:text-primary transition-colors' : ''"
+                    @click="canRename && startEditing()"
                 >
                     {{ integration.label }}
                 </h3>
@@ -107,13 +113,28 @@
                 size="sm"
                 class="h-8 gap-1.5"
                 @click="
-                    router.push({name: 'integration-users', params: {integrationId: integration.integrationId}, query: {label: integration.label}})
+                    router.push({
+                        name: 'integration-users',
+                        params: {integrationId: integration.integrationId},
+                        query: {label: integration.label},
+                    })
                 "
             >
                 <Users class="h-3.5 w-3.5" />
-                <span class="hidden sm:inline">Manage Users</span>
+                <span class="hidden sm:inline">{{ canManageMembers ? 'Manage Users' : 'View Users' }}</span>
             </Button>
             <Button
+                v-if="canLeave"
+                variant="ghost"
+                size="sm"
+                class="h-8 gap-1.5 text-muted-foreground hover:text-destructive"
+                @click="emit('leave', integration)"
+            >
+                <LogOut class="h-3.5 w-3.5" />
+                <span class="hidden sm:inline">Leave</span>
+            </Button>
+            <Button
+                v-if="canDelete"
                 variant="ghost"
                 size="sm"
                 class="h-8 w-8 p-0 text-destructive hover:text-destructive"

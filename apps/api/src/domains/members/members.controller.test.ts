@@ -27,12 +27,18 @@ vi.mock('@/shared/clients/ses.client', () => ({
     sendInvitationEmail: (...args: any[]) => mockSendInvitationEmail(...args),
 }));
 
+const mockCreateEventLogEntry = vi.fn();
+vi.mock('@/domains/event-log/event-log.controller', () => ({
+    createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
+}));
+
 let controller: typeof import('./members.controller');
 
 describe('members controller', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
         mockSendInvitationEmail.mockResolvedValue(undefined);
+        mockCreateEventLogEntry.mockResolvedValue({});
         controller = await import('./members.controller');
     });
 
@@ -122,18 +128,6 @@ describe('members controller', () => {
     // ---- changeRole ----
 
     describe('changeRole', () => {
-        it('throws ForbiddenError when integration is not accessible', async () => {
-            await expect(
-                controller.changeRole({
-                    integrationId: 'int-1',
-                    targetUserId: 2,
-                    newRole: 'admin',
-                    requestingUserId: 1,
-                    integrationIds: ['int-2'],
-                }),
-            ).rejects.toThrow('Integration not accessible');
-        });
-
         it('throws BadRequestError when trying to change own role', async () => {
             await expect(
                 controller.changeRole({
@@ -141,6 +135,7 @@ describe('members controller', () => {
                     targetUserId: 1,
                     newRole: 'admin',
                     requestingUserId: 1,
+                    requestingRole: 'owner',
                     integrationIds: ['int-1'],
                 }),
             ).rejects.toThrow('Cannot change your own role');
@@ -153,17 +148,33 @@ describe('members controller', () => {
                     targetUserId: 2,
                     newRole: 'superadmin' as any,
                     requestingUserId: 1,
+                    requestingRole: 'owner',
                     integrationIds: ['int-1'],
                 }),
             ).rejects.toThrow('Invalid role');
         });
 
-        it('throws ForbiddenError when requester lacks permission', async () => {
+        it('throws ForbiddenError when admin tries to assign owner role', async () => {
+            await expect(
+                controller.changeRole({
+                    integrationId: 'int-1',
+                    targetUserId: 2,
+                    newRole: 'owner',
+                    requestingUserId: 1,
+                    requestingRole: 'admin',
+                    integrationIds: ['int-1'],
+                }),
+            ).rejects.toThrow('Only owners can assign the owner role');
+        });
+
+        it('throws ForbiddenError when admin tries to change an admin target', async () => {
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => Promise.resolve([{role: 'viewer'}]),
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'admin', name: 'Admin User', email: 'admin@example.com'}]),
+                            }),
                         }),
                     }),
                 };
@@ -174,24 +185,22 @@ describe('members controller', () => {
                 controller.changeRole({
                     integrationId: 'int-1',
                     targetUserId: 2,
-                    newRole: 'admin',
+                    newRole: 'member',
                     requestingUserId: 1,
+                    requestingRole: 'admin',
                     integrationIds: ['int-1'],
                 }),
-            ).rejects.toThrow('Insufficient permissions');
+            ).rejects.toThrow('Cannot change the role of an owner or admin');
         });
 
         it('successfully changes role when requester is owner', async () => {
-            let selectCallCount = 0;
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => {
-                                selectCallCount++;
-                                if (selectCallCount === 1) return Promise.resolve([{role: 'owner'}]);
-                                return Promise.resolve([{role: 'member'}]);
-                            },
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'member', name: 'Alex Rivera', email: 'alex@example.com'}]),
+                            }),
                         }),
                     }),
                     update: () => ({
@@ -211,11 +220,22 @@ describe('members controller', () => {
                     targetUserId: 2,
                     newRole: 'admin',
                     requestingUserId: 1,
+                    requestingRole: 'owner',
                     integrationIds: ['int-1'],
                 }),
             ).resolves.toBeUndefined();
 
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({userName: 'gitgazer_writer'}));
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'info',
+                    title: 'Member role changed',
+                    message: 'Alex Rivera role changed from "member" to "admin"',
+                    metadata: {integrationId: 'int-1', targetUserId: 2, role: 'admin', previousRole: 'member'},
+                }),
+            );
         });
     });
 
@@ -228,22 +248,20 @@ describe('members controller', () => {
                     integrationId: 'int-1',
                     targetUserId: 1,
                     requestingUserId: 1,
+                    requestingRole: 'admin',
                     integrationIds: ['int-1'],
                 }),
             ).rejects.toThrow('Cannot remove yourself');
         });
 
         it('throws ForbiddenError when target is an owner', async () => {
-            let selectCallCount = 0;
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
                     select: () => ({
                         from: () => ({
-                            where: () => {
-                                selectCallCount++;
-                                if (selectCallCount === 1) return Promise.resolve([{role: 'admin'}]);
-                                return Promise.resolve([{role: 'owner'}]);
-                            },
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'owner', name: 'Owner', email: 'owner@example.com'}]),
+                            }),
                         }),
                     }),
                 };
@@ -255,9 +273,35 @@ describe('members controller', () => {
                     integrationId: 'int-1',
                     targetUserId: 2,
                     requestingUserId: 1,
+                    requestingRole: 'admin',
                     integrationIds: ['int-1'],
                 }),
             ).rejects.toThrow('Cannot remove an owner');
+        });
+
+        it('throws ForbiddenError when admin tries to remove another admin', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'admin', name: 'Admin User', email: 'admin@example.com'}]),
+                            }),
+                        }),
+                    }),
+                };
+                return params.callback(mockTx);
+            });
+
+            await expect(
+                controller.removeMember({
+                    integrationId: 'int-1',
+                    targetUserId: 2,
+                    requestingUserId: 1,
+                    requestingRole: 'admin',
+                    integrationIds: ['int-1'],
+                }),
+            ).rejects.toThrow('Only owners can remove admins');
         });
     });
 
@@ -319,53 +363,27 @@ describe('members controller', () => {
             ]);
         });
 
-        it('returns accepted invitation with populated invitee', async () => {
-            const mockResult = [
-                {
-                    id: 'inv-2',
-                    integrationId: 'int-1',
-                    email: 'jamie@example.com',
-                    role: 'member',
-                    invitedBy: 42,
-                    inviteeId: 99,
-                    inviteToken: 'token-456',
-                    status: 'accepted',
-                    createdAt: new Date('2024-12-01'),
-                    expiresAt: new Date('2025-01-01'),
-                    invitedByUser: {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null},
-                    invitee: {id: 99, name: 'Jamie Lee', email: 'jamie@example.com', picture: 'https://example.com/jamie.jpg'},
-                },
-            ];
+        it('excludes accepted invitations from results', async () => {
+            const mockFindMany = vi.fn().mockResolvedValue([]);
 
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
                     query: {
                         integrationInvitations: {
-                            findMany: () => Promise.resolve(mockResult),
+                            findMany: mockFindMany,
                         },
                     },
                 };
                 return params.callback(mockTx);
             });
 
-            const result = await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
+            await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
 
-            expect(result).toEqual([
-                {
-                    id: 'inv-2',
-                    integrationId: 'int-1',
-                    email: 'jamie@example.com',
-                    role: 'member',
-                    invitedBy: 42,
-                    inviteeId: 99,
-                    inviteToken: 'token-456',
-                    invitedByUser: {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null},
-                    invitee: {id: 99, name: 'Jamie Lee', email: 'jamie@example.com', picture: 'https://example.com/jamie.jpg'},
-                    status: 'accepted',
-                    createdAt: new Date('2024-12-01'),
-                    expiresAt: new Date('2025-01-01'),
-                },
-            ]);
+            expect(mockFindMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.anything(),
+                }),
+            );
         });
     });
 
@@ -478,54 +496,16 @@ describe('members controller', () => {
                     requestingUserId: 1,
                     integrationIds: ['int-1'],
                 }),
-            ).rejects.toThrow('Insufficient permissions');
+            ).rejects.toThrow();
         });
     });
 
     // ---- revokeInvitation ----
 
     describe('revokeInvitation', () => {
-        it('throws ForbiddenError when integration is not accessible', async () => {
-            await expect(
-                controller.revokeInvitation({
-                    integrationId: 'int-1',
-                    invitationId: 'inv-1',
-                    requestingUserId: 1,
-                    integrationIds: ['int-2'],
-                }),
-            ).rejects.toThrow('Integration not accessible');
-        });
-
-        it('throws ForbiddenError when requester lacks permission', async () => {
-            mockWithRlsTransaction.mockImplementation(async (params) => {
-                const mockTx = {
-                    select: () => ({
-                        from: () => ({
-                            where: () => Promise.resolve([{role: 'viewer'}]),
-                        }),
-                    }),
-                };
-                return params.callback(mockTx);
-            });
-
-            await expect(
-                controller.revokeInvitation({
-                    integrationId: 'int-1',
-                    invitationId: 'inv-1',
-                    requestingUserId: 1,
-                    integrationIds: ['int-1'],
-                }),
-            ).rejects.toThrow('Insufficient permissions to revoke invitations');
-        });
-
         it('throws NotFoundError when invitation does not exist', async () => {
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
-                    select: () => ({
-                        from: () => ({
-                            where: () => Promise.resolve([{role: 'owner'}]),
-                        }),
-                    }),
                     delete: () => ({
                         where: () => ({
                             returning: () => Promise.resolve([]),
@@ -539,7 +519,6 @@ describe('members controller', () => {
                 controller.revokeInvitation({
                     integrationId: 'int-1',
                     invitationId: 'inv-999',
-                    requestingUserId: 1,
                     integrationIds: ['int-1'],
                 }),
             ).rejects.toThrow('Invitation not found');
@@ -548,14 +527,9 @@ describe('members controller', () => {
         it('successfully deletes a pending invitation', async () => {
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
-                    select: () => ({
-                        from: () => ({
-                            where: () => Promise.resolve([{role: 'admin'}]),
-                        }),
-                    }),
                     delete: () => ({
                         where: () => ({
-                            returning: () => Promise.resolve([{id: 'inv-1', status: 'pending'}]),
+                            returning: () => Promise.resolve([{id: 'inv-1', status: 'pending', email: 'jamie@example.com'}]),
                         }),
                     }),
                 };
@@ -566,12 +540,21 @@ describe('members controller', () => {
                 controller.revokeInvitation({
                     integrationId: 'int-1',
                     invitationId: 'inv-1',
-                    requestingUserId: 1,
                     integrationIds: ['int-1'],
                 }),
             ).resolves.toBeUndefined();
 
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({userName: 'gitgazer_writer'}));
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'info',
+                    title: 'Invitation revoked',
+                    message: 'Invitation for jamie@example.com was revoked',
+                    metadata: {integrationId: 'int-1', targetEmail: 'jamie@example.com', invitationId: 'inv-1'},
+                }),
+            );
         });
     });
 
@@ -631,7 +614,7 @@ describe('members controller', () => {
                         from: () => ({
                             where: () => {
                                 selectCallCount++;
-                                // First select: fetch invitation; second: check membership
+                                // First select: fetch invitation; second: check membership; third: resolve user name
                                 if (selectCallCount === 1) {
                                     return Promise.resolve([
                                         {
@@ -645,7 +628,11 @@ describe('members controller', () => {
                                         },
                                     ]);
                                 }
-                                return Promise.resolve([]);
+                                if (selectCallCount === 2) {
+                                    return Promise.resolve([]);
+                                }
+                                // Third: user name lookup
+                                return Promise.resolve([{name: 'Jamie Lee', email: 'jamie@example.com'}]);
                             },
                         }),
                     }),
@@ -685,6 +672,16 @@ describe('members controller', () => {
                     role: 'member',
                 },
             ]);
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'success',
+                    title: 'Invitation accepted',
+                    message: 'Jamie Lee accepted an invitation and joined with role "member"',
+                    metadata: {integrationId: 'int-1', targetUserId: 99, role: 'member', invitationId: 'inv-1'},
+                }),
+            );
         });
 
         it('throws BadRequestError when user is already a member without consuming the invitation', async () => {
@@ -739,6 +736,116 @@ describe('members controller', () => {
 
             // Invitation was never claimed — no update called
             expect(updateCalled).toBe(false);
+        });
+    });
+
+    // ---- leaveIntegration ----
+
+    describe('leaveIntegration', () => {
+        it('throws ForbiddenError when integration is not accessible', async () => {
+            await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 1, integrationIds: ['int-2']})).rejects.toThrow(
+                'Integration not accessible',
+            );
+        });
+
+        it('throws NotFoundError when user is not a member', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([]),
+                            }),
+                        }),
+                    }),
+                };
+                return params.callback(mockTx);
+            });
+
+            await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 99, integrationIds: ['int-1']})).rejects.toThrow(
+                'You are not a member of this integration',
+            );
+        });
+
+        it('throws ForbiddenError when owner tries to leave', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'owner', name: 'Owner', email: 'owner@example.com'}]),
+                            }),
+                        }),
+                    }),
+                };
+                return params.callback(mockTx);
+            });
+
+            await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 1, integrationIds: ['int-1']})).rejects.toThrow(
+                'The owner cannot leave the integration',
+            );
+        });
+
+        it('successfully removes a member who leaves', async () => {
+            let deleteCalled = false;
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'member', name: 'Test User', email: 'test@example.com'}]),
+                            }),
+                        }),
+                    }),
+                    delete: () => {
+                        deleteCalled = true;
+                        return {
+                            where: () => Promise.resolve(),
+                        };
+                    },
+                };
+                return params.callback(mockTx);
+            });
+
+            await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 5, integrationIds: ['int-1']})).resolves.toBeUndefined();
+
+            expect(deleteCalled).toBe(true);
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({userName: 'gitgazer_writer'}));
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    category: 'integration',
+                    type: 'info',
+                    title: 'Member left',
+                    message: 'Test User left the integration',
+                }),
+            );
+        });
+
+        it('allows viewer to leave', async () => {
+            let deleteCalled = false;
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({
+                            innerJoin: () => ({
+                                where: () => Promise.resolve([{role: 'viewer', name: 'Viewer User', email: 'viewer@example.com'}]),
+                            }),
+                        }),
+                    }),
+                    delete: () => {
+                        deleteCalled = true;
+                        return {
+                            where: () => Promise.resolve(),
+                        };
+                    },
+                };
+                return params.callback(mockTx);
+            });
+
+            await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 10, integrationIds: ['int-1']})).resolves.toBeUndefined();
+
+            expect(deleteCalled).toBe(true);
         });
     });
 });

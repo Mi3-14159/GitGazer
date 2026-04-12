@@ -1,3 +1,4 @@
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {sendInvitationEmail} from '@/shared/clients/ses.client';
 import config from '@/shared/config';
 import {getLogger} from '@/shared/logger';
@@ -8,7 +9,7 @@ import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationInvitations, users} from '@gitgazer/db/schema/gitgazer';
 import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {MEMBER_ROLES, type CreateInvitationInput, type IntegrationInvitation, type IntegrationMember, type MemberRole} from '@gitgazer/db/types';
-import {and, eq, gt} from 'drizzle-orm';
+import {and, eq, gt, ne} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -40,14 +41,11 @@ export const changeRole = async (params: {
     targetUserId: number;
     newRole: MemberRole;
     requestingUserId: number;
+    requestingRole: MemberRole;
     integrationIds: string[];
 }): Promise<void> => {
     const logger = getLogger();
-    const {integrationId, targetUserId, newRole, requestingUserId, integrationIds} = params;
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new ForbiddenError('Integration not accessible');
-    }
+    const {integrationId, targetUserId, newRole, requestingUserId, requestingRole, integrationIds} = params;
 
     if (!MEMBER_ROLES.includes(newRole)) {
         throw new BadRequestError(`Invalid role: ${newRole}`);
@@ -58,39 +56,57 @@ export const changeRole = async (params: {
         throw new BadRequestError('Cannot change your own role');
     }
 
+    // Only owners can assign the owner role
+    if (newRole === 'owner' && requestingRole !== 'owner') {
+        logger.info('authz', {
+            userId: requestingUserId,
+            integrationId,
+            role: requestingRole,
+            action: 'changeRole',
+            allowed: false,
+            reason: 'only owners can assign owner role',
+            targetUserId,
+            newRole,
+        });
+        throw new ForbiddenError('Only owners can assign the owner role');
+    }
+
     logger.info(`Changing role for user ${targetUserId} in integration ${integrationId} to ${newRole}`);
+
+    let previousRole: string | undefined;
+    let targetUserName: string | undefined;
 
     const updated = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Verify the requesting user is an owner or admin
-            const [requester] = await tx
-                .select({role: userAssignments.role})
-                .from(userAssignments)
-                .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, requestingUserId)));
-
-            if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
-                throw new ForbiddenError('Insufficient permissions to change roles');
-            }
-
-            // Only owners can assign the owner role
-            if (newRole === 'owner' && requester.role !== 'owner') {
-                throw new ForbiddenError('Only owners can assign the owner role');
-            }
-
-            // Prevent demoting another owner unless you're an owner
+            // Fetch target's current role and name for fine-grained checks + audit
             const [target] = await tx
-                .select({role: userAssignments.role})
+                .select({role: userAssignments.role, name: users.name, email: users.email})
                 .from(userAssignments)
+                .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
 
             if (!target) {
                 throw new NotFoundError('User not found in this integration');
             }
 
-            if (target.role === 'owner' && requester.role !== 'owner') {
-                throw new ForbiddenError('Cannot change the role of an owner');
+            previousRole = target.role;
+            targetUserName = target.name ?? target.email ?? undefined;
+
+            // Only owners can manage other owners/admins
+            if ((target.role === 'owner' || target.role === 'admin') && requestingRole !== 'owner') {
+                logger.info('authz', {
+                    userId: requestingUserId,
+                    integrationId,
+                    role: requestingRole,
+                    action: 'changeRole',
+                    allowed: false,
+                    reason: 'only owners can manage owners/admins',
+                    targetUserId,
+                    targetRole: target.role,
+                });
+                throw new ForbiddenError('Cannot change the role of an owner or admin');
             }
 
             return await tx
@@ -104,20 +120,28 @@ export const changeRole = async (params: {
     if (updated.length === 0) {
         throw new NotFoundError('User not found in this integration');
     }
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Member role changed',
+        message: `${targetUserName ?? `User ${targetUserId}`} role changed from "${previousRole}" to "${newRole}"`,
+        metadata: {integrationId, targetUserId, role: newRole, previousRole},
+    }).catch((err) => {
+        logger.error('Failed to write event log for role change', {error: err});
+    });
 };
 
 export const removeMember = async (params: {
     integrationId: string;
     targetUserId: number;
     requestingUserId: number;
+    requestingRole: MemberRole;
     integrationIds: string[];
 }): Promise<void> => {
     const logger = getLogger();
-    const {integrationId, targetUserId, requestingUserId, integrationIds} = params;
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new ForbiddenError('Integration not accessible');
-    }
+    const {integrationId, targetUserId, requestingUserId, requestingRole, integrationIds} = params;
 
     if (targetUserId === requestingUserId) {
         throw new BadRequestError('Cannot remove yourself from an integration');
@@ -125,36 +149,123 @@ export const removeMember = async (params: {
 
     logger.info(`Removing user ${targetUserId} from integration ${integrationId}`);
 
+    let removedUserName: string | undefined;
+    let removedUserRole: string | undefined;
+
     await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Verify the requesting user is an owner or admin
-            const [requester] = await tx
-                .select({role: userAssignments.role})
-                .from(userAssignments)
-                .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, requestingUserId)));
-
-            if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
-                throw new ForbiddenError('Insufficient permissions to remove members');
-            }
-
-            // Prevent removing an owner
+            // Fetch target's current role and name for authz checks + audit
             const [target] = await tx
-                .select({role: userAssignments.role})
+                .select({role: userAssignments.role, name: users.name, email: users.email})
                 .from(userAssignments)
+                .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
 
             if (!target) {
                 throw new NotFoundError('User not found in this integration');
             }
 
+            removedUserName = target.name ?? target.email ?? undefined;
+            removedUserRole = target.role;
+
             if (target.role === 'owner') {
+                logger.info('authz', {
+                    userId: requestingUserId,
+                    integrationId,
+                    role: requestingRole,
+                    action: 'removeMember',
+                    allowed: false,
+                    reason: 'cannot remove owner',
+                    targetUserId,
+                });
                 throw new ForbiddenError('Cannot remove an owner from the integration');
+            }
+
+            // Only owners can remove admins
+            if (target.role === 'admin' && requestingRole !== 'owner') {
+                logger.info('authz', {
+                    userId: requestingUserId,
+                    integrationId,
+                    role: requestingRole,
+                    action: 'removeMember',
+                    allowed: false,
+                    reason: 'only owners can remove admins',
+                    targetUserId,
+                });
+                throw new ForbiddenError('Only owners can remove admins');
             }
 
             await tx.delete(userAssignments).where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
         },
+    });
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'warning',
+        title: 'Member removed',
+        message: `${removedUserName ?? `User ${targetUserId}`} was removed from the integration`,
+        metadata: {integrationId, targetUserId, role: removedUserRole},
+    }).catch((err) => {
+        logger.error('Failed to write event log for member removal', {error: err});
+    });
+};
+
+export const leaveIntegration = async (params: {integrationId: string; userId: number; integrationIds: string[]}): Promise<void> => {
+    const logger = getLogger();
+    const {integrationId, userId, integrationIds} = params;
+
+    if (!integrationIds.includes(integrationId)) {
+        throw new ForbiddenError('Integration not accessible');
+    }
+
+    logger.info(`User ${userId} is leaving integration ${integrationId}`);
+
+    let leavingUserName: string | undefined;
+
+    await withRlsTransaction({
+        integrationIds,
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            const [member] = await tx
+                .select({role: userAssignments.role, name: users.name, email: users.email})
+                .from(userAssignments)
+                .innerJoin(users, eq(userAssignments.userId, users.id))
+                .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, userId)));
+
+            if (!member) {
+                throw new NotFoundError('You are not a member of this integration');
+            }
+
+            leavingUserName = member.name ?? member.email ?? undefined;
+
+            if (member.role === 'owner') {
+                logger.info('authz', {
+                    userId,
+                    integrationId,
+                    role: 'owner',
+                    action: 'leaveIntegration',
+                    allowed: false,
+                    reason: 'owner cannot leave',
+                });
+                throw new ForbiddenError('The owner cannot leave the integration. Transfer ownership first.');
+            }
+
+            await tx.delete(userAssignments).where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, userId)));
+        },
+    });
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Member left',
+        message: `${leavingUserName ?? `User ${userId}`} left the integration`,
+        metadata: {integrationId, targetUserId: userId},
+    }).catch((err) => {
+        logger.error('Failed to write event log for member leave', {error: err});
     });
 };
 
@@ -172,7 +283,7 @@ export const getInvitations = async (params: {integrationId: string; integration
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             return await tx.query.integrationInvitations.findMany({
-                where: eq(integrationInvitations.integrationId, integrationId),
+                where: and(eq(integrationInvitations.integrationId, integrationId), ne(integrationInvitations.status, 'accepted')),
                 with: invitationQueryRelations,
             });
         },
@@ -189,10 +300,6 @@ export const createInvitation = async (params: {
 }): Promise<IntegrationInvitation> => {
     const logger = getLogger();
     const {integrationId, input, requestingUserId, integrationIds} = params;
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new ForbiddenError('Integration not accessible');
-    }
 
     if (!MEMBER_ROLES.includes(input.role)) {
         throw new BadRequestError(`Invalid role: ${input.role}`);
@@ -219,16 +326,6 @@ export const createInvitation = async (params: {
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Verify the requesting user has permission to invite
-            const [requester] = await tx
-                .select({role: userAssignments.role})
-                .from(userAssignments)
-                .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, requestingUserId)));
-
-            if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
-                throw new ForbiddenError('Insufficient permissions to invite members');
-            }
-
             const normalizedEmail = input.email?.toLowerCase() ?? null;
 
             // Check for existing pending invitation for this email (only if email provided)
@@ -293,6 +390,17 @@ export const createInvitation = async (params: {
         },
     });
 
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Invitation created',
+        message: `Invitation created for ${input.email ?? 'link-only'} with role "${input.role}"`,
+        metadata: {integrationId, targetEmail: input.email?.toLowerCase(), role: input.role, invitationId: result.invitation.id},
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation creation', {error: err});
+    });
+
     if (input.sendEmail && input.email && config.get('sesConfig').emailEnabled) {
         await sendInvitationEmail({
             recipientEmail: input.email.toLowerCase(),
@@ -312,18 +420,9 @@ export const createInvitation = async (params: {
     };
 };
 
-export const revokeInvitation = async (params: {
-    integrationId: string;
-    invitationId: string;
-    requestingUserId: number;
-    integrationIds: string[];
-}): Promise<void> => {
+export const revokeInvitation = async (params: {integrationId: string; invitationId: string; integrationIds: string[]}): Promise<void> => {
     const logger = getLogger();
-    const {integrationId, invitationId, requestingUserId, integrationIds} = params;
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new ForbiddenError('Integration not accessible');
-    }
+    const {integrationId, invitationId, integrationIds} = params;
 
     logger.info(`Revoking invitation ${invitationId} from integration ${integrationId}`);
 
@@ -331,16 +430,6 @@ export const revokeInvitation = async (params: {
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Verify the requesting user has permission
-            const [requester] = await tx
-                .select({role: userAssignments.role})
-                .from(userAssignments)
-                .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, requestingUserId)));
-
-            if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
-                throw new ForbiddenError('Insufficient permissions to revoke invitations');
-            }
-
             return await tx
                 .delete(integrationInvitations)
                 .where(
@@ -357,20 +446,29 @@ export const revokeInvitation = async (params: {
     if (deleted.length === 0) {
         throw new NotFoundError('Invitation not found');
     }
+
+    const revokedEmail = deleted[0].email;
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Invitation revoked',
+        message: `Invitation for ${revokedEmail ?? 'link-only invite'} was revoked`,
+        metadata: {integrationId, targetEmail: revokedEmail ?? undefined, invitationId},
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation revocation', {error: err});
+    });
 };
 
 export const resendInvitation = async (params: {
     integrationId: string;
     invitationId: string;
-    requestingUserId: number;
+    resendingUserId: number;
     integrationIds: string[];
 }): Promise<void> => {
     const logger = getLogger();
-    const {integrationId, invitationId, requestingUserId, integrationIds} = params;
-
-    if (!integrationIds.includes(integrationId)) {
-        throw new ForbiddenError('Integration not accessible');
-    }
+    const {integrationId, invitationId, resendingUserId, integrationIds} = params;
 
     if (!config.get('sesConfig').emailEnabled) {
         throw new BadRequestError('Email sending is not enabled');
@@ -382,16 +480,6 @@ export const resendInvitation = async (params: {
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            // Verify the requesting user has permission
-            const [requester] = await tx
-                .select({role: userAssignments.role})
-                .from(userAssignments)
-                .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, requestingUserId)));
-
-            if (!requester || (requester.role !== 'owner' && requester.role !== 'admin')) {
-                throw new ForbiddenError('Insufficient permissions to resend invitations');
-            }
-
             // Fetch the invitation first to validate before modifying
             const [inv] = await tx
                 .select()
@@ -417,8 +505,8 @@ export const resendInvitation = async (params: {
 
             await tx.update(integrationInvitations).set({expiresAt: newExpiresAt}).where(eq(integrationInvitations.id, invitationId));
 
-            // Get inviter name and integration label for the email
-            const [inviter] = await tx.select({name: users.name}).from(users).where(eq(users.id, inv.invitedBy));
+            // Use the resending admin's name (not the original inviter) for the email
+            const [resender] = await tx.select({name: users.name}).from(users).where(eq(users.id, resendingUserId));
 
             const [integration] = await tx
                 .select({label: integrations.label})
@@ -429,7 +517,7 @@ export const resendInvitation = async (params: {
                 email: inv.email,
                 role: inv.role,
                 inviteToken: inv.inviteToken,
-                inviterName: inviter?.name ?? 'A team member',
+                senderName: resender?.name ?? 'A team member',
                 integrationLabel: integration?.label ?? 'Unknown',
             };
         },
@@ -437,12 +525,23 @@ export const resendInvitation = async (params: {
 
     await sendInvitationEmail({
         recipientEmail: resendResult.email,
-        inviterName: resendResult.inviterName,
+        inviterName: resendResult.senderName,
         integrationLabel: resendResult.integrationLabel,
         role: resendResult.role,
         inviteToken: resendResult.inviteToken,
     }).catch((err) => {
         logger.error('Failed to send invitation email on resend', {error: err, invitationId});
+    });
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Invitation resent',
+        message: `Invitation to ${resendResult.email} was resent`,
+        metadata: {integrationId, targetEmail: resendResult.email, invitationId},
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation resend', {error: err});
     });
 };
 
@@ -454,7 +553,7 @@ export const acceptInvitation = async (params: {inviteToken: string; acceptingUs
 
     // The transaction ensures that we atomically check the invitation, claim it,
     // and add the user to the integration, preventing race conditions
-    await db.transaction(async (tx) => {
+    const acceptedInvitation = await db.transaction(async (tx) => {
         // Fetch the pending, non-expired invitation without mutating.
         const [invitation] = await tx
             .select()
@@ -503,5 +602,26 @@ export const acceptInvitation = async (params: {inviteToken: string; acceptingUs
             userId: acceptingUserId,
             role: invitation.role,
         });
+
+        // Resolve accepting user's name for the audit log
+        const [acceptingUser] = await tx.select({name: users.name, email: users.email}).from(users).where(eq(users.id, acceptingUserId));
+
+        return {...invitation, acceptingUserName: acceptingUser?.name ?? acceptingUser?.email ?? undefined};
+    });
+
+    await createEventLogEntry({
+        integrationId: acceptedInvitation.integrationId,
+        category: 'integration',
+        type: 'success',
+        title: 'Invitation accepted',
+        message: `${acceptedInvitation.acceptingUserName ?? `User ${acceptingUserId}`} accepted an invitation and joined with role "${acceptedInvitation.role}"`,
+        metadata: {
+            integrationId: acceptedInvitation.integrationId,
+            targetUserId: acceptingUserId,
+            role: acceptedInvitation.role,
+            invitationId: acceptedInvitation.id,
+        },
+    }).catch((err) => {
+        logger.error('Failed to write event log for invitation acceptance', {error: err});
     });
 };

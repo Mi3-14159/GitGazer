@@ -9,6 +9,7 @@
 
     const props = defineProps<{
         installations: any[];
+        readonly?: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -125,21 +126,29 @@
                         v-for="event in getInstallationEvents(inst)"
                         :key="event"
                         variant="secondary"
-                        class="text-xs h-5 px-1.5 cursor-pointer hover:bg-accent transition-colors"
-                        @click="startEditing(inst.installationId, getInstallationEvents(inst))"
+                        class="text-xs h-5 px-1.5 transition-colors"
+                        :class="!readonly ? 'cursor-pointer hover:bg-accent' : ''"
+                        @click="!readonly && startEditing(inst.installationId, getInstallationEvents(inst))"
                     >
                         {{ formatEventName(event) }}
                     </Badge>
                     <Badge
-                        v-if="getInstallationEvents(inst).length === 0"
+                        v-if="getInstallationEvents(inst).length === 0 && !readonly"
                         variant="outline"
                         class="text-xs h-5 px-1.5 cursor-pointer hover:bg-accent transition-colors text-muted-foreground"
                         @click="startEditing(inst.installationId, [])"
                     >
                         No events — click to configure
                     </Badge>
+                    <Badge
+                        v-else-if="getInstallationEvents(inst).length === 0 && readonly"
+                        variant="outline"
+                        class="text-xs h-5 px-1.5 text-muted-foreground"
+                    >
+                        No events configured
+                    </Badge>
                     <button
-                        v-if="getInstallationEvents(inst).length > 0"
+                        v-if="getInstallationEvents(inst).length > 0 && !readonly"
                         class="text-xs text-muted-foreground hover:text-foreground transition-colors ml-1"
                         @click="startEditing(inst.installationId, getInstallationEvents(inst))"
                     >

@@ -15,6 +15,7 @@
     const props = defineProps<{
         rule: NotificationRule;
         integrationLabel: string;
+        readonly?: boolean;
     }>();
 
     defineEmits<{
@@ -81,7 +82,10 @@
                     </div>
 
                     <!-- Actions -->
-                    <div class="flex items-center gap-1 flex-shrink-0">
+                    <div
+                        v-if="!readonly"
+                        class="flex items-center gap-1 flex-shrink-0"
+                    >
                         <Switch
                             :model-value="rule.enabled"
                             @update:model-value="$emit('toggle', rule)"

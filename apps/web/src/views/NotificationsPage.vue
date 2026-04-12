@@ -9,15 +9,16 @@
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegration} from '@/composables/useIntegration';
     import {useNotification} from '@/composables/useNotification';
-    import type {Integration, NotificationRule} from '@common/types';
+    import type {IntegrationWithRole, NotificationRule} from '@common/types';
+    import {hasRole} from '@common/types';
     import {Bell, Plus} from 'lucide-vue-next';
-    import {onMounted, ref} from 'vue';
+    import {computed, onMounted, ref} from 'vue';
 
     const {getNotifications, isLoadingNotifications, upsertNotification, deleteNotification} = useNotification();
     const {getIntegrations} = useIntegration();
 
     const notifications = ref<NotificationRule[]>([]);
-    const integrations = ref<Integration[]>([]);
+    const integrations = ref<IntegrationWithRole[]>([]);
     const showDialog = ref(false);
     const editingRule = ref<NotificationRule | null>(null);
     const showDeleteConfirm = ref(false);
@@ -25,12 +26,6 @@
     const isSaving = ref(false);
     const togglingIds = ref(new Set<string>());
     const saveError = ref('');
-
-    onMounted(async () => {
-        const [n, i] = await Promise.all([getNotifications(), getIntegrations()]);
-        notifications.value = n ?? [];
-        integrations.value = i ?? [];
-    });
 
     function openCreate() {
         editingRule.value = null;
@@ -118,6 +113,19 @@
     function integrationLabel(id: string) {
         return integrations.value.find((i) => i.integrationId === id)?.label ?? id;
     }
+
+    function canManageNotification(integrationId: string): boolean {
+        const integration = integrations.value.find((i) => i.integrationId === integrationId);
+        return !!integration && hasRole(integration.role, 'member');
+    }
+
+    const canCreateNotification = computed(() => integrations.value.some((i) => hasRole(i.role, 'member')));
+
+    onMounted(async () => {
+        const [n, i] = await Promise.all([getNotifications(), getIntegrations()]);
+        notifications.value = n ?? [];
+        integrations.value = i ?? [];
+    });
 </script>
 
 <template>
@@ -128,6 +136,7 @@
         <!-- Header -->
         <PageHeader description="Configure Slack webhooks to receive alerts about workflow status changes">
             <Button
+                v-if="canCreateNotification"
                 size="sm"
                 @click="openCreate"
             >
@@ -149,8 +158,12 @@
         <EmptyState
             v-else-if="notifications.length === 0"
             :icon="Bell"
-            message="No notification rules configured."
-            action-label="Create your first rule"
+            :message="
+                canCreateNotification
+                    ? 'No notification rules configured.'
+                    : 'No notification rules configured. You need at least member access to create rules.'
+            "
+            :action-label="canCreateNotification ? 'Create your first rule' : undefined"
             @action="openCreate"
         />
 
@@ -164,6 +177,7 @@
                 :key="rule.id"
                 :rule="rule"
                 :integration-label="integrationLabel(rule.integrationId)"
+                :readonly="!canManageNotification(rule.integrationId)"
                 @toggle="handleToggleEnabled"
                 @edit="openEdit"
                 @delete="confirmDelete"
@@ -177,7 +191,7 @@
         >
             <template #default="{close}">
                 <NotificationDetailsCard
-                    :integrations="integrations"
+                    :integrations="integrations.filter((i) => hasRole(i.role, 'member'))"
                     :existing-rule="editingRule"
                     :is-saving="isSaving"
                     :save-error="saveError"

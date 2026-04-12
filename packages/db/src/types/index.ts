@@ -128,6 +128,11 @@ export type EventLogEntryMetadata = {
     installationId?: number;
     accountLogin?: string;
     webhookEvents?: string[];
+    targetUserId?: number;
+    targetEmail?: string;
+    role?: string;
+    previousRole?: string;
+    invitationId?: string;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;
@@ -346,6 +351,7 @@ export type IntegrationInvitationInsert = typeof schema.integrationInvitations.$
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
 export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
+export type IntegrationWithRole = Integration & {role: MemberRole};
 export type IntegrationMember = BuildQueryResult<Schema, Schema['userAssignments'], {with: typeof memberQueryRelations}>;
 
 export const WEBSOCKET_CHANNELS = ['workflows', 'events_log'] as const;
@@ -354,6 +360,18 @@ export type WebSocketChannel = (typeof WEBSOCKET_CHANNELS)[number];
 // Member / invitation management
 export const MEMBER_ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 export type MemberRole = (typeof MEMBER_ROLES)[number];
+
+/** Lower rank = higher privilege. owner(0) > admin(1) > member(2) > viewer(3) */
+export const ROLE_RANK: Record<MemberRole, number> = {
+    owner: 0,
+    admin: 1,
+    member: 2,
+    viewer: 3,
+};
+
+export const hasRole = (userRole: MemberRole, requiredRole: MemberRole): boolean => ROLE_RANK[userRole] <= ROLE_RANK[requiredRole];
+
+export const isMemberRole = (value: string): value is MemberRole => (MEMBER_ROLES as readonly string[]).includes(value);
 
 export const INVITATION_STATUSES = ['pending', 'accepted', 'expired'] as const;
 export type InvitationStatus = (typeof INVITATION_STATUSES)[number];

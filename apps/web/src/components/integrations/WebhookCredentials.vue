@@ -9,6 +9,7 @@
         integrationId: string;
         webhookUrl: string;
         secret: string;
+        canRotate: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -81,6 +82,7 @@
                     <Copy class="h-3 w-3" />
                 </Button>
                 <Button
+                    v-if="canRotate"
                     variant="ghost"
                     size="sm"
                     class="h-8 px-2 shrink-0"

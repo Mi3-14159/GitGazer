@@ -6,6 +6,7 @@
     defineProps<{
         installation: any;
         integrationId: string;
+        canUnlink: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -39,6 +40,7 @@
                 GitHub App: {{ installation.accountLogin }}
             </div>
             <Button
+                v-if="canUnlink"
                 variant="ghost"
                 size="sm"
                 class="h-7 px-2 text-xs text-destructive hover:text-destructive"

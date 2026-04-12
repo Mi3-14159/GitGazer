@@ -3,6 +3,7 @@
     import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
     import IntegrationCard from '@/components/integrations/IntegrationCard.vue';
     import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
+    import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
     import RotateSecretDialog from '@/components/integrations/RotateSecretDialog.vue';
     import UnlinkInstallationDialog from '@/components/integrations/UnlinkInstallationDialog.vue';
     import PageHeader from '@/components/PageHeader.vue';
@@ -11,6 +12,7 @@
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
+    import {hasRole} from '@common/types';
     import {ExternalLink, Github, Plug, Plus} from 'lucide-vue-next';
     import {onMounted} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
@@ -38,6 +40,11 @@
         confirmUnlink,
         handleUnlink,
         handleSaveEvents,
+        showLeaveConfirm,
+        leavingIntegration,
+        isLeaving,
+        confirmLeave,
+        handleLeave,
         showAppLinkDialog,
         callbackInstallationId,
         appLinkError,
@@ -117,6 +124,7 @@
                 :webhook-url="getWebhookUrl(integration.integrationId)"
                 @save-label="handleSaveLabel"
                 @delete="confirmDelete"
+                @leave="confirmLeave"
                 @rotate="confirmRotate"
                 @unlink="confirmUnlink"
                 @save-events="handleSaveEvents"
@@ -144,6 +152,15 @@
             @confirm="handleDelete"
         />
 
+        <!-- Leave Confirmation -->
+        <LeaveIntegrationDialog
+            :open="showLeaveConfirm"
+            :integration="leavingIntegration"
+            :is-leaving="isLeaving"
+            @update:open="showLeaveConfirm = $event"
+            @confirm="handleLeave"
+        />
+
         <!-- Rotate Secret Confirmation -->
         <RotateSecretDialog
             :open="showRotateConfirm"
@@ -164,7 +181,7 @@
         <GitHubAppLinkDialog
             :open="showAppLinkDialog"
             :installation-id="callbackInstallationId"
-            :integrations="integrations"
+            :integrations="integrations.filter((i) => hasRole(i.role, 'admin'))"
             :error="appLinkError"
             @update:open="showAppLinkDialog = $event"
             @link-to-existing="handleLinkToExisting"

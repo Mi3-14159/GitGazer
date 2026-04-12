@@ -5,17 +5,19 @@ import {
     createInvitation,
     getInvitations,
     getMembers,
+    leaveIntegration,
     removeMember,
     resendInvitation,
     revokeInvitation,
 } from '@/domains/members/members.controller';
+import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import type {MemberRole} from '@gitgazer/db/types';
+import {hasRole, isMemberRole} from '@gitgazer/db/types';
 
 const router = new Router();
 
-router.get('/api/integrations/:integrationId/members', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.get('/api/integrations/:integrationId/members', [addUserIntegrationsToCtx, requireRole('viewer')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
 
@@ -27,76 +29,99 @@ router.get('/api/integrations/:integrationId/members', [addUserIntegrationsToCtx
     });
 });
 
-router.patch('/api/integrations/:integrationId/members/:userId/role', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.patch(
+    '/api/integrations/:integrationId/members/:userId/role',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const targetUserId = parseInt(reqCtx.params.userId, 10);
+        const integrationIds = reqCtx.appContext?.integrations ?? [];
+        const requestingUserId = reqCtx.appContext!.userId;
+
+        if (isNaN(targetUserId)) {
+            throw new BadRequestError('Invalid user ID');
+        }
+
+        let body;
+        try {
+            body = await reqCtx.req.json();
+        } catch {
+            throw new BadRequestError('Invalid request body');
+        }
+
+        if (!body.role || !isMemberRole(body.role)) {
+            throw new BadRequestError('Missing or invalid role');
+        }
+
+        await changeRole({
+            integrationId,
+            targetUserId,
+            newRole: body.role,
+            requestingUserId,
+            requestingRole: reqCtx.appContext!.role!,
+            integrationIds,
+        });
+
+        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
+    },
+);
+
+router.delete(
+    '/api/integrations/:integrationId/members/:userId',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const targetUserId = parseInt(reqCtx.params.userId, 10);
+        const integrationIds = reqCtx.appContext?.integrations ?? [];
+        const requestingUserId = reqCtx.appContext!.userId;
+
+        if (isNaN(targetUserId)) {
+            throw new BadRequestError('Invalid user ID');
+        }
+
+        await removeMember({
+            integrationId,
+            targetUserId,
+            requestingUserId,
+            requestingRole: reqCtx.appContext!.role!,
+            integrationIds,
+        });
+
+        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
+    },
+);
+
+router.post('/api/integrations/:integrationId/leave', [addUserIntegrationsToCtx, requireRole('viewer')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
-    const targetUserId = parseInt(reqCtx.params.userId, 10);
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const requestingUserId = reqCtx.appContext?.userId!;
+    const userId = reqCtx.appContext!.userId;
 
-    if (isNaN(targetUserId)) {
-        throw new BadRequestError('Invalid user ID');
-    }
-
-    let body;
-    try {
-        body = await reqCtx.req.json();
-    } catch {
-        throw new BadRequestError('Invalid request body');
-    }
-
-    if (!body.role || typeof body.role !== 'string') {
-        throw new BadRequestError('Missing or invalid role');
-    }
-
-    await changeRole({
-        integrationId,
-        targetUserId,
-        newRole: body.role as MemberRole,
-        requestingUserId,
-        integrationIds,
-    });
+    await leaveIntegration({integrationId, userId, integrationIds});
 
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.delete('/api/integrations/:integrationId/members/:userId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const targetUserId = parseInt(reqCtx.params.userId, 10);
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const requestingUserId = reqCtx.appContext?.userId!;
-
-    if (isNaN(targetUserId)) {
-        throw new BadRequestError('Invalid user ID');
-    }
-
-    await removeMember({
-        integrationId,
-        targetUserId,
-        requestingUserId,
-        integrationIds,
-    });
-
-    return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
-});
-
-router.get('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.get('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx, requireRole('member')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
+    const callerRole = reqCtx.appContext?.integrationRoles?.[integrationId];
 
     const invitations = await getInvitations({integrationId, integrationIds});
 
-    const sanitized = invitations.map(({inviteToken: _token, ...rest}) => rest);
+    // Only admins+ can see invite tokens (needed for copy-link and resend actions)
+    const canSeeTokens = callerRole && hasRole(callerRole, 'admin');
+    const result = canSeeTokens ? invitations : invitations.map(({inviteToken: _token, ...rest}) => rest);
 
-    return new Response(JSON.stringify(sanitized), {
+    return new Response(JSON.stringify(result), {
         status: HttpStatusCodes.OK,
         headers: {'Content-Type': 'application/json'},
     });
 });
 
-router.post('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/invitations', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
     const integrationId = reqCtx.params.integrationId;
     const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const requestingUserId = reqCtx.appContext?.userId!;
+    const requestingUserId = reqCtx.appContext!.userId;
 
     let body;
     try {
@@ -109,7 +134,7 @@ router.post('/api/integrations/:integrationId/invitations', [addUserIntegrations
         throw new BadRequestError('Invalid email');
     }
 
-    if (!body.role || typeof body.role !== 'string') {
+    if (!body.role || !isMemberRole(body.role)) {
         throw new BadRequestError('Missing or invalid role');
     }
 
@@ -117,7 +142,7 @@ router.post('/api/integrations/:integrationId/invitations', [addUserIntegrations
         integrationId,
         input: {
             email: body.email || undefined,
-            role: body.role as MemberRole,
+            role: body.role,
             sendEmail: body.sendEmail === true,
         },
         requestingUserId,
@@ -130,37 +155,42 @@ router.post('/api/integrations/:integrationId/invitations', [addUserIntegrations
     });
 });
 
-router.post('/api/integrations/:integrationId/invitations/:invitationId/resend', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const invitationId = reqCtx.params.invitationId;
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const requestingUserId = reqCtx.appContext?.userId!;
+router.post(
+    '/api/integrations/:integrationId/invitations/:invitationId/resend',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const invitationId = reqCtx.params.invitationId;
+        const integrationIds = reqCtx.appContext?.integrations ?? [];
 
-    await resendInvitation({
-        integrationId,
-        invitationId,
-        requestingUserId,
-        integrationIds,
-    });
+        await resendInvitation({
+            integrationId,
+            invitationId,
+            resendingUserId: reqCtx.appContext!.userId,
+            integrationIds,
+        });
 
-    return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
-});
+        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
+    },
+);
 
-router.delete('/api/integrations/:integrationId/invitations/:invitationId', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const invitationId = reqCtx.params.invitationId;
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const requestingUserId = reqCtx.appContext?.userId!;
+router.delete(
+    '/api/integrations/:integrationId/invitations/:invitationId',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const invitationId = reqCtx.params.invitationId;
+        const integrationIds = reqCtx.appContext?.integrations ?? [];
 
-    await revokeInvitation({
-        integrationId,
-        invitationId,
-        requestingUserId,
-        integrationIds,
-    });
+        await revokeInvitation({
+            integrationId,
+            invitationId,
+            integrationIds,
+        });
 
-    return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
-});
+        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
+    },
+);
 
 // No addUserIntegrationsToCtx — the user doesn't belong to any integration yet.
 // Global authenticate middleware still runs, so appContext is populated.

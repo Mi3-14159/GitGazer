@@ -1,6 +1,6 @@
 import {useAuth} from '@/composables/useAuth';
 import {parseApiResponse} from '@/utils/apiResponse';
-import type {Integration} from '@common/types';
+import type {Integration, IntegrationWithRole} from '@common/types';
 import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
@@ -18,7 +18,7 @@ export const useIntegration = () => {
                 throw new Error(`Failed to fetch integrations: ${response.status}`);
             }
 
-            return parseApiResponse<Integration[]>(response);
+            return parseApiResponse<IntegrationWithRole[]>(response);
         } finally {
             isLoadingIntegrations.value = false;
         }

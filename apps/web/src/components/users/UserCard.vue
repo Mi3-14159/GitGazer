@@ -6,13 +6,15 @@
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import type {TeamMember, UserRole} from '@/types/user';
     import {formatCalendarDate, formatTimeSince} from '@/utils/formatDate';
-    import {MEMBER_ROLES} from '@common/types';
+    import {MEMBER_ROLES, ROLE_RANK} from '@common/types';
     import {Crown, Eye, MoreHorizontal, Shield, Trash2, UserCog} from 'lucide-vue-next';
     import {DropdownMenuItem, DropdownMenuSeparator} from 'radix-vue';
     import {computed, ref} from 'vue';
 
     const props = defineProps<{
         user: TeamMember;
+        readonly?: boolean;
+        callerRole?: UserRole;
     }>();
 
     const emit = defineEmits<{
@@ -22,7 +24,10 @@
 
     const ASSIGNABLE_ROLES: {value: UserRole; label: string}[] = MEMBER_ROLES.map((r) => ({value: r, label: r.charAt(0).toUpperCase() + r.slice(1)}));
 
-    const availableRoles = computed(() => ASSIGNABLE_ROLES.filter((r) => r.value !== props.user.role));
+    const availableRoles = computed(() => {
+        const callerRank = props.callerRole ? ROLE_RANK[props.callerRole] : Infinity;
+        return ASSIGNABLE_ROLES.filter((r) => r.value !== props.user.role && ROLE_RANK[r.value] >= callerRank);
+    });
 
     const menuOpen = ref(false);
 
@@ -129,7 +134,7 @@
 
                 <!-- Actions dropdown for non-owners -->
                 <DropdownMenu
-                    v-if="user.role !== 'owner'"
+                    v-if="user.role !== 'owner' && !readonly"
                     v-model:open="menuOpen"
                 >
                     <template #trigger>
