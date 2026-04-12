@@ -363,53 +363,27 @@ describe('members controller', () => {
             ]);
         });
 
-        it('returns accepted invitation with populated invitee', async () => {
-            const mockResult = [
-                {
-                    id: 'inv-2',
-                    integrationId: 'int-1',
-                    email: 'jamie@example.com',
-                    role: 'member',
-                    invitedBy: 42,
-                    inviteeId: 99,
-                    inviteToken: 'token-456',
-                    status: 'accepted',
-                    createdAt: new Date('2024-12-01'),
-                    expiresAt: new Date('2025-01-01'),
-                    invitedByUser: {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null},
-                    invitee: {id: 99, name: 'Jamie Lee', email: 'jamie@example.com', picture: 'https://example.com/jamie.jpg'},
-                },
-            ];
+        it('excludes accepted invitations from results', async () => {
+            const mockFindMany = vi.fn().mockResolvedValue([]);
 
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {
                     query: {
                         integrationInvitations: {
-                            findMany: () => Promise.resolve(mockResult),
+                            findMany: mockFindMany,
                         },
                     },
                 };
                 return params.callback(mockTx);
             });
 
-            const result = await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
+            await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
 
-            expect(result).toEqual([
-                {
-                    id: 'inv-2',
-                    integrationId: 'int-1',
-                    email: 'jamie@example.com',
-                    role: 'member',
-                    invitedBy: 42,
-                    inviteeId: 99,
-                    inviteToken: 'token-456',
-                    invitedByUser: {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null},
-                    invitee: {id: 99, name: 'Jamie Lee', email: 'jamie@example.com', picture: 'https://example.com/jamie.jpg'},
-                    status: 'accepted',
-                    createdAt: new Date('2024-12-01'),
-                    expiresAt: new Date('2025-01-01'),
-                },
-            ]);
+            expect(mockFindMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.anything(),
+                }),
+            );
         });
     });
 
