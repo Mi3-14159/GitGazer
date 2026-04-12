@@ -1,0 +1,401 @@
+# Auto-Sync GitHub Organization Members to GitGazer Integrations
+
+## Status
+
+Proposed
+
+## Context
+
+When a GitHub App is installed on a GitHub organization, every GitHub user who is a member of that organization should be automatically added to the GitGazer integration linked to that installation. Today, users are added to integrations **only** through the manual invitation flow (`integration_invitations` → accept → `user-assignments`). There is no concept of GitHub org membership in GitGazer.
+
+### Current State
+
+| Concept                         | Current Behavior                                                                                |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| GitHub App installed on org     | Creates `github_app_installations` row with `integration_id = null`                             |
+| Link installation → integration | Manual UI action (PATCH `/api/integrations/:id/installation`)                                   |
+| Add user to integration         | Manual invitation flow (invite → accept → `user-assignments` row)                               |
+| User identity                   | Cognito (GitHub OIDC). `nickname` = GitHub login. No GitHub user ID stored in `gitgazer.users`. |
+| GitHub org members              | Not tracked at all                                                                              |
+
+### Identity Bridge Problem
+
+GitGazer users are identified by **Cognito ID** (UUID). The only GitHub-specific data on `gitgazer.users` is:
+
+- `nickname` (GitHub login) — available at auth time via Cognito OIDC attribute mapping
+- `email` — may or may not match the GitHub email
+
+GitHub org members are identified by **GitHub user ID** (integer) and **login** (string, can change).
+
+To auto-add org members we need a reliable way to match a GitHub org member to a GitGazer user. **GitHub login** is the only practical join key available today.
+
+---
+
+## Design
+
+### High-Level Flow
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     GitHub Organization                          │
+│  members: alice, bob, charlie (GitHub logins)                    │
+└────────────┬─────────────────────────────────────────────────────┘
+             │ GitHub App installed (webhook: installation.created)
+             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│            GitGazer API — github-app.controller                  │
+│  1. Upsert github_app_installations row                         │
+│  2. If account_type = "Organization":                            │
+│     → Fetch org members via GitHub API                           │
+│     → Store in new github_org_members table                      │
+└────────────┬─────────────────────────────────────────────────────┘
+             │
+             │ Later: installation linked to integration
+             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│            Link Installation Flow                                │
+│  1. Link installation to integration                             │
+│  2. Resolve org members → GitGazer users (by GitHub login)       │
+│  3. Auto-insert user-assignments for matched users               │
+│  4. Create pending-invites for unmatched members (optional)      │
+└──────────────────────────────────────────────────────────────────┘
+             │
+             │ Ongoing: member events
+             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│            Webhook: organization.member_added/removed            │
+│  1. Update github_org_members                                    │
+│  2. If installation is linked to integration:                    │
+│     → Auto-add or remove user from user-assignments              │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Implementation Plan
+
+### Phase 1 — Store GitHub Identity on Users
+
+**Goal**: Enable matching GitHub org members to GitGazer users.
+
+#### 1.1 Add `github_id` and `github_login` to `gitgazer.users`
+
+Add two nullable columns to `gitgazer.users`:
+
+| Column         | Type           | Notes                                                |
+| -------------- | -------------- | ---------------------------------------------------- |
+| `github_id`    | `bigint`       | GitHub user ID (stable, never changes)               |
+| `github_login` | `varchar(255)` | GitHub login (can change, used for initial matching) |
+
+**Files to change:**
+
+- `packages/db/src/schema/gitgazer.ts` — add columns to `users` table
+- New Drizzle migration via `npx drizzle-kit generate`
+
+#### 1.2 Populate on login
+
+The authentication middleware ([authentication.ts](apps/api/src/shared/middleware/authentication.ts)) already upserts users from Cognito JWT claims. The `nickname` claim maps to GitHub `login` and `username` maps to the Cognito sub (prefixed).
+
+Extend the upsert to also set `github_login` from the `nickname` claim. For `github_id`, the Cognito OIDC attribute mapping currently maps `username = sub` (the GitHub user ID). Add it to the Cognito attribute mapping if not already present, or extract it from the Cognito `username` attribute (which for GitHub OIDC federation is `Github_<github_user_id>`).
+
+**Files to change:**
+
+- `apps/api/src/shared/middleware/authentication.ts` — populate `github_login` (and `github_id` if extractable) on upsert
+- Potentially `infra/cognito.tf` — add GitHub user ID to Cognito attribute mapping if needed
+
+---
+
+### Phase 2 — Track Organization Members
+
+**Goal**: Know which GitHub users are members of an organization associated with a GitHub App installation.
+
+#### 2.1 New `github_org_members` table
+
+```
+github.github_org_members
+├── installation_id  bigint  FK → github_app_installations.installation_id (cascade)
+├── github_user_id   bigint  NOT NULL
+├── github_login     varchar(255) NOT NULL
+├── role             varchar(20) NOT NULL  -- "admin" | "member"
+├── synced_at        timestamptz NOT NULL DEFAULT now()
+└── PK(installation_id, github_user_id)
+```
+
+This table is **not tenant-scoped** (no `integration_id` PK prefix) because installations can exist without being linked to an integration. RLS is not applied; access is controlled through the API layer.
+
+**Files to change:**
+
+- `packages/db/src/schema/github/workflows.ts` — add table definition
+- New Drizzle migration
+
+#### 2.2 Fetch org members on `installation.created`
+
+When the GitHub App is installed on an **Organization** (`account_type = "Organization"`):
+
+1. Use the installation's Octokit client to call `octokit.orgs.listMembers({ org: account_login })` (paginated)
+2. Bulk upsert results into `github_org_members`
+
+**Prerequisite**: The GitHub App must request the **`members:read`** permission. This is a GitHub App permission change (configured in the GitHub App settings on github.com), not a code change. Existing installations will receive an `installation.new_permissions_accepted` event when the org admin approves.
+
+**Files to change:**
+
+- `apps/api/src/shared/clients/github-app.client.ts` — add `listOrgMembers(installationId, org)` function
+- `apps/api/src/domains/github-app/github-app.controller.ts` — call it in `installation.created` handler
+
+#### 2.3 Subscribe to `organization` webhook events
+
+The GitHub App needs to receive `organization` events (`member_added`, `member_removed`, `member_invited`) to keep `github_org_members` in sync.
+
+Add `"organization"` to the default `webhook_events` list or handle it at the app level (not per-integration webhook).
+
+**Files to change:**
+
+- `apps/api/src/domains/github-app/github-app.controller.ts` — add `case 'organization':` handler
+- `apps/api/src/shared/helpers/validation.ts` — add `organization` to valid event types
+
+---
+
+### Phase 3 — Auto-Add Members on Link
+
+**Goal**: When an installation is linked to an integration, auto-add org members to the integration.
+
+#### 3.1 Configurable default sync role
+
+Add an `org_sync_default_role` column to `github.integrations`:
+
+| Column                  | Type          | Default    | Notes                                                         |
+| ----------------------- | ------------- | ---------- | ------------------------------------------------------------- |
+| `org_sync_default_role` | `varchar(20)` | `'viewer'` | One of the existing `MEMBER_ROLES` values (excluding `owner`) |
+
+Integration owners/admins can change this setting via a new endpoint:
+
+```
+PATCH /api/integrations/:id/org-sync-settings
+Body: { "defaultRole": "member" }
+```
+
+Allowed values: `viewer`, `member`, `admin`. The `owner` role is never assignable via org sync.
+
+**Files to change:**
+
+- `packages/db/src/schema/github/workflows.ts` — add `orgSyncDefaultRole` column to `integrations`
+- `apps/api/src/domains/integrations/integrations.routes.ts` — new PATCH endpoint for org-sync settings
+- `apps/api/src/domains/integrations/integrations.controller.ts` — handler for updating the setting
+- New Drizzle migration
+
+#### 3.2 Resolve and insert members on link
+
+When `linkInstallation` is called (PATCH `/api/integrations/:id/installation`):
+
+1. Read `github_org_members` for the installation
+2. Read the integration's `org_sync_default_role` setting
+3. For each org member, look up `gitgazer.users` by `github_login` (or `github_id` if available)
+4. For **matched** users: insert into `user-assignments` with the configured role, using `onConflictDoNothing` to avoid overwriting existing roles
+5. For **unmatched** users (GitHub members with no GitGazer account yet): store as pending with the configured role (see Phase 5)
+6. Create event log entries documenting the auto-sync
+
+**Files to change:**
+
+- `apps/api/src/domains/integrations/integrations.controller.ts` — extend `linkInstallation`
+- New helper: `apps/api/src/domains/members/org-member-sync.ts`
+
+#### 3.3 Default role behavior
+
+The default role is `viewer` (least privilege) unless explicitly changed by an integration owner/admin. The `owner` role can never be assigned via org sync — role escalation to `owner` remains a manual operation. Changing the default role does **not** retroactively update existing members; it only applies to future syncs.
+
+---
+
+### Phase 4 — Ongoing Sync via Webhooks
+
+**Goal**: Keep integration membership in sync as org membership changes.
+
+#### 4.1 Handle `organization.member_added`
+
+When a member is added to the org:
+
+1. Upsert into `github_org_members`
+2. If the installation is linked to an integration:
+    - Read the integration's `org_sync_default_role` setting
+    - Look up `gitgazer.users` by `github_login`
+    - If found: insert `user-assignments` with the configured role (`onConflictDoNothing`)
+    - If not found: store as pending with the configured role for deferred matching
+
+#### 4.2 Handle `organization.member_removed`
+
+When a member is removed from the org:
+
+1. Delete from `github_org_members`
+2. If the installation is linked to an integration:
+    - Look up `gitgazer.users` by `github_login`
+    - If found: delete from `user-assignments` **only if the member was auto-synced** (see Phase 6 for tracking provenance)
+    - Never remove `owner` or manually-invited members
+
+#### 4.3 Periodic full sync (background job)
+
+Webhook delivery is not guaranteed. Add a periodic reconciliation job:
+
+1. Triggered on a schedule (e.g., daily via EventBridge → Lambda)
+2. For each linked installation with `account_type = "Organization"`:
+    - Re-fetch org members from GitHub API
+    - Diff against `github_org_members`
+    - Add/remove as needed
+3. Log drift detected in event log
+
+**Files to change:**
+
+- New Lambda handler or extend worker: `apps/api/src/handlers/org-sync-worker.ts`
+- `infra/` — EventBridge schedule rule + Lambda invocation
+
+---
+
+### Phase 5 — Deferred Matching for Unknown Users
+
+**Goal**: When a GitHub org member doesn't have a GitGazer account yet, automatically add them when they first log in.
+
+#### 5.1 New `pending_org_members` table (or flag on `github_org_members`)
+
+Add a relationship table or flag that tracks "this GitHub user should be added to integration X when they create a GitGazer account."
+
+Option A — Extend `github_org_members` with `integration_id` (nullable):
+
+```
+pending auto-adds:
+  installation_id + github_user_id + integration_id → "should be added when user registers"
+```
+
+Option B — Separate table (cleaner):
+
+```
+github.pending_org_sync
+├── integration_id   uuid FK → integrations.integration_id (cascade)
+├── github_login     varchar(255) NOT NULL
+├── github_user_id   bigint NOT NULL
+├── role             varchar(20) NOT NULL  -- snapshot of org_sync_default_role at time of creation
+├── created_at       timestamptz DEFAULT now()
+└── PK(integration_id, github_user_id)
+```
+
+**Recommended: Option B** — keeps concerns separate and is easy to clean up.
+
+#### 5.2 Check pending on login
+
+In the authentication middleware, after upserting the user:
+
+1. Look up `pending_org_sync` by `github_login` (or `github_id`)
+2. For each match: insert `user-assignments` and delete the pending row
+3. This happens **once** at first login — negligible performance impact
+
+**Files to change:**
+
+- `packages/db/src/schema/github/workflows.ts` — new table
+- `apps/api/src/shared/middleware/authentication.ts` — add post-upsert pending check
+- New Drizzle migration
+
+---
+
+### Phase 6 — Track Membership Provenance
+
+**Goal**: Distinguish between manually-invited members and auto-synced members so removal logic is safe.
+
+#### 6.1 Add `source` column to `user-assignments`
+
+| Value      | Meaning                                                             |
+| ---------- | ------------------------------------------------------------------- |
+| `manual`   | Invited through the invitation flow (default, backwards-compatible) |
+| `org_sync` | Auto-added from GitHub org membership                               |
+
+This allows the `organization.member_removed` handler to only remove `org_sync` members and never touch manually-managed ones.
+
+**Files to change:**
+
+- `packages/db/src/schema/github/workflows.ts` — add `source` column to `userAssignments`
+- New Drizzle migration (default `'manual'` for existing rows)
+
+---
+
+## GitHub App Permission Changes
+
+The following permission must be added to the GitHub App registration on github.com:
+
+| Permission           | Access | Why                      |
+| -------------------- | ------ | ------------------------ |
+| Organization members | Read   | List org members via API |
+
+The following webhook event must be subscribed at the app level:
+
+| Event          | Why                                              |
+| -------------- | ------------------------------------------------ |
+| `Organization` | Receive `member_added` / `member_removed` events |
+
+> Existing installations will receive a notification to approve the new permission. The `installation.new_permissions_accepted` event fires when approved.
+
+---
+
+## Database Migration Summary
+
+| #   | Migration                                            | Description                              |
+| --- | ---------------------------------------------------- | ---------------------------------------- |
+| 1   | Add `github_id`, `github_login` to `gitgazer.users`  | Enable GitHub identity matching          |
+| 2   | Create `github.github_org_members`                   | Track org membership per installation    |
+| 3   | Add `org_sync_default_role` to `github.integrations` | Configurable default role for org sync   |
+| 4   | Create `github.pending_org_sync`                     | Deferred matching for unregistered users |
+| 5   | Add `source` to `github.user-assignments`            | Track membership provenance              |
+
+---
+
+## Trade-offs & Decisions
+
+### Login-based matching vs. email-based matching
+
+| Approach                  | Pro                                           | Con                                                           |
+| ------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| GitHub login (`nickname`) | Always available, matches 1:1 with org member | Logins can change (rare)                                      |
+| Email                     | Familiar to users                             | GitHub emails can be private/hidden; Cognito email may differ |
+
+**Decision**: Use `github_login` as primary match key, fall back to email. Store `github_id` for future-proofing (GitHub user IDs are immutable).
+
+### Auto-remove on org departure vs. keep access
+
+| Approach      | Pro                        | Con                                           |
+| ------------- | -------------------------- | --------------------------------------------- |
+| Auto-remove   | Clean, mirrors org reality | Could surprise users; data loss if accidental |
+| Keep + notify | Safe, no surprise removal  | Stale membership, security concern            |
+
+**Decision**: Auto-remove only `org_sync` sourced members. Keep `manual` members. Log all removals in event log. Integration owners can override.
+
+### Sync at install vs. sync at link
+
+| Approach             | Pro                     | Con                                              |
+| -------------------- | ----------------------- | ------------------------------------------------ |
+| Sync at install time | Data ready when linking | Wasteful if never linked; no integration context |
+| Sync at link time    | Only when needed        | Slight delay on first link                       |
+
+**Decision**: Fetch and store org members on `installation.created` (Phase 2), but only create `user-assignments` on link (Phase 3). This keeps the member data ready but doesn't create assignments for an unlinked installation.
+
+---
+
+## Sequencing & Rollout
+
+| Phase                              | Can ship independently | Depends on                                          |
+| ---------------------------------- | ---------------------- | --------------------------------------------------- |
+| Phase 1 (GitHub identity on users) | Yes                    | Nothing                                             |
+| Phase 2 (Track org members)        | Yes                    | GitHub App permission change                        |
+| Phase 3 (Auto-add on link)         | Yes                    | Phase 1 + Phase 2                                   |
+| Phase 4 (Ongoing sync)             | Yes                    | Phase 2 + Phase 3                                   |
+| Phase 5 (Deferred matching)        | Yes                    | Phase 1 + Phase 3                                   |
+| Phase 6 (Provenance tracking)      | Yes                    | Nothing (but needed before Phase 4.2 removal logic) |
+
+**Recommended order**: Phase 1 → Phase 6 → Phase 2 → Phase 3 → Phase 4 → Phase 5
+
+Phase 1 and Phase 6 are safe, backwards-compatible schema additions that can be shipped immediately. Phase 2 requires the GitHub App permission change which may take time for existing installations to accept.
+
+---
+
+## Security Considerations
+
+- **Least privilege**: Auto-synced members get `viewer` role by default (configurable per integration to `viewer`, `member`, or `admin`)
+- **Never auto-grant owner**: The `owner` role cannot be assigned via org sync; escalation to owner remains manual
+- **RLS**: All `user-assignments` writes go through `withRlsTransaction` with `gitgazerWriter`
+- **Webhook signature verification**: `organization` events go through existing `verifyGithubSign` middleware
+- **Rate limiting**: GitHub API calls for member listing are paginated and bounded by org size
+- **No PII leakage**: `github_org_members` stores only GitHub public profile data (login, user ID, role)
