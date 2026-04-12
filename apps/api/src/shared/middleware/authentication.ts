@@ -101,6 +101,9 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         const email = (idPayload.email as string) || null;
         const name = (idPayload.name as string) || null;
         const picture = (idPayload.picture as string) || null;
+        const githubIdRaw = idPayload['custom:github_id'] as string | undefined;
+        const githubId = githubIdRaw ? Number(githubIdRaw) : null;
+        const githubLogin = (idPayload.nickname as string) || null;
 
         const user = await db
             .insert(users)
@@ -109,6 +112,8 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
                 email,
                 name,
                 picture,
+                githubId,
+                githubLogin,
             })
             .onConflictDoUpdate({
                 target: users.cognitoId,
@@ -116,6 +121,8 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
                     email,
                     name,
                     picture,
+                    githubId,
+                    githubLogin,
                 },
             })
             .returning({id: users.id});

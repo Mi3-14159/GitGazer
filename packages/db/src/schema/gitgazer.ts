@@ -20,6 +20,8 @@ export const users = gitgazerSchema.table('users', {
     email: varchar('email', {length: 255}),
     name: varchar('name', {length: 255}),
     picture: text('picture'),
+    githubId: bigint('github_id', {mode: 'number'}).unique(),
+    githubLogin: varchar('github_login', {length: 255}),
 });
 
 export const wsConnections = gitgazerSchema.table(
