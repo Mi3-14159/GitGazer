@@ -10,13 +10,13 @@ When a GitHub App is installed on a GitHub organization, every GitHub user who i
 
 ### Current State
 
-| Concept                         | Current Behavior                                                                                |
-| ------------------------------- | ----------------------------------------------------------------------------------------------- |
-| GitHub App installed on org     | Creates `github_app_installations` row with `integration_id = null`                             |
-| Link installation → integration | Manual UI action (PATCH `/api/integrations/:id/installation`)                                   |
-| Add user to integration         | Manual invitation flow (invite → accept → `user-assignments` row)                               |
-| User identity                   | Cognito (GitHub OIDC). `nickname` = GitHub login. No GitHub user ID stored in `gitgazer.users`. |
-| GitHub org members              | Not tracked at all                                                                              |
+| Concept                         | Current Behavior                                                                                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub App installed on org     | Creates `github_app_installations` row with `integration_id = null`                                                                                                               |
+| Link installation → integration | Manual UI action (PATCH `/api/integrations/:id/installation`)                                                                                                                     |
+| Add user to integration         | Manual invitation flow (invite → accept → `user-assignments` row)                                                                                                                 |
+| User identity                   | Cognito (GitHub OIDC). `nickname` = GitHub login. GitHub numeric user ID available via Cognito custom attribute `custom:github_id`. No GitHub user ID stored in `gitgazer.users`. |
+| GitHub org members              | Not tracked at all                                                                                                                                                                |
 
 ### Identity Bridge Problem
 
@@ -27,7 +27,7 @@ GitGazer users are identified by **Cognito ID** (UUID). The only GitHub-specific
 
 GitHub org members are identified by **GitHub user ID** (integer) and **login** (string, can change).
 
-To auto-add org members we need a reliable way to match a GitHub org member to a GitGazer user. **GitHub login** is the only practical join key available today.
+To auto-add org members we need a reliable way to match a GitHub org member to a GitGazer user. Cognito will be configured to sync the **numeric GitHub user ID** into a custom attribute (`custom:github_id`) via OIDC attribute mapping. This immutable ID is the primary join key for matching.
 
 ---
 
@@ -55,7 +55,7 @@ To auto-add org members we need a reliable way to match a GitHub org member to a
 ┌──────────────────────────────────────────────────────────────────┐
 │            Link Installation Flow                                │
 │  1. Link installation to integration                             │
-│  2. Resolve org members → GitGazer users (by GitHub login)       │
+│  2. Resolve org members → GitGazer users (by github_id)          │
 │  3. Auto-insert user-assignments for matched users               │
 │  4. Create pending-invites for unmatched members (optional)      │
 └──────────────────────────────────────────────────────────────────┘
@@ -82,26 +82,38 @@ To auto-add org members we need a reliable way to match a GitHub org member to a
 
 Add two nullable columns to `gitgazer.users`:
 
-| Column         | Type           | Notes                                                |
-| -------------- | -------------- | ---------------------------------------------------- |
-| `github_id`    | `bigint`       | GitHub user ID (stable, never changes)               |
-| `github_login` | `varchar(255)` | GitHub login (can change, used for initial matching) |
+| Column         | Type           | Notes                                                                      |
+| -------------- | -------------- | -------------------------------------------------------------------------- |
+| `github_id`    | `bigint`       | GitHub user ID (stable, never changes). **Primary key for sync matching.** |
+| `github_login` | `varchar(255)` | GitHub login (can change, kept for display and fallback)                   |
 
 **Files to change:**
 
 - `packages/db/src/schema/gitgazer.ts` — add columns to `users` table
 - New Drizzle migration via `npx drizzle-kit generate`
 
-#### 1.2 Populate on login
+#### 1.2 Configure Cognito to sync GitHub user ID
 
-The authentication middleware ([authentication.ts](apps/api/src/shared/middleware/authentication.ts)) already upserts users from Cognito JWT claims. The `nickname` claim maps to GitHub `login` and `username` maps to the Cognito sub (prefixed).
-
-Extend the upsert to also set `github_login` from the `nickname` claim. For `github_id`, the Cognito OIDC attribute mapping currently maps `username = sub` (the GitHub user ID). Add it to the Cognito attribute mapping if not already present, or extract it from the Cognito `username` attribute (which for GitHub OIDC federation is `Github_<github_user_id>`).
+Add a **custom attribute** `custom:github_id` to the Cognito User Pool and map the GitHub OIDC `id` claim (the numeric GitHub user ID) to it via the identity provider attribute mapping. This ensures every Cognito user record carries the immutable GitHub user ID.
 
 **Files to change:**
 
-- `apps/api/src/shared/middleware/authentication.ts` — populate `github_login` (and `github_id` if extractable) on upsert
-- Potentially `infra/cognito.tf` — add GitHub user ID to Cognito attribute mapping if needed
+- `infra/cognito.tf` — add `custom:github_id` schema attribute to the User Pool; add OIDC attribute mapping `id → custom:github_id` on the GitHub identity provider
+
+#### 1.3 Populate on login
+
+The authentication middleware ([authentication.ts](apps/api/src/shared/middleware/authentication.ts)) already upserts users from Cognito JWT claims. The `nickname` claim maps to GitHub `login`.
+
+Extend the upsert to:
+
+1. Set `github_id` from the `custom:github_id` claim (the numeric GitHub user ID synced by Cognito)
+2. Set `github_login` from the `nickname` claim
+
+The `github_id` is the **primary identifier** used for all org member sync matching. `github_login` is stored for display purposes and as a fallback.
+
+**Files to change:**
+
+- `apps/api/src/shared/middleware/authentication.ts` — read `custom:github_id` from JWT claims; populate `github_id` and `github_login` on upsert
 
 ---
 
@@ -189,7 +201,7 @@ When `linkInstallation` is called (PATCH `/api/integrations/:id/installation`):
 
 1. Read `github_org_members` for the installation
 2. Read the integration's `org_sync_default_role` setting
-3. For each org member, look up `gitgazer.users` by `github_login` (or `github_id` if available)
+3. For each org member, look up `gitgazer.users` by `github_id` (the immutable numeric GitHub user ID)
 4. For **matched** users: insert into `user-assignments` with the configured role, using `onConflictDoNothing` to avoid overwriting existing roles
 5. For **unmatched** users (GitHub members with no GitGazer account yet): store as pending with the configured role (see Phase 5)
 6. Create event log entries documenting the auto-sync
@@ -216,7 +228,7 @@ When a member is added to the org:
 1. Upsert into `github_org_members`
 2. If the installation is linked to an integration:
     - Read the integration's `org_sync_default_role` setting
-    - Look up `gitgazer.users` by `github_login`
+    - Look up `gitgazer.users` by `github_id`
     - If found: insert `user-assignments` with the configured role (`onConflictDoNothing`)
     - If not found: store as pending with the configured role for deferred matching
 
@@ -226,7 +238,7 @@ When a member is removed from the org:
 
 1. Delete from `github_org_members`
 2. If the installation is linked to an integration:
-    - Look up `gitgazer.users` by `github_login`
+    - Look up `gitgazer.users` by `github_id`
     - If found: delete from `user-assignments` **only if the member was auto-synced** (see Phase 6 for tracking provenance)
     - Never remove `owner` or manually-invited members
 
@@ -281,7 +293,7 @@ github.pending_org_sync
 
 In the authentication middleware, after upserting the user:
 
-1. Look up `pending_org_sync` by `github_login` (or `github_id`)
+1. Look up `pending_org_sync` by `github_id` (sourced from the `custom:github_id` Cognito claim)
 2. For each match: insert `user-assignments` and delete the pending row
 3. This happens **once** at first login — negligible performance impact
 
@@ -345,14 +357,15 @@ The following webhook event must be subscribed at the app level:
 
 ## Trade-offs & Decisions
 
-### Login-based matching vs. email-based matching
+### Matching strategy: `github_id` vs. `github_login` vs. email
 
-| Approach                  | Pro                                           | Con                                                           |
-| ------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
-| GitHub login (`nickname`) | Always available, matches 1:1 with org member | Logins can change (rare)                                      |
-| Email                     | Familiar to users                             | GitHub emails can be private/hidden; Cognito email may differ |
+| Approach                     | Pro                                           | Con                                                           |
+| ---------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| GitHub user ID (`github_id`) | Immutable, guaranteed unique, never changes   | Requires Cognito attribute mapping to surface in JWT claims   |
+| GitHub login (`nickname`)    | Human-readable, available without extra setup | Logins can change (rare but possible)                         |
+| Email                        | Familiar to users                             | GitHub emails can be private/hidden; Cognito email may differ |
 
-**Decision**: Use `github_login` as primary match key, fall back to email. Store `github_id` for future-proofing (GitHub user IDs are immutable).
+**Decision**: Use `github_id` (numeric GitHub user ID) as the **primary match key**. Cognito is configured to sync this value into a custom attribute (`custom:github_id`) via OIDC attribute mapping, making it available in JWT claims at login time. This is the most reliable join key because GitHub user IDs are immutable. `github_login` is stored for display and as a secondary fallback.
 
 ### Auto-remove on org departure vs. keep access
 
