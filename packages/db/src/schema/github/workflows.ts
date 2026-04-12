@@ -1,6 +1,6 @@
 import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
-import {MEMBER_ROLES} from '../../types';
+import {GITHUB_ORG_ROLES, MEMBER_ROLES} from '../../types';
 import {users} from '../gitgazer';
 import {analystTenantSeparationPolicy, githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
@@ -503,6 +503,27 @@ export const githubAppWebhooksRelations = relations(githubAppWebhooks, ({one}) =
     }),
     installation: one(githubAppInstallations, {
         fields: [githubAppWebhooks.installationId],
+        references: [githubAppInstallations.installationId],
+    }),
+}));
+
+export const githubOrgMembers = githubSchema.table(
+    'github_org_members',
+    {
+        installationId: bigint('installation_id', {mode: 'number'})
+            .notNull()
+            .references(() => githubAppInstallations.installationId, {onDelete: 'cascade'}),
+        githubUserId: bigint('github_user_id', {mode: 'number'}).notNull(),
+        githubLogin: varchar('github_login', {length: 255}).notNull(),
+        role: varchar('role', {length: 20, enum: GITHUB_ORG_ROLES}).notNull(),
+        syncedAt: timestamp('synced_at', {withTimezone: true}).notNull().defaultNow(),
+    },
+    (table) => [primaryKey({columns: [table.installationId, table.githubUserId]})],
+);
+
+export const githubOrgMembersRelations = relations(githubOrgMembers, ({one}) => ({
+    installation: one(githubAppInstallations, {
+        fields: [githubOrgMembers.installationId],
         references: [githubAppInstallations.installationId],
     }),
 }));

@@ -388,3 +388,6 @@ export type CreateInvitationInput = {
     role: MemberRole;
     sendEmail: boolean;
 };
+
+export const GITHUB_ORG_ROLES = ['admin', 'member'] as const;
+export type GithubOrgRole = (typeof GITHUB_ORG_ROLES)[number];

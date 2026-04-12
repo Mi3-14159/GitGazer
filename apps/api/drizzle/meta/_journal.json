@@ -267,6 +267,13 @@
       "when": 1776027419339,
       "tag": "0037_busy_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1776031739716,
+      "tag": "0038_wooden_black_queen",
+      "breakpoints": true
     }
   ]
 }
