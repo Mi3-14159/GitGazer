@@ -11,6 +11,7 @@
     "vitest": "^4.1.0"
   },
   "name": "gitgazer",
+  "packageManager": "pnpm@10.33.0",
   "private": true,
   "scripts": {
     "pretty": "prettier --write ."
