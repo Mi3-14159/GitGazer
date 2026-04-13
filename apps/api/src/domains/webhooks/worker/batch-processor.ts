@@ -1,6 +1,8 @@
 import {sendWorkflowJobAlerts} from '@/domains/alerting/alerting.controller';
+import {syncOrgMembers} from '@/domains/github-app/org-member-sync';
 import {insertEvent} from '@/domains/webhooks/importers/index';
 import {postToConnections} from '@/domains/webhooks/webhooks.controller';
+import {type OrgMemberSyncTask} from '@/shared/clients/sqs.client';
 import {getLogger} from '@/shared/logger';
 import {EventPayloadMap, WorkflowJobEvent} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
@@ -14,8 +16,20 @@ type WebhookMessage = {
     payload: EventPayloadMap[EmitterWebhookEventName & keyof EventPayloadMap];
 };
 
+type SQSMessage = WebhookMessage | OrgMemberSyncTask;
+
+const isOrgMemberSyncTask = (message: SQSMessage): message is OrgMemberSyncTask => {
+    return 'taskType' in message && message.taskType === 'org_member_sync';
+};
+
 export const processRecord = async (record: SQSRecord): Promise<void> => {
-    const message: WebhookMessage = JSON.parse(record.body);
+    const message: SQSMessage = JSON.parse(record.body);
+
+    if (isOrgMemberSyncTask(message)) {
+        await syncOrgMembers(message.installationId, message.accountLogin);
+        return;
+    }
+
     const {integrationId, eventType, payload} = message;
 
     const {data, stale} = await insertEvent(integrationId, eventType, payload);

@@ -1,8 +1,27 @@
+import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
+import {sendOrgMemberSyncTask} from '@/shared/clients/sqs.client';
+import config from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
-import {InstallationEvent, InstallationRepositoriesEvent, InstallationTargetEvent} from '@octokit/webhooks-types';
+import {users} from '@gitgazer/db/schema/gitgazer';
+import {
+    githubAppInstallations,
+    githubAppWebhooks,
+    githubOrgMembers,
+    integrations,
+    pendingOrgSync,
+    userAssignments,
+} from '@gitgazer/db/schema/github/workflows';
+import {GITHUB_ORG_ROLES, type GithubOrgRole} from '@gitgazer/db/types';
+import {
+    InstallationEvent,
+    InstallationRepositoriesEvent,
+    InstallationTargetEvent,
+    OrganizationEvent,
+    OrganizationMemberAddedEvent,
+    OrganizationMemberRemovedEvent,
+} from '@octokit/webhooks-types';
 import {and, eq} from 'drizzle-orm';
 import {provisionWebhooksForRepos} from './webhook-provisioning';
 
@@ -18,6 +37,9 @@ export const handleGithubAppEvent = async (eventType: string, payload: unknown):
             break;
         case 'installation_target':
             await handleInstallationTargetEvent(payload as InstallationTargetEvent);
+            break;
+        case 'organization':
+            await handleOrganizationEvent(payload as OrganizationEvent);
             break;
         default:
             logger.warn(`Unhandled GitHub App event type: ${eventType}`);
@@ -45,6 +67,10 @@ const handleInstallationEvent = async (event: InstallationEvent): Promise<void> 
                 })
                 .onConflictDoNothing();
 
+            if (installation.account.type === 'Organization') {
+                await dispatchOrgMemberSync(installation.id, installation.account.login);
+            }
+
             break;
         }
 
@@ -71,9 +97,15 @@ const handleInstallationEvent = async (event: InstallationEvent): Promise<void> 
             break;
         }
 
-        case 'new_permissions_accepted':
+        case 'new_permissions_accepted': {
             logger.info(`New permissions accepted for installation ${installation.id}`);
+
+            if (installation.account.type === 'Organization') {
+                await dispatchOrgMemberSync(installation.id, installation.account.login);
+            }
+
             break;
+        }
 
         default:
             logger.warn(`Unhandled installation action: ${action}`);
@@ -150,5 +182,253 @@ const handleInstallationTargetEvent = async (event: InstallationTargetEvent): Pr
                 updatedAt: new Date(),
             })
             .where(eq(githubAppInstallations.installationId, event.installation.id));
+    }
+};
+
+const dispatchOrgMemberSync = async (installationId: number, accountLogin: string): Promise<void> => {
+    const logger = getLogger();
+    const queueUrl = config.get('webhookQueueUrl');
+
+    logger.info('Dispatching org member sync to worker', {installationId, accountLogin});
+
+    await sendOrgMemberSyncTask(queueUrl, {
+        taskType: 'org_member_sync',
+        installationId,
+        accountLogin,
+    });
+};
+
+const handleOrganizationEvent = async (event: OrganizationEvent): Promise<void> => {
+    const logger = getLogger();
+    const {action, installation} = event;
+
+    if (!installation) {
+        logger.warn('Organization event received without installation context');
+        return;
+    }
+
+    switch (action) {
+        case 'member_added': {
+            const {membership} = event as OrganizationMemberAddedEvent;
+            const member = membership.user;
+            const role = (GITHUB_ORG_ROLES as readonly string[]).includes(membership.role) ? (membership.role as GithubOrgRole) : 'member';
+            logger.info(`Member added to org: ${member.login} (ID: ${member.id})`, {installationId: installation.id});
+
+            await db
+                .insert(githubOrgMembers)
+                .values({
+                    installationId: installation.id,
+                    githubUserId: member.id,
+                    githubLogin: member.login,
+                    role,
+                    syncedAt: new Date(),
+                })
+                .onConflictDoUpdate({
+                    target: [githubOrgMembers.installationId, githubOrgMembers.githubUserId],
+                    set: {
+                        githubLogin: member.login,
+                        role,
+                        syncedAt: new Date(),
+                    },
+                });
+
+            // Auto-add to integration if installation is linked
+            await syncMemberToIntegration(installation.id, member.id, member.login);
+
+            break;
+        }
+
+        case 'member_removed': {
+            const {membership} = event as OrganizationMemberRemovedEvent;
+            const member = membership.user;
+            logger.info(`Member removed from org: ${member.login} (ID: ${member.id})`, {installationId: installation.id});
+
+            await db
+                .delete(githubOrgMembers)
+                .where(and(eq(githubOrgMembers.installationId, installation.id), eq(githubOrgMembers.githubUserId, member.id)));
+
+            // Auto-remove from integration if installation is linked (only org_sync sourced)
+            await removeMemberFromIntegration(installation.id, member.id, member.login);
+
+            break;
+        }
+
+        default:
+            logger.debug(`Unhandled organization action: ${action}`, {installationId: installation.id});
+    }
+};
+
+/**
+ * When a member is added to a GitHub org, auto-add them to the linked integration
+ * if the installation is linked and the user exists in GitGazer.
+ */
+const syncMemberToIntegration = async (installationId: number, githubUserId: number, githubLogin: string): Promise<void> => {
+    const logger = getLogger();
+
+    // Single join: installation → integration (avoids TOCTOU and reduces queries)
+    const [linked] = await db
+        .select({
+            integrationId: integrations.integrationId,
+            orgSyncDefaultRole: integrations.orgSyncDefaultRole,
+        })
+        .from(githubAppInstallations)
+        .innerJoin(integrations, eq(githubAppInstallations.integrationId, integrations.integrationId))
+        .where(eq(githubAppInstallations.installationId, installationId));
+
+    if (!linked) {
+        logger.debug('Installation not linked to integration, skipping member sync', {installationId});
+        return;
+    }
+
+    const {integrationId} = linked;
+    const role = linked.orgSyncDefaultRole ?? 'viewer';
+
+    // Look up GitGazer user by github_id
+    const [gitgazerUser] = await db.select({id: users.id}).from(users).where(eq(users.githubId, githubUserId));
+
+    if (!gitgazerUser) {
+        logger.info('Org member has no GitGazer account, storing as pending', {githubUserId, githubLogin, integrationId});
+
+        await withRlsTransaction({
+            integrationIds: [integrationId],
+            userName: gitgazerWriter.name,
+            callback: async (tx) => {
+                await tx
+                    .insert(pendingOrgSync)
+                    .values({
+                        integrationId,
+                        githubUserId,
+                        githubLogin,
+                        role,
+                    })
+                    .onConflictDoNothing({
+                        target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
+                    });
+            },
+        });
+
+        return;
+    }
+
+    // Insert user-assignment with source='org_sync', skip if already exists
+    let added = false;
+    await withRlsTransaction({
+        integrationIds: [integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            const result = await tx
+                .insert(userAssignments)
+                .values({
+                    integrationId,
+                    userId: gitgazerUser.id,
+                    role,
+                    source: 'org_sync',
+                })
+                .onConflictDoNothing({
+                    target: [userAssignments.userId, userAssignments.integrationId],
+                })
+                .returning({userId: userAssignments.userId});
+
+            added = result.length > 0;
+        },
+    });
+
+    if (added) {
+        logger.info('Auto-added org member to integration', {githubUserId, githubLogin, integrationId, role});
+
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'info',
+            title: 'Org member auto-added',
+            message: `GitHub org member "${githubLogin}" was automatically added with role "${role}"`,
+            metadata: {installationId, githubUserId, githubLogin, role},
+        }).catch((err) => {
+            logger.error('Failed to write event log for member auto-add', {error: err});
+        });
+    } else {
+        logger.debug('Org member already has integration assignment, skipping', {githubUserId, githubLogin, integrationId});
+    }
+};
+
+/**
+ * When a member is removed from a GitHub org, remove them from the linked integration
+ * only if they were auto-synced (source = 'org_sync'). Never remove owners or manually-invited members.
+ */
+const removeMemberFromIntegration = async (installationId: number, githubUserId: number, githubLogin: string): Promise<void> => {
+    const logger = getLogger();
+
+    // Single join: installation → integration (consistent with syncMemberToIntegration)
+    const [linked] = await db
+        .select({
+            integrationId: integrations.integrationId,
+        })
+        .from(githubAppInstallations)
+        .innerJoin(integrations, eq(githubAppInstallations.integrationId, integrations.integrationId))
+        .where(eq(githubAppInstallations.installationId, installationId));
+
+    if (!linked) {
+        logger.debug('Installation not linked to integration, skipping member removal', {installationId});
+        return;
+    }
+
+    const {integrationId} = linked;
+
+    // Look up GitGazer user by github_id
+    const [gitgazerUser] = await db.select({id: users.id}).from(users).where(eq(users.githubId, githubUserId));
+
+    if (!gitgazerUser) {
+        logger.debug('Org member has no GitGazer account, cleaning up pending entry', {githubUserId, githubLogin, integrationId});
+
+        // Clean up any pending org sync entry for this member
+        await withRlsTransaction({
+            integrationIds: [integrationId],
+            userName: gitgazerWriter.name,
+            callback: async (tx) => {
+                await tx
+                    .delete(pendingOrgSync)
+                    .where(and(eq(pendingOrgSync.integrationId, integrationId), eq(pendingOrgSync.githubUserId, githubUserId)));
+            },
+        });
+
+        return;
+    }
+
+    // Only remove if source is 'org_sync' — never remove manually-invited or owner members
+    let removed = false;
+    await withRlsTransaction({
+        integrationIds: [integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            const result = await tx
+                .delete(userAssignments)
+                .where(
+                    and(
+                        eq(userAssignments.integrationId, integrationId),
+                        eq(userAssignments.userId, gitgazerUser.id),
+                        eq(userAssignments.source, 'org_sync'),
+                    ),
+                )
+                .returning({userId: userAssignments.userId});
+
+            removed = result.length > 0;
+        },
+    });
+
+    if (removed) {
+        logger.info('Removed org-synced member from integration', {githubUserId, githubLogin, integrationId});
+
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'warning',
+            title: 'Org member auto-removed',
+            message: `GitHub org member "${githubLogin}" was automatically removed (left the organization)`,
+            metadata: {installationId, githubUserId, githubLogin},
+        }).catch((err) => {
+            logger.error('Failed to write event log for member auto-removal', {error: err});
+        });
+    } else {
+        logger.debug('No org_sync assignment found for member, skipping removal', {githubUserId, githubLogin, integrationId});
     }
 };

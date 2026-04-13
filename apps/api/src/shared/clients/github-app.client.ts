@@ -1,4 +1,5 @@
 import config from '@/shared/config';
+import type {GithubOrgRole} from '@gitgazer/db/types';
 import {createAppAuth} from '@octokit/auth-app';
 import {Octokit} from '@octokit/rest';
 
@@ -46,6 +47,35 @@ export const listInstallationRepos = async (installationId: number): Promise<Rep
     }
 
     return repos;
+};
+
+export type OrgMemberInfo = {
+    id: number;
+    login: string;
+    role: GithubOrgRole;
+};
+
+export const listOrgMembers = async (installationId: number, org: string): Promise<OrgMemberInfo[]> => {
+    const octokit = getInstallationOctokit(installationId);
+    const members: OrgMemberInfo[] = [];
+
+    for (const role of ['admin', 'member'] as const) {
+        for await (const response of octokit.paginate.iterator(octokit.orgs.listMembers, {
+            org,
+            role,
+            per_page: 100,
+        })) {
+            for (const member of response.data) {
+                members.push({
+                    id: member.id,
+                    login: member.login,
+                    role,
+                });
+            }
+        }
+    }
+
+    return members;
 };
 
 export const createRepoWebhook = async (

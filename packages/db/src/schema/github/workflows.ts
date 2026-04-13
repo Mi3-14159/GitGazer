@@ -1,6 +1,6 @@
 import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
-import {MEMBER_ROLES} from '../../types';
+import {GITHUB_ORG_ROLES, MEMBER_ASSIGNMENT_SOURCES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
 import {users} from '../gitgazer';
 import {analystTenantSeparationPolicy, githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
@@ -14,6 +14,7 @@ export const integrations = githubSchema
                 .notNull()
                 .references(() => users.id),
             secret: uuid('secret').notNull().defaultRandom(),
+            orgSyncDefaultRole: varchar('org_sync_default_role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull().default('viewer'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
@@ -35,6 +36,7 @@ export const userAssignments = githubSchema
                 .notNull()
                 .references(() => users.id),
             role: varchar('role', {length: 20, enum: MEMBER_ROLES}).notNull().default('viewer'),
+            source: varchar('source', {length: 20, enum: MEMBER_ASSIGNMENT_SOURCES}).notNull().default('manual'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         (table) => [primaryKey({columns: [table.userId, table.integrationId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
@@ -506,3 +508,40 @@ export const githubAppWebhooksRelations = relations(githubAppWebhooks, ({one}) =
         references: [githubAppInstallations.installationId],
     }),
 }));
+
+export const githubOrgMembers = githubSchema.table(
+    'github_org_members',
+    {
+        installationId: bigint('installation_id', {mode: 'number'})
+            .notNull()
+            .references(() => githubAppInstallations.installationId, {onDelete: 'cascade'}),
+        githubUserId: bigint('github_user_id', {mode: 'number'}).notNull(),
+        githubLogin: varchar('github_login', {length: 255}).notNull(),
+        role: varchar('role', {length: 20, enum: GITHUB_ORG_ROLES}).notNull(),
+        syncedAt: timestamp('synced_at', {withTimezone: true}).notNull().defaultNow(),
+    },
+    (table) => [primaryKey({columns: [table.installationId, table.githubUserId]})],
+);
+
+export const githubOrgMembersRelations = relations(githubOrgMembers, ({one}) => ({
+    installation: one(githubAppInstallations, {
+        fields: [githubOrgMembers.installationId],
+        references: [githubAppInstallations.installationId],
+    }),
+}));
+
+export const pendingOrgSync = githubSchema
+    .table(
+        'pending_org_sync',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            githubUserId: bigint('github_user_id', {mode: 'number'}).notNull(),
+            githubLogin: varchar('github_login', {length: 255}).notNull(),
+            role: varchar('role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        (table) => [primaryKey({columns: [table.integrationId, table.githubUserId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
+    )
+    .enableRLS();

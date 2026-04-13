@@ -1,0 +1,1 @@
+ALTER TABLE "github"."user-assignments" ADD COLUMN "source" varchar(20) DEFAULT 'manual' NOT NULL;

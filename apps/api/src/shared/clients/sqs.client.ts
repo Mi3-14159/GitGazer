@@ -9,12 +9,29 @@ export interface WebhookMessage {
     payload: unknown;
 }
 
+export interface OrgMemberSyncTask {
+    taskType: 'org_member_sync';
+    installationId: number;
+    accountLogin: string;
+}
+
 export const sendWebhookEvent = async (queueUrl: string, message: WebhookMessage): Promise<void> => {
     await client.send(
         new SendMessageCommand({
             QueueUrl: queueUrl,
             MessageBody: JSON.stringify(message),
             MessageGroupId: message.integrationId,
+            MessageDeduplicationId: randomUUID(),
+        }),
+    );
+};
+
+export const sendOrgMemberSyncTask = async (queueUrl: string, task: OrgMemberSyncTask): Promise<void> => {
+    await client.send(
+        new SendMessageCommand({
+            QueueUrl: queueUrl,
+            MessageBody: JSON.stringify(task),
+            MessageGroupId: `org-sync-${task.installationId}`,
             MessageDeduplicationId: randomUUID(),
         }),
     );
