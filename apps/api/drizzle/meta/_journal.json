@@ -281,6 +281,13 @@
       "when": 1776033212726,
       "tag": "0039_nifty_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1776110547079,
+      "tag": "0040_violet_the_renegades",
+      "breakpoints": true
     }
   ]
 }

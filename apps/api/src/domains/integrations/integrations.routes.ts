@@ -15,7 +15,7 @@ import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
 import {githubAppInstallations, integrations as integrationsTable} from '@gitgazer/db/schema/github/workflows';
-import {isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole, type OrgSyncDefaultRole} from '@gitgazer/db/types';
+import {isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
 const router = new Router();
@@ -198,7 +198,7 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
                 .from(integrationsTable)
                 .where(eq(integrationsTable.integrationId, integrationId));
 
-            const defaultRole = (integration?.orgSyncDefaultRole as OrgSyncDefaultRole) ?? 'viewer';
+            const defaultRole = integration?.orgSyncDefaultRole ?? 'viewer';
             orgSyncResult = await resolveAndAssignOrgMembers({
                 integrationId,
                 installationId,

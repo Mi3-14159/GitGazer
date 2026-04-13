@@ -47,7 +47,7 @@
   },
   "scripts": {
     "build": "pnpm run clean && tsup",
-    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker",
+    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler",
     "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",

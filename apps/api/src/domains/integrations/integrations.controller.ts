@@ -309,6 +309,6 @@ export const updateOrgSyncSettings = async (params: {
         type: 'info',
         title: 'Org sync settings updated',
         message: `Default role for org-synced members changed to "${defaultRole}"`,
-        metadata: {integrationId, defaultRole},
+        metadata: {defaultRole},
     });
 };

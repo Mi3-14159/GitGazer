@@ -102,7 +102,7 @@ describe('org-member-resolver', () => {
                 }),
             );
             expect(mockInsert).toHaveBeenCalledTimes(1);
-            expect(mockValues).toHaveBeenCalledWith([{integrationId: 'int-1', userId: 10, role: 'member'}]);
+            expect(mockValues).toHaveBeenCalledWith([{integrationId: 'int-1', userId: 10, role: 'member', source: 'org_sync'}]);
             expect(mockOnConflictDoNothing).toHaveBeenCalled();
             expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
                 expect.objectContaining({

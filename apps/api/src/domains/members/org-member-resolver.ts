@@ -80,6 +80,7 @@ export const resolveAndAssignOrgMembers = async (params: {
                                 integrationId,
                                 userId: m.userId,
                                 role,
+                                source: 'org_sync' as const,
                             })),
                         )
                         .onConflictDoNothing({
@@ -104,7 +105,7 @@ export const resolveAndAssignOrgMembers = async (params: {
         type: matched.length > 0 ? 'success' : 'info',
         title: 'Org members auto-synced',
         message: `Auto-added ${matched.length} org member(s) from "${accountLogin}" with role "${role}". ${unmatched.length} member(s) could not be matched to GitGazer accounts.`,
-        metadata: {integrationId, installationId, accountLogin, matched: matched.length, unmatched: unmatched.length, role},
+        metadata: {installationId, accountLogin, matched: matched.length, unmatched: unmatched.length, role},
     }).catch((err) => {
         logger.error('Failed to write event log for org member auto-sync', {error: err});
     });

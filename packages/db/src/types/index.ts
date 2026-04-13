@@ -133,7 +133,11 @@ export type EventLogEntryMetadata = {
     role?: string;
     previousRole?: string;
     invitationId?: string;
-    [key: string]: unknown;
+    githubUserId?: number;
+    githubLogin?: string;
+    matched?: number;
+    unmatched?: number;
+    defaultRole?: string;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;
@@ -397,3 +401,6 @@ export const ORG_SYNC_DEFAULT_ROLES = ['viewer', 'member', 'admin'] as const;
 export type OrgSyncDefaultRole = (typeof ORG_SYNC_DEFAULT_ROLES)[number];
 
 export const isOrgSyncDefaultRole = (value: string): value is OrgSyncDefaultRole => (ORG_SYNC_DEFAULT_ROLES as readonly string[]).includes(value);
+
+export const MEMBER_ASSIGNMENT_SOURCES = ['manual', 'org_sync'] as const;
+export type MemberAssignmentSource = (typeof MEMBER_ASSIGNMENT_SOURCES)[number];
