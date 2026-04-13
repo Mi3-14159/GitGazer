@@ -21,3 +21,29 @@ resource "aws_route53_record" "cf_aaaa" {
     evaluate_target_health = true
   }
 }
+
+# --- Docs site DNS records ---
+
+resource "aws_route53_record" "docs_a" {
+  count   = var.docs_config.enabled && var.docs_config.domain_name != null ? 1 : 0
+  zone_id = coalesce(var.docs_config.hosted_zone_id, try(var.custom_domain_config.hosted_zone_id, null))
+  name    = var.docs_config.domain_name
+  type    = "A"
+  alias {
+    name                   = aws_cloudfront_distribution.docs[0].domain_name
+    zone_id                = aws_cloudfront_distribution.docs[0].hosted_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "docs_aaaa" {
+  count   = var.docs_config.enabled && var.docs_config.domain_name != null ? 1 : 0
+  zone_id = coalesce(var.docs_config.hosted_zone_id, try(var.custom_domain_config.hosted_zone_id, null))
+  name    = var.docs_config.domain_name
+  type    = "AAAA"
+  alias {
+    name                   = aws_cloudfront_distribution.docs[0].domain_name
+    zone_id                = aws_cloudfront_distribution.docs[0].hosted_zone_id
+    evaluate_target_health = true
+  }
+}

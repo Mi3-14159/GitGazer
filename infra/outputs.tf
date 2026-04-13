@@ -27,3 +27,13 @@ output "ses_from_email" {
   description = "The verified sender email address for SES"
   value       = var.ses_config.enabled ? "${var.ses_config.from_prefix}@${local.ses_domain}" : null
 }
+
+output "docs_cdn_domain_name" {
+  description = "The domain name of the docs CloudFront distribution"
+  value       = var.docs_config.enabled ? try(var.docs_config.domain_name, aws_cloudfront_distribution.docs[0].domain_name) : null
+}
+
+output "docs_s3_bucket_name" {
+  description = "The S3 bucket name for the docs site"
+  value       = var.docs_config.enabled ? module.docs_bucket.s3_bucket_id : null
+}

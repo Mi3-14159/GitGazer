@@ -32,6 +32,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | Name | Source | Version |
 | ---- | ------ | ------- |
 | <a name="module_db"></a> [db](#module\_db) | terraform-aws-modules/rds-aurora/aws | ~> 10.2 |
+| <a name="module_docs_bucket"></a> [docs\_bucket](#module\_docs\_bucket) | terraform-aws-modules/s3-bucket/aws | ~> 5.2 |
 | <a name="module_lambda_store"></a> [lambda\_store](#module\_lambda\_store) | terraform-aws-modules/s3-bucket/aws | ~> 5.9 |
 | <a name="module_rds_proxy"></a> [rds\_proxy](#module\_rds\_proxy) | terraform-aws-modules/rds-proxy/aws | ~> 4.4 |
 | <a name="module_ui_bucket"></a> [ui\_bucket](#module\_ui\_bucket) | terraform-aws-modules/s3-bucket/aws | ~> 5.2 |
@@ -54,9 +55,13 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_apigatewayv2_stage.websocket_ws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_stage) | resource |
 | [aws_bedrock_guardrail.query_generation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/bedrock_guardrail) | resource |
 | [aws_bedrock_model_invocation_logging_configuration.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/bedrock_model_invocation_logging_configuration) | resource |
+| [aws_cloudfront_distribution.docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution) | resource |
 | [aws_cloudfront_distribution.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution) | resource |
+| [aws_cloudfront_function.docs_url_rewrite](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_function) | resource |
+| [aws_cloudfront_origin_access_control.docs_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control) | resource |
 | [aws_cloudfront_origin_access_control.ui_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control) | resource |
 | [aws_cloudfront_response_headers_policy.cors_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_response_headers_policy) | resource |
+| [aws_cloudfront_response_headers_policy.docs_security_headers](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_response_headers_policy) | resource |
 | [aws_cloudfront_response_headers_policy.security_headers](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_response_headers_policy) | resource |
 | [aws_cloudwatch_event_rule.org_sync_schedule](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_event_rule) | resource |
 | [aws_cloudwatch_event_target.org_sync_scheduler](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_event_target) | resource |
@@ -119,11 +124,14 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_lambda_permission.org_sync_scheduler_eventbridge](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_route53_record.cf_a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.cf_aaaa](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
+| [aws_route53_record.docs_a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
+| [aws_route53_record.docs_aaaa](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.ses_dkim](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.ses_dmarc](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.ses_mail_from_mx](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.ses_mail_from_spf](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_route53_record.ses_verification](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
+| [aws_s3_bucket_policy.docs_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
 | [aws_s3_bucket_policy.lambda_store](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
 | [aws_s3_bucket_policy.ui_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
 | [aws_secretsmanager_secret.lambda_config](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret) | resource |
@@ -162,6 +170,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_iam_policy_document.org_sync_scheduler](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.org_sync_scheduler_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.s3_policy_cf_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.s3_policy_cf_docs_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.worker](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.worker_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_kms_secrets.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/kms_secrets) | data source |
@@ -182,6 +191,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | <a name="input_callback_urls"></a> [callback\_urls](#input\_callback\_urls) | List of callback URLs for the Cognito User Pool Client | `list(string)` | `[]` | no |
 | <a name="input_custom_domain_config"></a> [custom\_domain\_config](#input\_custom\_domain\_config) | Configuration for the custom domain | <pre>object({<br/>    hosted_zone_id  = string<br/>    domain_name     = string<br/>    certificate_arn = string<br/>  })</pre> | `null` | no |
 | <a name="input_db_config"></a> [db\_config](#input\_db\_config) | Configuration for the RDS database | <pre>object({<br/>    engine_version              = optional(string, "17.7")<br/>    engine_mode                 = optional(string, "provisioned")<br/>    instance_class              = optional(string, "db.serverless")<br/>    vpc_id                      = optional(string)<br/>    availability_zones          = optional(list(string))<br/>    subnets                     = optional(list(string))<br/>    cluster_monitoring_interval = optional(number, 0)<br/>    serverlessv2_scaling_configuration = optional(object({<br/>      max_capacity             = number<br/>      min_capacity             = optional(number)<br/>      seconds_until_auto_pause = optional(number)<br/>      }), {<br/>      min_capacity             = 0.5<br/>      max_capacity             = 2<br/>      seconds_until_auto_pause = null<br/>    })<br/>    instances = optional(any, {<br/>      one = {}<br/>    })<br/>    cluster_performance_insights_retention_period = optional(number, 7)<br/>    enable_http_endpoint                          = optional(bool, true)<br/>  })</pre> | n/a | yes |
+| <a name="input_docs_config"></a> [docs\_config](#input\_docs\_config) | Configuration for the documentation site (Docusaurus) | <pre>object({<br/>    enabled         = bool<br/>    domain_name     = optional(string)<br/>    certificate_arn = optional(string)<br/>    hosted_zone_id  = optional(string)<br/>  })</pre> | <pre>{<br/>  "enabled": false<br/>}</pre> | no |
 | <a name="input_enable_bastion"></a> [enable\_bastion](#input\_enable\_bastion) | Whether to create a bastion host for database access via SSM Session Manager | `bool` | `false` | no |
 | <a name="input_enable_bedrock_invocation_logging"></a> [enable\_bedrock\_invocation\_logging](#input\_enable\_bedrock\_invocation\_logging) | Enable logging of Bedrock model invocations | `bool` | `false` | no |
 | <a name="input_enable_lambda_tracing"></a> [enable\_lambda\_tracing](#input\_enable\_lambda\_tracing) | Enable AWS X-Ray tracing for the Lambda functions | `bool` | `false` | no |
@@ -200,6 +210,8 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | <a name="output_bastion_instance_id"></a> [bastion\_instance\_id](#output\_bastion\_instance\_id) | Instance ID of the bastion host (use with SSM Session Manager) |
 | <a name="output_bastion_ssm_port_forward_command"></a> [bastion\_ssm\_port\_forward\_command](#output\_bastion\_ssm\_port\_forward\_command) | Command to start an SSM port-forwarding session to the RDS Proxy |
 | <a name="output_cdn_domain_name"></a> [cdn\_domain\_name](#output\_cdn\_domain\_name) | The domain name of the CloudFront distribution. |
+| <a name="output_docs_cdn_domain_name"></a> [docs\_cdn\_domain\_name](#output\_docs\_cdn\_domain\_name) | The domain name of the docs CloudFront distribution |
+| <a name="output_docs_s3_bucket_name"></a> [docs\_s3\_bucket\_name](#output\_docs\_s3\_bucket\_name) | The S3 bucket name for the docs site |
 | <a name="output_ses_domain_identity_arn"></a> [ses\_domain\_identity\_arn](#output\_ses\_domain\_identity\_arn) | ARN of the SES domain identity for sending emails |
 | <a name="output_ses_from_email"></a> [ses\_from\_email](#output\_ses\_from\_email) | The verified sender email address for SES |
 | <a name="output_websocket_endpoint"></a> [websocket\_endpoint](#output\_websocket\_endpoint) | The WebSocket API endpoint URL |

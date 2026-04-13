@@ -133,3 +133,16 @@ variable "vpc" {
   }
   description = "Configuration for the VPC"
 }
+
+variable "docs_config" {
+  type = object({
+    enabled         = bool
+    domain_name     = optional(string)
+    certificate_arn = optional(string)
+    hosted_zone_id  = optional(string)
+  })
+  description = "Configuration for the documentation site (Docusaurus)"
+  default = {
+    enabled = false
+  }
+}
