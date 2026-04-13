@@ -1,0 +1,3 @@
+ALTER TABLE "github"."pending_org_sync" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE POLICY "tenant separation writer" ON "github"."pending_org_sync" AS PERMISSIVE FOR ALL TO "gitgazer_writer" USING (integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[]));--> statement-breakpoint
+CREATE POLICY "tenant separation reader" ON "github"."pending_org_sync" AS PERMISSIVE FOR SELECT TO "gitgazer_reader" USING (integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[]));

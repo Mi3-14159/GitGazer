@@ -295,6 +295,20 @@
       "when": 1776112436735,
       "tag": "0041_empty_marvel_apes",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1776115003872,
+      "tag": "0042_wandering_boom_boom",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1776115236907,
+      "tag": "0043_short_nemesis",
+      "breakpoints": true
     }
   ]
 }

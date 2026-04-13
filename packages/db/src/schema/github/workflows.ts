@@ -530,16 +530,18 @@ export const githubOrgMembersRelations = relations(githubOrgMembers, ({one}) => 
     }),
 }));
 
-export const pendingOrgSync = githubSchema.table(
-    'pending_org_sync',
-    {
-        integrationId: uuid('integration_id')
-            .notNull()
-            .references(() => integrations.integrationId, {onDelete: 'cascade'}),
-        githubUserId: bigint('github_user_id', {mode: 'number'}).notNull(),
-        githubLogin: varchar('github_login', {length: 255}).notNull(),
-        role: varchar('role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull(),
-        createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
-    },
-    (table) => [primaryKey({columns: [table.integrationId, table.githubUserId]})],
-);
+export const pendingOrgSync = githubSchema
+    .table(
+        'pending_org_sync',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            githubUserId: bigint('github_user_id', {mode: 'number'}).notNull(),
+            githubLogin: varchar('github_login', {length: 255}).notNull(),
+            role: varchar('role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        (table) => [primaryKey({columns: [table.integrationId, table.githubUserId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
+    )
+    .enableRLS();

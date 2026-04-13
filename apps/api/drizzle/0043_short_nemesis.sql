@@ -1,0 +1,1 @@
+ALTER TABLE "github"."pending_org_sync" ENABLE ROW LEVEL SECURITY;
