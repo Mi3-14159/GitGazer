@@ -1,0 +1,1 @@
+ALTER TABLE "github"."integrations" ADD COLUMN "org_sync_default_role" varchar(20) DEFAULT 'viewer' NOT NULL;

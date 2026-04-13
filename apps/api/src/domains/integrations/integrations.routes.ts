@@ -1,14 +1,21 @@
 import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
-import {deleteIntegration, getIntegrations, rotateSecret, upsertIntegration} from '@/domains/integrations/integrations.controller';
+import {
+    deleteIntegration,
+    getIntegrations,
+    rotateSecret,
+    updateOrgSyncSettings,
+    upsertIntegration,
+} from '@/domains/integrations/integrations.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {resolveAndAssignOrgMembers} from '@/domains/members/org-member-resolver';
 import {getLogger} from '@/shared/logger';
 import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
-import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
-import {type IntegrationWithRole} from '@gitgazer/db/types';
+import {githubAppInstallations, integrations as integrationsTable} from '@gitgazer/db/schema/github/workflows';
+import {isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
 const router = new Router();
@@ -182,11 +189,33 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         metadata: {integrationId, installationId, accountLogin: installation.accountLogin},
     });
 
+    // Auto-add org members to the integration (Organization installations only)
+    let orgSyncResult = {matched: 0, unmatched: 0};
+    if (installation.accountType === 'Organization') {
+        try {
+            const [integration] = await db
+                .select({orgSyncDefaultRole: integrationsTable.orgSyncDefaultRole})
+                .from(integrationsTable)
+                .where(eq(integrationsTable.integrationId, integrationId));
+
+            const defaultRole = integration?.orgSyncDefaultRole ?? 'viewer';
+            orgSyncResult = await resolveAndAssignOrgMembers({
+                integrationId,
+                installationId,
+                role: defaultRole,
+                accountLogin: installation.accountLogin,
+            });
+        } catch (error) {
+            logger.error('Failed to auto-add org members', {error, integrationId, installationId});
+        }
+    }
+
     return {
         installationId: installation.installationId,
         accountLogin: installation.accountLogin,
         accountType: installation.accountType,
         webhookCount,
+        orgSync: orgSyncResult,
     };
 });
 
@@ -268,6 +297,38 @@ router.patch(
         });
 
         return {events: requestBody.events};
+    },
+);
+
+router.patch(
+    '/api/integrations/:integrationId/org-sync-settings',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const integrationId = reqCtx.params.integrationId;
+        const integrationIds = reqCtx.appContext?.integrations ?? [];
+
+        if (!reqCtx.event.body) {
+            throw new BadRequestError('Missing request body');
+        }
+
+        let body;
+        try {
+            body = await reqCtx.req.json();
+        } catch {
+            throw new BadRequestError('Invalid request body');
+        }
+
+        if (!body.defaultRole || !isOrgSyncDefaultRole(body.defaultRole)) {
+            throw new BadRequestError(`Invalid defaultRole. Allowed: ${ORG_SYNC_DEFAULT_ROLES.join(', ')}`);
+        }
+
+        await updateOrgSyncSettings({
+            integrationId,
+            defaultRole: body.defaultRole,
+            integrationIds,
+        });
+
+        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
     },
 );
 

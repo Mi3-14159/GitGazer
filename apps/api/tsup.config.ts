@@ -38,4 +38,10 @@ export default defineConfig([
         entry: {index: 'src/handlers/worker.ts'},
         outDir: 'dist/worker',
     },
+    {
+        name: 'org-sync-scheduler',
+        ...shared,
+        entry: {index: 'src/handlers/org-sync-scheduler.ts'},
+        outDir: 'dist/org-sync-scheduler',
+    },
 ]);

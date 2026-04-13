@@ -1,6 +1,16 @@
 resource "aws_cognito_user_pool" "this" {
   name                = "${var.name_prefix}-${terraform.workspace}"
   deletion_protection = "ACTIVE"
+
+  schema {
+    name                = "github_id"
+    attribute_data_type = "Number"
+    mutable             = true
+
+    number_attribute_constraints {
+      min_value = "0"
+    }
+  }
 }
 
 resource "aws_cognito_identity_provider" "github" {
@@ -22,11 +32,12 @@ resource "aws_cognito_identity_provider" "github" {
   }
 
   attribute_mapping = {
-    email    = "email"
-    name     = "name"
-    username = "sub"
-    picture  = "avatar_url"
-    nickname = "login"
+    email              = "email"
+    name               = "name"
+    username           = "sub"
+    picture            = "avatar_url"
+    nickname           = "login"
+    "custom:github_id" = "id"
   }
 }
 

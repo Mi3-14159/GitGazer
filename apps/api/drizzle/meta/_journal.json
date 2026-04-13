@@ -260,6 +260,55 @@
       "when": 1775854738633,
       "tag": "0036_mushy_psylocke",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1776027419339,
+      "tag": "0037_busy_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1776031739716,
+      "tag": "0038_wooden_black_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1776033212726,
+      "tag": "0039_nifty_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1776110547079,
+      "tag": "0040_violet_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1776112436735,
+      "tag": "0041_empty_marvel_apes",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1776115003872,
+      "tag": "0042_wandering_boom_boom",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1776115236907,
+      "tag": "0043_short_nemesis",
+      "breakpoints": true
     }
   ]
 }
