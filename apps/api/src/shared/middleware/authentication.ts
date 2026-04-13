@@ -99,14 +99,15 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         throw new UnauthorizedError('Invalid or expired authentication tokens');
     }
 
+    const githubIdClaim = idPayload['custom:github_id'] as string | undefined;
+    const githubId = githubIdClaim ? Number(githubIdClaim) : null;
+
     let userId: number;
     try {
         const email = (idPayload.email as string) || null;
         const name = (idPayload.name as string) || null;
         const picture = (idPayload.picture as string) || null;
         const githubLogin = (idPayload.nickname as string) || null;
-        const githubIdClaim = idPayload['custom:github_id'] as string | undefined;
-        const githubId = githubIdClaim ? Number(githubIdClaim) : null;
 
         const user = await db
             .insert(users)
@@ -152,8 +153,6 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
 
     // Resolve pending org sync entries (deferred matching for org members who logged in for the first time)
     // Runs outside the user-upsert try/catch — failures must never block authentication
-    const githubIdRaw = idPayload['custom:github_id'] as string | undefined;
-    const githubId = githubIdRaw ? Number(githubIdRaw) : null;
     if (githubId) {
         await resolvePendingOrgSync(userId, githubId);
     }
@@ -205,7 +204,9 @@ const resolvePendingOrgSync = async (userId: number, githubId: number): Promise<
             });
         }
 
-        // Delete all resolved pending entries
+        // Delete all resolved pending entries across all integrations.
+        // Deliberately uses raw `db` (master user) to bypass RLS — this must delete by
+        // githubUserId across every integration, which no single RLS scope can cover.
         await db.delete(pendingOrgSync).where(eq(pendingOrgSync.githubUserId, githubId));
 
         logger.info('Resolved pending org sync entries', {userId, githubId, resolved: pending.length});

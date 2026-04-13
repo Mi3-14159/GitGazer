@@ -245,13 +245,21 @@ describe('github-app.controller — organization events', () => {
                 }
             });
 
+            const mockInsert = vi.fn().mockReturnValue({values: insertChain.values});
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                return params.callback({insert: mockInsert});
+            });
+
             await controller.handleGithubAppEvent('organization', memberAddedEvent);
 
-            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
+            // Pending insert goes through RLS transaction
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationIds: ['int-abc'],
+                    userName: 'gitgazer_writer',
+                }),
+            );
             expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
-
-            // Verify pending entry was stored for the unmatched member
-            expect(mockDb.insert).toHaveBeenCalled();
         });
     });
 
@@ -345,13 +353,23 @@ describe('github-app.controller — organization events', () => {
                 }
             });
 
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                return params.callback({delete: vi.fn().mockReturnValue(buildDeleteChain())});
+            });
+
             await controller.handleGithubAppEvent('organization', memberRemovedEvent);
 
-            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
+            // Pending delete goes through RLS transaction
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationIds: ['int-abc'],
+                    userName: 'gitgazer_writer',
+                }),
+            );
             expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
 
-            // Verify pending entry was cleaned up (delete for org_members + delete for pending)
-            expect(mockDb.delete).toHaveBeenCalledTimes(2);
+            // Verify org member was deleted via raw db
+            expect(mockDb.delete).toHaveBeenCalledTimes(1);
         });
     });
 

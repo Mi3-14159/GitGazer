@@ -13,7 +13,7 @@ import {
     pendingOrgSync,
     userAssignments,
 } from '@gitgazer/db/schema/github/workflows';
-import {type GithubOrgRole} from '@gitgazer/db/types';
+import {GITHUB_ORG_ROLES, type GithubOrgRole} from '@gitgazer/db/types';
 import {
     InstallationEvent,
     InstallationRepositoriesEvent,
@@ -211,6 +211,7 @@ const handleOrganizationEvent = async (event: OrganizationEvent): Promise<void> 
         case 'member_added': {
             const {membership} = event as OrganizationMemberAddedEvent;
             const member = membership.user;
+            const role = (GITHUB_ORG_ROLES as readonly string[]).includes(membership.role) ? (membership.role as GithubOrgRole) : 'member';
             logger.info(`Member added to org: ${member.login} (ID: ${member.id})`, {installationId: installation.id});
 
             await db
@@ -219,14 +220,14 @@ const handleOrganizationEvent = async (event: OrganizationEvent): Promise<void> 
                     installationId: installation.id,
                     githubUserId: member.id,
                     githubLogin: member.login,
-                    role: membership.role as GithubOrgRole,
+                    role,
                     syncedAt: new Date(),
                 })
                 .onConflictDoUpdate({
                     target: [githubOrgMembers.installationId, githubOrgMembers.githubUserId],
                     set: {
                         githubLogin: member.login,
-                        role: membership.role as GithubOrgRole,
+                        role,
                         syncedAt: new Date(),
                     },
                 });
@@ -288,17 +289,23 @@ const syncMemberToIntegration = async (installationId: number, githubUserId: num
     if (!gitgazerUser) {
         logger.info('Org member has no GitGazer account, storing as pending', {githubUserId, githubLogin, integrationId});
 
-        await db
-            .insert(pendingOrgSync)
-            .values({
-                integrationId,
-                githubUserId,
-                githubLogin,
-                role,
-            })
-            .onConflictDoNothing({
-                target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
-            });
+        await withRlsTransaction({
+            integrationIds: [integrationId],
+            userName: gitgazerWriter.name,
+            callback: async (tx) => {
+                await tx
+                    .insert(pendingOrgSync)
+                    .values({
+                        integrationId,
+                        githubUserId,
+                        githubLogin,
+                        role,
+                    })
+                    .onConflictDoNothing({
+                        target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
+                    });
+            },
+        });
 
         return;
     }
@@ -374,7 +381,15 @@ const removeMemberFromIntegration = async (installationId: number, githubUserId:
         logger.debug('Org member has no GitGazer account, cleaning up pending entry', {githubUserId, githubLogin, integrationId});
 
         // Clean up any pending org sync entry for this member
-        await db.delete(pendingOrgSync).where(and(eq(pendingOrgSync.integrationId, integrationId), eq(pendingOrgSync.githubUserId, githubUserId)));
+        await withRlsTransaction({
+            integrationIds: [integrationId],
+            userName: gitgazerWriter.name,
+            callback: async (tx) => {
+                await tx
+                    .delete(pendingOrgSync)
+                    .where(and(eq(pendingOrgSync.integrationId, integrationId), eq(pendingOrgSync.githubUserId, githubUserId)));
+            },
+        });
 
         return;
     }

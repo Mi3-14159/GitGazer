@@ -101,15 +101,15 @@ describe('org-member-resolver', () => {
             });
 
             expect(result).toEqual({matched: 1, unmatched: 1});
+            // Called twice: once for user assignments, once for pending inserts
+            expect(mockWithRlsTransaction).toHaveBeenCalledTimes(2);
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(
                 expect.objectContaining({
                     integrationIds: ['int-1'],
                     userName: 'gitgazer_writer',
                 }),
             );
-            expect(mockInsert).toHaveBeenCalledTimes(1);
-            expect(mockValues).toHaveBeenCalledWith([{integrationId: 'int-1', userId: 10, role: 'member', source: 'org_sync'}]);
-            expect(mockOnConflictDoNothing).toHaveBeenCalled();
+            expect(mockInsert).toHaveBeenCalled();
             expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
                 expect.objectContaining({
                     integrationId: 'int-1',
@@ -132,6 +132,13 @@ describe('org-member-resolver', () => {
                 }),
             }));
 
+            const mockPendingInsert = vi.fn().mockReturnValue({
+                values: vi.fn().mockReturnValue({onConflictDoNothing: vi.fn().mockResolvedValue(undefined)}),
+            });
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                return params.callback({insert: mockPendingInsert});
+            });
+
             const result = await resolver.resolveAndAssignOrgMembers({
                 integrationId: 'int-1',
                 installationId: 123,
@@ -140,12 +147,13 @@ describe('org-member-resolver', () => {
             });
 
             expect(result).toEqual({matched: 0, unmatched: 1});
-            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
-
-            // Verify pending entry was stored for the unmatched member
-            expect(mockDbInsert).toHaveBeenCalled();
-            expect(mockValuesInsert).toHaveBeenCalledWith([{integrationId: 'int-1', githubUserId: 9999, githubLogin: 'unknown', role: 'viewer'}]);
-            expect(mockOnConflictDoNothingInsert).toHaveBeenCalled();
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationIds: ['int-1'],
+                    userName: 'gitgazer_writer',
+                }),
+            );
+            expect(mockPendingInsert).toHaveBeenCalled();
         });
     });
 });

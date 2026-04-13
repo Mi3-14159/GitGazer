@@ -155,7 +155,13 @@ const reconcileIntegrationMembers = async (installationId: number, accountLogin:
     });
 
     // 3. Clean up stale pending entries for members no longer in the org
-    await db
-        .delete(pendingOrgSync)
-        .where(and(eq(pendingOrgSync.integrationId, integrationId), notInArray(pendingOrgSync.githubUserId, currentGithubIds)));
+    await withRlsTransaction({
+        integrationIds: [integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx) => {
+            await tx
+                .delete(pendingOrgSync)
+                .where(and(eq(pendingOrgSync.integrationId, integrationId), notInArray(pendingOrgSync.githubUserId, currentGithubIds)));
+        },
+    });
 };

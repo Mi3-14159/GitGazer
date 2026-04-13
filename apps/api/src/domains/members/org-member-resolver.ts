@@ -95,22 +95,28 @@ export const resolveAndAssignOrgMembers = async (params: {
     //    These are resolved in authentication.ts when the user first logs in.
     if (unmatched.length > 0) {
         const BATCH_SIZE = 500;
-        for (let i = 0; i < unmatched.length; i += BATCH_SIZE) {
-            const batch = unmatched.slice(i, i + BATCH_SIZE);
-            await db
-                .insert(pendingOrgSync)
-                .values(
-                    batch.map((m) => ({
-                        integrationId,
-                        githubUserId: m.githubUserId,
-                        githubLogin: m.githubLogin,
-                        role,
-                    })),
-                )
-                .onConflictDoNothing({
-                    target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
-                });
-        }
+        await withRlsTransaction({
+            integrationIds: [integrationId],
+            userName: gitgazerWriter.name,
+            callback: async (tx) => {
+                for (let i = 0; i < unmatched.length; i += BATCH_SIZE) {
+                    const batch = unmatched.slice(i, i + BATCH_SIZE);
+                    await tx
+                        .insert(pendingOrgSync)
+                        .values(
+                            batch.map((m) => ({
+                                integrationId,
+                                githubUserId: m.githubUserId,
+                                githubLogin: m.githubLogin,
+                                role,
+                            })),
+                        )
+                        .onConflictDoNothing({
+                            target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
+                        });
+                }
+            },
+        });
 
         logger.info('Stored pending org sync entries for unmatched members', {
             integrationId,
