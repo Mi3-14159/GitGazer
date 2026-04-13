@@ -1,14 +1,15 @@
 <script setup lang="ts">
     import GitHubInstallation from '@/components/integrations/GitHubInstallation.vue';
-    import IntegrationHeader from '@/components/integrations/IntegrationHeader.vue';
-    import WebhookCredentials from '@/components/integrations/WebhookCredentials.vue';
-    import WebhookEventEditor from '@/components/integrations/WebhookEventEditor.vue';
-    import Card from '@/components/ui/Card.vue';
-    import CardContent from '@/components/ui/CardContent.vue';
-    import {formatDate} from '@/utils/formatDate';
-    import type {IntegrationWithRole, MemberRole} from '@common/types';
-    import {hasRole} from '@common/types';
-    import {Calendar} from 'lucide-vue-next';
+import IntegrationHeader from '@/components/integrations/IntegrationHeader.vue';
+import OrgSyncSettings from '@/components/integrations/OrgSyncSettings.vue';
+import WebhookCredentials from '@/components/integrations/WebhookCredentials.vue';
+import WebhookEventEditor from '@/components/integrations/WebhookEventEditor.vue';
+import Card from '@/components/ui/Card.vue';
+import CardContent from '@/components/ui/CardContent.vue';
+import { formatDate } from '@/utils/formatDate';
+import type { IntegrationWithRole, MemberRole, OrgSyncDefaultRole } from '@common/types';
+import { hasRole } from '@common/types';
+import { Calendar } from 'lucide-vue-next';
 
     const props = defineProps<{
         integration: IntegrationWithRole;
@@ -22,6 +23,7 @@
         rotate: [integrationId: string];
         unlink: [integrationId: string, installationId: number];
         'save-events': [integrationId: string, installationId: number, events: string[]];
+        'update-org-sync-role': [integrationId: string, role: OrgSyncDefaultRole];
     }>();
 
     function can(minimumRole: MemberRole): boolean {
@@ -57,6 +59,14 @@
                     :installations="integration.githubAppInstallations"
                     :readonly="!can('admin')"
                     @save-events="(intId, instId, events) => emit('save-events', intId, instId, events)"
+                />
+
+                <OrgSyncSettings
+                    v-if="integration.githubAppInstallations && integration.githubAppInstallations.length > 0"
+                    :integration-id="integration.integrationId"
+                    :current-role="integration.orgSyncDefaultRole"
+                    :readonly="!can('admin')"
+                    @update-role="(intId, role) => emit('update-org-sync-role', intId, role)"
                 />
 
                 <div

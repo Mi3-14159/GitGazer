@@ -1,13 +1,14 @@
-import {useGithubApp} from '@/composables/useGithubApp';
-import {useIntegration} from '@/composables/useIntegration';
-import {useMembers} from '@/composables/useMembers';
-import type {IntegrationWithRole} from '@common/types';
-import {ref} from 'vue';
+import { useGithubApp } from '@/composables/useGithubApp';
+import { useIntegration } from '@/composables/useIntegration';
+import { useMembers } from '@/composables/useMembers';
+import type { IntegrationWithRole, OrgSyncDefaultRole } from '@common/types';
+import { ref } from 'vue';
 
 const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
 
 export function useIntegrationCrud() {
-    const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret} = useIntegration();
+    const {getIntegrations, isLoadingIntegrations, createIntegration, updateIntegration, deleteIntegration, rotateSecret, updateOrgSyncDefaultRole} =
+        useIntegration();
     const {linkInstallation, unlinkInstallation, updateWebhookEvents} = useGithubApp();
     const {leaveIntegration: leaveIntegrationApi} = useMembers();
 
@@ -140,6 +141,14 @@ export function useIntegrationCrud() {
         await refreshIntegrations();
     }
 
+    async function handleUpdateOrgSyncRole(integrationId: string, role: OrgSyncDefaultRole) {
+        try {
+            await updateOrgSyncDefaultRole(integrationId, role);
+        } finally {
+            await refreshIntegrations();
+        }
+    }
+
     async function handleLinkToExisting(integrationId: string, installationId: number) {
         appLinkError.value = '';
         try {
@@ -209,6 +218,8 @@ export function useIntegrationCrud() {
         handleUnlink,
         // Events
         handleSaveEvents,
+        // Org sync
+        handleUpdateOrgSyncRole,
         // GitHub App callback
         showAppLinkDialog,
         callbackInstallationId,

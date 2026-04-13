@@ -233,6 +233,20 @@ Allowed values: `viewer`, `member`, `admin`. The `owner` role is never assignabl
 - `apps/api/src/domains/integrations/integrations.controller.ts` — handler for updating the setting
 - New Drizzle migration
 
+**Status**: ✅ Backend endpoint implemented. ✅ Frontend UI implemented.
+
+##### Frontend: Org-sync default role editor
+
+The `OrgSyncSettings.vue` component renders inside the integration card when a GitHub App installation is linked. It shows the current default role as a badge and allows admins to change it via an inline editor (similar to the webhook event editor pattern).
+
+- `apps/web/src/components/integrations/OrgSyncSettings.vue` — inline role picker component
+- `apps/web/src/composables/useIntegration.ts` — `updateOrgSyncDefaultRole()` API call
+- `apps/web/src/composables/useIntegrationCrud.ts` — `handleUpdateOrgSyncRole()` handler
+- `apps/web/src/components/integrations/IntegrationCard.vue` — wires `OrgSyncSettings` into the card
+- `apps/web/src/views/IntegrationsPage.vue` — connects the `update-org-sync-role` event
+
+The component is visible only when the integration has at least one GitHub App installation linked, and is read-only for non-admin roles.
+
 #### 3.2 Resolve and insert members on link
 
 When `linkInstallation` is called (PATCH `/api/integrations/:id/installation`):

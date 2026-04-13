@@ -65,6 +65,7 @@ declare module 'vue' {
     NotificationCard: typeof import('./src/components/notifications/NotificationCard.vue')['default']
     NotificationDetailsCard: typeof import('./src/components/notifications/NotificationDetailsCard.vue')['default']
     NotificationFilters: typeof import('./src/components/notifications/NotificationFilters.vue')['default']
+    OrgSyncSettings: typeof import('./src/components/integrations/OrgSyncSettings.vue')['default']
     PageHeader: typeof import('./src/components/PageHeader.vue')['default']
     PendingInvitationCard: typeof import('./src/components/users/PendingInvitationCard.vue')['default']
     Popover: typeof import('./src/components/ui/Popover.vue')['default']

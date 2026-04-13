@@ -1,7 +1,7 @@
-import {useAuth} from '@/composables/useAuth';
-import {parseApiResponse} from '@/utils/apiResponse';
-import type {Integration, IntegrationWithRole} from '@common/types';
-import {ref} from 'vue';
+import { useAuth } from '@/composables/useAuth';
+import { parseApiResponse } from '@/utils/apiResponse';
+import type { Integration, IntegrationWithRole, OrgSyncDefaultRole } from '@common/types';
+import { ref } from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
@@ -78,6 +78,20 @@ export const useIntegration = () => {
         return parseApiResponse<Integration>(response);
     };
 
+    const updateOrgSyncDefaultRole = async (id: string, defaultRole: OrgSyncDefaultRole): Promise<void> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${id}/org-sync-settings`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({defaultRole}),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to update org sync settings: ${response.status}`);
+        }
+    };
+
     return {
         getIntegrations,
         isLoadingIntegrations,
@@ -85,5 +99,6 @@ export const useIntegration = () => {
         updateIntegration,
         deleteIntegration,
         rotateSecret,
+        updateOrgSyncDefaultRole,
     };
 };

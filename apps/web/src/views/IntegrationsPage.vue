@@ -1,21 +1,21 @@
 <script setup lang="ts">
     import DeleteIntegrationDialog from '@/components/integrations/DeleteIntegrationDialog.vue';
-    import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
-    import IntegrationCard from '@/components/integrations/IntegrationCard.vue';
-    import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
-    import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
-    import RotateSecretDialog from '@/components/integrations/RotateSecretDialog.vue';
-    import UnlinkInstallationDialog from '@/components/integrations/UnlinkInstallationDialog.vue';
-    import PageHeader from '@/components/PageHeader.vue';
-    import Button from '@/components/ui/Button.vue';
-    import Dialog from '@/components/ui/Dialog.vue';
-    import EmptyState from '@/components/ui/EmptyState.vue';
-    import Skeleton from '@/components/ui/Skeleton.vue';
-    import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
-    import {hasRole} from '@common/types';
-    import {ExternalLink, Github, Plug, Plus} from 'lucide-vue-next';
-    import {onMounted} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
+import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
+import IntegrationCard from '@/components/integrations/IntegrationCard.vue';
+import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
+import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
+import RotateSecretDialog from '@/components/integrations/RotateSecretDialog.vue';
+import UnlinkInstallationDialog from '@/components/integrations/UnlinkInstallationDialog.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Dialog from '@/components/ui/Dialog.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
+import Skeleton from '@/components/ui/Skeleton.vue';
+import { useIntegrationCrud } from '@/composables/useIntegrationCrud';
+import { hasRole } from '@common/types';
+import { ExternalLink, Github, Plug, Plus } from 'lucide-vue-next';
+import { onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
     const route = useRoute();
     const router = useRouter();
@@ -40,6 +40,7 @@
         confirmUnlink,
         handleUnlink,
         handleSaveEvents,
+        handleUpdateOrgSyncRole,
         showLeaveConfirm,
         leavingIntegration,
         isLeaving,
@@ -128,6 +129,7 @@
                 @rotate="confirmRotate"
                 @unlink="confirmUnlink"
                 @save-events="handleSaveEvents"
+                @update-org-sync-role="handleUpdateOrgSyncRole"
             />
         </div>
 
