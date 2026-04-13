@@ -5,7 +5,14 @@ import {getLogger} from '@/shared/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';
-import {githubAppInstallations, githubAppWebhooks, githubOrgMembers, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {
+    githubAppInstallations,
+    githubAppWebhooks,
+    githubOrgMembers,
+    integrations,
+    pendingOrgSync,
+    userAssignments,
+} from '@gitgazer/db/schema/github/workflows';
 import {type GithubOrgRole} from '@gitgazer/db/types';
 import {
     InstallationEvent,
@@ -279,7 +286,20 @@ const syncMemberToIntegration = async (installationId: number, githubUserId: num
     const [gitgazerUser] = await db.select({id: users.id}).from(users).where(eq(users.githubId, githubUserId));
 
     if (!gitgazerUser) {
-        logger.info('Org member has no GitGazer account, skipping auto-add', {githubUserId, githubLogin, integrationId});
+        logger.info('Org member has no GitGazer account, storing as pending', {githubUserId, githubLogin, integrationId});
+
+        await db
+            .insert(pendingOrgSync)
+            .values({
+                integrationId,
+                githubUserId,
+                githubLogin,
+                role,
+            })
+            .onConflictDoNothing({
+                target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
+            });
+
         return;
     }
 
@@ -351,7 +371,11 @@ const removeMemberFromIntegration = async (installationId: number, githubUserId:
     const [gitgazerUser] = await db.select({id: users.id}).from(users).where(eq(users.githubId, githubUserId));
 
     if (!gitgazerUser) {
-        logger.debug('Org member has no GitGazer account, skipping removal', {githubUserId, githubLogin, integrationId});
+        logger.debug('Org member has no GitGazer account, cleaning up pending entry', {githubUserId, githubLogin, integrationId});
+
+        // Clean up any pending org sync entry for this member
+        await db.delete(pendingOrgSync).where(and(eq(pendingOrgSync.integrationId, integrationId), eq(pendingOrgSync.githubUserId, githubUserId)));
+
         return;
     }
 

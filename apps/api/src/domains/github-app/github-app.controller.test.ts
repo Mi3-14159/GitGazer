@@ -41,6 +41,10 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
         integrationId: Symbol('integrationId'),
         orgSyncDefaultRole: Symbol('orgSyncDefaultRole'),
     },
+    pendingOrgSync: {
+        integrationId: Symbol('integrationId'),
+        githubUserId: Symbol('githubUserId'),
+    },
     userAssignments: {
         userId: Symbol('userId'),
         integrationId: Symbol('integrationId'),
@@ -245,6 +249,9 @@ describe('github-app.controller — organization events', () => {
 
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
             expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+
+            // Verify pending entry was stored for the unmatched member
+            expect(mockDb.insert).toHaveBeenCalled();
         });
     });
 
@@ -342,6 +349,9 @@ describe('github-app.controller — organization events', () => {
 
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
             expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+
+            // Verify pending entry was cleaned up (delete for org_members + delete for pending)
+            expect(mockDb.delete).toHaveBeenCalledTimes(2);
         });
     });
 

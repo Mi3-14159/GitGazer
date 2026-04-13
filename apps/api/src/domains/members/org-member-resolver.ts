@@ -3,7 +3,7 @@ import {getLogger} from '@/shared/logger';
 import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';
-import {githubOrgMembers, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {githubOrgMembers, pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {type OrgSyncDefaultRole} from '@gitgazer/db/types';
 import {eq, inArray} from 'drizzle-orm';
 
@@ -91,6 +91,34 @@ export const resolveAndAssignOrgMembers = async (params: {
         });
     }
 
+    // 4. Store pending entries for unmatched members (deferred matching on login)
+    //    These are resolved in authentication.ts when the user first logs in.
+    if (unmatched.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < unmatched.length; i += BATCH_SIZE) {
+            const batch = unmatched.slice(i, i + BATCH_SIZE);
+            await db
+                .insert(pendingOrgSync)
+                .values(
+                    batch.map((m) => ({
+                        integrationId,
+                        githubUserId: m.githubUserId,
+                        githubLogin: m.githubLogin,
+                        role,
+                    })),
+                )
+                .onConflictDoNothing({
+                    target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
+                });
+        }
+
+        logger.info('Stored pending org sync entries for unmatched members', {
+            integrationId,
+            installationId,
+            pendingCount: unmatched.length,
+        });
+    }
+
     logger.info('Org member auto-add completed', {
         integrationId,
         installationId,
@@ -98,7 +126,7 @@ export const resolveAndAssignOrgMembers = async (params: {
         unmatched: unmatched.length,
     });
 
-    // 4. Log results in event log
+    // 5. Log results in event log
     await createEventLogEntry({
         integrationId,
         category: 'integration',

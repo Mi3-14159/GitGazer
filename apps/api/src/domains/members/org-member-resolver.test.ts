@@ -2,8 +2,13 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 // ---- Mocks ----
 
+const mockOnConflictDoNothingInsert = vi.fn().mockResolvedValue(undefined);
+const mockValuesInsert = vi.fn().mockReturnValue({onConflictDoNothing: mockOnConflictDoNothingInsert});
+const mockDbInsert = vi.fn().mockReturnValue({values: mockValuesInsert});
+
 const mockDb = {
     select: vi.fn(),
+    insert: mockDbInsert,
 };
 
 const mockWithRlsTransaction = vi.fn();
@@ -23,6 +28,7 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubOrgMembers: Symbol('githubOrgMembers'),
+    pendingOrgSync: Symbol('pendingOrgSync'),
     userAssignments: Symbol('userAssignments'),
 }));
 
@@ -135,6 +141,11 @@ describe('org-member-resolver', () => {
 
             expect(result).toEqual({matched: 0, unmatched: 1});
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
+
+            // Verify pending entry was stored for the unmatched member
+            expect(mockDbInsert).toHaveBeenCalled();
+            expect(mockValuesInsert).toHaveBeenCalledWith([{integrationId: 'int-1', githubUserId: 9999, githubLogin: 'unknown', role: 'viewer'}]);
+            expect(mockOnConflictDoNothingInsert).toHaveBeenCalled();
         });
     });
 });

@@ -198,10 +198,8 @@ describe('org-member-sync', () => {
             // resolveAndAssignOrgMembers still called (auto-add)
             expect(mockResolveAndAssignOrgMembers).toHaveBeenCalled();
 
-            // Transaction entered but no stale queries executed on tx
-            expect(mockWithRlsTransaction).toHaveBeenCalled();
-            expect(mockTxSelect).not.toHaveBeenCalled();
-            expect(mockTxDelete).not.toHaveBeenCalled();
+            // Early return before RLS transaction — no stale cleanup attempted
+            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
         });
 
         it('does not throw when reconciliation fails', async () => {

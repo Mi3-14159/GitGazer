@@ -4,7 +4,7 @@ import {getLogger} from '@/shared/logger';
 import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';
-import {githubAppInstallations, githubOrgMembers, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {githubAppInstallations, githubOrgMembers, integrations, pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {and, eq, inArray, isNotNull, notInArray, sql} from 'drizzle-orm';
 
 const BATCH_SIZE = 500;
@@ -100,25 +100,25 @@ const reconcileIntegrationMembers = async (installationId: number, accountLogin:
     // 1. Auto-add any new members (idempotent — onConflictDoNothing)
     await resolveAndAssignOrgMembers({integrationId, installationId, role, accountLogin});
 
+    // Fetch current org member IDs once — reused for both stale assignment cleanup and pending cleanup
+    const currentOrgMemberIds = await db
+        .select({githubUserId: githubOrgMembers.githubUserId})
+        .from(githubOrgMembers)
+        .where(eq(githubOrgMembers.installationId, installationId));
+
+    const currentGithubIds = currentOrgMemberIds.map((m) => m.githubUserId);
+
+    if (currentGithubIds.length === 0) {
+        // Safety: don't mass-remove if org members table is empty (likely transient error)
+        logger.debug('No org members found, skipping stale cleanup', {installationId, integrationId});
+        return;
+    }
+
     // 2. Remove org_sync assignments for users whose github_id is no longer in github_org_members
-    // All reads + deletes in a single transaction for atomicity
     await withRlsTransaction({
         integrationIds: [integrationId],
         userName: gitgazerWriter.name,
         callback: async (tx) => {
-            const currentOrgMemberIds = await db
-                .select({githubUserId: githubOrgMembers.githubUserId})
-                .from(githubOrgMembers)
-                .where(eq(githubOrgMembers.installationId, installationId));
-
-            const currentGithubIds = currentOrgMemberIds.map((m) => m.githubUserId);
-
-            if (currentGithubIds.length === 0) {
-                // Safety: don't mass-remove if org members table is empty (likely transient error)
-                logger.debug('No org members found, skipping stale assignment cleanup', {installationId, integrationId});
-                return;
-            }
-
             const staleAssignments = await tx
                 .select({userId: userAssignments.userId, githubId: users.githubId})
                 .from(userAssignments)
@@ -153,4 +153,9 @@ const reconcileIntegrationMembers = async (installationId: number, accountLogin:
             });
         },
     });
+
+    // 3. Clean up stale pending entries for members no longer in the org
+    await db
+        .delete(pendingOrgSync)
+        .where(and(eq(pendingOrgSync.integrationId, integrationId), notInArray(pendingOrgSync.githubUserId, currentGithubIds)));
 };
