@@ -1,6 +1,6 @@
 import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
-import {GITHUB_ORG_ROLES, MEMBER_ROLES} from '../../types';
+import {GITHUB_ORG_ROLES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
 import {users} from '../gitgazer';
 import {analystTenantSeparationPolicy, githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
@@ -14,6 +14,7 @@ export const integrations = githubSchema
                 .notNull()
                 .references(() => users.id),
             secret: uuid('secret').notNull().defaultRandom(),
+            orgSyncDefaultRole: varchar('org_sync_default_role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull().default('viewer'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],

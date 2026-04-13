@@ -7,7 +7,7 @@ import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
-import {Integration, isMemberRole, type MemberRole} from '@gitgazer/db/types';
+import {Integration, isMemberRole, type MemberRole, type OrgSyncDefaultRole} from '@gitgazer/db/types';
 import {and, eq, sql} from 'drizzle-orm';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
@@ -275,4 +275,40 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
     });
 
     return fullIntegrations[0];
+};
+
+export const updateOrgSyncSettings = async (params: {
+    integrationId: string;
+    defaultRole: OrgSyncDefaultRole;
+    integrationIds: string[];
+}): Promise<void> => {
+    const logger = getLogger();
+    const {integrationId, defaultRole, integrationIds} = params;
+
+    logger.info(`Updating org sync default role for integration ${integrationId} to ${defaultRole}`);
+
+    const results = await withRlsTransaction({
+        integrationIds,
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            return await tx
+                .update(integrations)
+                .set({orgSyncDefaultRole: defaultRole})
+                .where(eq(integrations.integrationId, integrationId))
+                .returning();
+        },
+    });
+
+    if (results.length === 0) {
+        throw new UnauthorizedError('Integration not found or access denied');
+    }
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Org sync settings updated',
+        message: `Default role for org-synced members changed to "${defaultRole}"`,
+        metadata: {integrationId, defaultRole},
+    });
 };

@@ -274,6 +274,13 @@
       "when": 1776031739716,
       "tag": "0038_wooden_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1776033212726,
+      "tag": "0039_nifty_war_machine",
+      "breakpoints": true
     }
   ]
 }
