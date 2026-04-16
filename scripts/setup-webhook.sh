@@ -395,9 +395,9 @@ flow_multiple_repos() {
         local owner="${repo_full%%/*}"
         local repo="${repo_full##*/}"
         if create_repo_webhook "$owner" "$repo"; then
-            ((succeeded++))
+            succeeded=$((succeeded + 1))
         else
-            ((failed++))
+            failed=$((failed + 1))
         fi
     done
 
@@ -461,9 +461,9 @@ flow_by_topic() {
         local repo_owner="${repo_full%%/*}"
         local repo_name="${repo_full##*/}"
         if create_repo_webhook "$repo_owner" "$repo_name"; then
-            ((succeeded++))
+            succeeded=$((succeeded + 1))
         else
-            ((failed++))
+            failed=$((failed + 1))
         fi
     done
 
