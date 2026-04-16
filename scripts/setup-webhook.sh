@@ -198,9 +198,9 @@ search_repos_by_topic() {
 
     while true; do
         local response
-        if ! response=$(gh_api GET "/search/repositories?q=${topic_query}org:${owner}&per_page=${per_page}&page=${page}" 2>&1); then
+        if ! response=$(gh_api GET "/search/repositories?q=${topic_query}archived:false+org:${owner}&per_page=${per_page}&page=${page}" 2>&1); then
             # Fallback: maybe it's a user, not an org
-            if ! response=$(gh_api GET "/search/repositories?q=${topic_query}user:${owner}&per_page=${per_page}&page=${page}" 2>&1); then
+            if ! response=$(gh_api GET "/search/repositories?q=${topic_query}archived:false+user:${owner}&per_page=${per_page}&page=${page}" 2>&1); then
                 error "Failed to search repositories."
                 return 1
             fi
