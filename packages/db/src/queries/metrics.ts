@@ -171,7 +171,13 @@ function buildUnionFilters(filter: MetricsFilter, repoIds: number[] | undefined)
         : sql``;
     const wrUserFilter = filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
     const prUserFilter = filter.usersOnly ? sql`AND ${pullRequests.authorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
-    return {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter};
+    const wrTopicsFilter = filter.topics?.length
+        ? sql`AND ${buildTopicsCondition(workflowRuns.repositoryId, workflowRuns.integrationId, filter.topics)}`
+        : sql``;
+    const prTopicsFilter = filter.topics?.length
+        ? sql`AND ${buildTopicsCondition(pullRequests.repositoryId, pullRequests.integrationId, filter.topics)}`
+        : sql``;
+    return {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter, wrTopicsFilter, prTopicsFilter};
 }
 
 // --- DORA Metrics ---
@@ -397,7 +403,8 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
         integrationIds,
         callback: async (tx) => {
             const repoIds = getEffectiveRepositoryIds(filter);
-            const {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter} = buildUnionFilters(filter, repoIds);
+            const {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter, wrTopicsFilter, prTopicsFilter} =
+                buildUnionFilters(filter, repoIds);
 
             const groupExprs = getGroupByExpressions(filter);
 
@@ -411,7 +418,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                         ${groupExprs.join}
                         WHERE ${workflowRuns.createdAt} >= ${from.toISOString()}::timestamptz
                           AND ${workflowRuns.createdAt} <= ${to.toISOString()}::timestamptz
-                          ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter}
+                          ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter} ${wrTopicsFilter}
                         GROUP BY group_key, group_label, period
                         UNION ALL
                         SELECT ${groupExprs.select},
@@ -421,7 +428,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                         ${groupExprs.join}
                         WHERE ${pullRequests.createdAt} >= ${from.toISOString()}::timestamptz
                           AND ${pullRequests.createdAt} <= ${to.toISOString()}::timestamptz
-                          ${prRepoFilter} ${prBranchFilter} ${prUserFilter}
+                          ${prRepoFilter} ${prBranchFilter} ${prUserFilter} ${prTopicsFilter}
                         GROUP BY group_key, group_label, period
                     ) combined
                     GROUP BY group_key, group_label, period
@@ -437,14 +444,14 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                     FROM ${workflowRuns}
                     WHERE ${workflowRuns.createdAt} >= ${from.toISOString()}::timestamptz
                       AND ${workflowRuns.createdAt} <= ${to.toISOString()}::timestamptz
-                      ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter}
+                      ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter} ${wrTopicsFilter}
                     GROUP BY period
                     UNION ALL
                     SELECT ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, count(*) as cnt
                     FROM ${pullRequests}
                     WHERE ${pullRequests.createdAt} >= ${from.toISOString()}::timestamptz
                       AND ${pullRequests.createdAt} <= ${to.toISOString()}::timestamptz
-                      ${prRepoFilter} ${prBranchFilter} ${prUserFilter}
+                      ${prRepoFilter} ${prBranchFilter} ${prUserFilter} ${prTopicsFilter}
                     GROUP BY period
                 ) combined
                 GROUP BY period
@@ -467,7 +474,8 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
         integrationIds,
         callback: async (tx) => {
             const repoIds = getEffectiveRepositoryIds(filter);
-            const {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter} = buildUnionFilters(filter, repoIds);
+            const {wrRepoFilter, prRepoFilter, wrBranchFilter, prBranchFilter, wrUserFilter, prUserFilter, wrTopicsFilter, prTopicsFilter} =
+                buildUnionFilters(filter, repoIds);
 
             const groupExprs = getGroupByExpressions(filter);
 
@@ -481,7 +489,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                         ${groupExprs.join}
                         WHERE ${workflowRuns.createdAt} >= ${from.toISOString()}::timestamptz
                           AND ${workflowRuns.createdAt} <= ${to.toISOString()}::timestamptz
-                          ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter}
+                          ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter} ${wrTopicsFilter}
                         UNION ALL
                         SELECT ${groupExprs.select},
                                ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, ${pullRequests.authorId} as actor
@@ -490,7 +498,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                         ${groupExprs.join}
                         WHERE ${pullRequests.createdAt} >= ${from.toISOString()}::timestamptz
                           AND ${pullRequests.createdAt} <= ${to.toISOString()}::timestamptz
-                          ${prRepoFilter} ${prBranchFilter} ${prUserFilter}
+                          ${prRepoFilter} ${prBranchFilter} ${prUserFilter} ${prTopicsFilter}
                     ) combined
                     GROUP BY group_key, group_label, period
                     ORDER BY group_label, period
@@ -505,13 +513,13 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                     FROM ${workflowRuns}
                     WHERE ${workflowRuns.createdAt} >= ${from.toISOString()}::timestamptz
                       AND ${workflowRuns.createdAt} <= ${to.toISOString()}::timestamptz
-                      ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter}
+                      ${wrRepoFilter} ${wrBranchFilter} ${wrUserFilter} ${wrTopicsFilter}
                     UNION ALL
                     SELECT ${dateTruncExpression(granularity, sql`${pullRequests.createdAt}`)} as period, ${pullRequests.authorId} as actor
                     FROM ${pullRequests}
                     WHERE ${pullRequests.createdAt} >= ${from.toISOString()}::timestamptz
                       AND ${pullRequests.createdAt} <= ${to.toISOString()}::timestamptz
-                      ${prRepoFilter} ${prBranchFilter} ${prUserFilter}
+                      ${prRepoFilter} ${prBranchFilter} ${prUserFilter} ${prTopicsFilter}
                 ) combined
                 GROUP BY period
                 ORDER BY period
