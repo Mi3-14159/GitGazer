@@ -4,6 +4,7 @@ export interface TeamMember {
     id: string;
     email: string;
     name: string;
+    nickname?: string;
     avatar?: string;
     role: UserRole;
     status: 'active' | 'invited' | 'inactive';

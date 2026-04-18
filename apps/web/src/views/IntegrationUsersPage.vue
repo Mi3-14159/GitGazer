@@ -66,6 +66,7 @@
                 id: String(m.userId),
                 email: m.user.email ?? '',
                 name: m.user.name ?? m.user.email ?? 'Unknown',
+                nickname: m.user.githubLogin ?? undefined,
                 avatar: m.user.picture ?? undefined,
                 role: m.role as UserRole,
                 status: 'active' as const,

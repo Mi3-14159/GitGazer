@@ -87,7 +87,14 @@
                     <div class="flex-1 min-w-0 space-y-2">
                         <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                             <div class="flex-1 min-w-0">
-                                <h4 class="font-medium truncate">{{ user.name }}</h4>
+                                <h4 class="font-medium truncate">
+                                    {{ user.name }}
+                                    <span
+                                        v-if="user.nickname"
+                                        class="text-sm font-normal text-muted-foreground"
+                                        >@{{ user.nickname }}</span
+                                    >
+                                </h4>
                                 <p class="text-sm text-muted-foreground truncate">{{ user.email }}</p>
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">
