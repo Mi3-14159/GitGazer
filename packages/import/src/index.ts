@@ -2,7 +2,7 @@ import {createImportClient, type ImportClient} from './api-client';
 import {
     fetchAllPullRequests,
     fetchAllWorkflowRuns,
-    fetchOrgRepos,
+    fetchOwnerRepos,
     fetchPullRequest,
     fetchPullRequestReviews,
     fetchRepo,
@@ -84,7 +84,7 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
 
     // ── Workflow runs & jobs ─────────────────────────────────────────
     if (needsWorkflowData) {
-        console.log('\nFetching workflow runs...');
+        console.log(`\nFetching workflow runs (created filter: ${createdFilter ?? 'none'})...`);
         const runs = await fetchAllWorkflowRuns(owner, repo, createdFilter);
         console.log(`  Total runs: ${runs.length}`);
 
@@ -284,8 +284,8 @@ const main = async () => {
         repos = [singleRepo];
     } else {
         // Org discovery mode
-        console.log(`\nDiscovering repositories in org: ${owner}`);
-        const orgRepos = await fetchOrgRepos(owner);
+        console.log(`\nDiscovering repositories for: ${owner}`);
+        const orgRepos = await fetchOwnerRepos(owner);
         console.log(`  Found ${orgRepos.length} total repositories`);
 
         if (topicFilter) {

@@ -208,6 +208,44 @@ export const fetchOrgRepos = async (org: string): Promise<GitHubOrgRepo[]> => {
     return allRepos;
 };
 
+export const fetchUserRepos = async (username: string): Promise<GitHubOrgRepo[]> => {
+    const allRepos: GitHubOrgRepo[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+        const params = new URLSearchParams();
+        params.set('type', 'owner');
+        params.set('sort', 'full_name');
+        params.set('per_page', String(perPage));
+        params.set('page', String(page));
+
+        const url = `${GITHUB_API_BASE}/users/${encodeURIComponent(username)}/repos?${params}`;
+        const repos = await fetchJson<GitHubOrgRepo[]>(url);
+        allRepos.push(...repos);
+
+        console.log(`  Fetched page ${page} of user repos (${allRepos.length} so far)`);
+
+        if (repos.length < perPage) break;
+        page++;
+    }
+
+    return allRepos;
+};
+
+export const fetchOwnerRepos = async (owner: string): Promise<GitHubOrgRepo[]> => {
+    try {
+        return await fetchOrgRepos(owner);
+    } catch (err: unknown) {
+        const isNotFound = err instanceof Error && err.message.includes('error 404');
+        if (isNotFound) {
+            console.log(`  "${owner}" is not an org, trying as user...`);
+            return fetchUserRepos(owner);
+        }
+        throw err;
+    }
+};
+
 export const filterReposByTopics = (repos: GitHubOrgRepo[], topics: string[]): GitHubOrgRepo[] => {
     const lowerTopics = topics.map((t) => t.toLowerCase());
     return repos.filter((repo) => {
