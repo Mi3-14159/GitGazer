@@ -1,6 +1,7 @@
 <script setup lang="ts">
+    import AppLogo from '@/components/icons/AppLogo.vue';
     import Button from '@/components/ui/Button.vue';
-    import {GitBranch, Sparkles} from 'lucide-vue-next';
+    import {Sparkles} from 'lucide-vue-next';
 
     const emit = defineEmits<{
         start: [];
@@ -23,9 +24,10 @@
             >
                 <!-- Logo -->
                 <div class="flex flex-col items-center text-center mb-5">
-                    <div class="flex items-center justify-center w-14 h-14 bg-primary rounded-2xl mb-4">
-                        <GitBranch class="h-7 w-7 text-primary-foreground" />
-                    </div>
+                    <AppLogo
+                        size="lg"
+                        class="mb-4"
+                    />
                     <div class="flex items-center gap-2 mb-2">
                         <Sparkles class="h-5 w-5 text-primary" />
                         <h2 class="text-xl font-bold text-foreground">Welcome to GitGazer!</h2>

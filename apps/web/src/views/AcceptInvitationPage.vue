@@ -1,10 +1,11 @@
 <script setup lang="ts">
+    import AppLogo from '@/components/icons/AppLogo.vue';
     import GitHubIcon from '@/components/icons/GitHubIcon.vue';
     import Button from '@/components/ui/Button.vue';
     import Card from '@/components/ui/Card.vue';
     import {useAuth} from '@/composables/useAuth';
     import {useMembers} from '@/composables/useMembers';
-    import {AlertCircle, CheckCircle2, GitBranch, Loader2, LogIn} from 'lucide-vue-next';
+    import {AlertCircle, CheckCircle2, Loader2, LogIn} from 'lucide-vue-next';
     import {onMounted, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
@@ -62,9 +63,10 @@
         <div class="w-full max-w-sm space-y-6">
             <!-- Logo -->
             <div class="text-center space-y-2">
-                <div class="flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mx-auto mb-4">
-                    <GitBranch class="h-8 w-8 text-primary-foreground" />
-                </div>
+                <AppLogo
+                    size="lg"
+                    class="mx-auto mb-4"
+                />
                 <h1 class="text-3xl font-bold">GitGazer</h1>
             </div>
 

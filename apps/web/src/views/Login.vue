@@ -1,9 +1,10 @@
 <script setup lang="ts">
+    import AppLogo from '@/components/icons/AppLogo.vue';
     import GitHubIcon from '@/components/icons/GitHubIcon.vue';
     import Button from '@/components/ui/Button.vue';
     import Card from '@/components/ui/Card.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {BarChart3, BellRing, GitBranch, LayoutDashboard, Webhook} from 'lucide-vue-next';
+    import {BarChart3, BellRing, LayoutDashboard, Webhook} from 'lucide-vue-next';
     import {onMounted} from 'vue';
     import {useRouter} from 'vue-router';
 
@@ -36,9 +37,10 @@
     <div class="min-h-screen flex items-center justify-center bg-background px-4">
         <div class="w-full max-w-sm space-y-6">
             <div class="text-center space-y-2">
-                <div class="flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mx-auto mb-4">
-                    <GitBranch class="h-8 w-8 text-primary-foreground" />
-                </div>
+                <AppLogo
+                    size="lg"
+                    class="mx-auto mb-4"
+                />
                 <h1 class="text-3xl font-bold">GitGazer</h1>
                 <p class="text-muted-foreground">Monitor your GitHub workflows with ease</p>
             </div>

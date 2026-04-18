@@ -1,10 +1,11 @@
 <script setup lang="ts">
+    import AppLogo from '@/components/icons/AppLogo.vue';
     import ThemeToggle from '@/components/ThemeToggle.vue';
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import {useAuth} from '@/composables/useAuth';
     import {useTour} from '@/composables/useTour';
     import type {UserAttributes} from '@common/types';
-    import {BookOpen, CircleHelp, GitBranch, Keyboard, LogOut, Play, RotateCcw} from 'lucide-vue-next';
+    import {BookOpen, CircleHelp, Keyboard, LogOut, Play, RotateCcw} from 'lucide-vue-next';
     import {DropdownMenuItem} from 'radix-vue';
     import {onMounted, ref} from 'vue';
 
@@ -45,9 +46,7 @@
         <div class="container mx-auto px-4 py-2">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
-                        <GitBranch class="h-4 w-4 text-primary-foreground" />
-                    </div>
+                    <AppLogo size="sm" />
                     <div class="flex items-center gap-2">
                         <h1 class="text-xl font-bold">GitGazer</h1>
                         <span class="text-sm text-muted-foreground hidden sm:inline"> Monitor your GitHub workflows with ease </span>
