@@ -5,7 +5,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 const config: Config = {
     title: 'GitGazer',
     tagline: 'GitHub Workflow Monitoring & Notifications',
-    favicon: 'img/favicon.ico',
+    favicon: 'img/logo.svg',
 
     future: {
         v4: true,
