@@ -9,7 +9,7 @@ handoffs:
     send: true
   - label: Forward to Technical Writer
     agent: Technical Writer
-    prompt: 'Update the documentation based on the changes made'
+    prompt: 'Update the docs app and other documentations based on the changes made'
     send: true
   - label: Forward to Security Engineer
     agent: Security Engineer
