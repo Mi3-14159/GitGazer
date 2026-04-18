@@ -36,8 +36,10 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
         throw new BadRequestError('Invalid request body');
     }
 
+    const source = reqCtx.event?.headers?.['x-gitgazer-source'] === 'backfill' ? ('backfill' as const) : undefined;
+
     try {
-        await handleEvent(reqCtx.params.integrationId, githubEventType as EmitterWebhookEventName & keyof EventPayloadMap, requestBody);
+        await handleEvent(reqCtx.params.integrationId, githubEventType as EmitterWebhookEventName & keyof EventPayloadMap, requestBody, {source});
     } catch (error) {
         if (error instanceof HttpError) {
             throw error;

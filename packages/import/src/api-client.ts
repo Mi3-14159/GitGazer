@@ -26,6 +26,7 @@ export const createImportClient = (config: ImportApiConfig) => {
                 'Content-Type': 'application/json',
                 'X-GitHub-Event': eventType,
                 'X-Hub-Signature-256': signature,
+                'X-GitGazer-Source': 'backfill',
             },
             body,
         });

@@ -28,9 +28,10 @@ export const handleEvent = async <T extends EmitterWebhookEventName & keyof Even
     integrationId: string,
     eventType: T,
     event: EventPayloadMap[T],
+    options?: {source?: 'backfill'},
 ): Promise<void> => {
     const queueUrl = config.get('webhookQueueUrl');
-    await sendWebhookEvent(queueUrl, {integrationId, eventType, payload: event});
+    await sendWebhookEvent(queueUrl, {integrationId, eventType, payload: event, source: options?.source});
 };
 
 export const postToConnections = async <T>(channel: WebSocketChannel, params: StreamEvent<T>) => {

@@ -7,6 +7,7 @@ export interface WebhookMessage {
     integrationId: string;
     eventType: string;
     payload: unknown;
+    source?: 'backfill';
 }
 
 export interface OrgMemberSyncTask {

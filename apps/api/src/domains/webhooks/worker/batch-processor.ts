@@ -14,6 +14,7 @@ type WebhookMessage = {
     integrationId: string;
     eventType: EmitterWebhookEventName & keyof EventPayloadMap;
     payload: EventPayloadMap[EmitterWebhookEventName & keyof EventPayloadMap];
+    source?: 'backfill';
 };
 
 type SQSMessage = WebhookMessage | OrgMemberSyncTask;
@@ -30,9 +31,13 @@ export const processRecord = async (record: SQSRecord): Promise<void> => {
         return;
     }
 
-    const {integrationId, eventType, payload} = message;
+    const {integrationId, eventType, payload, source} = message;
 
     const {data, stale} = await insertEvent(integrationId, eventType, payload);
+
+    if (source === 'backfill') {
+        return;
+    }
 
     // Post-commit side effects — failures here should not cause SQS retry
     try {
