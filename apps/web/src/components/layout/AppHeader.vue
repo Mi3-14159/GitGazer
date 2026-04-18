@@ -4,7 +4,7 @@
     import {useAuth} from '@/composables/useAuth';
     import {useTour} from '@/composables/useTour';
     import type {UserAttributes} from '@common/types';
-    import {CircleHelp, GitBranch, Keyboard, LogOut, Play, RotateCcw} from 'lucide-vue-next';
+    import {BookOpen, CircleHelp, GitBranch, Keyboard, LogOut, Play, RotateCcw} from 'lucide-vue-next';
     import {DropdownMenuItem} from 'radix-vue';
     import {onMounted, ref} from 'vue';
 
@@ -96,6 +96,17 @@
                             <Keyboard class="h-3.5 w-3.5" />
                             Keyboard shortcuts
                             <span class="ml-auto text-xs text-muted-foreground">← → Esc</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            as="a"
+                            href="https://docs.gitgazer.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md cursor-pointer hover:bg-accent outline-none"
+                        >
+                            <BookOpen class="h-3.5 w-3.5" />
+                            Documentation
+                            <span class="ml-auto text-xs text-muted-foreground">↗</span>
                         </DropdownMenuItem>
                     </DropdownMenu>
 
