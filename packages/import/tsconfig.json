@@ -8,11 +8,6 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "dist",
-    "paths": {
-      "@/*": ["../../apps/api/src/*"],
-      "@gitgazer/db/*": ["../../packages/db/src/*"],
-      "@gitgazer/db": ["../../packages/db/src"]
-    },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,

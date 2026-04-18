@@ -1,4 +1,4 @@
-import {insertEvent} from '@/domains/webhooks/importers';
+import {createImportClient, type ImportClient} from './api-client';
 import {
     fetchAllPullRequests,
     fetchAllWorkflowRuns,
@@ -37,7 +37,7 @@ const parseEventTypes = (raw: string | undefined): SupportedEventType[] => {
 };
 
 interface ImportConfig {
-    integrationId: string;
+    client: ImportClient;
     dryRun: boolean;
     concurrency: number;
     eventTypes: SupportedEventType[];
@@ -58,7 +58,7 @@ interface ImportStats {
 }
 
 const importRepo = async (owner: string, repo: string, config: ImportConfig): Promise<ImportStats> => {
-    const {integrationId, dryRun, concurrency, eventTypes, createdFilter, since, until} = config;
+    const {client, dryRun, concurrency, eventTypes, createdFilter, since, until} = config;
 
     console.log(`\n───────────────────────────────────────`);
     console.log(`Importing: ${owner}/${repo}`);
@@ -99,7 +99,7 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
                     if (dryRun) {
                         console.log(`${runLabel} - DRY RUN (workflow_run, action=${runEvent.action})`);
                     } else {
-                        await insertEvent(integrationId, 'workflow_run', runEvent);
+                        await client.sendEvent('workflow_run', runEvent);
                         console.log(`${runLabel} - inserted workflow_run`);
                     }
                 } else {
@@ -119,7 +119,7 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
                             if (dryRun) {
                                 console.log(`  Job ${j + 1}/${jobs.length} #${job.id} (${job.name}) - DRY RUN`);
                             } else {
-                                await insertEvent(integrationId, 'workflow_job', jobEvent);
+                                await client.sendEvent('workflow_job', jobEvent);
                                 console.log(`  Job ${j + 1}/${jobs.length} #${job.id} (${job.name}) - inserted`);
                             }
                             return job;
@@ -184,7 +184,7 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
                     if (dryRun) {
                         console.log(`${prLabel} - DRY RUN (pull_request, action=${prEvent.action})`);
                     } else {
-                        await insertEvent(integrationId, 'pull_request', prEvent);
+                        await client.sendEvent('pull_request', prEvent);
                         console.log(`${prLabel} - inserted pull_request`);
                     }
                 }),
@@ -229,7 +229,7 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
                     if (dryRun) {
                         console.log(`${prLabel} review #${review.id} - DRY RUN`);
                     } else {
-                        await insertEvent(integrationId, 'pull_request_review', reviewEvent);
+                        await client.sendEvent('pull_request_review', reviewEvent);
                         console.log(`${prLabel} review #${review.id} by ${review.user.login} (${review.state}) - inserted`);
                     }
                     stats.reviewSuccessCount++;
@@ -247,7 +247,11 @@ const importRepo = async (owner: string, repo: string, config: ImportConfig): Pr
 const main = async () => {
     const owner = required('GITHUB_OWNER');
     const integrationId = required('INTEGRATION_ID');
+    const apiUrl = required('API_URL');
+    const integrationSecret = required('INTEGRATION_SECRET');
     required('GITHUB_TOKEN');
+
+    const client = createImportClient({apiUrl, integrationId, secret: integrationSecret});
 
     const singleRepo = process.env.GITHUB_REPO;
     const topicFilter = process.env.GITHUB_TOPIC;
@@ -270,7 +274,7 @@ const main = async () => {
         createdFilter = `<=${until}`;
     }
 
-    const config: ImportConfig = {integrationId, dryRun, concurrency, eventTypes, createdFilter, since, until};
+    const config: ImportConfig = {client, dryRun, concurrency, eventTypes, createdFilter, since, until};
 
     // ── Determine which repos to import ─────────────────────────────
     let repos: string[];
@@ -309,6 +313,7 @@ const main = async () => {
     console.log(`Organization:   ${owner}`);
     console.log(`Repositories:   ${repos.length}`);
     console.log(`Integration ID: ${integrationId}`);
+    console.log(`API URL:        ${apiUrl}`);
     console.log(`Date filter:    ${createdFilter ?? 'none (all)'}`);
     console.log(`Concurrency:    ${concurrency} run(s) in parallel`);
     console.log(`Event types:    ${eventTypes.join(', ')}`);
