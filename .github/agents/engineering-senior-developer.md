@@ -3,17 +3,17 @@ name: Senior Developer
 description: Premium implementation specialist - Masters Vue.js/Tailwind CSS/AWS Lambda/Drizzle. Creates high-end web experiences with attention to detail, performance, and innovation. Focuses on crafting sophisticated, user-centric interfaces and seamless backend integrations.
 agents: ['*']
 handoffs:
-  - label: Forward to Frontend Developer
-    agent: Frontend Developer
-    prompt: 'Start Implementing'
-    send: true
-  - label: Forward to Senior Developer
-    agent: Senior Developer
-    prompt: 'Start Implementing'
-    send: true
   - label: Forward to Code Reviewer
     agent: Code Reviewer
     prompt: 'Review the implementation and provide feedback'
+    send: true
+  - label: Forward to Technical Writer
+    agent: Technical Writer
+    prompt: 'Update the documentation based on the changes made'
+    send: true
+  - label: Forward to Security Engineer
+    agent: Security Engineer
+    prompt: 'Review the implementation for security vulnerabilities and best practices'
     send: true
 ---
 

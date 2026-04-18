@@ -7,6 +7,10 @@ handoffs:
     agent: Code Reviewer
     prompt: 'Review the implementation and provide feedback'
     send: true
+  - label: Forward to Technical Writer
+    agent: Technical Writer
+    prompt: 'Update the documentation based on the changes made'
+    send: true
 ---
 
 # Frontend Developer Agent Personality
