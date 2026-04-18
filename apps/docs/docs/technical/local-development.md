@@ -140,7 +140,8 @@ No backend setup needed. All API calls go directly to production.
 
 - The production backend's `ALLOWED_FRONTEND_ORIGINS` must include `https://app.gitgazer.localhost:5173`.
 - The Cognito app client must have `https://app.gitgazer.localhost:5173` as an allowed callback URL.
-  :::
+
+    :::
 
 ## Environment Variables
 
@@ -173,40 +174,52 @@ Backend variables are configured in `apps/api/.env`. Copy from `.env.dev.example
 
 Connect to Aurora PostgreSQL via SSM Session Manager port forwarding through the bastion host. No SSH keys or open inbound ports required.
 
-### 1. Get the Port Forwarding Command
+### Quick Start
 
-Terraform outputs the ready-to-use command:
-
-```bash
-cd infra
-aws-vault exec <profile> -- terraform output bastion_ssm_port_forward_command
-```
-
-This returns a command like:
+The `db:tunnel` script automatically discovers the bastion instance and RDS Proxy endpoint, then opens a port-forwarding session:
 
 ```bash
-aws ssm start-session \
-  --target i-0abc123def456 \
-  --document-name AWS-StartPortForwardingSessionToRemoteHost \
-  --parameters '{"host":["<RDS_PROXY_ENDPOINT>"],"portNumber":["5432"],"localPortNumber":["5432"]}'
+aws-vault exec <profile> --no-session -- pnpm run db:tunnel
 ```
 
-### 2. Start the Tunnel
+You should see output like:
 
-Run the command from the Terraform output (wrapped with `aws-vault` for credentials):
+```
+ℹ  Looking up bastion instance gitgazer-bastion-prod in eu-central-1...
+✔  Found bastion: i-0abc123def456
+ℹ  Looking up RDS Proxy endpoint gitgazer-prod...
+✔  Found RDS Proxy: gitgazer-prod.proxy-xxxx.eu-central-1.rds.amazonaws.com
+ℹ  Starting SSM port-forwarding session...
+  Local:  localhost:5432
+  Remote: gitgazer-prod.proxy-xxxx.eu-central-1.rds.amazonaws.com:5432
+✔  Connect with: psql -h localhost -p 5432 -U root
+```
+
+Keep this terminal open — the tunnel stays active until you press `Ctrl+C`.
+
+#### Options
+
+| Flag                | Default        | Description                                                |
+| ------------------- | -------------- | ---------------------------------------------------------- |
+| `--local-port PORT` | `5432`         | Local port to bind (use a different port if 5432 is taken) |
+| `--workspace NAME`  | `prod`         | Terraform workspace to target (e.g. `default`, `staging`)  |
+| `--region REGION`   | `eu-central-1` | AWS region override                                        |
+
+Example with a custom local port targeting the `default` workspace:
 
 ```bash
-aws-vault exec <profile> -- aws ssm start-session \
-  --target <BASTION_INSTANCE_ID> \
-  --document-name AWS-StartPortForwardingSessionToRemoteHost \
-  --parameters '{"host":["<RDS_PROXY_ENDPOINT>"],"portNumber":["5432"],"localPortNumber":["5432"]}'
+aws-vault exec <profile> --no-session -- pnpm run db:tunnel --workspace default --local-port 5433
 ```
 
-You should see `Port 5432 opened for sessionId ...` — the tunnel is active. Keep this terminal open.
+#### Prerequisites
 
-### 3. Connect
+- **AWS CLI v2** installed and configured
+- **[Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)** installed
+- IAM permissions for `ssm:StartSession` and `ec2:DescribeInstances`
 
-With the tunnel running, the database is available at `localhost:5432`. Open Drizzle Studio in a separate terminal:
+### Connect to the Database
+
+With the tunnel running, the database is available at `localhost:5432` (or your chosen port). Open Drizzle Studio in a separate terminal:
 
 ```bash
 cd apps/api
@@ -214,6 +227,15 @@ npx drizzle-kit studio
 ```
 
 Or connect with any PostgreSQL client using `localhost:5432` and the credentials from your `.env` file.
+
+### Manual Tunnel (Alternative)
+
+If you prefer to construct the command yourself, Terraform outputs the full SSM command:
+
+```bash
+cd infra
+aws-vault exec <profile> -- terraform output bastion_ssm_port_forward_command
+```
 
 ## Running Tests
 
