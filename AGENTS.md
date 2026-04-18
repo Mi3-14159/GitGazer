@@ -138,7 +138,6 @@ Technical architecture and UX specialist who provides developers with solid foun
 | Skill                  | File                                           | Use When                                                           |
 | ---------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
 | `refactor`             | `.github/skills/refactor/SKILL.md`             | Improving code structure without changing behavior                 |
-| `refactor-plan`        | `.github/skills/refactor-plan/SKILL.md`        | Planning multi-file refactors with sequencing and rollback         |
 | `typescript-magician`  | `.github/skills/typescript-magician/SKILL.md`  | Complex generics, type guards, removing `any`, resolving TS errors |
 | `documentation-writer` | `.github/skills/documentation-writer/SKILL.md` | Writing documentation following the Diátaxis framework             |
 

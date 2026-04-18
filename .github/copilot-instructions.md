@@ -7,7 +7,7 @@ GitGazer is a GitHub workflow monitoring tool with notification system built on 
 This repository uses targeted instruction files for different modules. When working on specific areas, **always consult**:
 
 - **Backend**: See [apps/api/.github/backend.instructions.md](../apps/api/.github/backend.instructions.md) for Lambda development
-- **Frontend**: See [apps/web/.github/frontend.instructions.md](../apps/web/.github/frontend.instructions.md) for Vue/Vuetify development
+- **Frontend**: See [apps/web/.github/frontend.instructions.md](../apps/web/.github/frontend.instructions.md) for Vue/Radix Vue/Tailwind development
 - **Infrastructure**: See [infra/.github/infrastructure.instructions.md](../infra/.github/infrastructure.instructions.md) for Terraform/AWS resources
 
 These files provide detailed build commands, testing procedures, and module-specific patterns.
@@ -25,7 +25,7 @@ This is a pnpm monorepo with `apps/` and `packages/` workspaces.
     - Analytics Lambda handler for data aggregation
     - Custom router built on `@aws-lambda-powertools/event-handler/http`
     - Structured logging with AWS Powertools
-- **`apps/web/`**: Vue 3 + Vuetify SPA frontend
+- **`apps/web/`**: Vue 3 + Radix Vue + Tailwind CSS 4 SPA frontend
     - Composition API with `<script setup>`
     - Pinia for state management
     - Real-time WebSocket updates
@@ -44,12 +44,12 @@ The backend serves as both API and GitHub webhook processor, while the frontend 
 
 ### Backend (`apps/api/`)
 
-- **Router Pattern**: Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/router/index.ts` handles API Gateway events
-- **Middleware Chain**: Sequential processing with `cors` → `compress` → `authenticate` → `verifyGithubSign` → route handlers
+- **Router Pattern**: Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/shared/router/index.ts` handles API Gateway events
+- **Middleware Chain**: Sequential processing with `compress` → `cors` → `authenticate` → `originCheck` → route handlers
 - **Path Aliases**: Use `@/` prefix (maps to `src/`) - configured in `tsconfig.json` and `vitest.config.ts`
     - **IMPORTANT**: Never use relative imports like `../../../` - always use `@/` path aliases
     - Use `@gitgazer/db/*` to import from the shared `packages/db` package
-- **AWS Client Pattern**: Centralized clients in `src/clients/` (rds, s3, bedrock, websocket-connections)
+- **AWS Client Pattern**: Centralized clients in `src/shared/clients/` (s3, ses, sqs, secrets-manager, websocket, github-app)
 - **Database**: Drizzle ORM via `@gitgazer/db` package, with `withRlsTransaction` for row-level security
 - **Logging**: AWS Powertools Logger for structured logging
 - **Multiple Lambdas**: Handlers in `src/handlers/` with a shared tsup build config
@@ -62,9 +62,9 @@ In order to run the backend locally, you need to have AWS credentials configured
 
 ```bash
 cd apps/api
-npm run dev:api  # Local development server on port 8080 with hot reload
-npm run buildZip  # Build and package API + WebSocket Lambdas for deployment
-npm run test:unit  # Run Vitest unit tests
+pnpm run dev:api  # Local development server on port 8080 with hot reload
+pnpm run buildZip  # Build and package API + WebSocket Lambdas for deployment
+pnpm run test:unit  # Run Vitest unit tests
 ```
 
 **Output**: Zip files are created in `tmp/` directory (e.g., `tmp/gitgazer-api.zip`)
@@ -73,8 +73,8 @@ npm run test:unit  # Run Vitest unit tests
 
 ```bash
 cd apps/web
-npm run dev  # Vite dev server with HMR on port 5173
-npm run build  # Production build for S3 deployment
+pnpm run dev  # Vite dev server with HMR on port 5173
+pnpm run build  # Production build for S3 deployment
 ```
 
 #### Environment Setup

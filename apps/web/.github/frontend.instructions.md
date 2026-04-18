@@ -12,21 +12,21 @@ This module contains the Vue 3 SPA frontend for GitGazer.
 cd apps/web
 
 # Install dependencies
-npm ci
+pnpm install
 
 # Development server with hot reload
-npm run dev
+pnpm run dev
 
 # Build for production
-npm run build
+pnpm run build
 
 # Type checking
 vue-tsc --noEmit
 
 # Linting and formatting
-npm run lint
-npm run lint:fix
-npm run pretty
+pnpm run lint
+pnpm run lint:fix
+pnpm run pretty
 ```
 
 ## Architecture

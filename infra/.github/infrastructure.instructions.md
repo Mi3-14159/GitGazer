@@ -40,7 +40,7 @@ GitGazer uses AWS serverless architecture with the following components:
 ### Core Services
 
 - **API Gateway**: REST and WebSocket APIs
-- **Lambda**: Multiple functions (API, Alerting, WebSocket, Analytics)
+- **Lambda**: Multiple functions (API, WebSocket, Worker, Org Sync Scheduler)
 - **RDS**: Aurora PostgreSQL Serverless database
 - **S3**: Lambda artifacts, UI hosting, analytics data
 - **Cognito**: User authentication and authorization
@@ -62,15 +62,21 @@ GitGazer uses AWS serverless architecture with the following components:
 - `*.tf`: Resource-specific modules
     - `api_rest.tf` / `api_rest_lambda.tf`: REST API Gateway and Lambda
     - `api_websocket.tf` / `api_websocket_lambda.tf`: WebSocket API and Lambda
+    - `worker_lambda.tf`: Worker Lambda for background jobs
+    - `org_sync_scheduler.tf`: Org sync scheduler Lambda
+    - `sqs_webhook_queue.tf`: SQS webhook queue
     - `analytics_bedrock.tf`: Bedrock-based analytics configuration
     - `bedrock_logging.tf`: Bedrock logging configuration
-    - `cloudfront.tf`: CDN configuration
+    - `cloudfront.tf` / `cloudfront_docs.tf`: CDN configuration
     - `cognito.tf`: Authentication setup
     - `rds.tf`: Database configuration
-    - `s3_lambda_store.tf` / `s3_ui.tf`: Storage buckets
+    - `ses.tf`: Email sending (SES)
+    - `s3_lambda_store.tf` / `s3_ui.tf` / `s3_docs.tf`: Storage buckets
     - `kms.tf`: Encryption keys
     - `secrets.tf`: Secrets management
     - `route53.tf`: DNS records
+    - `vpc.tf`: VPC networking
+    - `bastion.tf`: Bastion host for DB access
 
 ## Development Patterns
 
@@ -119,8 +125,8 @@ GitGazer uses AWS serverless architecture with the following components:
 
     ```bash
     cd ../apps/api
-    npm ci
-    npm run buildZip
+    pnpm install
+    pnpm run buildZip
     aws s3 cp ./tmp/gitgazer-api.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
     aws s3 cp ./tmp/gitgazer-websocket.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-websocket.zip
     ```
@@ -135,8 +141,8 @@ GitGazer uses AWS serverless architecture with the following components:
 4. Build and deploy frontend:
     ```bash
     cd ../apps/web
-    npm ci
-    npm run build
+    pnpm install
+    pnpm run build
     aws s3 sync dist/. s3://<UI_BUCKET_NAME>/
     ```
 

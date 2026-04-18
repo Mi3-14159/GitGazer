@@ -12,21 +12,21 @@ This module contains the AWS Lambda backend for GitGazer, serving as both API an
 cd apps/api
 
 # Install dependencies
-npm ci
+pnpm install
 
 # Run unit tests
-npm run test:unit
+pnpm run test:unit
 
 # Build and package all Lambda functions
-npm run buildZip  # Builds API + WebSocket Lambdas, outputs to tmp/
+pnpm run buildZip  # Builds API + WebSocket Lambdas, outputs to tmp/
 
 # Local development (requires AWS credentials)
-npm run dev:api
+pnpm run dev:api
 
 # Linting and formatting
-npm run lint
-npm run lint:fix
-npm run pretty
+pnpm run lint
+pnpm run lint:fix
+pnpm run pretty
 ```
 
 ## Architecture Patterns
@@ -110,8 +110,8 @@ npm run pretty
 
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
-- Copy `.env.dev.example` to `.env` and configure environment variables
-- Start local server: `npm run dev:api` (runs on port 8080)
+- Copy `.env` file and configure environment variables
+- Start local server: `pnpm run dev:api` (runs on port 8080)
 
 ### Environment Variables
 
@@ -119,7 +119,7 @@ npm run pretty
 - `RDS_*`: RDS connection configuration
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
-- See `.env.dev.example` for full list
+- See `.env` for full list
 
 ## Deployment
 
@@ -127,13 +127,15 @@ npm run pretty
 
 - Build artifacts go to `dist/` directory
 - tsup bundles all dependencies into a single file (except `@aws-sdk/*`, provided by Lambda runtime)
-- Zip files created in `tmp/` directory via `npm run buildZip`
+- Zip files created in `tmp/` directory via `pnpm run buildZip`
 - Upload to S3 bucket specified in infrastructure
 
 ### Lambda Functions
 
 - **API**: Handles REST API and webhook endpoints (`src/handlers/api.ts`)
 - **WebSocket**: Manages WebSocket connections (`src/handlers/websocket.ts`)
+- **Worker**: Background job processing (`src/handlers/worker.ts`)
+- **Org Sync Scheduler**: Scheduled organization membership sync (`src/handlers/org-sync-scheduler.ts`)
 
 ## Code Quality
 
