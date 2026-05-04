@@ -170,6 +170,33 @@ Backend variables are configured in `apps/api/.env`. Copy from `.env.dev.example
 | `CONFIG_SECRET_ARN`        | Secrets Manager ARN for app config |
 | `ALLOWED_FRONTEND_ORIGINS` | Comma-separated allowed origins    |
 
+### Optional HTTP Proxy Toggle
+
+GitGazer supports an optional HTTP proxy Lambda for outbound calls to IPv4-only upstream services (for example GitHub and Slack).
+
+- Terraform variable: `enable_http_proxy`
+- Default: `true`
+
+When enabled, backend calls using `proxyFetch` relay through the proxy Lambda.
+When disabled, the backend falls back to direct `fetchWithRetry`.
+
+Set it in `infra/terraform.tfvars`:
+
+```hcl
+enable_http_proxy = false
+```
+
+Then apply Terraform:
+
+```bash
+cd infra
+aws-vault exec <profile> -- terraform apply
+```
+
+:::warning[Network requirement when disabled]
+With `enable_http_proxy = false`, your backend environment must provide direct connectivity to target upstreams. In IPv6-only private subnet setups without IPv4 egress, calls to IPv4-only services can fail.
+:::
+
 ## Database Access
 
 Connect to Aurora PostgreSQL via SSM Session Manager port forwarding through the bastion host. No SSH keys or open inbound ports required.

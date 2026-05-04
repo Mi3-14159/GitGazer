@@ -116,9 +116,32 @@ All AWS resources are defined as Terraform HCL files in `infra/`. This enables r
 
 GitGazer deploys multiple Lambda functions, each with a distinct responsibility:
 
-| Lambda        | Trigger               | Purpose                                                                                        |
-| ------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
-| **REST API**  | API Gateway HTTP      | Handles all REST API requests (auth, integrations, workflows, notifications, etc.)             |
-| **WebSocket** | API Gateway WebSocket | Manages `$connect` and `$disconnect` lifecycle events                                          |
-| **Worker**    | SQS event source      | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts |
-| **Org Sync**  | EventBridge schedule  | Periodically syncs GitHub organization members to integration memberships                      |
+| Lambda         | Trigger                  | Purpose                                                                                        |
+| -------------- | ------------------------ | ---------------------------------------------------------------------------------------------- |
+| **REST API**   | API Gateway HTTP         | Handles all REST API requests (auth, integrations, workflows, notifications, etc.)             |
+| **WebSocket**  | API Gateway WebSocket    | Manages `$connect` and `$disconnect` lifecycle events                                          |
+| **Worker**     | SQS event source         | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts |
+| **Org Sync**   | EventBridge schedule     | Periodically syncs GitHub organization members to integration memberships                      |
+| **HTTP Proxy** | Lambda invoke (internal) | Optional outbound proxy for IPv4-only upstreams (for example GitHub and Slack)                 |
+
+## Outbound Connectivity (IPv6 + Optional Proxy)
+
+The REST, Worker, and Org Sync Lambdas run in private subnets and prefer IPv6 egress.
+
+Some third-party endpoints are IPv4-only. To support those calls without a NAT gateway, GitGazer can deploy a small HTTP proxy Lambda outside the VPC:
+
+1. Caller Lambda invokes the proxy Lambda via the Lambda API.
+2. Proxy Lambda performs the external HTTPS request on behalf of the caller.
+3. Response is returned to the caller Lambda.
+
+### Feature toggle
+
+- Terraform variable: `enable_http_proxy`
+- Default: `true`
+
+When enabled, outbound calls that use `proxyFetch` are relayed through the proxy Lambda by default.
+When disabled (`enable_http_proxy = false`), `proxyFetch` falls back to direct `fetchWithRetry`.
+
+:::warning[Disabling the proxy]
+If your environment does not provide IPv4 internet egress (for example no NAT gateway and no NAT64 path), direct calls to IPv4-only services can time out when `enable_http_proxy` is disabled.
+:::
