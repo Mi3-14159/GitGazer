@@ -1,7 +1,10 @@
 import {SQSClient, SendMessageCommand} from '@aws-sdk/client-sqs';
 import {randomUUID} from 'crypto';
 
-const client = new SQSClient({region: process.env.AWS_REGION});
+const client = new SQSClient({
+    region: process.env.AWS_REGION,
+    endpoint: `https://sqs.${process.env.AWS_REGION}.api.aws/`,
+});
 
 export interface WebhookMessage {
     integrationId: string;

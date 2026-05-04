@@ -15,6 +15,7 @@ resource "aws_apigatewayv2_api" "websocket" {
   description                = "GitGazer WebSocket API - ${terraform.workspace}"
   protocol_type              = "WEBSOCKET"
   route_selection_expression = "$request.body.action"
+  ip_address_type            = "dualstack"
 }
 
 resource "aws_apigatewayv2_stage" "websocket_ws" {

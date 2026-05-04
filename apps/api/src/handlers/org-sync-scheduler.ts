@@ -1,3 +1,4 @@
+import '@/shared/bootstrap';
 import {sendOrgMemberSyncTask} from '@/shared/clients/sqs.client';
 import config, {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';

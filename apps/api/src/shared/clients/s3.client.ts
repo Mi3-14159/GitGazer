@@ -2,7 +2,7 @@ import config from '@/shared/config';
 import {GetObjectCommand, GetObjectCommandOutput, S3Client} from '@aws-sdk/client-s3';
 import {getSignedUrl as S3getSignedUrl} from '@aws-sdk/s3-request-presigner';
 
-const client = new S3Client();
+const client = new S3Client({useDualstackEndpoint: true});
 
 export const getIndexHtml = async (): Promise<GetObjectCommandOutput> => {
     const data = await client.send(

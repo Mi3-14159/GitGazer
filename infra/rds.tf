@@ -53,6 +53,7 @@ module "rds_proxy" {
   iam_role_name          = "${var.name_prefix}-${terraform.workspace}-rds-proxy-role"
   vpc_subnet_ids         = local.private_subnets
   vpc_security_group_ids = [aws_security_group.rds_proxy.id]
+  endpoint_network_type  = "DUAL"
 
   auth = {
     "superuser" = {
@@ -98,10 +99,19 @@ resource "aws_security_group" "lambda" {
   vpc_id      = local.vpc_id
 
   egress {
+    description = "Allow all IPv4 egress (VPC endpoints, RDS)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description      = "Allow all IPv6 egress (GitHub API via EIGW)"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   tags = {

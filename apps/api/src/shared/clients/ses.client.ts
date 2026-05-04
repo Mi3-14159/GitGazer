@@ -2,7 +2,7 @@ import config from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {SESv2Client, SendEmailCommand} from '@aws-sdk/client-sesv2';
 
-const client = new SESv2Client();
+const client = new SESv2Client({useDualstackEndpoint: true});
 
 export interface InvitationEmailParams {
     recipientEmail: string;

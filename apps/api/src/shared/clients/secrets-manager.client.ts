@@ -1,6 +1,6 @@
 import {GetSecretValueCommand, SecretsManagerClient} from '@aws-sdk/client-secrets-manager';
 
-const client = new SecretsManagerClient();
+const client = new SecretsManagerClient({useDualstackEndpoint: true});
 
 export const getSecretValue = async (secretId: string): Promise<Record<string, unknown>> => {
     const response = await client.send(new GetSecretValueCommand({SecretId: secretId}));

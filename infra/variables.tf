@@ -59,6 +59,12 @@ variable "github_oauth_scopes" {
   default     = []
 }
 
+variable "enable_http_proxy" {
+  type        = bool
+  description = "Deploy the HTTP proxy Lambda for routing requests to IPv4-only services (GitHub, Slack) from the IPv6-only VPC"
+  default     = true
+}
+
 variable "enable_lambda_tracing" {
   type        = bool
   description = "Enable AWS X-Ray tracing for the Lambda functions"
@@ -120,12 +126,17 @@ variable "vpc" {
   type = object({
     create = bool
     config = optional(object({
-      cidr_block         = string
-      azs                = list(string)
-      public_subnets     = list(string)
-      private_subnets    = list(string)
-      enable_nat_gateway = optional(bool, true)
-      single_nat_gateway = optional(bool, false)
+      azs                                           = list(string)
+      cidr_block                                    = optional(string)
+      public_subnets                                = optional(list(string), [])
+      private_subnets                               = optional(list(string), [])
+      enable_nat_gateway                            = optional(bool, false)
+      single_nat_gateway                            = optional(bool, false)
+      create_egress_only_igw                        = optional(bool, true)
+      enable_ipv6                                   = optional(bool, true)
+      public_subnet_assign_ipv6_address_on_creation = optional(bool, true)
+      public_subnet_ipv6_prefixes                   = optional(list(number), [])
+      private_subnet_ipv6_prefixes                  = optional(list(number), [])
     }))
   })
   default = {

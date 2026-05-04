@@ -1,3 +1,4 @@
+import {proxyFetch} from '@/shared/clients/proxy-fetch';
 import config from '@/shared/config';
 import type {GithubOrgRole} from '@gitgazer/db/types';
 import {createAppAuth} from '@octokit/auth-app';
@@ -16,6 +17,9 @@ export const getInstallationOctokit = (installationId: number): Octokit => {
             appId,
             privateKey,
             installationId,
+        },
+        request: {
+            fetch: proxyFetch,
         },
     });
 };

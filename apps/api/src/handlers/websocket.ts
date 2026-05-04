@@ -1,3 +1,4 @@
+import '@/shared/bootstrap';
 import config, {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {db, initDb} from '@gitgazer/db/client';

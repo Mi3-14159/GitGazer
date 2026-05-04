@@ -3,6 +3,9 @@
   "bugs": {
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
+  "dependencies": {
+    "convict": "^6.2.5"
+  },
   "description": "lambda as API",
   "devDependencies": {
     "@aws-lambda-powertools/event-handler": "^2.32.0",
@@ -10,6 +13,7 @@
     "@aws-lambda-powertools/logger": "^2.32.0",
     "@aws-sdk/client-apigatewaymanagementapi": "^3.1014.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1014.0",
+    "@aws-sdk/client-lambda": "^3.1041.0",
     "@aws-sdk/client-s3": "^3.1014.0",
     "@aws-sdk/client-secrets-manager": "^3.1024.0",
     "@aws-sdk/client-sesv2": "^3.1027.0",
@@ -47,7 +51,7 @@
   },
   "scripts": {
     "build": "pnpm run clean && tsup",
-    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler",
+    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler && pnpm run zip -- http-proxy",
     "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
@@ -56,8 +60,5 @@
     "test:unit": "vitest --project unit --run",
     "zip": "f() { [ \"$1\" = \"--\" ] && shift; cd dist/$1 && zip gitgazer-$1.zip -qr * && mkdir -p ../../tmp && mv gitgazer-$1.zip ../../tmp/; }; f"
   },
-  "version": "1.0.0",
-  "dependencies": {
-    "convict": "^6.2.5"
-  }
+  "version": "1.0.0"
 }

@@ -44,4 +44,10 @@ export default defineConfig([
         entry: {index: 'src/handlers/org-sync-scheduler.ts'},
         outDir: 'dist/org-sync-scheduler',
     },
+    {
+        name: 'http-proxy',
+        ...shared,
+        entry: {index: 'src/handlers/http-proxy.ts'},
+        outDir: 'dist/http-proxy',
+    },
 ]);

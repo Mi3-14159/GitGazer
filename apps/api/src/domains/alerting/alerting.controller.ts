@@ -1,5 +1,5 @@
 import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
-import {fetchWithRetry} from '@/shared/helpers/fetch';
+import {proxyFetch} from '@/shared/clients/proxy-fetch';
 import {getLogger} from '@/shared/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRules, workflowRuns} from '@gitgazer/db/schema';
@@ -141,7 +141,7 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
 
 async function sendSlackNotification(webhookUrl: string, body: any, ruleId: string | undefined, logger: ReturnType<typeof getLogger>) {
     try {
-        const res = await fetchWithRetry(webhookUrl, {
+        const res = await proxyFetch(webhookUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

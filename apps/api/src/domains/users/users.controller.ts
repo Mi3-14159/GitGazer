@@ -1,3 +1,5 @@
+import {proxyFetch} from '@/shared/clients/proxy-fetch';
+
 type OAuthTokenBody = {
     client_id: string;
     client_secret: string;
@@ -24,7 +26,7 @@ export const parseOAuthTokenBody = (body: string, isBase64Encoded: boolean): OAu
  * Exchange an OAuth code for a GitHub access token.
  */
 export const exchangeGitHubOAuthToken = async (clientId: string, clientSecret: string, code: string): Promise<unknown> => {
-    const response = await fetch('https://github.com/login/oauth/access_token', {
+    const response = await proxyFetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -39,7 +41,7 @@ export const exchangeGitHubOAuthToken = async (clientId: string, clientSecret: s
  * Fetch the GitHub user profile using an authorization header.
  */
 export const fetchGitHubUser = async (authorizationHeader: string): Promise<{status: number; body: string; headers: Record<string, string>}> => {
-    const response = await fetch('https://api.github.com/user', {
+    const response = await proxyFetch('https://api.github.com/user', {
         method: 'GET',
         headers: {
             authorization: authorizationHeader,

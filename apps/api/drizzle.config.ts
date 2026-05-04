@@ -7,6 +7,7 @@ config({path: process.env.ENV_FILE});
 const host = process.env['RDS_PROXY_ENDPOINT']!;
 const hostname = process.env['RDS_PROXY_HOSTNAME'] || host;
 const database = process.env['RDS_DATABASE']!;
+const port = Number(process.env['RDS_PROXY_PORT']);
 const user = process.env['RDS_DB_USER']!;
 
 const password = execSync(`aws rds generate-db-auth-token --hostname ${hostname} --port 5432 --username ${user}`, {encoding: 'utf-8'}).trim();
@@ -19,7 +20,7 @@ export default defineConfig({
     breakpoints: true,
     dbCredentials: {
         host,
-        port: 5432,
+        port,
         database,
         user,
         password,

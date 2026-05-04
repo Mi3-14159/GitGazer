@@ -128,6 +128,12 @@ const config = convict({
         default: '',
         env: 'WEBHOOK_QUEUE_URL',
     },
+    httpProxyFunctionName: {
+        doc: 'Lambda function name of the HTTP proxy for IPv4-only external services',
+        format: String,
+        default: '',
+        env: 'HTTP_PROXY_FUNCTION_NAME',
+    },
     sesConfig: {
         emailEnabled: {
             doc: 'Whether invitation email sending via SES is enabled (opt-in feature)',

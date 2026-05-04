@@ -1,3 +1,4 @@
+import '@/shared/bootstrap';
 import {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {createApp} from '@/shared/router';

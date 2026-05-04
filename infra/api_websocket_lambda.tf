@@ -151,8 +151,9 @@ resource "aws_lambda_function" "api_websocket" {
   }
 
   vpc_config {
-    subnet_ids         = local.private_subnets
-    security_group_ids = [aws_security_group.lambda.id]
+    subnet_ids                  = local.private_subnets
+    security_group_ids          = [aws_security_group.lambda.id]
+    ipv6_allowed_for_dual_stack = true
   }
 }
 

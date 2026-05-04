@@ -135,9 +135,10 @@ resource "aws_cloudwatch_log_group" "gw_access_logs" {
 }
 
 resource "aws_apigatewayv2_api" "this" {
-  name          = "${var.name_prefix}-github-http-api-${terraform.workspace}"
-  description   = "GitGazer HTTP API"
-  protocol_type = "HTTP"
+  name            = "${var.name_prefix}-github-http-api-${terraform.workspace}"
+  description     = "GitGazer HTTP API"
+  protocol_type   = "HTTP"
+  ip_address_type = "dualstack"
 
   cors_configuration {
     allow_credentials = true

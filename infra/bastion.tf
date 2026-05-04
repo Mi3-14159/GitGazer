@@ -74,6 +74,13 @@ resource "aws_security_group" "bastion" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }
 
 resource "aws_security_group_rule" "bastion_to_rds_proxy" {
@@ -96,11 +103,31 @@ resource "aws_instance" "bastion" {
   subnet_id              = local.private_subnets[0]
   iam_instance_profile   = aws_iam_instance_profile.bastion[0].name
   vpc_security_group_ids = [aws_security_group.bastion[0].id]
+  ipv6_address_count     = 1
 
   user_data_base64 = base64encode(<<-EOF
     #!/bin/bash
-    dnf install -y amazon-ssm-agent
+
+    # Configure SSM Agent for IPv6 dual-stack endpoints
+    SSM_CONFIG_DIR="/etc/amazon/ssm"
+    SSM_CONFIG="$SSM_CONFIG_DIR/amazon-ssm-agent.json"
+
+    if [ ! -f "$SSM_CONFIG" ]; then
+      cp "$SSM_CONFIG_DIR/amazon-ssm-agent.json.template" "$SSM_CONFIG"
+    fi
+
+    python3 -c "
+    import json
+    with open('$SSM_CONFIG') as f:
+        cfg = json.load(f)
+    cfg.setdefault('Agent', {})['Region'] = '${var.aws_region}'
+    cfg['Agent']['UseDualStackEndpoint'] = True
+    with open('$SSM_CONFIG', 'w') as f:
+        json.dump(cfg, f, indent=4)
+    "
+
     systemctl enable --now amazon-ssm-agent
+    systemctl restart amazon-ssm-agent
   EOF
   )
 

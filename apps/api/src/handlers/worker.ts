@@ -1,4 +1,5 @@
 import {processRecord} from '@/domains/webhooks/worker/batch-processor';
+import '@/shared/bootstrap';
 import {loadConfig} from '@/shared/config';
 import {getLogger} from '@/shared/logger';
 import {initDb} from '@gitgazer/db/client';
