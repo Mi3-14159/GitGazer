@@ -220,12 +220,6 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 
 | Name | Description |
 | ---- | ----------- |
-| <a name="output_bastion_instance_id"></a> [bastion\_instance\_id](#output\_bastion\_instance\_id) | Instance ID of the bastion host (use with SSM Session Manager) |
-| <a name="output_bastion_ssm_port_forward_command"></a> [bastion\_ssm\_port\_forward\_command](#output\_bastion\_ssm\_port\_forward\_command) | Command to start an SSM port-forwarding session to the RDS Proxy |
 | <a name="output_cdn_domain_name"></a> [cdn\_domain\_name](#output\_cdn\_domain\_name) | The domain name of the CloudFront distribution. |
 | <a name="output_docs_cdn_domain_name"></a> [docs\_cdn\_domain\_name](#output\_docs\_cdn\_domain\_name) | The domain name of the docs CloudFront distribution |
-| <a name="output_docs_s3_bucket_name"></a> [docs\_s3\_bucket\_name](#output\_docs\_s3\_bucket\_name) | The S3 bucket name for the docs site |
-| <a name="output_ses_domain_identity_arn"></a> [ses\_domain\_identity\_arn](#output\_ses\_domain\_identity\_arn) | ARN of the SES domain identity for sending emails |
-| <a name="output_ses_from_email"></a> [ses\_from\_email](#output\_ses\_from\_email) | The verified sender email address for SES |
-| <a name="output_websocket_endpoint"></a> [websocket\_endpoint](#output\_websocket\_endpoint) | The WebSocket API endpoint URL |
 <!-- END_TF_DOCS -->
