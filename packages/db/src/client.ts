@@ -24,23 +24,23 @@ function getConnectionMode(): ConnectionMode {
 }
 
 function initializeRdsProxy(): void {
-    const proxyEndpoint = process.env['RDS_PROXY_ENDPOINT'];
+    const rdsHost = process.env['RDS_HOST'];
     const database = process.env['RDS_DATABASE'];
     const dbUser = process.env['RDS_DB_USER'];
-    const proxyHostname = process.env['RDS_PROXY_HOSTNAME'] || proxyEndpoint;
+    const rdsHostname = process.env['RDS_HOSTNAME'] || rdsHost;
 
-    if (!proxyEndpoint || !database || !dbUser || !proxyHostname) {
-        throw new Error('Missing required environment variables: RDS_PROXY_ENDPOINT, RDS_DATABASE, RDS_DB_USER, RDS_PROXY_HOSTNAME');
+    if (!rdsHost || !database || !dbUser || !rdsHostname) {
+        throw new Error('Missing required environment variables: RDS_HOST, RDS_DATABASE, RDS_DB_USER, RDS_HOSTNAME');
     }
 
     _signer = new Signer({
-        hostname: proxyHostname,
+        hostname: rdsHostname,
         port: 5432,
         username: dbUser,
     });
 
     _pool = new pg.Pool({
-        host: proxyEndpoint,
+        host: rdsHost,
         port: 5432,
         database,
         user: dbUser,

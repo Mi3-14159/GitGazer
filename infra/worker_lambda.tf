@@ -149,7 +149,7 @@ resource "aws_lambda_function" "worker" {
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
       RDS_DATABASE                        = "postgres"
       RDS_DB_USER                         = module.db.cluster_master_username
-      RDS_PROXY_ENDPOINT                  = local.database_endpoint
+      RDS_HOST                            = local.database_endpoint
       CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
     }

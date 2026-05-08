@@ -161,14 +161,16 @@ No backend setup needed. All API calls go directly to production.
 
 Backend variables are configured in `apps/api/.env`. Copy from `.env.dev.example` and fill in your AWS configuration. Key variables:
 
-| Variable                   | Description                        |
-| -------------------------- | ---------------------------------- |
-| `AWS_REGION`               | AWS region for all services        |
-| `RDS_PROXY_ENDPOINT`       | RDS Proxy hostname                 |
-| `RDS_DATABASE`             | Database name (`postgres`)         |
-| `RDS_DB_USER`              | Database master username           |
-| `CONFIG_SECRET_ARN`        | Secrets Manager ARN for app config |
-| `ALLOWED_FRONTEND_ORIGINS` | Comma-separated allowed origins    |
+| Variable                   | Description                         |
+| -------------------------- | ----------------------------------- |
+| `AWS_REGION`               | AWS region for all services         |
+| `RDS_HOST`                 | Database connection host            |
+| `RDS_HOSTNAME`             | Real hostname for IAM token signing |
+| `RDS_PORT`                 | Database connection port            |
+| `RDS_DATABASE`             | Database name (`postgres`)          |
+| `RDS_DB_USER`              | Database master username            |
+| `CONFIG_SECRET_ARN`        | Secrets Manager ARN for app config  |
+| `ALLOWED_FRONTEND_ORIGINS` | Comma-separated allowed origins     |
 
 ### Optional HTTP Proxy Toggle
 

@@ -98,7 +98,7 @@ All backend logic runs on AWS Lambda — REST API handler, WebSocket handler, we
 
 ### Aurora PostgreSQL Serverless (Database)
 
-The database is Aurora PostgreSQL Serverless v2 with RDS Proxy for connection pooling. Row-level security (RLS) enforces tenant isolation at the database level — every query runs within a transaction scoped to the user's integrations.
+The database is Aurora PostgreSQL Serverless v2 with an optional RDS Proxy for connection pooling. Row-level security (RLS) enforces tenant isolation at the database level — every query runs within a transaction scoped to the user's integrations.
 
 ### Drizzle ORM (Database Access)
 
@@ -123,6 +123,33 @@ GitGazer deploys multiple Lambda functions, each with a distinct responsibility:
 | **Worker**     | SQS event source         | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts |
 | **Org Sync**   | EventBridge schedule     | Periodically syncs GitHub organization members to integration memberships                      |
 | **HTTP Proxy** | Lambda invoke (internal) | Optional outbound proxy for IPv4-only upstreams (for example GitHub and Slack)                 |
+
+## Database Connectivity (Optional RDS Proxy)
+
+Lambda functions connect to Aurora PostgreSQL using IAM authentication. An RDS Proxy can optionally sit between Lambda and Aurora to provide connection pooling and improved failover handling.
+
+### Feature toggle
+
+- Terraform variable: `enable_rds_proxy`
+- Default: `true`
+
+When enabled, Lambdas connect through the RDS Proxy. When disabled (`enable_rds_proxy = false`), Lambdas connect directly to the Aurora cluster endpoint. Both paths use IAM auth tokens for authentication.
+
+### Environment variables
+
+| Variable       | Description                                                                             |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `RDS_HOST`     | Connection host — proxy endpoint or cluster endpoint                                    |
+| `RDS_HOSTNAME` | Real hostname for IAM token signing (may differ from `RDS_HOST` when tunneling locally) |
+| `RDS_PORT`     | Connection port                                                                         |
+| `RDS_DATABASE` | Database name (`postgres`)                                                              |
+| `RDS_DB_USER`  | Database username                                                                       |
+
+In AWS, `RDS_HOST` is set automatically by Terraform via `local.database_endpoint`, which resolves to the proxy or cluster endpoint based on `enable_rds_proxy`.
+
+:::tip[Local development]
+When connecting through an SSM tunnel, set `RDS_HOST=localhost` and `RDS_HOSTNAME` to the cluster endpoint for IAM token signing. See the [local development guide](./local-development.md) for details.
+:::
 
 ## Outbound Connectivity (IPv6 + Optional Proxy)
 

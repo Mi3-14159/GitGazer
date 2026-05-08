@@ -4,10 +4,10 @@ import {execSync} from 'node:child_process';
 
 config({path: process.env.ENV_FILE});
 
-const host = process.env['RDS_PROXY_ENDPOINT']!;
-const hostname = process.env['RDS_PROXY_HOSTNAME'] || host;
+const host = process.env['RDS_HOST']!;
+const hostname = process.env['RDS_HOSTNAME'] || host;
 const database = process.env['RDS_DATABASE']!;
-const port = Number(process.env['RDS_PROXY_PORT']);
+const port = Number(process.env['RDS_PORT']);
 const user = process.env['RDS_DB_USER']!;
 
 const password = execSync(`aws rds generate-db-auth-token --hostname ${hostname} --port 5432 --username ${user}`, {encoding: 'utf-8'}).trim();
@@ -24,6 +24,6 @@ export default defineConfig({
         database,
         user,
         password,
-        ssl: 'prefer',
+        ssl: host === 'localhost' ? {rejectUnauthorized: false} : 'prefer',
     },
 });

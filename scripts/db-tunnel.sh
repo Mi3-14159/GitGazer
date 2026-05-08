@@ -40,6 +40,7 @@ REGION="${AWS_REGION:-eu-central-1}"
 LOCAL_PORT="5432"
 TF_WORKSPACE="prod"
 REMOTE_PORT="5432"
+DIRECT_CLUSTER=false
 
 # ─── Parse arguments ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -52,6 +53,10 @@ while [[ $# -gt 0 ]]; do
             TF_WORKSPACE="$2"
             shift 2
             ;;
+        --direct)
+            DIRECT_CLUSTER=true
+            shift
+            ;;
         --region)
             REGION="$2"
             shift 2
@@ -62,6 +67,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --local-port PORT       Local port to bind (default: 5432)"
             echo "  --workspace WORKSPACE   Terraform workspace name (default: prod)"
+            echo "  --direct                Connect directly to Aurora cluster (skip RDS Proxy)"
             echo "  --region REGION         AWS region (default: eu-central-1)"
             echo ""
             echo "Environment variables:"
@@ -117,29 +123,53 @@ fi
 
 success "Found bastion: ${BOLD}${INSTANCE_ID}${NC}"
 
-# ─── Resolve RDS Proxy endpoint ──────────────────────────────────────────────
+# ─── Resolve database endpoint (RDS Proxy → Aurora direct fallback) ───────────
 PROXY_NAME="${NAME_PREFIX}-${TF_WORKSPACE}"
+CLUSTER_NAME="${NAME_PREFIX}-${TF_WORKSPACE}"
 
-info "Looking up RDS Proxy endpoint ${BOLD}${PROXY_NAME}${NC}..."
+if [[ "$DIRECT_CLUSTER" == true ]]; then
+    info "Direct mode: skipping RDS Proxy, connecting to Aurora cluster..."
+    DB_ENDPOINT=""
+else
+    info "Looking up RDS Proxy endpoint ${BOLD}${PROXY_NAME}${NC}..."
 
-PROXY_ENDPOINT=$(aws rds describe-db-proxies \
-    --region "$REGION" \
-    --db-proxy-name "$PROXY_NAME" \
-    --query "DBProxies[0].Endpoint" \
-    --output text 2>/dev/null)
+    DB_ENDPOINT=$(aws rds describe-db-proxies \
+        --region "$REGION" \
+        --db-proxy-name "$PROXY_NAME" \
+        --query "DBProxies[0].Endpoint" \
+        --output text 2>/dev/null || true)
 
-if [[ -z "$PROXY_ENDPOINT" || "$PROXY_ENDPOINT" == "None" ]]; then
-    error "No RDS Proxy found with name: ${PROXY_NAME}"
-    exit 1
+    if [[ -n "$DB_ENDPOINT" && "$DB_ENDPOINT" != "None" ]]; then
+        success "Found RDS Proxy: ${BOLD}${DB_ENDPOINT}${NC}"
+    else
+        DB_ENDPOINT=""
+    fi
 fi
 
-success "Found RDS Proxy: ${BOLD}${PROXY_ENDPOINT}${NC}"
+if [[ -z "$DB_ENDPOINT" ]]; then
+    if [[ "$DIRECT_CLUSTER" != true ]]; then
+        warn "No RDS Proxy found, falling back to Aurora cluster endpoint..."
+    fi
+
+    DB_ENDPOINT=$(aws rds describe-db-clusters \
+        --region "$REGION" \
+        --db-cluster-identifier "$CLUSTER_NAME" \
+        --query "DBClusters[0].Endpoint" \
+        --output text 2>/dev/null)
+
+    if [[ -z "$DB_ENDPOINT" || "$DB_ENDPOINT" == "None" ]]; then
+        error "No RDS Proxy or Aurora cluster found for: ${CLUSTER_NAME}"
+        exit 1
+    fi
+
+    success "Found Aurora cluster: ${BOLD}${DB_ENDPOINT}${NC}"
+fi
 
 # ─── Start SSM port-forwarding session ────────────────────────────────────────
 echo ""
 info "Starting SSM port-forwarding session..."
 echo -e "  ${CYAN}Local${NC}:  localhost:${BOLD}${LOCAL_PORT}${NC}"
-echo -e "  ${CYAN}Remote${NC}: ${PROXY_ENDPOINT}:${BOLD}${REMOTE_PORT}${NC}"
+echo -e "  ${CYAN}Remote${NC}: ${DB_ENDPOINT}:${BOLD}${REMOTE_PORT}${NC}"
 echo -e "  ${CYAN}Via${NC}:    ${INSTANCE_ID}"
 echo ""
 success "Connect with: ${BOLD}psql -h localhost -p ${LOCAL_PORT} -U root${NC}"
@@ -150,4 +180,4 @@ exec aws ssm start-session \
     --region "$REGION" \
     --target "$INSTANCE_ID" \
     --document-name AWS-StartPortForwardingSessionToRemoteHost \
-    --parameters "{\"host\":[\"${PROXY_ENDPOINT}\"],\"portNumber\":[\"${REMOTE_PORT}\"],\"localPortNumber\":[\"${LOCAL_PORT}\"]}"
+    --parameters "{\"host\":[\"${DB_ENDPOINT}\"],\"portNumber\":[\"${REMOTE_PORT}\"],\"localPortNumber\":[\"${LOCAL_PORT}\"]}"
