@@ -65,6 +65,7 @@ export const resolveAndAssignOrgMembers = async (params: {
     }
 
     // 3. Batch insert user-assignments for matched users (skip existing)
+    let newlyAssigned = 0;
     if (matched.length > 0) {
         const BATCH_SIZE = 500;
         await withRlsTransaction({
@@ -73,7 +74,7 @@ export const resolveAndAssignOrgMembers = async (params: {
             callback: async (tx) => {
                 for (let i = 0; i < matched.length; i += BATCH_SIZE) {
                     const batch = matched.slice(i, i + BATCH_SIZE);
-                    await tx
+                    const inserted = await tx
                         .insert(userAssignments)
                         .values(
                             batch.map((m) => ({
@@ -85,7 +86,9 @@ export const resolveAndAssignOrgMembers = async (params: {
                         )
                         .onConflictDoNothing({
                             target: [userAssignments.userId, userAssignments.integrationId],
-                        });
+                        })
+                        .returning({userId: userAssignments.userId});
+                    newlyAssigned += inserted.length;
                 }
             },
         });
@@ -93,6 +96,7 @@ export const resolveAndAssignOrgMembers = async (params: {
 
     // 4. Store pending entries for unmatched members (deferred matching on login)
     //    These are resolved in authentication.ts when the user first logs in.
+    let newlyPending = 0;
     if (unmatched.length > 0) {
         const BATCH_SIZE = 500;
         await withRlsTransaction({
@@ -101,7 +105,7 @@ export const resolveAndAssignOrgMembers = async (params: {
             callback: async (tx) => {
                 for (let i = 0; i < unmatched.length; i += BATCH_SIZE) {
                     const batch = unmatched.slice(i, i + BATCH_SIZE);
-                    await tx
+                    const inserted = await tx
                         .insert(pendingOrgSync)
                         .values(
                             batch.map((m) => ({
@@ -113,36 +117,52 @@ export const resolveAndAssignOrgMembers = async (params: {
                         )
                         .onConflictDoNothing({
                             target: [pendingOrgSync.integrationId, pendingOrgSync.githubUserId],
-                        });
+                        })
+                        .returning({githubUserId: pendingOrgSync.githubUserId});
+                    newlyPending += inserted.length;
                 }
             },
         });
 
-        logger.info('Stored pending org sync entries for unmatched members', {
-            integrationId,
-            installationId,
-            pendingCount: unmatched.length,
-        });
+        if (newlyPending > 0) {
+            logger.info('Stored pending org sync entries for unmatched members', {
+                integrationId,
+                installationId,
+                pendingCount: newlyPending,
+            });
+        }
     }
 
-    logger.info('Org member auto-add completed', {
+    logger.info('Org member auto-sync completed', {
         integrationId,
         installationId,
         matched: matched.length,
+        newlyAssigned,
         unmatched: unmatched.length,
+        newlyPending,
     });
 
-    // 5. Log results in event log
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: matched.length > 0 ? 'success' : 'info',
-        title: 'Org members auto-synced',
-        message: `Auto-added ${matched.length} org member(s) from "${accountLogin}" with role "${role}". ${unmatched.length} member(s) could not be matched to GitGazer accounts.`,
-        metadata: {installationId, accountLogin, matched: matched.length, unmatched: unmatched.length, role},
-    }).catch((err) => {
-        logger.error('Failed to write event log for org member auto-sync', {error: err});
-    });
+    // 5. Log results in event log — only if something actually changed
+    if (newlyAssigned > 0 || newlyPending > 0) {
+        const parts: string[] = [];
+        if (newlyAssigned > 0) {
+            parts.push(`Auto-added ${newlyAssigned} new org member(s) from "${accountLogin}" with role "${role}".`);
+        }
+        if (newlyPending > 0) {
+            parts.push(`${newlyPending} new member(s) could not be matched to GitGazer accounts.`);
+        }
 
-    return {matched: matched.length, unmatched: unmatched.length};
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: newlyAssigned > 0 ? 'success' : 'info',
+            title: 'Org members auto-synced',
+            message: parts.join(' '),
+            metadata: {installationId, accountLogin, newlyAssigned, newlyPending, role},
+        }).catch((err) => {
+            logger.error('Failed to write event log for org member auto-sync', {error: err});
+        });
+    }
+
+    return {matched: newlyAssigned, unmatched: newlyPending};
 };

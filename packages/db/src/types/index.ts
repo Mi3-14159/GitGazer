@@ -138,6 +138,8 @@ export type EventLogEntryMetadata = {
     matched?: number;
     unmatched?: number;
     defaultRole?: string;
+    newlyAssigned?: number;
+    newlyPending?: number;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;

@@ -2,7 +2,8 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 // ---- Mocks ----
 
-const mockOnConflictDoNothingInsert = vi.fn().mockResolvedValue(undefined);
+const mockReturningInsert = vi.fn().mockResolvedValue([]);
+const mockOnConflictDoNothingInsert = vi.fn().mockReturnValue({returning: mockReturningInsert});
 const mockValuesInsert = vi.fn().mockReturnValue({onConflictDoNothing: mockOnConflictDoNothingInsert});
 const mockDbInsert = vi.fn().mockReturnValue({values: mockValuesInsert});
 
@@ -84,12 +85,19 @@ describe('org-member-resolver', () => {
                 }),
             }));
 
-            const mockOnConflictDoNothing = vi.fn().mockResolvedValue(undefined);
+            const mockReturning = vi.fn();
+            const mockOnConflictDoNothing = vi.fn().mockReturnValue({returning: mockReturning});
             const mockValues = vi.fn().mockReturnValue({onConflictDoNothing: mockOnConflictDoNothing});
             const mockInsert = vi.fn().mockReturnValue({values: mockValues});
 
+            let txCallCount = 0;
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 const mockTx = {insert: mockInsert};
+                txCallCount++;
+                // First call: user assignments (1 newly inserted)
+                // Second call: pending org sync (1 newly inserted)
+                if (txCallCount === 1) mockReturning.mockResolvedValueOnce([{userId: 10}]);
+                else mockReturning.mockResolvedValueOnce([{githubUserId: 1002}]);
                 return params.callback(mockTx);
             });
 
@@ -132,8 +140,9 @@ describe('org-member-resolver', () => {
                 }),
             }));
 
+            const mockReturning = vi.fn().mockResolvedValue([{githubUserId: 9999}]);
             const mockPendingInsert = vi.fn().mockReturnValue({
-                values: vi.fn().mockReturnValue({onConflictDoNothing: vi.fn().mockResolvedValue(undefined)}),
+                values: vi.fn().mockReturnValue({onConflictDoNothing: vi.fn().mockReturnValue({returning: mockReturning})}),
             });
             mockWithRlsTransaction.mockImplementation(async (params) => {
                 return params.callback({insert: mockPendingInsert});
