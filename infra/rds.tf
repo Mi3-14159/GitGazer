@@ -27,14 +27,19 @@ module "db" {
   skip_final_snapshot                           = false
   final_snapshot_identifier                     = "${var.name_prefix}-${terraform.workspace}-final"
   enable_http_endpoint                          = var.db_config.enable_http_endpoint
+  iam_database_authentication_enabled           = true
   cluster_instance_class                        = var.db_config.instance_class
   serverlessv2_scaling_configuration            = var.db_config.serverlessv2_scaling_configuration
   create_db_subnet_group                        = true
   create_security_group                         = true
   security_group_name                           = "${var.name_prefix}-${terraform.workspace}-aurora-sg"
-  security_group_ingress_rules = {
+  security_group_ingress_rules = var.enable_rds_proxy ? {
     rds_proxy = {
-      referenced_security_group_id = aws_security_group.rds_proxy.id
+      referenced_security_group_id = aws_security_group.rds_proxy[0].id
+    }
+    } : {
+    lambda_direct = {
+      referenced_security_group_id = aws_security_group.lambda.id
     }
   }
   create_monitoring_role          = true
@@ -49,10 +54,12 @@ module "rds_proxy" {
   source  = "terraform-aws-modules/rds-proxy/aws"
   version = "~> 4.4"
 
+  count = var.enable_rds_proxy ? 1 : 0
+
   name                   = "${var.name_prefix}-${terraform.workspace}"
   iam_role_name          = "${var.name_prefix}-${terraform.workspace}-rds-proxy-role"
   vpc_subnet_ids         = local.private_subnets
-  vpc_security_group_ids = [aws_security_group.rds_proxy.id]
+  vpc_security_group_ids = [aws_security_group.rds_proxy[0].id]
   endpoint_network_type  = "DUAL"
 
   auth = {
@@ -74,6 +81,8 @@ module "rds_proxy" {
 }
 
 resource "aws_security_group" "rds_proxy" {
+  count = var.enable_rds_proxy ? 1 : 0
+
   name_prefix = "${var.name_prefix}-rds-proxy-${terraform.workspace}"
   description = "Security group for RDS Proxy"
   vpc_id      = local.vpc_id
@@ -84,13 +93,15 @@ resource "aws_security_group" "rds_proxy" {
 }
 
 resource "aws_security_group_rule" "rds_proxy_to_aurora" {
+  count = var.enable_rds_proxy ? 1 : 0
+
   description              = "Allow RDS Proxy to reach Aurora cluster"
   type                     = "egress"
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = module.db.security_group_id
-  security_group_id        = aws_security_group.rds_proxy.id
+  security_group_id        = aws_security_group.rds_proxy[0].id
 }
 
 resource "aws_security_group" "lambda" {
@@ -120,11 +131,13 @@ resource "aws_security_group" "lambda" {
 }
 
 resource "aws_security_group_rule" "lambda_to_rds_proxy" {
+  count = var.enable_rds_proxy ? 1 : 0
+
   description              = "Allow Lambda functions to connect to RDS Proxy"
   type                     = "ingress"
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.lambda.id
-  security_group_id        = aws_security_group.rds_proxy.id
+  security_group_id        = aws_security_group.rds_proxy[0].id
 }

@@ -111,7 +111,7 @@ data "aws_iam_policy_document" "worker" {
     effect  = "Allow"
     actions = ["rds-db:connect"]
     resources = [
-      "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${local.rds_proxy_resource_id}/*"
+      "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${local.db_resource_id}/*"
     ]
   }
 }
@@ -149,7 +149,7 @@ resource "aws_lambda_function" "worker" {
       POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
       RDS_DATABASE                        = "postgres"
       RDS_DB_USER                         = module.db.cluster_master_username
-      RDS_PROXY_ENDPOINT                  = module.rds_proxy.proxy_endpoint
+      RDS_PROXY_ENDPOINT                  = local.database_endpoint
       CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
     }

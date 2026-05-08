@@ -52,7 +52,8 @@ locals {
     try("https://${var.custom_domain_config.domain_name}", null),
   ])
   worker_lambda_timeout_seconds = 120
-  rds_proxy_resource_id         = element(split(":", module.rds_proxy.proxy_arn), 6)
+  database_endpoint             = var.enable_rds_proxy ? module.rds_proxy[0].proxy_endpoint : module.db.cluster_endpoint
+  db_resource_id                = var.enable_rds_proxy ? element(split(":", module.rds_proxy[0].proxy_arn), 6) : module.db.cluster_resource_id
   vpc_id                        = coalesce(try(var.db_config.vpc_id, null), try(module.vpc.vpc_id, null))
   private_subnets               = coalescelist(try(var.db_config.subnets, []), try(module.vpc.private_subnets, []))
   availability_zones            = coalescelist(try(var.db_config.availability_zones, []), try(module.vpc.azs, []))

@@ -84,7 +84,7 @@ resource "aws_security_group" "bastion" {
 }
 
 resource "aws_security_group_rule" "bastion_to_rds_proxy" {
-  count = var.enable_bastion ? 1 : 0
+  count = var.enable_bastion && var.enable_rds_proxy ? 1 : 0
 
   description              = "Allow bastion host to connect to RDS Proxy for database access"
   type                     = "ingress"
@@ -92,7 +92,19 @@ resource "aws_security_group_rule" "bastion_to_rds_proxy" {
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.bastion[0].id
-  security_group_id        = aws_security_group.rds_proxy.id
+  security_group_id        = aws_security_group.rds_proxy[0].id
+}
+
+resource "aws_security_group_rule" "bastion_to_aurora" {
+  count = var.enable_bastion && !var.enable_rds_proxy ? 1 : 0
+
+  description              = "Allow bastion host to connect directly to Aurora"
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.bastion[0].id
+  security_group_id        = module.db.security_group_id
 }
 
 resource "aws_instance" "bastion" {

@@ -147,6 +147,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_security_group.bastion](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_security_group.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_security_group.rds_proxy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
+| [aws_security_group_rule.bastion_to_aurora](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |
 | [aws_security_group_rule.bastion_to_rds_proxy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |
 | [aws_security_group_rule.lambda_to_rds_proxy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |
 | [aws_security_group_rule.rds_proxy_to_aurora](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |
@@ -208,6 +209,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | <a name="input_enable_bedrock_invocation_logging"></a> [enable\_bedrock\_invocation\_logging](#input\_enable\_bedrock\_invocation\_logging) | Enable logging of Bedrock model invocations | `bool` | `false` | no |
 | <a name="input_enable_http_proxy"></a> [enable\_http\_proxy](#input\_enable\_http\_proxy) | Deploy the HTTP proxy Lambda for routing requests to IPv4-only services (GitHub, Slack) from the IPv6-only VPC | `bool` | `true` | no |
 | <a name="input_enable_lambda_tracing"></a> [enable\_lambda\_tracing](#input\_enable\_lambda\_tracing) | Enable AWS X-Ray tracing for the Lambda functions | `bool` | `false` | no |
+| <a name="input_enable_rds_proxy"></a> [enable\_rds\_proxy](#input\_enable\_rds\_proxy) | Whether to create an RDS Proxy for connection pooling between Lambda and Aurora | `bool` | `false` | no |
 | <a name="input_gh_app"></a> [gh\_app](#input\_gh\_app) | GitHub App configuration (ID, KMS-encrypted private key and webhook secret) | <pre>object({<br/>    id                       = string<br/>    private_key_encrypted    = string<br/>    webhook_secret_encrypted = string<br/>  })</pre> | n/a | yes |
 | <a name="input_gh_oauth_app_client_id_encrypted"></a> [gh\_oauth\_app\_client\_id\_encrypted](#input\_gh\_oauth\_app\_client\_id\_encrypted) | GitHub OAuth app client id, encrypted with KMS | `string` | n/a | yes |
 | <a name="input_gh_oauth_app_client_secret_encrypted"></a> [gh\_oauth\_app\_client\_secret\_encrypted](#input\_gh\_oauth\_app\_client\_secret\_encrypted) | GitHub OAuth app client secret, encrypted with KMS | `string` | n/a | yes |

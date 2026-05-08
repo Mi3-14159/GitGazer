@@ -157,3 +157,9 @@ variable "docs_config" {
     enabled = false
   }
 }
+
+variable "enable_rds_proxy" {
+  type        = bool
+  description = "Whether to create an RDS Proxy for connection pooling between Lambda and Aurora"
+  default     = false
+}
