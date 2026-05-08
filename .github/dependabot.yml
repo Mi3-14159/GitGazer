@@ -48,7 +48,5 @@ updates:
           npm-dependencies:
               patterns: ['*']
               update-types: ['minor', 'patch']
-      ignore:
-          - dependency-name: '@aws-sdk/client-rds-data'
       cooldown:
           default-days: 30
