@@ -112,6 +112,8 @@ The SPA uses Vue 3 with the Composition API (`<script setup>` syntax). UI primit
 
 All AWS resources are defined as Terraform HCL files in `infra/`. This enables repeatable deployments, change previews via `terraform plan`, and version-controlled infrastructure.
 
+Infrastructure alerting and monitoring configuration is documented in [Infrastructure Monitoring & Alerting](./infrastructure-monitoring.md).
+
 ## Lambda Functions
 
 GitGazer deploys multiple Lambda functions, each with a distinct responsibility:

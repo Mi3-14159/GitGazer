@@ -199,6 +199,30 @@ aws-vault exec <profile> -- terraform apply
 With `enable_http_proxy = false`, your backend environment must provide direct connectivity to target upstreams. In IPv6-only private subnet setups without IPv4 egress, calls to IPv4-only services can fail.
 :::
 
+### Optional Infrastructure Monitoring Toggle
+
+Infrastructure alarming and Lambda log error filters can be toggled globally.
+
+- Terraform variable: `enable_cloudwatch_alarm_notifications`
+- Default: `true`
+
+When disabled, Terraform creates no CloudWatch alarms, no Lambda log metric filters, and no SNS alarm topic.
+
+Set it in `infra/terraform.tfvars`:
+
+```hcl
+enable_cloudwatch_alarm_notifications = false
+```
+
+Then apply Terraform:
+
+```bash
+cd infra
+aws-vault exec <profile> -- terraform apply
+```
+
+See [Infrastructure Monitoring & Alerting](./infrastructure-monitoring.md) for full alarm coverage and notification behavior.
+
 ## Database Access
 
 Connect to Aurora PostgreSQL via SSM Session Manager port forwarding through the bastion host. No SSH keys or open inbound ports required.

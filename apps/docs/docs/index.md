@@ -33,6 +33,7 @@ Understand how GitGazer works — architecture, data flow, and infrastructure.
 - [Architecture Overview](technical/architecture-overview)
 - [Authentication & Authorization](technical/authentication)
 - [Webhook Processing Pipeline](technical/webhook-pipeline)
+- [Infrastructure Monitoring & Alerting](technical/infrastructure-monitoring)
 - [Local Development Guide](technical/local-development)
 
 </div>
