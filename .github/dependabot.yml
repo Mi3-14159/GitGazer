@@ -15,7 +15,7 @@ updates:
               patterns: ['*']
               update-types: ['minor', 'patch']
       cooldown:
-          default-days: 30
+          default-days: 10
 
     - package-ecosystem: 'terraform'
       directory: '/infra'
@@ -49,4 +49,4 @@ updates:
               patterns: ['*']
               update-types: ['minor', 'patch']
       cooldown:
-          default-days: 30
+          default-days: 10
