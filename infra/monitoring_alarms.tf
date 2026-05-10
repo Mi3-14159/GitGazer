@@ -4,7 +4,7 @@ resource "aws_sns_topic" "cloudwatch_alarms" {
 }
 
 resource "aws_cloudwatch_log_metric_filter" "lambda_error_logs" {
-  for_each = local.monitored_lambda_log_groups
+  for_each = var.enable_cloudwatch_alarm_notifications ? local.monitored_lambda_log_groups : {}
 
   name           = "${var.name_prefix}-lambda-${each.key}-error-logs-${terraform.workspace}"
   pattern        = "{ ($.level = \"ERROR\") || ($.level = \"error\") || ($.severity = \"ERROR\") || ($.logLevel = \"ERROR\") }"
@@ -19,7 +19,7 @@ resource "aws_cloudwatch_log_metric_filter" "lambda_error_logs" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_error_logs" {
-  for_each = local.monitored_lambda_log_groups
+  for_each = var.enable_cloudwatch_alarm_notifications ? local.monitored_lambda_log_groups : {}
 
   alarm_name          = "${var.name_prefix}-lambda-${each.key}-error-logs-${terraform.workspace}"
   alarm_description   = "Lambda ${each.key} emitted ERROR-level log entries"
@@ -39,7 +39,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_error_logs" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
-  for_each = local.monitored_lambda_alarm_config
+  for_each = var.enable_cloudwatch_alarm_notifications ? local.monitored_lambda_alarm_config : {}
 
   alarm_name          = "${var.name_prefix}-lambda-${each.key}-errors-${terraform.workspace}"
   alarm_description   = "Lambda ${each.value.function_name} has invocation errors"
@@ -63,7 +63,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
-  for_each = local.monitored_lambda_alarm_config
+  for_each = var.enable_cloudwatch_alarm_notifications ? local.monitored_lambda_alarm_config : {}
 
   alarm_name          = "${var.name_prefix}-lambda-${each.key}-throttles-${terraform.workspace}"
   alarm_description   = "Lambda ${each.value.function_name} is being throttled"
@@ -87,7 +87,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_duration_p95" {
-  for_each = local.monitored_lambda_alarm_config
+  for_each = var.enable_cloudwatch_alarm_notifications ? local.monitored_lambda_alarm_config : {}
 
   alarm_name          = "${var.name_prefix}-lambda-${each.key}-duration-p95-${terraform.workspace}"
   alarm_description   = "Lambda ${each.value.function_name} p95 duration is approaching timeout"
@@ -111,6 +111,8 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_p95" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "api_http_5xx" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-http-api-5xx-${terraform.workspace}"
   alarm_description   = "HTTP API is returning 5xx errors"
   namespace           = "AWS/ApiGateway"
@@ -134,6 +136,8 @@ resource "aws_cloudwatch_metric_alarm" "api_http_5xx" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "api_http_latency_p95" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-http-api-latency-p95-${terraform.workspace}"
   alarm_description   = "HTTP API p95 latency is elevated"
   namespace           = "AWS/ApiGateway"
@@ -157,6 +161,8 @@ resource "aws_cloudwatch_metric_alarm" "api_http_latency_p95" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "api_websocket_5xx" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-websocket-api-5xx-${terraform.workspace}"
   alarm_description   = "WebSocket API is returning 5xx errors"
   namespace           = "AWS/ApiGateway"
@@ -180,6 +186,8 @@ resource "aws_cloudwatch_metric_alarm" "api_websocket_5xx" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "webhook_queue_backlog_visible" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-webhook-queue-backlog-visible-${terraform.workspace}"
   alarm_description   = "Webhook SQS queue backlog is building up"
   namespace           = "AWS/SQS"
@@ -202,6 +210,8 @@ resource "aws_cloudwatch_metric_alarm" "webhook_queue_backlog_visible" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "webhook_queue_oldest_message_age" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-webhook-queue-oldest-message-age-${terraform.workspace}"
   alarm_description   = "Webhook SQS queue oldest message age is elevated"
   namespace           = "AWS/SQS"
@@ -224,6 +234,8 @@ resource "aws_cloudwatch_metric_alarm" "webhook_queue_oldest_message_age" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "aurora_db_connections_high" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-aurora-db-connections-high-${terraform.workspace}"
   alarm_description   = "Aurora cluster has high database connection count"
   namespace           = "AWS/RDS"
@@ -246,7 +258,7 @@ resource "aws_cloudwatch_metric_alarm" "aurora_db_connections_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "aurora_acu_utilization_high" {
-  count = startswith(coalesce(var.db_config.instance_class, ""), "db.serverless") ? 1 : 0
+  count = var.enable_cloudwatch_alarm_notifications && startswith(coalesce(var.db_config.instance_class, ""), "db.serverless") ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-aurora-acu-utilization-high-${terraform.workspace}"
   alarm_description   = "Aurora Serverless v2 ACU utilization is high"
@@ -270,6 +282,8 @@ resource "aws_cloudwatch_metric_alarm" "aurora_acu_utilization_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "aurora_deadlocks" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-aurora-deadlocks-${terraform.workspace}"
   alarm_description   = "Aurora deadlocks detected"
   namespace           = "AWS/RDS"
@@ -292,7 +306,7 @@ resource "aws_cloudwatch_metric_alarm" "aurora_deadlocks" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "aurora_free_local_storage_low" {
-  for_each = module.db.cluster_members
+  for_each = var.enable_cloudwatch_alarm_notifications ? module.db.cluster_members : []
 
   alarm_name          = "${var.name_prefix}-aurora-free-local-storage-low-${each.value}-${terraform.workspace}"
   alarm_description   = "Aurora instance ${each.value} has low free local storage"
@@ -316,6 +330,8 @@ resource "aws_cloudwatch_metric_alarm" "aurora_free_local_storage_low" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "cloudfront_ui_5xx_error_rate" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-cloudfront-ui-5xx-rate-${terraform.workspace}"
   alarm_description   = "UI CloudFront 5xx error rate is elevated"
   namespace           = "AWS/CloudFront"
@@ -339,7 +355,7 @@ resource "aws_cloudwatch_metric_alarm" "cloudfront_ui_5xx_error_rate" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "cloudfront_docs_5xx_error_rate" {
-  count = var.docs_config.enabled ? 1 : 0
+  count = var.enable_cloudwatch_alarm_notifications && var.docs_config.enabled ? 1 : 0
 
   alarm_name          = "${var.name_prefix}-cloudfront-docs-5xx-rate-${terraform.workspace}"
   alarm_description   = "Docs CloudFront 5xx error rate is elevated"
@@ -364,6 +380,8 @@ resource "aws_cloudwatch_metric_alarm" "cloudfront_docs_5xx_error_rate" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "org_sync_schedule_failed_invocations" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-org-sync-schedule-failed-invocations-${terraform.workspace}"
   alarm_description   = "EventBridge org sync schedule has failed invocations"
   namespace           = "AWS/Events"
@@ -386,6 +404,8 @@ resource "aws_cloudwatch_metric_alarm" "org_sync_schedule_failed_invocations" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "webhook_dlq_depth" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
   alarm_name          = "${var.name_prefix}-webhook-dlq-depth-${terraform.workspace}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
