@@ -58,4 +58,30 @@ locals {
   private_subnets               = coalescelist(try(var.db_config.subnets, []), try(module.vpc.private_subnets, []))
   availability_zones            = coalescelist(try(var.db_config.availability_zones, []), try(module.vpc.azs, []))
   ses_domain                    = var.ses_config.domain != null ? var.ses_config.domain : var.custom_domain_config.domain_name
+  monitoring_alarm_actions      = var.enable_cloudwatch_alarm_notifications ? [aws_sns_topic.cloudwatch_alarms[0].arn] : []
+  monitored_lambda_alarm_config = merge({
+    api = {
+      function_name         = aws_lambda_function.api.function_name
+      duration_threshold_ms = 24000
+    }
+    api_websocket = {
+      function_name         = aws_lambda_function.api_websocket.function_name
+      duration_threshold_ms = 8000
+    }
+    worker = {
+      function_name         = aws_lambda_function.worker.function_name
+      duration_threshold_ms = 96000
+    }
+    org_sync_scheduler = {
+      function_name         = aws_lambda_function.org_sync_scheduler.function_name
+      duration_threshold_ms = 540000
+    }
+    },
+    var.enable_http_proxy ? {
+      http_proxy = {
+        function_name         = aws_lambda_function.http_proxy[0].function_name
+        duration_threshold_ms = 24000
+      }
+    } : {}
+  )
 }
