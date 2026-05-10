@@ -316,6 +316,27 @@
       "when": 1778242635047,
       "tag": "0044_iam",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1778432107052,
+      "tag": "0045_light_thunderbolts",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1778432116987,
+      "tag": "0046_simple_cobalt_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1778432403691,
+      "tag": "0047_melodic_shadow_king",
+      "breakpoints": true
     }
   ]
 }

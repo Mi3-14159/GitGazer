@@ -1,0 +1,2 @@
+ALTER TABLE "github"."workflow_jobs" ALTER COLUMN "sender_id" SET NOT NULL;--> statement-breakpoint
+ALTER TABLE "github"."workflow_jobs" ADD CONSTRAINT "workflow_jobs_integration_id_sender_id_user_integration_id_id_fk" FOREIGN KEY ("integration_id","sender_id") REFERENCES "github"."user"("integration_id","id") ON DELETE no action ON UPDATE no action;

@@ -1,0 +1,1 @@
+ALTER TABLE "github"."workflow_jobs" ADD COLUMN "sender_id" bigint;

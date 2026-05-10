@@ -23,6 +23,7 @@ export const importWorkflowJob = async (
             runnerGroupName: event.workflow_job.runner_group_name,
             runAttempt: event.workflow_job.run_attempt,
             runId: event.workflow_job.run_id,
+            senderId: event.sender.id,
             startedAt: new Date(event.workflow_job.started_at),
             status: event.workflow_job.status,
             workflowName: event.workflow_job.name,
