@@ -84,4 +84,14 @@ locals {
       }
     } : {}
   )
+  monitored_lambda_log_groups = merge({
+    api                = aws_cloudwatch_log_group.api.name
+    api_websocket      = aws_cloudwatch_log_group.api_websocket.name
+    worker             = aws_cloudwatch_log_group.worker.name
+    org_sync_scheduler = aws_cloudwatch_log_group.org_sync_scheduler.name
+    },
+    var.enable_http_proxy ? {
+      http_proxy = aws_cloudwatch_log_group.http_proxy[0].name
+    } : {}
+  )
 }

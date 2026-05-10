@@ -3,6 +3,41 @@ resource "aws_sns_topic" "cloudwatch_alarms" {
   name  = "${var.name_prefix}-cloudwatch-alarms-${terraform.workspace}"
 }
 
+resource "aws_cloudwatch_log_metric_filter" "lambda_error_logs" {
+  for_each = local.monitored_lambda_log_groups
+
+  name           = "${var.name_prefix}-lambda-${each.key}-error-logs-${terraform.workspace}"
+  pattern        = "{ ($.level = \"ERROR\") || ($.level = \"error\") || ($.severity = \"ERROR\") || ($.logLevel = \"ERROR\") }"
+  log_group_name = each.value
+
+  metric_transformation {
+    name          = "${var.name_prefix}-lambda-${each.key}-log-errors-${terraform.workspace}"
+    namespace     = "${var.name_prefix}/LambdaLogs"
+    value         = "1"
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_error_logs" {
+  for_each = local.monitored_lambda_log_groups
+
+  alarm_name          = "${var.name_prefix}-lambda-${each.key}-error-logs-${terraform.workspace}"
+  alarm_description   = "Lambda ${each.key} emitted ERROR-level log entries"
+  namespace           = "${var.name_prefix}/LambdaLogs"
+  metric_name         = aws_cloudwatch_log_metric_filter.lambda_error_logs[each.key].metric_transformation[0].name
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions             = local.monitoring_alarm_actions
+  ok_actions                = []
+  insufficient_data_actions = []
+}
+
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   for_each = local.monitored_lambda_alarm_config
 
