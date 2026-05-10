@@ -156,6 +156,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_ses_domain_identity.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ses_domain_identity) | resource |
 | [aws_ses_domain_identity_verification.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ses_domain_identity_verification) | resource |
 | [aws_ses_domain_mail_from.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ses_domain_mail_from) | resource |
+| [aws_sns_topic.cloudwatch_alarms](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sns_topic) | resource |
 | [aws_sqs_queue.webhook_events](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sqs_queue) | resource |
 | [aws_sqs_queue.webhook_events_dlq](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sqs_queue) | resource |
 | [aws_vpc_endpoint.s3](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_endpoint) | resource |
@@ -207,6 +208,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | <a name="input_docs_config"></a> [docs\_config](#input\_docs\_config) | Configuration for the documentation site (Docusaurus) | <pre>object({<br/>    enabled         = bool<br/>    domain_name     = optional(string)<br/>    certificate_arn = optional(string)<br/>    hosted_zone_id  = optional(string)<br/>  })</pre> | <pre>{<br/>  "enabled": false<br/>}</pre> | no |
 | <a name="input_enable_bastion"></a> [enable\_bastion](#input\_enable\_bastion) | Whether to create a bastion host for database access via SSM Session Manager | `bool` | `false` | no |
 | <a name="input_enable_bedrock_invocation_logging"></a> [enable\_bedrock\_invocation\_logging](#input\_enable\_bedrock\_invocation\_logging) | Enable logging of Bedrock model invocations | `bool` | `false` | no |
+| <a name="input_enable_cloudwatch_alarm_notifications"></a> [enable\_cloudwatch\_alarm\_notifications](#input\_enable\_cloudwatch\_alarm\_notifications) | Create SNS topic and wire CloudWatch alarms to publish notifications | `bool` | `true` | no |
 | <a name="input_enable_http_proxy"></a> [enable\_http\_proxy](#input\_enable\_http\_proxy) | Deploy the HTTP proxy Lambda for routing requests to IPv4-only services (GitHub, Slack) from the IPv6-only VPC | `bool` | `true` | no |
 | <a name="input_enable_lambda_tracing"></a> [enable\_lambda\_tracing](#input\_enable\_lambda\_tracing) | Enable AWS X-Ray tracing for the Lambda functions | `bool` | `false` | no |
 | <a name="input_enable_rds_proxy"></a> [enable\_rds\_proxy](#input\_enable\_rds\_proxy) | Whether to create an RDS Proxy for connection pooling between Lambda and Aurora | `bool` | `false` | no |

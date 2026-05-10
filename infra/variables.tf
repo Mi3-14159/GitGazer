@@ -71,6 +71,12 @@ variable "enable_lambda_tracing" {
   default     = false
 }
 
+variable "enable_cloudwatch_alarm_notifications" {
+  type        = bool
+  description = "Create SNS topic and wire CloudWatch alarms to publish notifications"
+  default     = true
+}
+
 variable "enable_bedrock_invocation_logging" {
   type        = bool
   description = "Enable logging of Bedrock model invocations"

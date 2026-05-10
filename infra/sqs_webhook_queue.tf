@@ -34,8 +34,10 @@ resource "aws_cloudwatch_metric_alarm" "webhook_dlq_depth" {
   statistic           = "Maximum"
   threshold           = 0
   alarm_description   = "Webhook events landing in DLQ — investigate failed event processing"
+  datapoints_to_alarm = 1
 
   dimensions = {
     QueueName = aws_sqs_queue.webhook_events_dlq.name
   }
+  alarm_actions = var.enable_cloudwatch_alarm_notifications ? [aws_sns_topic.cloudwatch_alarms[0].arn] : []
 }
