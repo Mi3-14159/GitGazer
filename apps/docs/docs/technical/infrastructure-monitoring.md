@@ -10,7 +10,7 @@ GitGazer includes Terraform-managed infrastructure monitoring built on Amazon Cl
 
 ## Overview
 
-Monitoring resources are defined in [infra/monitoring_alarms.tf](../../../../infra/monitoring_alarms.tf):
+Monitoring resources are defined in `infra/monitoring_alarms.tf`:
 
 - CloudWatch metric alarms for API, Lambda, SQS, RDS/Aurora, CloudFront, and EventBridge
 - CloudWatch Logs metric filters for Lambda ERROR-level logs
@@ -29,7 +29,7 @@ When this variable is `false`, Terraform creates:
 - no CloudWatch metric alarms
 - no CloudWatch log metric filters for Lambda log error detection
 
-Set it in [infra/terraform.tfvars](../../../../infra/terraform.tfvars):
+Set it in `infra/terraform.tfvars`:
 
 ```hcl
 enable_cloudwatch_alarm_notifications = false
