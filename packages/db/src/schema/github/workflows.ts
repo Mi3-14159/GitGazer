@@ -184,6 +184,7 @@ export const user = githubSchema
 
 export const userRelations = relations(user, ({many}) => ({
     workflowRuns: many(workflowRuns),
+    workflowJobs: many(workflowJobs),
 }));
 
 export const workflowJobs = githubSchema
@@ -207,6 +208,7 @@ export const workflowJobs = githubSchema
             runnerGroupName: text('runner_group_name'),
             runAttempt: integer('run_attempt').notNull(),
             runId: bigint('run_id', {mode: 'number'}).notNull(),
+            senderId: bigint('sender_id', {mode: 'number'}).notNull(),
             startedAt: timestamp('started_at', {
                 withTimezone: true,
             }).notNull(),
@@ -223,6 +225,10 @@ export const workflowJobs = githubSchema
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
             }).onDelete('cascade'),
+            foreignKey({
+                columns: [table.integrationId, table.senderId],
+                foreignColumns: [user.integrationId, user.id],
+            }),
             index('workflow_jobs_run_lookup').on(table.integrationId, table.workflowRunId),
         ],
     )
@@ -232,6 +238,10 @@ export const workflowJobsRelations = relations(workflowJobs, ({one}) => ({
     repository: one(repositories, {
         fields: [workflowJobs.integrationId, workflowJobs.repositoryId],
         references: [repositories.integrationId, repositories.id],
+    }),
+    sender: one(user, {
+        fields: [workflowJobs.integrationId, workflowJobs.senderId],
+        references: [user.integrationId, user.id],
     }),
     workflowRun: one(workflowRuns, {
         fields: [workflowJobs.integrationId, workflowJobs.workflowRunId],
