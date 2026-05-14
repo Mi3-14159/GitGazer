@@ -28,6 +28,7 @@ function initializeRdsProxy(): void {
     const database = process.env['RDS_DATABASE'];
     const dbUser = process.env['RDS_DB_USER'];
     const rdsHostname = process.env['RDS_HOSTNAME'] || rdsHost;
+    const rdsPort = process.env['RDS_PORT'] ? Number(process.env['RDS_PORT']) : 5432;
 
     if (!rdsHost || !database || !dbUser || !rdsHostname) {
         throw new Error('Missing required environment variables: RDS_HOST, RDS_DATABASE, RDS_DB_USER, RDS_HOSTNAME');
@@ -41,7 +42,7 @@ function initializeRdsProxy(): void {
 
     _pool = new pg.Pool({
         host: rdsHost,
-        port: 5432,
+        port: rdsPort,
         database,
         user: dbUser,
         password: () => _signer!.getAuthToken(),
