@@ -86,15 +86,13 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         });
     } catch (error: any) {
         const errorMessage = error?.message || 'Unknown error';
-        const isExpiredError = errorMessage.includes('expired') || errorMessage.includes('Token expired');
-        if (isExpiredError) {
+        if (errorMessage.includes('expired')) {
             throw new UnauthorizedError('Authentication tokens have expired');
         }
 
         logger.error('Token verification failed', {
             error: errorMessage,
             errorType: error?.name,
-            isExpiredError,
             hasRefreshToken,
             rawPath,
         });
