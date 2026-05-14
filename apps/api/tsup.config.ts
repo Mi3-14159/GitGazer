@@ -8,7 +8,8 @@ const shared: Options = {
     sourcemap: true,
     treeshake: true,
     // Bundle all dependencies except @aws-sdk (provided by Lambda runtime)
-    external: [/^@aws-sdk/],
+    // and @aws-lambda-powertools/metrics (optional peer dep of event-handler, not used)
+    external: [/^@aws-sdk/, '@aws-lambda-powertools/metrics'],
     // Explicitly bundle these packages to avoid runtime import errors
     noExternal: ['convict'],
     esbuildOptions(options) {
