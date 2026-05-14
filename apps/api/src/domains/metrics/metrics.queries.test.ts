@@ -174,7 +174,7 @@ describe('metrics queries', () => {
             });
 
             const allSql = calls.join(' ');
-            expect(allSql).toContain('User');
+            expect(allSql).toContain('Bot');
         });
     });
 

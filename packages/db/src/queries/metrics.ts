@@ -1,7 +1,8 @@
 import {and, eq, gte, inArray, lte, sql, SQL} from 'drizzle-orm';
 import {RdsTransaction, withRlsTransaction} from '../client';
 import {pullRequestReviews, pullRequests, repositories, user, workflowJobs, workflowRuns} from '../schema';
-import type {MetricDataPoint, MetricResult, MetricSeries, MetricsFilter} from '../types/metrics';
+import type {Granularity, MetricDataPoint, MetricResult, MetricSeries, MetricsFilter} from '../types/metrics';
+import {GRANULARITY_VALUES} from '../types/metrics';
 
 type MetricsParams = {
     integrationIds: string[];
@@ -16,7 +17,10 @@ function getDateRange(filter: MetricsFilter): {from: Date; to: Date} {
     return {from, to};
 }
 
-function dateTruncExpression(granularity: string, column: SQL) {
+function dateTruncExpression(granularity: Granularity, column: SQL) {
+    if (!GRANULARITY_VALUES.includes(granularity)) {
+        throw new Error(`Invalid granularity: ${granularity}`);
+    }
     return sql`date_trunc(${sql.raw(`'${granularity}'`)}, ${column})`;
 }
 
@@ -27,8 +31,18 @@ function getEffectiveRepositoryIds(filter: MetricsFilter): number[] | undefined 
 }
 
 function buildTopicsCondition(
-    repositoryIdColumn: SQL | typeof workflowRuns.repositoryId | typeof pullRequests.repositoryId | typeof workflowJobs.repositoryId,
-    integrationIdColumn: SQL | typeof workflowRuns.integrationId | typeof pullRequests.integrationId | typeof workflowJobs.integrationId,
+    repositoryIdColumn:
+        | SQL
+        | typeof workflowRuns.repositoryId
+        | typeof pullRequests.repositoryId
+        | typeof workflowJobs.repositoryId
+        | typeof pullRequestReviews.repositoryId,
+    integrationIdColumn:
+        | SQL
+        | typeof workflowRuns.integrationId
+        | typeof pullRequests.integrationId
+        | typeof workflowJobs.integrationId
+        | typeof pullRequestReviews.integrationId,
     topics: string[],
 ): SQL {
     const topicParams = sql.join(
@@ -87,7 +101,7 @@ function buildWorkflowRunConditions(filter: MetricsFilter, from: Date, to: Date)
         );
     }
     if (filter.usersOnly) {
-        conditions.push(sql`${workflowRuns.actorId} IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'User')`);
+        conditions.push(sql`${workflowRuns.actorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`);
     }
     return conditions;
 }
@@ -108,7 +122,7 @@ function buildWorkflowJobConditions(filter: MetricsFilter, from: Date, to: Date)
     }
     if (filter.usersOnly) {
         conditions.push(
-            sql`${workflowJobs.workflowRunId} IN (SELECT ${workflowRuns.id} FROM ${workflowRuns} WHERE ${workflowRuns.integrationId} = ${workflowJobs.integrationId} AND ${workflowRuns.id} = ${workflowJobs.workflowRunId} AND ${workflowRuns.actorId} IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'User'))`,
+            sql`${workflowJobs.workflowRunId} IN (SELECT ${workflowRuns.id} FROM ${workflowRuns} WHERE ${workflowRuns.integrationId} = ${workflowJobs.integrationId} AND ${workflowRuns.id} = ${workflowJobs.workflowRunId} AND ${workflowRuns.actorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot'))`,
         );
     }
     return conditions;
@@ -137,7 +151,7 @@ async function queryTimeBuckets(
     selectExpr: SQL,
     fromTable: any,
     conditions: SQL[],
-    granularity: string,
+    granularity: Granularity,
     dateColumn: SQL,
 ): Promise<MetricDataPoint[]> {
     const truncated = dateTruncExpression(granularity, dateColumn);
@@ -174,17 +188,28 @@ function groupRowsIntoSeries(rows: GroupedRow[]): MetricSeries[] {
     }));
 }
 
+function mapTimeBucketRows(rows: any[], round = true): MetricDataPoint[] {
+    return (rows ?? []).map((r: any) => ({
+        period: new Date(r.period).toISOString(),
+        value: round ? Math.round((Number(r.value) || 0) * 100) / 100 : Number(r.value) || 0,
+    }));
+}
+
 function buildUnionFilters(filter: MetricsFilter, repoIds: number[] | undefined) {
-    const wrRepoFilter = repoIds ? sql`AND ${workflowRuns.repositoryId} = ANY(${sql.raw(`ARRAY[${repoIds.join(',')}]`)})` : sql``;
-    const prRepoFilter = repoIds ? sql`AND ${pullRequests.repositoryId} = ANY(${sql.raw(`ARRAY[${repoIds.join(',')}]`)})` : sql``;
+    const wrRepoFilter = repoIds ? sql`AND ${inArray(workflowRuns.repositoryId, repoIds)}` : sql``;
+    const prRepoFilter = repoIds ? sql`AND ${inArray(pullRequests.repositoryId, repoIds)}` : sql``;
     const wrBranchFilter = filter.defaultBranchOnly
         ? sql`AND ${workflowRuns.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId})`
         : sql``;
     const prBranchFilter = filter.defaultBranchOnly
         ? sql`AND ${pullRequests.baseBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId})`
         : sql``;
-    const wrUserFilter = filter.usersOnly ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
-    const prUserFilter = filter.usersOnly ? sql`AND ${pullRequests.authorId} NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
+    const wrUserFilter = filter.usersOnly
+        ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`
+        : sql``;
+    const prUserFilter = filter.usersOnly
+        ? sql`AND ${pullRequests.authorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`
+        : sql``;
     const wrTopicsFilter =
         filter.topics?.length && !filter.groupBy
             ? sql`AND ${buildTopicsCondition(workflowRuns.repositoryId, workflowRuns.integrationId, filter.topics)}`
@@ -256,10 +281,7 @@ export async function getLeadTimeForChanges({integrationIds, filter}: MetricsPar
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'Lead Time for Changes', unit: 'hours', data};
         },
     });
@@ -288,10 +310,7 @@ export async function getChangeFailureRate({integrationIds, filter}: MetricsPara
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'Change Failure Rate', unit: '%', data};
         },
     });
@@ -305,58 +324,62 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
         integrationIds,
         callback: async (tx) => {
             const repoIds = getEffectiveRepositoryIds(filter);
-            const repoFilter = repoIds ? sql`AND repository_id = ANY(${sql.raw(`ARRAY[${repoIds.join(',')}]`)})` : sql``;
+            const repoFilter = repoIds ? sql`AND ${inArray(workflowRuns.repositoryId, repoIds)}` : sql``;
             const topicsFilter =
                 filter.topics?.length && !filter.groupBy
-                    ? sql`AND repository_id IN (SELECT r.id FROM github.repositories r WHERE r.integration_id = github.workflow_runs.integration_id AND r.topics ?| array[${sql.join(
-                          filter.topics.map((t) => sql`${t}`),
-                          sql`, `,
-                      )}])`
+                    ? sql`AND ${buildTopicsCondition(workflowRuns.repositoryId, workflowRuns.integrationId, filter.topics)}`
                     : sql``;
-            const repoTopicsFilter = filter.topics?.length
-                ? sql`AND r.topics ?| array[${sql.join(
-                      filter.topics.map((t) => sql`${t}`),
-                      sql`, `,
-                  )}]`
-                : sql``;
             const branchFilter = filter.defaultBranchOnly
-                ? sql`AND head_branch = (SELECT default_branch FROM github.repositories r WHERE r.id = github.workflow_runs.repository_id AND r.integration_id = github.workflow_runs.integration_id)`
+                ? sql`AND ${workflowRuns.headBranch} = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId})`
                 : sql``;
-            const userFilter = filter.usersOnly ? sql`AND actor_id NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
+            const userFilter = filter.usersOnly
+                ? sql`AND ${workflowRuns.actorId} NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')`
+                : sql``;
+
+            const failedRunsCte = sql`
+                WITH failed_runs AS (
+                    SELECT ${workflowRuns.id} as id, ${workflowRuns.integrationId} as integration_id,
+                           ${workflowRuns.workflowId} as workflow_id, ${workflowRuns.headBranch} as head_branch,
+                           ${workflowRuns.createdAt} as created_at, ${workflowRuns.repositoryId} as repository_id
+                    FROM ${workflowRuns}
+                    WHERE ${workflowRuns.status} = 'completed'
+                      AND ${workflowRuns.conclusion} IN ('failure', 'timed_out')
+                      AND ${gte(workflowRuns.createdAt, from)}
+                      AND ${lte(workflowRuns.createdAt, to)}
+                      ${repoFilter} ${topicsFilter} ${branchFilter} ${userFilter}
+                ),
+                recovery AS (
+                    SELECT f.id as failed_id, f.created_at as failed_at, f.repository_id, min(s.created_at) as recovered_at
+                    FROM failed_runs f
+                    JOIN ${workflowRuns} s ON s.workflow_id = f.workflow_id AND s.head_branch = f.head_branch AND s.integration_id = f.integration_id AND s.conclusion = 'success' AND s.status = 'completed' AND s.created_at > f.created_at
+                    GROUP BY f.id, f.created_at, f.repository_id
+                )`;
 
             if (filter.groupBy === 'repository' || filter.groupBy === 'topic') {
                 const isTopicGroup = filter.groupBy === 'topic';
+                const repoTopicsFilter = filter.topics?.length
+                    ? sql`AND ${repositories.topics} ?| array[${sql.join(
+                          filter.topics.map((t) => sql`${t}`),
+                          sql`, `,
+                      )}]`
+                    : sql``;
+                const topicLateral = isTopicGroup
+                    ? filter.topics?.length
+                        ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(r.topics) WHERE value = ANY(ARRAY[${sql.join(
+                              filter.topics.map((t) => sql`${t}`),
+                              sql`, `,
+                          )}])) AS t`
+                        : sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(r.topics)) AS t`
+                    : sql``;
+
                 const rows = await tx.execute(sql`
-                    WITH failed_runs AS (
-                        SELECT id, integration_id, workflow_id, head_branch, created_at, repository_id
-                        FROM github.workflow_runs
-                        WHERE status = 'completed'
-                          AND conclusion IN ('failure', 'timed_out')
-                          AND created_at >= ${from.toISOString()}::timestamptz
-                          AND created_at <= ${to.toISOString()}::timestamptz
-                          ${repoFilter} ${topicsFilter} ${branchFilter} ${userFilter}
-                    ),
-                    recovery AS (
-                        SELECT f.id as failed_id, f.created_at as failed_at, f.repository_id, min(s.created_at) as recovered_at
-                        FROM failed_runs f
-                        JOIN github.workflow_runs s ON s.workflow_id = f.workflow_id AND s.head_branch = f.head_branch AND s.integration_id = f.integration_id AND s.conclusion = 'success' AND s.status = 'completed' AND s.created_at > f.created_at
-                        GROUP BY f.id, f.created_at, f.repository_id
-                    )
+                    ${failedRunsCte}
                     SELECT ${isTopicGroup ? sql`t.topic as group_key, t.topic as group_label` : sql`r.id::text as group_key, r.name as group_label`},
                            ${dateTruncExpression(granularity, sql`failed_at`)} as period,
                            avg(extract(epoch from (recovered_at - failed_at)) / 3600) as value
                     FROM recovery
-                    JOIN github.repositories r ON r.id = recovery.repository_id
-                    ${
-                        isTopicGroup
-                            ? filter.topics?.length
-                                ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(r.topics) WHERE value = ANY(ARRAY[${sql.join(
-                                      filter.topics.map((t) => sql`${t}`),
-                                      sql`, `,
-                                  )}])) AS t`
-                                : sql.raw(`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(r.topics)) AS t`)
-                            : sql``
-                    }
+                    JOIN ${repositories} r ON r.id = recovery.repository_id
+                    ${topicLateral}
                     WHERE TRUE ${isTopicGroup ? sql`` : repoTopicsFilter}
                     GROUP BY group_key, group_label, period
                     ORDER BY group_label, period
@@ -366,31 +389,14 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
             }
 
             const rows = await tx.execute(sql`
-                WITH failed_runs AS (
-                    SELECT id, integration_id, workflow_id, head_branch, created_at
-                    FROM github.workflow_runs
-                    WHERE status = 'completed'
-                      AND conclusion IN ('failure', 'timed_out')
-                      AND created_at >= ${from.toISOString()}::timestamptz
-                      AND created_at <= ${to.toISOString()}::timestamptz
-                      ${repoFilter} ${topicsFilter} ${branchFilter} ${userFilter}
-                ),
-                recovery AS (
-                    SELECT f.id as failed_id, f.created_at as failed_at, min(s.created_at) as recovered_at
-                    FROM failed_runs f
-                    JOIN github.workflow_runs s ON s.workflow_id = f.workflow_id AND s.head_branch = f.head_branch AND s.integration_id = f.integration_id AND s.conclusion = 'success' AND s.status = 'completed' AND s.created_at > f.created_at
-                    GROUP BY f.id, f.created_at
-                )
+                ${failedRunsCte}
                 SELECT ${dateTruncExpression(granularity, sql`failed_at`)} as period,
                        avg(extract(epoch from (recovered_at - failed_at)) / 3600) as value
                 FROM recovery
                 GROUP BY period
                 ORDER BY period
             `);
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'Mean Time to Recovery', unit: 'hours', data};
         },
     });
@@ -406,7 +412,6 @@ export async function getPRMergeRate({integrationIds, filter}: MetricsParams): P
         integrationIds,
         callback: async (tx) => {
             const conditions: SQL[] = [gte(pullRequests.closedAt, from), lte(pullRequests.closedAt, to)];
-            conditions.push(sql`${pullRequests.closedAt} IS NOT NULL`);
             buildPullRequestFilters(conditions, filter);
             const groupExprs = getGroupByExpressions(filter);
             const truncated = dateTruncExpression(granularity, sql`${pullRequests.closedAt}`);
@@ -423,10 +428,7 @@ export async function getPRMergeRate({integrationIds, filter}: MetricsParams): P
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'PR Merge Rate', unit: '%', data};
         },
     });
@@ -495,10 +497,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                 GROUP BY period
                 ORDER BY period
             `);
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Number(r.value) || 0,
-            }));
+            const data = mapTimeBucketRows(rows.rows, false);
             return {metric: 'Activity Volume', unit: 'events', data};
         },
     });
@@ -563,10 +562,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                 GROUP BY period
                 ORDER BY period
             `);
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Number(r.value) || 0,
-            }));
+            const data = mapTimeBucketRows(rows.rows, false);
             return {metric: 'Contributor Count', unit: 'contributors', data};
         },
     });
@@ -595,10 +591,7 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'CI Duration', unit: 'minutes', data};
         },
     });
@@ -629,10 +622,7 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'PR Cycle Time', unit: 'hours', data};
         },
     });
@@ -672,10 +662,7 @@ export async function getPRSize({integrationIds, filter}: MetricsParams): Promis
                 GROUP BY period
                 ORDER BY period`,
             );
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'PR Size', unit: 'lines', data};
         },
     });
@@ -688,32 +675,48 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
     return withRlsTransaction({
         integrationIds,
         callback: async (tx) => {
-            const repoFilter = getEffectiveRepositoryIds(filter);
+            const repoIds = getEffectiveRepositoryIds(filter);
+            const topicsCondition =
+                filter.topics?.length && !filter.groupBy
+                    ? sql`AND ${buildTopicsCondition(pullRequestReviews.repositoryId, pullRequestReviews.integrationId, filter.topics)}`
+                    : sql``;
             const reviewCte = sql`
                 WITH first_reviews AS (
-                    SELECT r.pull_request_id, r.repository_id, r.integration_id, MIN(r.submitted_at) as first_review_at
-                    FROM ${pullRequestReviews} r
-                    WHERE r.state IN ('approved', 'changes_requested')
-                      AND r.submitted_at >= ${from.toISOString()}::timestamptz
-                      AND r.submitted_at <= ${to.toISOString()}::timestamptz
-                      ${repoFilter ? sql`AND r.repository_id = ANY(${sql.raw(`ARRAY[${repoFilter.join(',')}]`)})` : sql``}
-                      ${
-                          filter.topics?.length && !filter.groupBy
-                              ? sql`AND r.repository_id IN (SELECT id FROM github.repositories WHERE integration_id = r.integration_id AND topics ?| array[${sql.join(
-                                    filter.topics.map((t) => sql`${t}`),
-                                    sql`, `,
-                                )}])`
-                              : sql``
-                      }
-                    GROUP BY r.pull_request_id, r.repository_id, r.integration_id
+                    SELECT ${pullRequestReviews.pullRequestId} as pull_request_id,
+                           ${pullRequestReviews.repositoryId} as repository_id,
+                           ${pullRequestReviews.integrationId} as integration_id,
+                           MIN(${pullRequestReviews.submittedAt}) as first_review_at
+                    FROM ${pullRequestReviews}
+                    WHERE ${pullRequestReviews.state} IN ('approved', 'changes_requested')
+                      AND ${gte(pullRequestReviews.submittedAt, from)}
+                      AND ${lte(pullRequestReviews.submittedAt, to)}
+                      ${repoIds ? sql`AND ${inArray(pullRequestReviews.repositoryId, repoIds)}` : sql``}
+                      ${topicsCondition}
+                    GROUP BY ${pullRequestReviews.pullRequestId}, ${pullRequestReviews.repositoryId}, ${pullRequestReviews.integrationId}
                 )`;
-            const userCond = filter.usersOnly ? sql`AND pr.author_id NOT IN (SELECT id FROM github."user" WHERE type = 'Bot')` : sql``;
+            const userCond = filter.usersOnly ? sql`AND pr.author_id NOT IN (SELECT ${user.id} FROM ${user} WHERE ${user.type} = 'Bot')` : sql``;
             const branchCond = filter.defaultBranchOnly
-                ? sql`AND pr.base_branch = (SELECT default_branch FROM github.repositories r2 WHERE r2.id = pr.repository_id AND r2.integration_id = pr.integration_id)`
+                ? sql`AND pr.base_branch = (SELECT ${repositories.defaultBranch} FROM ${repositories} WHERE ${repositories.id} = pr.repository_id AND ${repositories.integrationId} = pr.integration_id)`
                 : sql``;
 
             if (filter.groupBy === 'repository' || filter.groupBy === 'topic') {
                 const isTopicGroup = filter.groupBy === 'topic';
+                const repoTopicsFilter =
+                    !isTopicGroup && filter.topics?.length
+                        ? sql`AND repo.topics ?| array[${sql.join(
+                              filter.topics.map((t) => sql`${t}`),
+                              sql`, `,
+                          )}]`
+                        : sql``;
+                const topicLateral = isTopicGroup
+                    ? filter.topics?.length
+                        ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(repo.topics) WHERE value = ANY(ARRAY[${sql.join(
+                              filter.topics.map((t) => sql`${t}`),
+                              sql`, `,
+                          )}])) AS t`
+                        : sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(repo.topics)) AS t`
+                    : sql``;
+
                 const rows = await tx.execute(sql`
                     ${reviewCte}
                     SELECT
@@ -723,27 +726,8 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                     FROM first_reviews fr
                     JOIN ${pullRequests} pr ON pr.integration_id = fr.integration_id AND pr.id = fr.pull_request_id
                     JOIN ${repositories} repo ON repo.integration_id = fr.integration_id AND repo.id = fr.repository_id
-                    ${
-                        isTopicGroup
-                            ? filter.topics?.length
-                                ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(repo.topics) WHERE value = ANY(ARRAY[${sql.join(
-                                      filter.topics.map((t) => sql`${t}`),
-                                      sql`, `,
-                                  )}])) AS t`
-                                : sql.raw(`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(repo.topics)) AS t`)
-                            : sql``
-                    }
-                    WHERE TRUE ${userCond} ${branchCond}
-                    ${
-                        isTopicGroup
-                            ? sql``
-                            : filter.topics?.length
-                              ? sql`AND repo.topics ?| array[${sql.join(
-                                    filter.topics.map((t) => sql`${t}`),
-                                    sql`, `,
-                                )}]`
-                              : sql``
-                    }
+                    ${topicLateral}
+                    WHERE TRUE ${userCond} ${branchCond} ${repoTopicsFilter}
                     GROUP BY group_key, group_label, period
                     ORDER BY group_label, period
                 `);
@@ -762,10 +746,7 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                 GROUP BY period
                 ORDER BY period
             `);
-            const data = (rows.rows ?? []).map((r: any) => ({
-                period: new Date(r.period).toISOString(),
-                value: Math.round((Number(r.value) || 0) * 100) / 100,
-            }));
+            const data = mapTimeBucketRows(rows.rows);
             return {metric: 'PR Review Time', unit: 'hours', data};
         },
     });
@@ -788,7 +769,7 @@ export async function listTopics({integrationIds}: {integrationIds: string[]}) {
         integrationIds,
         callback: async (tx) => {
             const rows = await tx.execute(
-                sql`SELECT DISTINCT jsonb_array_elements_text(${repositories.topics}) AS topic FROM ${repositories} ORDER BY topic`,
+                sql`SELECT DISTINCT t.topic FROM ${repositories} CROSS JOIN LATERAL jsonb_array_elements_text(${repositories.topics}) AS t(topic) ORDER BY 1`,
             );
             return (rows.rows ?? []).map((r: any) => String(r.topic));
         },
