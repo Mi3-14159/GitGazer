@@ -337,6 +337,13 @@
       "when": 1778432403691,
       "tag": "0047_melodic_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1778794243926,
+      "tag": "0048_mighty_living_lightning",
+      "breakpoints": true
     }
   ]
 }

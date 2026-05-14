@@ -147,6 +147,7 @@ export const repositories = githubSchema
                 columns: [table.integrationId, table.ownerId],
                 foreignColumns: [user.integrationId, user.id],
             }).onDelete('set null'),
+            index('repositories_topics_gin').using('gin', table.topics),
         ],
     )
     .enableRLS();
@@ -230,6 +231,7 @@ export const workflowJobs = githubSchema
                 foreignColumns: [user.integrationId, user.id],
             }),
             index('workflow_jobs_run_lookup').on(table.integrationId, table.workflowRunId),
+            index('workflow_jobs_created_at').on(table.integrationId, table.createdAt),
         ],
     )
     .enableRLS();
@@ -296,6 +298,7 @@ export const workflowRuns = githubSchema
             readerTenantSeparationPolicy(),
             analystTenantSeparationPolicy(),
             index('workflow_runs_created_id').on(table.integrationId, table.createdAt, table.id),
+            index('workflow_runs_recovery_lookup').on(table.integrationId, table.workflowId, table.headBranch, table.conclusion, table.createdAt),
         ],
     )
     .enableRLS();
@@ -353,6 +356,9 @@ export const pullRequests = githubSchema
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
             analystTenantSeparationPolicy(),
+            index('pull_requests_merged_at').on(table.integrationId, table.mergedAt),
+            index('pull_requests_closed_at').on(table.integrationId, table.closedAt),
+            index('pull_requests_created_at').on(table.integrationId, table.createdAt),
         ],
     )
     .enableRLS();
