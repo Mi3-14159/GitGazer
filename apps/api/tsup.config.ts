@@ -1,4 +1,4 @@
-import {defineConfig, Options} from 'tsup';
+import { defineConfig, Options } from 'tsup';
 
 const shared: Options = {
     format: ['cjs'],
@@ -8,8 +8,7 @@ const shared: Options = {
     sourcemap: true,
     treeshake: true,
     // Bundle all dependencies except @aws-sdk (provided by Lambda runtime)
-    // and @aws-lambda-powertools/metrics (optional peer dep of event-handler, not used)
-    external: [/^@aws-sdk/, '@aws-lambda-powertools/metrics'],
+    external: [/^@aws-sdk/],
     // Explicitly bundle these packages to avoid runtime import errors
     noExternal: ['convict'],
     esbuildOptions(options) {
