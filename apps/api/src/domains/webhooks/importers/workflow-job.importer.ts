@@ -1,5 +1,8 @@
 import {RdsTransaction} from '@gitgazer/db/client';
-import {WorkflowJob, WorkflowJobEvent} from '@gitgazer/db/types';
+import {workflowJobRelations} from '@gitgazer/db/queries';
+import {workflowJobs} from '@gitgazer/db/schema';
+import {WorkflowJobEvent, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import {and, eq} from 'drizzle-orm';
 import {upsertWorkflowJobs} from './shared';
 
 export const importWorkflowJob = async (
@@ -7,10 +10,10 @@ export const importWorkflowJob = async (
     integrationId: string,
     event: WorkflowJobEvent,
 ): Promise<{
-    workflowJob: WorkflowJob;
+    workflowJob: WorkflowJobWithRelations;
     stale: boolean;
 }> => {
-    const {workflowJobs, stale} = await upsertWorkflowJobs(tx, [
+    const {stale} = await upsertWorkflowJobs(tx, [
         {
             integrationId,
             repositoryId: event.repository.id,
@@ -26,10 +29,19 @@ export const importWorkflowJob = async (
             senderId: event.sender.id,
             startedAt: new Date(event.workflow_job.started_at),
             status: event.workflow_job.status,
-            workflowName: event.workflow_job.name,
+            workflowName: event.workflow_job.workflow_name!,
             workflowRunId: event.workflow_job.run_id,
         },
     ]);
 
-    return {workflowJob: workflowJobs[0], stale};
+    const workflowJob = await tx.query.workflowJobs.findFirst({
+        where: and(eq(workflowJobs.integrationId, integrationId), eq(workflowJobs.id, event.workflow_job.id)),
+        with: workflowJobRelations,
+    });
+
+    if (!workflowJob) {
+        throw new Error(`Failed to load workflow job with relations for integration ${integrationId}, job id ${event.workflow_job.id}`);
+    }
+
+    return {workflowJob, stale};
 };

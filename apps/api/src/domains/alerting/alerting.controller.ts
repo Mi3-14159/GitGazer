@@ -2,54 +2,137 @@ import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
 import {proxyFetch} from '@/shared/clients/proxy-fetch';
 import {getLogger} from '@/shared/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {notificationRules, workflowRuns} from '@gitgazer/db/schema';
-import {NotificationRuleChannelType, WorkflowJobEvent} from '@gitgazer/db/types';
+import {notificationRules} from '@gitgazer/db/schema';
+import {NotificationRuleChannelType, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
-export async function sendWorkflowJobAlerts(integrationId: string, event: WorkflowJobEvent): Promise<void> {
+type AlertContext = {
+    ownerLogin: string;
+    repositoryName: string;
+    fullName: string;
+    headBranch: string | null;
+    workflowName: string;
+    jobName: string;
+    runId: number;
+    senderLogin: string;
+};
+
+type SlackPayload = {
+    blocks: Array<{
+        type: 'header' | 'section';
+        text?: {
+            emoji?: boolean;
+            text: string;
+            type: 'plain_text' | 'mrkdwn';
+        };
+        fields?: Array<{
+            text: string;
+            type: 'mrkdwn';
+        }>;
+    }>;
+    color: string;
+};
+
+export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelations): Promise<void> {
     const logger = getLogger();
 
-    // Only alert for completed failures
-    const {status} = event.workflow_job;
-    const {conclusion} = event.workflow_job;
-    if (status !== 'completed' || conclusion !== 'failure') {
-        logger.debug('Skipping alert: not a completed failure', {status, conclusion});
+    if (!isCompletedFailure(workflowJob)) {
+        logger.debug('Skipping alert: not a completed failure', {
+            status: workflowJob.status,
+            conclusion: workflowJob.conclusion,
+        });
         return;
     }
 
-    const {full_name} = event.repository;
-    const [owner, repository_name] = full_name.split('/');
-    const {head_branch, workflow_name, name: job_name, run_id} = event.workflow_job;
-    const sender = event.sender.login;
+    const context = getAlertContext(workflowJob);
+    const matching = await findMatchingNotificationRules(workflowJob, context);
 
-    // Check if this is a dependabot event
-    const isDependabotEvent = sender === 'dependabot[bot]' || job_name === 'Dependabot';
+    if (matching.length === 0) {
+        logger.info(`No matching notification rules for integration ${workflowJob.integrationId}`);
+        return;
+    }
 
-    // Query notification rules with SQL filtering for owner/repo/workflow/branch matching and dependabot
-    const matching = await withRlsTransaction({
-        integrationIds: [integrationId],
+    logger.info(`Found ${matching.length} matching notification rules for integration ${workflowJob.integrationId}`, {matching});
+
+    const body = getSlackBody(workflowJob);
+
+    const notifications = flattenSlackNotifications(matching);
+
+    for (const notification of notifications) {
+        await sendSlackNotification(notification.webhookUrl, body, notification.ruleId, logger);
+    }
+
+    try {
+        await createEventLogEntry({
+            integrationId: workflowJob.integrationId,
+            category: 'notification',
+            type: 'alert',
+            title: `${context.workflowName} / ${context.jobName} failed`,
+            message: `Job "${context.jobName}" in workflow "${context.workflowName}" failed on ${context.repositoryName}/${context.headBranch}`,
+            metadata: {
+                repositoryId: workflowJob.repositoryId,
+                repository: context.fullName,
+                branch: context.headBranch ?? undefined,
+                actor: context.senderLogin,
+                workflowName: context.workflowName,
+                jobName: context.jobName,
+                workflowRunId: context.runId,
+                workflowJobId: workflowJob.id,
+            },
+        });
+    } catch (error) {
+        logger.error('Failed to create event log entry', error as Error);
+    }
+}
+
+function isCompletedFailure(workflowJob: WorkflowJobWithRelations): boolean {
+    return workflowJob.status === 'completed' && workflowJob.conclusion === 'failure';
+}
+
+function getAlertContext(workflowJob: WorkflowJobWithRelations): AlertContext {
+    const ownerLogin = workflowJob.repository.owner?.login ?? '';
+    const repositoryName = workflowJob.repository.name;
+
+    return {
+        ownerLogin,
+        repositoryName,
+        fullName: ownerLogin ? `${ownerLogin}/${repositoryName}` : repositoryName,
+        headBranch: workflowJob.headBranch,
+        workflowName: workflowJob.workflowName,
+        jobName: workflowJob.name,
+        runId: workflowJob.runId,
+        senderLogin: workflowJob.sender?.login ?? 'unknown',
+    };
+}
+
+async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelations, context: AlertContext) {
+    const isDependabotEvent = context.senderLogin === 'dependabot[bot]' || context.jobName === 'Dependabot';
+    const repoTopics = workflowJob.repository.topics ?? [];
+
+    return await withRlsTransaction({
+        integrationIds: [workflowJob.integrationId],
         callback: async (tx: RdsTransaction) => {
             const conditions = [
                 eq(notificationRules.enabled, true),
                 or(
                     sql`${notificationRules.rule}->>'owner' IS NULL`,
                     sql`${notificationRules.rule}->>'owner' = ''`,
-                    sql`${notificationRules.rule}->>'owner' = ${owner}`,
+                    sql`${notificationRules.rule}->>'owner' = ${context.ownerLogin}`,
                 ),
                 or(
                     sql`${notificationRules.rule}->>'repository_name' IS NULL`,
                     sql`${notificationRules.rule}->>'repository_name' = ''`,
-                    sql`${notificationRules.rule}->>'repository_name' = ${repository_name}`,
+                    sql`${notificationRules.rule}->>'repository_name' = ${context.repositoryName}`,
                 ),
                 or(
                     sql`${notificationRules.rule}->>'workflow_name' IS NULL`,
                     sql`${notificationRules.rule}->>'workflow_name' = ''`,
-                    sql`${notificationRules.rule}->>'workflow_name' = ${workflow_name}`,
+                    sql`${notificationRules.rule}->>'workflow_name' = ${context.workflowName}`,
                 ),
                 or(
                     sql`${notificationRules.rule}->>'head_branch' IS NULL`,
                     sql`${notificationRules.rule}->>'head_branch' = ''`,
-                    sql`${notificationRules.rule}->>'head_branch' = ${head_branch}`,
+                    sql`${notificationRules.rule}->>'head_branch' = ${context.headBranch}`,
                 ),
             ];
 
@@ -58,11 +141,10 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
                 sql`jsonb_array_length(COALESCE(${notificationRules.rule}->'topics', '[]'::jsonb)) = 0`,
             ];
 
-            const repoTopics = event.repository.topics ?? [];
             if (repoTopics.length > 0) {
                 topicFilterConditions.push(
                     sql`${notificationRules.rule}->'topics' ?| ARRAY[${sql.join(
-                        repoTopics.map((t) => sql`${t}`),
+                        repoTopics.map((topic) => sql`${topic}`),
                         sql`,`,
                     )}]`,
                 );
@@ -70,7 +152,6 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
 
             conditions.push(or(...topicFilterConditions));
 
-            // If this is a dependabot event, only include rules with ignore_dependabot = false
             if (isDependabotEvent) {
                 conditions.push(eq(notificationRules.ignore_dependabot, false));
             }
@@ -81,65 +162,19 @@ export async function sendWorkflowJobAlerts(integrationId: string, event: Workfl
                 .where(and(...conditions));
         },
     });
+}
 
-    if (matching.length === 0) {
-        logger.info(`No matching notification rules for integration ${integrationId}`);
-        return;
-    }
+type MatchingRule = Awaited<ReturnType<typeof findMatchingNotificationRules>>[number];
 
-    logger.info(`Found ${matching.length} matching notification rules for integration ${integrationId}`, {matching});
-
-    // Fetch parent workflow_run to get event field
-    const workflowRunResult = await withRlsTransaction({
-        integrationIds: [integrationId],
-        callback: async (tx: RdsTransaction) => {
-            return await tx
-                .select({event: workflowRuns.event})
-                .from(workflowRuns)
-                .where(and(eq(workflowRuns.integrationId, integrationId), eq(workflowRuns.id, run_id)))
-                .limit(1);
-        },
-    });
-
-    const body = getSlackBody(event, workflowRunResult?.[0]);
-
-    // Flatten rules and channels into a single array of notifications to send
-    const notifications = matching.flatMap((rule) =>
+function flattenSlackNotifications(rules: MatchingRule[]): Array<{ruleId: string | undefined; webhookUrl: string}> {
+    return rules.flatMap((rule) =>
         rule.channels
             .filter((channel) => channel.type === NotificationRuleChannelType.SLACK)
             .map((channel) => ({ruleId: rule.id, webhookUrl: channel.webhook_url})),
     );
-
-    // Send all notifications
-    for (const notification of notifications) {
-        await sendSlackNotification(notification.webhookUrl, body, notification.ruleId, logger);
-    }
-
-    // Create event log entry for this alert
-    try {
-        await createEventLogEntry({
-            integrationId,
-            category: 'notification',
-            type: 'alert',
-            title: `${workflow_name} / ${job_name} failed`,
-            message: `Job "${job_name}" in workflow "${workflow_name}" failed on ${repository_name}/${head_branch}`,
-            metadata: {
-                repositoryId: event.repository.id,
-                repository: full_name,
-                branch: head_branch ?? undefined,
-                actor: sender,
-                workflowName: workflow_name ?? undefined,
-                jobName: job_name,
-                workflowRunId: run_id,
-                workflowJobId: event.workflow_job.id,
-            },
-        });
-    } catch (error) {
-        logger.error('Failed to create event log entry', error as Error);
-    }
 }
 
-async function sendSlackNotification(webhookUrl: string, body: any, ruleId: string | undefined, logger: ReturnType<typeof getLogger>) {
+async function sendSlackNotification(webhookUrl: string, body: SlackPayload, ruleId: string | undefined, logger: ReturnType<typeof getLogger>) {
     try {
         const res = await proxyFetch(webhookUrl, {
             method: 'POST',
@@ -158,13 +193,18 @@ async function sendSlackNotification(webhookUrl: string, body: any, ruleId: stri
     }
 }
 
-const getSlackBody = (event: WorkflowJobEvent, workflowRunResult?: {event: string | null}) => {
+function getSlackBody(workflowJob: WorkflowJobWithRelations): SlackPayload {
+    const ownerLogin = workflowJob.repository.owner?.login ?? 'unknown';
+    const repositoryName = workflowJob.repository.name;
+    const repositoryUrl = `https://github.com/${ownerLogin}/${repositoryName}`;
+    const senderLogin = workflowJob.sender?.login ?? 'unknown';
+
     return {
         blocks: [
             {
                 text: {
                     emoji: true,
-                    text: `${event.workflow_job.workflow_name} - ${event.workflow_job.conclusion}`,
+                    text: `${workflowJob.workflowName} - ${workflowJob.conclusion}`,
                     type: 'plain_text',
                 },
                 type: 'header',
@@ -172,27 +212,27 @@ const getSlackBody = (event: WorkflowJobEvent, workflowRunResult?: {event: strin
             {
                 fields: [
                     {
-                        text: `*Organisation:* <http://github.com/${event.repository.owner.login}|${event.repository.owner.login}>`,
+                        text: `*Organisation:* <http://github.com/${ownerLogin}|${ownerLogin}>`,
                         type: 'mrkdwn',
                     },
                     {
-                        text: `*Repository:* <${event.repository.html_url}|${event.repository.name}>`,
+                        text: `*Repository:* <${repositoryUrl}|${repositoryName}>`,
                         type: 'mrkdwn',
                     },
                     {
-                        text: `*Workflow:* <${event.repository.html_url}/actions/runs/${event.workflow_job.run_id}|${event.workflow_job.workflow_name} / ${event.workflow_job.name}>`,
+                        text: `*Workflow:* <${repositoryUrl}/actions/runs/${workflowJob.runId}|${workflowJob.workflowName} / ${workflowJob.name}>`,
                         type: 'mrkdwn',
                     },
                     {
-                        text: `*Conclusion:* <${event.repository.html_url}/actions/runs/${event.workflow_job.run_id}|${event.workflow_job.conclusion}>`,
+                        text: `*Conclusion:* <${repositoryUrl}/actions/runs/${workflowJob.runId}|${workflowJob.conclusion}>`,
                         type: 'mrkdwn',
                     },
                     {
-                        text: `*Event:* ${workflowRunResult?.event}`,
+                        text: `*Event:* ${workflowJob.workflowRun?.event ?? 'unknown'}`,
                         type: 'mrkdwn',
                     },
                     {
-                        text: `*Sender:* <https://github.com/${event.sender.login}|${event.sender.login}>`,
+                        text: `*Sender:* <https://github.com/${senderLogin}|${senderLogin}>`,
                         type: 'mrkdwn',
                     },
                 ],
@@ -201,4 +241,4 @@ const getSlackBody = (event: WorkflowJobEvent, workflowRunResult?: {event: strin
         ],
         color: '#e01e5a',
     };
-};
+}

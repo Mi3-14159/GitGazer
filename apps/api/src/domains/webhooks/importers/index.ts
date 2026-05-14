@@ -6,14 +6,21 @@ import {importWorkflow} from '@/domains/webhooks/importers/workflow.importer';
 import {getLogger} from '@/shared/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {events, gitgazerWriter} from '@gitgazer/db/schema';
-import {EventPayloadMap, PullRequest, PullRequestReview, PullRequestReviewEvent, WorkflowJob, WorkflowRunWithRelations} from '@gitgazer/db/types';
+import {
+    EventPayloadMap,
+    PullRequest,
+    PullRequestReview,
+    PullRequestReviewEvent,
+    WorkflowJobWithRelations,
+    WorkflowRunWithRelations,
+} from '@gitgazer/db/types';
 import {EmitterWebhookEventName} from '@octokit/webhooks';
 import {InferSelectModel} from 'drizzle-orm/table';
 
 const logger = getLogger();
 
 export type InsertEventResult = {
-    data: InferSelectModel<typeof events> | WorkflowJob | WorkflowRunWithRelations | PullRequest | PullRequestReview;
+    data: InferSelectModel<typeof events> | WorkflowJobWithRelations | WorkflowRunWithRelations | PullRequest | PullRequestReview;
     stale: boolean;
 };
 
@@ -36,38 +43,50 @@ export const insertEvent = async <T extends EmitterWebhookEventName & keyof Even
                 })
                 .returning();
 
-            if (eventType === 'workflow_job' && 'workflow_job' in event) {
-                await importWorkflow(tx, integrationId, event as EventPayloadMap['workflow_job']);
-                const {workflowJob, stale} = await importWorkflowJob(tx, integrationId, event as EventPayloadMap['workflow_job']);
+            switch (eventType) {
+                case 'workflow_job': {
+                    if (!('workflow_job' in event)) break;
+                    const workflowJobEvent = event as EventPayloadMap['workflow_job'];
+                    await importWorkflow(tx, integrationId, workflowJobEvent);
+                    const {workflowJob, stale} = await importWorkflowJob(tx, integrationId, workflowJobEvent);
 
-                logger.info(`Inserted workflow job event for integration ${integrationId}, job id ${workflowJob.id}`, {stale});
-                return {data: workflowJob, stale};
-            } else if (eventType === 'workflow_run' && 'workflow_run' in event) {
-                const {repository, organization, owner} = await importWorkflow(tx, integrationId, event as EventPayloadMap['workflow_run']);
-                const {workflowRun, stale} = await importWorkflowRun(tx, integrationId, event as EventPayloadMap['workflow_run']);
+                    logger.info(`Inserted workflow job event for integration ${integrationId}, job id ${workflowJob.id}`, {stale});
+                    return {data: workflowJob, stale};
+                }
+                case 'workflow_run': {
+                    if (!('workflow_run' in event)) break;
+                    const workflowRunEvent = event as EventPayloadMap['workflow_run'];
+                    const {repository, organization, owner} = await importWorkflow(tx, integrationId, workflowRunEvent);
+                    const {workflowRun, stale} = await importWorkflowRun(tx, integrationId, workflowRunEvent);
 
-                const response: WorkflowRunWithRelations = {
-                    ...workflowRun,
-                    workflowJobs: [],
-                    repository: {
-                        ...repository,
-                        owner,
-                        organization: organization ?? null,
-                    },
-                };
+                    const response: WorkflowRunWithRelations = {
+                        ...workflowRun,
+                        workflowJobs: [],
+                        repository: {
+                            ...repository,
+                            owner,
+                            organization: organization ?? null,
+                        },
+                    };
 
-                logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`, {stale});
-                return {data: response, stale};
-            } else if (eventType === 'pull_request' && 'pull_request' in event) {
-                const {pullRequest} = await importPullRequest(integrationId, event as EventPayloadMap['pull_request'], tx);
+                    logger.info(`Inserted workflow run event for integration ${integrationId}, run id ${workflowRun.id}`, {stale});
+                    return {data: response, stale};
+                }
+                case 'pull_request': {
+                    if (!('pull_request' in event)) break;
+                    const pullRequestEvent = event as EventPayloadMap['pull_request'];
+                    const {pullRequest} = await importPullRequest(integrationId, pullRequestEvent, tx);
 
-                logger.info(`Inserted pull request event for integration ${integrationId}, PR id ${pullRequest.id}`);
-                return {data: pullRequest, stale: false};
-            } else if (eventType === 'pull_request_review' && 'review' in event) {
-                const {pullRequestReview} = await importPullRequestReview(integrationId, event as PullRequestReviewEvent, tx);
+                    logger.info(`Inserted pull request event for integration ${integrationId}, PR id ${pullRequest.id}`);
+                    return {data: pullRequest, stale: false};
+                }
+                case 'pull_request_review': {
+                    if (!('review' in event)) break;
+                    const {pullRequestReview} = await importPullRequestReview(integrationId, event as PullRequestReviewEvent, tx);
 
-                logger.info(`Inserted pull request review event for integration ${integrationId}, review id ${pullRequestReview.id}`);
-                return {data: pullRequestReview, stale: false};
+                    logger.info(`Inserted pull request review event for integration ${integrationId}, review id ${pullRequestReview.id}`);
+                    return {data: pullRequestReview, stale: false};
+                }
             }
 
             logger.info(`Inserted generic event for integration ${integrationId}, event type ${eventType}`);

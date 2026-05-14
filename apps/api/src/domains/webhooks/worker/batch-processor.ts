@@ -4,7 +4,7 @@ import {insertEvent} from '@/domains/webhooks/importers/index';
 import {postToConnections} from '@/domains/webhooks/webhooks.controller';
 import {type OrgMemberSyncTask} from '@/shared/clients/sqs.client';
 import {getLogger} from '@/shared/logger';
-import {EventPayloadMap, WorkflowJobEvent} from '@gitgazer/db/types';
+import {EventPayloadMap, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 import type {SQSRecord} from 'aws-lambda';
 
@@ -50,7 +50,7 @@ export const processRecord = async (record: SQSRecord): Promise<void> => {
         }
 
         if (eventType === 'workflow_job') {
-            await sendWorkflowJobAlerts(integrationId, payload as unknown as WorkflowJobEvent);
+            await sendWorkflowJobAlerts(data as WorkflowJobWithRelations);
         }
     } catch (error) {
         logger.warn('Post-commit side effect failed', {

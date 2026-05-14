@@ -86,17 +86,18 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         });
     } catch (error: any) {
         const errorMessage = error?.message || 'Unknown error';
-        const isExpiredError = errorMessage.includes('expired') || errorMessage.includes('Token expired');
+        if (errorMessage.includes('expired')) {
+            throw new UnauthorizedError('Authentication tokens have expired');
+        }
 
         logger.error('Token verification failed', {
             error: errorMessage,
             errorType: error?.name,
-            isExpiredError,
             hasRefreshToken,
             rawPath,
         });
 
-        throw new UnauthorizedError('Invalid or expired authentication tokens');
+        throw new UnauthorizedError('Invalid authentication tokens');
     }
 
     const githubIdClaim = idPayload['custom:github_id'] as string | undefined;

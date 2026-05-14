@@ -6,7 +6,7 @@ export type {EmitterWebhookEventName} from '@octokit/webhooks';
 export type * from '@octokit/webhooks-types';
 export * from './metrics';
 
-import type {integrationsQueryRelations, memberQueryRelations, workflowRunRelations} from '../queries';
+import type {integrationsQueryRelations, memberQueryRelations, workflowJobRelations, workflowRunRelations} from '../queries';
 import type * as schema from '../schema';
 
 export type NotificationRule = {
@@ -357,6 +357,7 @@ export type IntegrationInvitationSelect = typeof schema.integrationInvitations.$
 export type IntegrationInvitationInsert = typeof schema.integrationInvitations.$inferInsert;
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
+export type WorkflowJobWithRelations = BuildQueryResult<Schema, Schema['workflowJobs'], {with: typeof workflowJobRelations}>;
 export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
 export type IntegrationWithRole = Integration & {role: MemberRole};
 export type IntegrationMember = BuildQueryResult<Schema, Schema['userAssignments'], {with: typeof memberQueryRelations}>;

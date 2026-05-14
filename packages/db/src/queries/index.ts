@@ -28,7 +28,8 @@ export const workflowRunRelations = {
 } as const;
 
 export const workflowJobRelations = {
-    workflowJobs: true,
+    workflowRun: true,
+    sender: true,
     repository: {
         with: {
             organization: true,
