@@ -27,6 +27,8 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     let cursor: PaginationCursor | undefined;
     let activeFilters: WorkflowFilters = {};
     let fetchAbortController: AbortController | null = null;
+    let initializeRunId = 0;
+    let fetchRunId = 0;
 
     const fetchWebSocketToken = async (): Promise<string> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/auth/ws-token`);
@@ -50,6 +52,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     });
 
     const getJobs = async (params?: WorkflowsRequestParameters, signal?: AbortSignal) => {
+        const runId = ++fetchRunId;
         isFetching.value = true;
         try {
             const queryParams = new URLSearchParams();
@@ -84,21 +87,23 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
             const data = (await response.json()) as GetWorkflowsResponse;
 
-            cursor = data.cursor;
-            if (!cursor) {
-                hasMore.value = false;
+            if (runId === fetchRunId) {
+                cursor = data.cursor;
+                if (!cursor) {
+                    hasMore.value = false;
+                }
             }
 
             return data.items;
         } finally {
-            if (!signal?.aborted) {
+            if (runId === fetchRunId) {
                 isFetching.value = false;
             }
         }
     };
 
-    const handleListWorkflows = async (signal?: AbortSignal) => {
-        if (!hasMore.value || isFetching.value) return;
+    const handleListWorkflows = async (signal?: AbortSignal, options?: {force?: boolean}) => {
+        if (!hasMore.value || (!options?.force && isFetching.value)) return;
 
         const items = await getJobs({limit: 100}, signal);
         if (signal?.aborted) return;
@@ -157,7 +162,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         hasMore.value = true;
         workflowsArray.value = [];
         try {
-            await handleListWorkflows(controller.signal);
+            await handleListWorkflows(controller.signal, {force: true});
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') return;
             throw e;
@@ -165,6 +170,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     };
 
     const initializeStore = async (initialFilters?: WorkflowFilters) => {
+        const runId = ++initializeRunId;
         fetchAbortController?.abort();
         const controller = new AbortController();
         fetchAbortController = controller;
@@ -180,15 +186,19 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         try {
             // Connect to WebSocket for real-time updates
             if (WS_ENDPOINT) {
-                await connectToWebSocket();
+                try {
+                    await connectToWebSocket();
+                } catch (error) {
+                    console.error('Failed to connect to workflows websocket', error);
+                }
             }
 
-            await handleListWorkflows(controller.signal);
+            await handleListWorkflows(controller.signal, {force: true});
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') return;
             throw e;
         } finally {
-            if (!controller.signal.aborted) {
+            if (runId === initializeRunId) {
                 isInitializing.value = false;
             }
         }
