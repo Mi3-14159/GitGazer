@@ -1,7 +1,7 @@
 import type {DateRange} from '@/components/filters/DateTimeRangePicker.vue';
 import type {CheckboxOption} from '@/components/ui/SearchableCheckboxList.vue';
 import {useAuth} from '@/composables/useAuth';
-import type {FilterValueResult} from '@gitgazer/db/types';
+import type {FilterValueResult} from '@common/types';
 import {ref, watch, type Ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
