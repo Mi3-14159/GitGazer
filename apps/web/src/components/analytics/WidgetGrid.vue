@@ -1,5 +1,4 @@
 <script setup lang="ts">
-    import MetricWidget from '@/components/analytics/widgets/MetricWidget.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Card from '@/components/ui/Card.vue';
     import CardContent from '@/components/ui/CardContent.vue';
@@ -11,7 +10,9 @@
     import {widgetCalculationInfo} from '@/types/analytics';
     import type {MetricResult, MetricsFilter} from '@common/types';
     import {Lock} from 'lucide-vue-next';
-    import {onBeforeUnmount, reactive, toRef, watch} from 'vue';
+    import {defineAsyncComponent, onBeforeUnmount, reactive, toRef, watch} from 'vue';
+
+    const MetricWidget = defineAsyncComponent(() => import('@/components/analytics/widgets/MetricWidget.vue'));
 
     const COMING_SOON_WIDGETS: ReadonlySet<WidgetType> = new Set(['lead_time']);
 

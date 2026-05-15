@@ -39,6 +39,20 @@ export default defineConfig({
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('vue-echarts') || id.includes('echarts/core')) {
+                        return 'echarts-core';
+                    }
+                    if (id.includes('echarts')) {
+                        return 'echarts-vendor';
+                    }
+                },
+            },
+        },
+    },
     server: {
         port: 5173,
         host: 'app.gitgazer.localhost',
