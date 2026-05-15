@@ -11,7 +11,7 @@ import {
     WorkflowsRequestParameters,
 } from '@common/types';
 import {defineStore} from 'pinia';
-import {reactive, ref} from 'vue';
+import {computed, reactive, ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 const WS_ENDPOINT = import.meta.env.VITE_WEBSOCKET_API_ENDPOINT;
@@ -20,7 +20,9 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     const {fetchWithAuth} = useAuth();
     const workflowsArray = ref<WorkflowRunWithRelations[]>([]);
 
-    const isLoading = ref(false);
+    const isFetching = ref(false);
+    const isInitializing = ref(false);
+    const isLoading = computed(() => isInitializing.value || isFetching.value);
     const hasMore = ref(true);
     let cursor: PaginationCursor | undefined;
     let activeFilters: WorkflowFilters = {};
@@ -48,7 +50,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     });
 
     const getJobs = async (params?: WorkflowsRequestParameters, signal?: AbortSignal) => {
-        isLoading.value = true;
+        isFetching.value = true;
         try {
             const queryParams = new URLSearchParams();
             Object.entries(params ?? {}).forEach(([key, value]) => {
@@ -90,13 +92,13 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             return data.items;
         } finally {
             if (!signal?.aborted) {
-                isLoading.value = false;
+                isFetching.value = false;
             }
         }
     };
 
     const handleListWorkflows = async (signal?: AbortSignal) => {
-        if (!hasMore.value || isLoading.value) return;
+        if (!hasMore.value || isFetching.value) return;
 
         const items = await getJobs({limit: 100}, signal);
         if (signal?.aborted) return;
@@ -166,6 +168,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
         fetchAbortController?.abort();
         const controller = new AbortController();
         fetchAbortController = controller;
+        isInitializing.value = true;
 
         // Reset pagination state
         cursor = undefined;
@@ -174,16 +177,20 @@ export const useWorkflowsStore = defineStore('workflows', () => {
             activeFilters = initialFilters;
         }
 
-        // Connect to WebSocket for real-time updates
-        if (WS_ENDPOINT) {
-            await connectToWebSocket();
-        }
-
         try {
+            // Connect to WebSocket for real-time updates
+            if (WS_ENDPOINT) {
+                await connectToWebSocket();
+            }
+
             await handleListWorkflows(controller.signal);
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') return;
             throw e;
+        } finally {
+            if (!controller.signal.aborted) {
+                isInitializing.value = false;
+            }
         }
     };
 
