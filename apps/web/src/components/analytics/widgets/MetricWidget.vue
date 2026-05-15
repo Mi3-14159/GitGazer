@@ -3,7 +3,7 @@
     import Card from '@/components/ui/Card.vue';
     import Tooltip from '@/components/ui/Tooltip.vue';
     import type {WidgetChartType, WidgetSize} from '@/types/analytics';
-    import type {MetricResult} from '@common/types';
+    import type {Granularity, MetricResult} from '@common/types';
     import {format, parseISO} from 'date-fns';
     import {BarChart, LineChart} from 'echarts/charts';
     import {GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
@@ -28,8 +28,11 @@
             color?: string;
             description?: string;
             comingSoon?: boolean;
+            granularity?: Granularity;
+            from?: string;
+            to?: string;
         }>(),
-        {color: undefined, description: undefined, comingSoon: false},
+        {color: undefined, description: undefined, comingSoon: false, granularity: undefined, from: undefined, to: undefined},
     );
 
     const hasMultiSeries = computed(() => !!props.metric?.series?.length);
@@ -67,36 +70,120 @@
         return map[props.size];
     });
 
-    const HOUR_MS = 3_600_000;
-
-    /** Collect all unique, sorted period strings from either data or series. */
-    const allPeriods = computed<string[]>(() => {
-        const data = props.metric?.data;
-        if (data?.length) return data.map((d) => d.period);
-        const series = props.metric?.series;
-        if (!series?.length) return [];
-        const set = new Set<string>();
-        for (const s of series) for (const d of s.data) set.add(d.period);
-        return Array.from(set).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-    });
-
-    const dataInfo = computed(() => {
-        const periods = allPeriods.value;
-        if (periods.length < 2) return {stepMs: 0};
-        const stepMs = new Date(periods[1]).getTime() - new Date(periods[0]).getTime();
-        return {stepMs};
-    });
-
-    function dateFormatForStep(stepMs: number): string {
-        if (stepMs <= HOUR_MS) return 'MMM d, HH:mm';
-        if (stepMs <= HOUR_MS * 24) return 'MMM d';
-        if (stepMs <= HOUR_MS * 24 * 7) return 'MMM d';
-        return 'MMM yyyy';
+    /** Truncate a Date to the start of the period in UTC (matching PostgreSQL date_trunc). */
+    function truncateUTC(d: Date, granularity: Granularity): Date {
+        const r = new Date(d);
+        switch (granularity) {
+            case 'hour':
+                r.setUTCMinutes(0, 0, 0);
+                break;
+            case 'day':
+                r.setUTCHours(0, 0, 0, 0);
+                break;
+            case 'week': {
+                r.setUTCHours(0, 0, 0, 0);
+                const dow = r.getUTCDay();
+                r.setUTCDate(r.getUTCDate() - (dow === 0 ? 6 : dow - 1)); // ISO week starts Monday
+                break;
+            }
+            case 'month':
+                r.setUTCDate(1);
+                r.setUTCHours(0, 0, 0, 0);
+                break;
+        }
+        return r;
     }
 
-    function formatPeriod(period: string, stepMs: number): string {
+    /** Advance a UTC date by one granularity step. */
+    function advanceUTC(d: Date, granularity: Granularity): Date {
+        const r = new Date(d);
+        switch (granularity) {
+            case 'hour':
+                r.setUTCHours(r.getUTCHours() + 1);
+                break;
+            case 'day':
+                r.setUTCDate(r.getUTCDate() + 1);
+                break;
+            case 'week':
+                r.setUTCDate(r.getUTCDate() + 7);
+                break;
+            case 'month':
+                r.setUTCMonth(r.getUTCMonth() + 1);
+                break;
+        }
+        return r;
+    }
+
+    /** Generate all expected periods between from/to at the given granularity (UTC). */
+    function generatePeriodRange(from: Date, to: Date, granularity: Granularity): string[] {
+        if (from.getTime() > to.getTime()) return [];
+        const MAX_PERIODS = 10_000;
+        const periods: string[] = [];
+        let cursor = truncateUTC(from, granularity);
+        const end = to.getTime();
+        while (cursor.getTime() <= end && periods.length < MAX_PERIODS) {
+            periods.push(cursor.toISOString());
+            cursor = advanceUTC(cursor, granularity);
+        }
+        return periods;
+    }
+
+    /** Collect all unique, sorted period strings from either data or series, filling gaps when possible. */
+    const allPeriods = computed<string[]>(() => {
+        // Collect periods that exist in the data
+        const dataPeriods = new Set<string>();
+        const data = props.metric?.data;
+        if (data?.length) for (const d of data) dataPeriods.add(d.period);
+        const series = props.metric?.series;
+        if (series?.length) for (const s of series) for (const d of s.data) dataPeriods.add(d.period);
+        if (!dataPeriods.size) return [];
+
+        // If we have from/to/granularity, generate the full range
+        if (props.from && props.to && props.granularity) {
+            return generatePeriodRange(new Date(props.from), new Date(props.to), props.granularity);
+        }
+
+        // Fallback: return only the periods we have data for
+        return Array.from(dataPeriods).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    });
+
+    /** Date format config per granularity. axis = x-axis labels, tooltip = hover header. */
+    const PERIOD_FORMATS: Record<string, {axis: string; tooltip: string}> = {
+        hour: {axis: 'MMM d, HH:mm', tooltip: 'MMM d, yyyy HH:mm'},
+        day: {axis: 'MMM d, yyyy', tooltip: 'MMM d, yyyy'},
+        week: {axis: 'MMM d, yyyy', tooltip: "'Week of' MMM d, yyyy"},
+        month: {axis: 'MMM yyyy', tooltip: 'MMM yyyy'},
+    };
+
+    const DEFAULT_FORMAT = {axis: 'MMM d, yyyy', tooltip: 'MMM d, yyyy'};
+
+    const dateFormat = computed(() => {
+        if (props.granularity) return PERIOD_FORMATS[props.granularity]?.axis ?? DEFAULT_FORMAT.axis;
+        // Fallback: infer from data when granularity is not provided
+        const periods = allPeriods.value;
+        if (periods.length < 2) return DEFAULT_FORMAT.axis;
+        const stepMs = new Date(periods[1]).getTime() - new Date(periods[0]).getTime();
+        const HOUR_MS = 3_600_000;
+        if (stepMs <= HOUR_MS) return 'MMM d, HH:mm';
+        if (stepMs <= HOUR_MS * 24 * 7) return 'MMM d, yyyy';
+        return 'MMM yyyy';
+    });
+
+    // NOTE: format(parseISO(...)) renders in the browser's local timezone.
+    // For day/week/month granularity, UTC midnight maps to the same calendar date in most timezones.
+    // For hourly granularity near UTC midnight, the displayed date may differ by one day.
+    function formatPeriod(period: string): string {
         try {
-            return format(parseISO(period), dateFormatForStep(stepMs));
+            return format(parseISO(period), dateFormat.value);
+        } catch {
+            return period;
+        }
+    }
+
+    function formatTooltipHeader(period: string): string {
+        const fmt = props.granularity ? (PERIOD_FORMATS[props.granularity]?.tooltip ?? DEFAULT_FORMAT.tooltip) : dateFormat.value;
+        try {
+            return format(parseISO(period), fmt);
         } catch {
             return period;
         }
@@ -182,15 +269,31 @@
             };
         }
 
-        const {stepMs} = dataInfo.value;
-        const labels = periods.map((p) => formatPeriod(p, stepMs));
+        const labels = periods.map((p) => formatPeriod(p));
         const labelInterval = periods.length <= 10 ? 0 : Math.max(0, Math.floor(periods.length / 5) - 1);
 
         const unitLabel = props.metric?.unit ?? '';
 
         const base = {
             grid: {top: unitLabel ? 20 : 12, right: 12, bottom: 24, left: 40},
-            tooltip: {trigger: 'axis' as const, confine: true},
+            tooltip: {
+                trigger: 'axis' as const,
+                confine: true,
+                formatter: (params: any) => {
+                    const items = Array.isArray(params) ? params : [params];
+                    if (!items.length) return '';
+                    const idx = items[0].dataIndex;
+                    const header = formatTooltipHeader(periods[idx]);
+                    const lines = items
+                        .filter((item: any) => item.value != null && item.value !== 0)
+                        .map(
+                            (item: any) =>
+                                `${item.marker} ${item.seriesName ? `${item.seriesName}: ` : ''}${item.value}${unitLabel ? ` ${unitLabel}` : ''}`,
+                        );
+                    if (!lines.length) return `${header}<br/><span style="color:#9ca3af">No data</span>`;
+                    return `${header}<br/>${lines.join('<br/>')}`;
+                },
+            },
             xAxis: {
                 type: 'category' as const,
                 data: labels,
@@ -213,9 +316,13 @@
             return {...base, series: buildMultiSeries(seriesData, periods, chartType)};
         }
 
+        // Map single-series data onto the full period range
+        const valueMap = new Map((data ?? []).map((d) => [d.period, d.value]));
+        const values = periods.map((p) => valueMap.get(p) ?? 0);
+
         return {
             ...base,
-            series: [buildSingleSeries(data?.map((d) => d.value) ?? [], barColor, chartType)],
+            series: [buildSingleSeries(values, barColor, chartType)],
         };
     });
 </script>

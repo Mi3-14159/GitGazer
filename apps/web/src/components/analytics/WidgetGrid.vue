@@ -110,6 +110,9 @@
                     :is-loading="!!loadingWidgets[widget.type]"
                     :color="widgetColorMap[widget.type]"
                     :coming-soon="COMING_SOON_WIDGETS.has(widget.type)"
+                    :granularity="filter.granularity"
+                    :from="filter.from"
+                    :to="filter.to"
                 />
             </div>
         </CardContent>

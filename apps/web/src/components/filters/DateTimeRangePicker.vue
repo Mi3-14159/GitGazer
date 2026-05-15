@@ -100,7 +100,9 @@
         if (!f) return 'Pick a date range';
         const t = dateRange.value.to;
         if (!t) return `${format(f, 'MMM dd, yyyy')} at ${format(f, 'HH:mm')}`;
-        return `${format(f, 'MMM dd')} ${format(f, 'HH:mm')} – ${format(t, 'MMM dd, yyyy')} ${format(t, 'HH:mm')}`;
+        const sameYear = f.getFullYear() === t.getFullYear();
+        const fromFmt = sameYear ? 'MMM dd' : 'MMM dd, yyyy';
+        return `${format(f, fromFmt)} ${format(f, 'HH:mm')} – ${format(t, 'MMM dd, yyyy')} ${format(t, 'HH:mm')}`;
     });
 </script>
 
