@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import type {DateRange} from '@/components/filters/DateTimeRangePicker.vue';
     import ColumnHeaderFilter from '@/components/workflows/ColumnHeaderFilter.vue';
     import WorkflowTableRow from '@/components/workflows/WorkflowTableRow.vue';
     import type {ColumnConfig} from '@/types/table';
@@ -12,9 +13,8 @@
         isLoading: boolean;
         hasMore: boolean;
         totalCount: number;
-        getColumnValue: (workflow: WorkflowRunWithRelations, columnId: string) => string;
-        getColumnValues: (workflow: WorkflowRunWithRelations, columnId: string) => string[];
         getActiveFilterValues: (columnId: string) => string[];
+        dateRange: DateRange;
     }>();
 
     const emit = defineEmits<{
@@ -56,10 +56,8 @@
                                 v-if="filterableColumnIds.includes(column.id)"
                                 :column-id="column.id"
                                 :column-label="column.label"
-                                :workflows="runs"
                                 :active-values="getActiveFilterValues(column.id)"
-                                :get-column-value="getColumnValue"
-                                :get-column-values="getColumnValues"
+                                :date-range="dateRange"
                                 @filter-change="emit('filter-change', column.id, $event)"
                             />
                         </div>

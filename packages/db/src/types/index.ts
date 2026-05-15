@@ -243,6 +243,18 @@ export type WorkflowFilters = Partial<Record<WorkflowFilterColumn, string[]>> & 
     window?: RollingWindow;
 };
 
+export type FilterValuesParams = {
+    integrationIds: string[];
+    column: WorkflowFilterColumn;
+    search?: string;
+    limit?: number;
+    window?: RollingWindow;
+    created_from?: string;
+    created_to?: string;
+};
+
+export type FilterValueResult = {value: string; count: number};
+
 export type WorkflowsRequestParameters = {
     limit?: number;
     cursor?: PaginationCursor;

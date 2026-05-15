@@ -23,6 +23,6 @@ export type AppContext = {
     role?: MemberRole;
 };
 
-export interface AppRequestContext extends RequestContext {
+export type AppRequestContext = RequestContext & {
     appContext?: AppContext;
-}
+};

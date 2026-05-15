@@ -3,6 +3,9 @@ locals {
     "workflows" = {
       methods = ["GET"]
     },
+    "workflows/filter-values" = {
+      methods = ["GET"]
+    },
     "notifications" = {
       methods = ["GET", "POST"]
     },

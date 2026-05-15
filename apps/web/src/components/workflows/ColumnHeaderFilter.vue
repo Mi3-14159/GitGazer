@@ -1,44 +1,34 @@
 <script setup lang="ts">
+    import type {DateRange} from '@/components/filters/DateTimeRangePicker.vue';
     import Button from '@/components/ui/Button.vue';
     import Popover from '@/components/ui/Popover.vue';
-    import type {CheckboxOption} from '@/components/ui/SearchableCheckboxList.vue';
     import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
-    import {type WorkflowRunWithRelations} from '@common/types';
+    import {useFilterValues} from '@/composables/useFilterValues';
     import {Filter} from 'lucide-vue-next';
-    import {computed, ref} from 'vue';
+    import {computed, onUnmounted, ref, toRef} from 'vue';
 
     const props = defineProps<{
         columnId: string;
         columnLabel: string;
-        workflows: WorkflowRunWithRelations[];
         activeValues: string[];
-        getColumnValue: (workflow: WorkflowRunWithRelations, columnId: string) => string;
-        getColumnValues?: (workflow: WorkflowRunWithRelations, columnId: string) => string[];
+        dateRange: DateRange;
     }>();
 
     const emit = defineEmits<{
         filterChange: [values: string[]];
     }>();
 
-    const open = ref(false);
+    const {options, isLoading, searchTerm, open: fetchOnOpen, cleanup} = useFilterValues(props.columnId, toRef(props, 'dateRange'));
 
-    const options = computed<CheckboxOption[]>(() => {
-        const valueCounts: Record<string, number> = {};
-        for (const workflow of props.workflows) {
-            if (props.getColumnValues) {
-                for (const value of props.getColumnValues(workflow, props.columnId)) {
-                    valueCounts[value] = (valueCounts[value] || 0) + 1;
-                }
-            } else {
-                const value = props.getColumnValue(workflow, props.columnId);
-                valueCounts[value] = (valueCounts[value] || 0) + 1;
-            }
+    const isOpen = ref(false);
+
+    function handleOpenChange(val: boolean) {
+        isOpen.value = val;
+        if (val) {
+            searchTerm.value = '';
+            fetchOnOpen();
         }
-        return Object.entries(valueCounts)
-            .filter(([value]) => value.length > 0)
-            .sort(([, a], [, b]) => b - a)
-            .map(([value, count]) => ({value, label: value, count}));
-    });
+    }
 
     const hasActiveFilter = computed(() => props.activeValues.length > 0);
 
@@ -46,14 +36,16 @@
         const newValues = props.activeValues.includes(value) ? props.activeValues.filter((v) => v !== value) : [...props.activeValues, value];
         emit('filterChange', newValues);
     }
+
+    onUnmounted(cleanup);
 </script>
 
 <template>
     <Popover
-        :open="open"
+        :open="isOpen"
         align="start"
         content-class="w-64 p-0"
-        @update:open="open = $event"
+        @update:open="handleOpenChange"
     >
         <template #trigger>
             <Button
@@ -67,8 +59,10 @@
 
         <div class="p-2">
             <SearchableCheckboxList
+                v-model:search-term="searchTerm"
                 :options="options"
                 :selected="activeValues"
+                :loading="isLoading"
                 :placeholder="`Search ${columnLabel.toLowerCase()}...`"
                 @toggle="toggleValue"
                 @clear="emit('filterChange', [])"

@@ -7,7 +7,7 @@
     import WorkflowToolbar from '@/components/workflows/WorkflowToolbar.vue';
     import {useWorkflowFilters} from '@/composables/useWorkflowFilters';
     import {useWorkflowsStore} from '@/stores/workflows';
-    import type {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
+    import type {WorkflowJob} from '@common/types';
     import {storeToRefs} from 'pinia';
     import {computed, onMounted, onUnmounted, ref} from 'vue';
     import {useRouter} from 'vue-router';
@@ -49,38 +49,6 @@
     const allRuns = computed(() => workflows.value.filter((run) => run.workflowJobs?.length > 0));
     const runs = computed(() => allRuns.value);
     const visibleColumns = computed(() => currentView.value.columns.filter((c) => c.visible));
-
-    function getColumnValue(workflow: WorkflowRunWithRelations, columnId: string): string {
-        switch (columnId) {
-            case 'workflow':
-                return workflow.name;
-            case 'repository':
-                return workflow.repository?.name ?? '';
-            case 'branch':
-                return workflow.headBranch;
-            case 'status':
-                return workflow.conclusion || workflow.status || '';
-            case 'actor':
-                return workflow.headCommitAuthorName;
-            case 'commit':
-                return workflow.headCommitMessage?.slice(0, 40) ?? '';
-            case 'run_number':
-                return workflow.runAttempt?.toString() ?? '';
-            case 'topics':
-                return (workflow.repository?.topics ?? []).join(', ');
-            default:
-                return '';
-        }
-    }
-
-    function getColumnValues(workflow: WorkflowRunWithRelations, columnId: string): string[] {
-        switch (columnId) {
-            case 'topics':
-                return workflow.repository?.topics ?? [];
-            default:
-                return [getColumnValue(workflow, columnId)];
-        }
-    }
 
     function toggleRun(id: number) {
         const s = new Set(expandedRuns.value);
@@ -153,9 +121,8 @@
             :is-loading="isLoading"
             :has-more="hasMore"
             :total-count="allRuns.length"
-            :get-column-value="getColumnValue"
-            :get-column-values="getColumnValues"
             :get-active-filter-values="getActiveFilterValues"
+            :date-range="dateRange"
             @toggle-run="toggleRun"
             @job-click="onJobClick"
             @filter-change="handleColumnFilterChange"
