@@ -149,13 +149,13 @@ pnpm run pretty
 ### Linting
 
 - ESLint with TypeScript plugin
-- Run `npm run lint` before committing
-- Auto-fix with `npm run lint:fix`
+- Run `pnpm run lint` before committing
+- Auto-fix with `pnpm run lint:fix`
 
 ### Formatting
 
 - Prettier for consistent code style
-- Run `npm run pretty` to format code
+- Run `pnpm run pretty` to format code
 - Configuration in `.prettierrc`
 
 ## Important Notes
