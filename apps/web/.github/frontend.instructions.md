@@ -185,8 +185,8 @@ Get these values from Terraform outputs after infrastructure deployment.
 
 1. Set up `.env.local` with environment variables
 2. Add `app.gitgazer.localhost` to your `/etc/hosts` file pointing to `127.0.0.1`
-3. Run `npm ci` to install dependencies
-4. Run `npm run dev` to start dev server
+3. Run `pnpm install` to install dependencies
+4. Run `pnpm run dev` to start dev server
 5. Open `https://app.gitgazer.localhost:5173` in browser (self-signed SSL certificate)
 
 ### Hot Module Replacement (HMR)
@@ -198,7 +198,7 @@ Get these values from Terraform outputs after infrastructure deployment.
 ### Building for Production
 
 1. Ensure all environment variables are set
-2. Run `npm run build`
+2. Run `pnpm run build`
 3. Output in `dist/` directory
 4. Static files ready for S3 deployment
 
@@ -208,7 +208,7 @@ Get these values from Terraform outputs after infrastructure deployment.
 
 ```bash
 # Build the application
-npm run build
+pnpm run build
 
 # Sync to S3 with appropriate cache headers
 aws s3 sync dist/. s3://<UI_BUCKET_NAME>/ --cache-control max-age=604800 --exclude "*.html"
@@ -236,13 +236,13 @@ aws cloudfront create-invalidation --distribution-id <DISTRIBUTION_ID> --paths "
 ### Linting
 
 - ESLint with Vue and TypeScript plugins
-- Run `npm run lint` before committing
-- Auto-fix with `npm run lint:fix`
+- Run `pnpm run lint` before committing
+- Auto-fix with `pnpm run lint:fix`
 
 ### Formatting
 
 - Prettier for consistent code style
-- Run `npm run pretty` to format
+- Run `pnpm run pretty` to format
 - Configuration in `.prettierrc`
 
 ## Common Tasks
@@ -278,7 +278,7 @@ aws cloudfront create-invalidation --distribution-id <DISTRIBUTION_ID> --paths "
 ## Performance Best Practices
 
 - Lazy-load routes with dynamic imports
-- Use `v-show` vs `v-if` appropriately
+- Use `v-show` for elements that toggle frequently (keeps DOM node), use `v-if` for elements that are rarely shown (removes DOM node)
 - Implement virtual scrolling for large lists
 - Optimize images and assets
 - Code-split large components
