@@ -82,8 +82,9 @@ GitGazer uses AWS serverless architecture with the following components:
 
 ### Resource Naming
 
-- Use consistent naming conventions
-- Include environment in resource names
+- Terraform resource identifiers: `snake_case` describing the service and resource, e.g. `resource "aws_iam_role" "org_sync_scheduler"`
+- AWS resource names: `${var.name_prefix}-{service}-{resource}-${terraform.workspace}` in kebab-case, e.g. `"${var.name_prefix}-org-sync-scheduler-${terraform.workspace}"`
+- Include environment via `${terraform.workspace}` suffix in all AWS resource names
 - Use tags for resource organization
 - Follow AWS naming restrictions
 
