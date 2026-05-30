@@ -27,13 +27,15 @@ GitGazer is a GitHub workflow monitoring and notification system built on AWS se
 
 ## Agents
 
+> **Precedence**: For end-to-end features spanning both frontend and backend, always prefer the **Senior Developer** agent over combining **Frontend Developer** and **Backend Architect**.
+
 ### Frontend Developer
 
 **File**: `.github/agents/engineering-frontend-developer.md`
 
 Expert Vue.js frontend developer specializing in modern web technologies, Composition API, Radix Vue headless components, Tailwind CSS 4, and Apache ECharts for data visualization.
 
-**When to use**: Building or modifying UI components, views, composables, stores, or anything under `apps/web/`. Performance optimization, accessibility, responsive design.
+**When to use**: Building or modifying UI components, views, composables, stores, or anything under `apps/web/` where backend/API changes are not required. Performance optimization, accessibility, responsive design.
 
 **Key context**:
 
@@ -72,6 +74,8 @@ Senior backend architect specializing in scalable system design, database archit
 Premium full-stack implementation specialist. Masters Vue.js, Tailwind CSS, AWS Lambda, and Drizzle ORM. Focuses on crafting sophisticated, user-centric interfaces and seamless backend integrations.
 
 **When to use**: Implementing features end-to-end across frontend and backend. When both polish and correctness matter — connecting API endpoints to Vue views, building complete user flows.
+
+**Precedence rule**: If a task spans both frontend and backend, always prefer the **Senior Developer** agent over combining **Frontend Developer** and **Backend Architect**.
 
 ---
 
@@ -154,6 +158,8 @@ Detailed, context-specific instructions are scoped to each module:
 | Infra    | `infra/.github/infrastructure.instructions.md` | `infra/**/*.{tf,tfvars}`      |
 
 **Always consult the relevant module instructions before making changes in that area.**
+
+If module-specific instructions conflict with this file, module instructions take precedence for implementation details, but AGENTS.md takes precedence for cross-cutting conventions (path aliases, package manager, auth patterns).
 
 ---
 
