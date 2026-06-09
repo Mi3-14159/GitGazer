@@ -10,7 +10,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
-    "date-fns": "^4.3.0",
+    "date-fns": "^4.4.0",
     "echarts": "^6.1.0",
     "grid-layout-plus": "^1.1.1",
     "lucide-vue-next": "^0.577.0",
