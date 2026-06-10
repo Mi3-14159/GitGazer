@@ -1,4 +1,4 @@
-import { defineConfig, Options } from 'tsup';
+import {defineConfig, Options} from 'tsup';
 
 const shared: Options = {
     format: ['cjs'],
@@ -43,6 +43,12 @@ export default defineConfig([
         ...shared,
         entry: {index: 'src/handlers/org-sync-scheduler.ts'},
         outDir: 'dist/org-sync-scheduler',
+    },
+    {
+        name: 'backfill-worker',
+        ...shared,
+        entry: {index: 'src/handlers/backfill-worker.ts'},
+        outDir: 'dist/backfill-worker',
     },
     {
         name: 'http-proxy',

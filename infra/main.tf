@@ -76,6 +76,10 @@ locals {
       function_name         = aws_lambda_function.org_sync_scheduler.function_name
       duration_threshold_ms = 540000
     }
+    backfill_worker = {
+      function_name         = aws_lambda_function.backfill_worker.function_name
+      duration_threshold_ms = 48000
+    }
     },
     var.enable_http_proxy ? {
       http_proxy = {
@@ -89,6 +93,7 @@ locals {
     api_websocket      = aws_cloudwatch_log_group.api_websocket.name
     worker             = aws_cloudwatch_log_group.worker.name
     org_sync_scheduler = aws_cloudwatch_log_group.org_sync_scheduler.name
+    backfill_worker    = aws_cloudwatch_log_group.backfill_worker.name
     },
     var.enable_http_proxy ? {
       http_proxy = aws_cloudwatch_log_group.http_proxy[0].name

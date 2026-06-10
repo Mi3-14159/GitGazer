@@ -53,6 +53,34 @@ describe('http-proxy handler', () => {
         expect(result.body).toBe('{"ok":true}');
     });
 
+    it('forwards rate-limit headers but not body-framing headers', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response('{}', {
+                status: 403,
+                headers: {
+                    'content-type': 'application/json',
+                    'x-ratelimit-limit': '5000',
+                    'x-ratelimit-remaining': '0',
+                    'x-ratelimit-reset': '1700000000',
+                    'retry-after': '60',
+                    'content-encoding': 'gzip',
+                },
+            }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await handler({url: 'https://api.github.com/repos/acme/web/actions/runs', method: 'GET'});
+
+        // Rate-limit headers must survive so callers can detect limits and back off.
+        expect(result.headers['x-ratelimit-remaining']).toBe('0');
+        expect(result.headers['x-ratelimit-reset']).toBe('1700000000');
+        expect(result.headers['x-ratelimit-limit']).toBe('5000');
+        expect(result.headers['retry-after']).toBe('60');
+        expect(result.headers['content-type']).toBe('application/json');
+        // Body-framing header must NOT be forwarded — the body is already decoded.
+        expect(result.headers['content-encoding']).toBeUndefined();
+    });
+
     it('returns 502 when upstream fetch throws', async () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network failed')));
 

@@ -71,3 +71,22 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
     } : null
   })
 }
+
+###############################################################################
+# Backfill PAT secrets (managed out-of-band)
+#
+# The serverless backfill worker resolves a GitHub personal access token per
+# integration from Secrets Manager, using the convention:
+#
+#   ${var.name_prefix}/backfill/${terraform.workspace}/<integrationId>
+#
+# These secrets are created manually by an operator (one per integration) and
+# are intentionally NOT managed by Terraform so tokens never live in state, e.g.:
+#
+#   aws secretsmanager create-secret \
+#     --name "gitgazer/backfill/<workspace>/<integrationId>" \
+#     --secret-string "<github-pat>"
+#
+# IAM access is scoped to the `<prefix>/*` pattern in backfill_queue.tf.
+###############################################################################
+

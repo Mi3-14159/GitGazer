@@ -128,6 +128,12 @@ const config = convict({
         default: '',
         env: 'WEBHOOK_QUEUE_URL',
     },
+    backfillQueueUrl: {
+        doc: 'SQS queue URL for serverless GitHub backfill tasks',
+        format: String,
+        default: '',
+        env: 'BACKFILL_QUEUE_URL',
+    },
     httpProxyFunctionName: {
         doc: 'Lambda function name of the HTTP proxy for IPv4-only external services',
         format: String,

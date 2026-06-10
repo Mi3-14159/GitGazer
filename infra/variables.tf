@@ -65,6 +65,17 @@ variable "enable_http_proxy" {
   default     = true
 }
 
+variable "backfill_max_concurrency" {
+  type        = number
+  description = "Maximum number of concurrent backfill-worker invocations consuming the backfill queue (caps GitHub API usage)"
+  default     = 2
+
+  validation {
+    condition     = var.backfill_max_concurrency >= 2 && var.backfill_max_concurrency <= 1000
+    error_message = "backfill_max_concurrency must be between 2 and 1000 (SQS event-source mapping limit)."
+  }
+}
+
 variable "enable_lambda_tracing" {
   type        = bool
   description = "Enable AWS X-Ray tracing for the Lambda functions"

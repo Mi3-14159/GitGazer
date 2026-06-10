@@ -2,6 +2,26 @@ const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com'
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
+/**
+ * Response headers the proxy forwards back to the caller. Critically includes
+ * the GitHub rate-limit headers so in-VPC callers (e.g. the backfill worker)
+ * can detect limits and back off — without these, every rate-limited response
+ * looks like a naked 403/429 and the client's retry logic is blind.
+ *
+ * Deliberately excludes body-framing / hop-by-hop headers
+ * (`content-encoding`, `content-length`, `transfer-encoding`): the body is
+ * returned already-decoded as a string, so forwarding those would misrepresent
+ * it to the caller. `content-type` is always set separately below.
+ */
+const FORWARDED_RESPONSE_HEADERS = [
+    'retry-after',
+    'x-ratelimit-limit',
+    'x-ratelimit-remaining',
+    'x-ratelimit-reset',
+    'x-ratelimit-used',
+    'x-ratelimit-resource',
+];
+
 export type ProxyRequest = {
     url: string;
     method: string;
@@ -57,9 +77,15 @@ export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
 
         const responseBody = await response.text();
 
+        const responseHeaders: Record<string, string> = {'content-type': response.headers.get('content-type') ?? 'application/json'};
+        for (const name of FORWARDED_RESPONSE_HEADERS) {
+            const value = response.headers.get(name);
+            if (value !== null) responseHeaders[name] = value;
+        }
+
         return {
             statusCode: response.status,
-            headers: {'content-type': response.headers.get('content-type') ?? 'application/json'},
+            headers: responseHeaders,
             body: responseBody,
         };
     } catch (err) {
