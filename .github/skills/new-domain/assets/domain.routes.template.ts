@@ -2,11 +2,11 @@
 // Rename `things` / `Thing`. Register in apps/api/src/shared/router/index.ts via app.includeRouter(thingsRoutes).
 // The global chain (compress → cors → authenticate → originCheck) is applied by createApp — do not re-add it.
 
-import {createThing, getThings} from '@/domains/things/things.controller';
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import {requireRole} from '@/shared/middleware/require-role';
-import {AppRequestContext} from '@/shared/types';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import { addUserIntegrationsToCtx } from '@/domains/integrations/integrations.middleware';
+import { createThing, getThings } from '@/domains/things/things.controller';
+import { requireRole } from '@/shared/middleware/require-role';
+import { AppRequestContext } from '@/shared/types';
+import { BadRequestError, HttpStatusCodes, Router } from '@aws-lambda-powertools/event-handler/http';
 
 const router = new Router();
 

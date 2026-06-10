@@ -3,10 +3,9 @@
 // It receives the shared `tx` — never open its own transaction.
 // Persistence must be idempotent: SQS FIFO can redeliver the same event.
 
-import {getLogger} from '@/shared/logger';
-import {RdsTransaction} from '@gitgazer/db/client';
+import { getLogger } from '@/shared/logger';
+import { RdsTransaction } from '@gitgazer/db/client';
 // import {things} from '@gitgazer/db/schema/github/<file>';
-import {sql} from 'drizzle-orm';
 
 // Payload type comes from @octokit/webhooks-types (re-exported via @gitgazer/db/types).
 // import type {ThingEvent} from '@gitgazer/db/types';
