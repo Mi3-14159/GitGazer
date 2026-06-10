@@ -74,6 +74,9 @@ Application security engineer for the AWS serverless stack: threat modeling, sec
 | `refactor`             | `.github/skills/refactor/SKILL.md`             | Improving code structure without changing behavior                 |
 | `typescript-magician`  | `.github/skills/typescript-magician/SKILL.md`  | Complex generics, type guards, removing `any`, resolving TS errors |
 | `documentation-writer` | `.github/skills/documentation-writer/SKILL.md` | Writing documentation following the Diátaxis framework             |
+| `db-migration`         | `.github/skills/db-migration/SKILL.md`         | Adding/altering tables, RLS tenant policies, Drizzle migrations    |
+| `new-domain`           | `.github/skills/new-domain/SKILL.md`           | Scaffolding a new backend domain under `apps/api/src/domains/`     |
+| `webhook-event`        | `.github/skills/webhook-event/SKILL.md`        | Supporting/debugging a GitHub webhook event in the ingest pipeline |
 
 ---
 
