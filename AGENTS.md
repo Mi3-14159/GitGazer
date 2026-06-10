@@ -27,61 +27,11 @@ GitGazer is a GitHub workflow monitoring and notification system built on AWS se
 
 ## Agents
 
-> **Precedence**: For end-to-end features spanning both frontend and backend, always prefer the **Senior Developer** agent over combining **Frontend Developer** and **Backend Architect**.
-
-### Frontend Developer
-
-**File**: `.github/agents/engineering-frontend-developer.md`
-
-Expert Vue.js frontend developer specializing in modern web technologies, Composition API, Radix Vue headless components, Tailwind CSS 4, and Apache ECharts for data visualization.
-
-**When to use**: Building or modifying UI components, views, composables, stores, or anything under `apps/web/` where backend/API changes are not required. Performance optimization, accessibility, responsive design.
-
-**Key context**:
-
-- Vue 3 Composition API with `<script setup>` syntax only
-- UI primitives in `src/components/ui/` (Button, Input, Card, Dialog, etc.)
-- Pinia stores in `src/stores/` using Composition API style
-- Lucide Vue Next for icons
-- Cookie-based auth (no client-side tokens)
-- Detailed instructions in `apps/web/.github/frontend.instructions.md`
-
----
-
-### Backend Architect
-
-**File**: `.github/agents/engineering-backend-architect.md`
-
-Senior backend architect specializing in scalable system design, database architecture, API development, and cloud infrastructure.
-
-**When to use**: Designing new API endpoints, database schema changes, system architecture decisions, scaling strategies, or AWS service integration patterns.
-
-**Key context**:
-
-- Custom router via `@aws-lambda-powertools/event-handler/http`
-- Middleware chain: `compress` → `cors` → `authenticate` → `originCheck` → handlers
-- Routes in `src/domains/<domain>/<domain>.routes.ts`
-- AWS clients centralized in `src/shared/clients/`
-- Drizzle ORM with `withRlsTransaction` for database access
-- Detailed instructions in `apps/api/.github/backend.instructions.md`
-
----
-
-### Senior Developer
-
-**File**: `.github/agents/engineering-senior-developer.md`
-
-Premium full-stack implementation specialist. Masters Vue.js, Tailwind CSS, AWS Lambda, and Drizzle ORM. Focuses on crafting sophisticated, user-centric interfaces and seamless backend integrations.
-
-**When to use**: Implementing features end-to-end across frontend and backend. When both polish and correctness matter — connecting API endpoints to Vue views, building complete user flows.
-
-**Precedence rule**: If a task spans both frontend and backend, always prefer the **Senior Developer** agent over combining **Frontend Developer** and **Backend Architect**.
-
----
+GitGazer keeps a **small set of advisory/review agents** that benefit from context isolation and restricted tools. Feature implementation is handled by the **default agent**, guided by the module instruction files (see [Module Instructions](#module-instructions)) — not by separate per-stack "developer" personas.
 
 ### Software Architect
 
-**File**: `.github/agents/engineering-software-architect.md`
+**File**: `.github/agents/engineering-software-architect.md` · **Tools**: `read, search, edit`
 
 Expert in system design, domain-driven design, architectural patterns, and technical decision-making. Thinks in bounded contexts, trade-off matrices, and ADRs.
 
@@ -91,21 +41,21 @@ Expert in system design, domain-driven design, architectural patterns, and techn
 
 ### Code Reviewer
 
-**File**: `.github/agents/engineering-code-reviewer.md`
+**File**: `.github/agents/engineering-code-reviewer.md` · **Tools**: `read, search` (read-only)
 
 Expert code reviewer providing constructive, actionable feedback focused on correctness, maintainability, security, and performance.
 
-**When to use**: Reviewing PRs or code changes. Uses priority markers: 🔴 blocker, 🟡 suggestion, 💭 nit.
+**When to use**: Reviewing PRs or code changes. Uses priority markers: 🔴 blocker, 🟡 suggestion, 💭 nit. Hands off security-sensitive changes to the Security Engineer.
 
 ---
 
 ### Security Engineer
 
-**File**: `.github/agents/engineering-security-engineer.md`
+**File**: `.github/agents/engineering-security-engineer.md` · **Tools**: `read, search` (read-only)
 
-Application security engineer specializing in threat modeling, vulnerability assessment, secure code review, and security architecture for web and cloud-native applications.
+Application security engineer for the AWS serverless stack: threat modeling, secure code review, and vulnerability assessment.
 
-**When to use**: Security reviews, threat modeling, vulnerability assessment, reviewing auth flows, validating webhook signature verification, checking for OWASP Top 10 issues.
+**When to use**: Security reviews, threat modeling, reviewing auth flows, validating `verifyGithubSign` webhook signatures, checking RLS boundaries and OWASP Top 10 issues.
 
 **Key context**:
 
@@ -114,26 +64,6 @@ Application security engineer specializing in threat modeling, vulnerability ass
 - RDS row-level security via `withRlsTransaction`
 - KMS encryption, Secrets Manager for sensitive config
 - IAM least-privilege policies defined in `infra/`
-
----
-
-### UI Designer
-
-**File**: `.github/agents/design-ui-designer.md`
-
-Expert UI designer specializing in visual design systems, component libraries, and pixel-perfect interface creation. Creates consistent, accessible user interfaces.
-
-**When to use**: Design system work, component library refinement, visual consistency reviews, creating new UI patterns, accessibility compliance.
-
----
-
-### UX Architect
-
-**File**: `.github/agents/design-ux-architect.md`
-
-Technical architecture and UX specialist who provides developers with solid foundations, CSS systems, and clear implementation guidance.
-
-**When to use**: Establishing CSS architecture, layout frameworks, information architecture, responsive strategies, and developer-ready UX foundations.
 
 ---
 
