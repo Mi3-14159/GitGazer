@@ -115,6 +115,7 @@ data "aws_iam_policy_document" "backfill_worker" {
       "sqs:DeleteMessage",
       "sqs:GetQueueAttributes",
       "sqs:SendMessage",
+      "sqs:ChangeMessageVisibility",
     ]
     resources = [
       aws_sqs_queue.backfill_tasks.arn,
