@@ -23,6 +23,8 @@
     const emit = defineEmits<{
         toggle: [value: string];
         clear: [];
+        selectAll: [values: string[]];
+        deselectAll: [values: string[]];
         'update:searchTerm': [value: string];
     }>();
 
@@ -47,6 +49,25 @@
         if (!term) return props.options;
         return props.options.filter((opt) => opt.label.toLowerCase().includes(term));
     });
+
+    /** Values currently visible (after any search filtering). */
+    const filteredValues = computed(() => filteredOptions.value.map((opt) => opt.value));
+
+    /** True when every visible option is already selected. */
+    const allFilteredSelected = computed(
+        () => filteredValues.value.length > 0 && filteredValues.value.every((value) => props.selected.includes(value)),
+    );
+
+    /** True when at least one (but not all) visible option is selected. */
+    const someFilteredSelected = computed(() => !allFilteredSelected.value && filteredValues.value.some((value) => props.selected.includes(value)));
+
+    function onToggleSelectAll() {
+        if (allFilteredSelected.value) {
+            emit('deselectAll', filteredValues.value);
+        } else {
+            emit('selectAll', filteredValues.value);
+        }
+    }
 </script>
 
 <template>
@@ -63,6 +84,17 @@
                 class="absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground animate-spin"
             />
         </div>
+        <label
+            v-if="filteredOptions.length > 0"
+            class="flex items-center gap-2 rounded border-b border-border px-2 py-1.5 text-sm font-medium hover:bg-muted cursor-pointer"
+        >
+            <Checkbox
+                :model-value="allFilteredSelected"
+                :indeterminate="someFilteredSelected"
+                @update:model-value="onToggleSelectAll"
+            />
+            <span class="flex-1 truncate">Select all</span>
+        </label>
         <div class="max-h-48 overflow-y-auto space-y-0.5">
             <label
                 v-for="option in filteredOptions"

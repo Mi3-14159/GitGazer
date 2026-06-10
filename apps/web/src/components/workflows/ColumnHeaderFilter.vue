@@ -37,6 +37,22 @@
         emit('filterChange', newValues);
     }
 
+    function selectAll(values: string[]) {
+        const merged = [...props.activeValues];
+        for (const value of values) {
+            if (!merged.includes(value)) merged.push(value);
+        }
+        emit('filterChange', merged);
+    }
+
+    function deselectAll(values: string[]) {
+        const remove = new Set(values);
+        emit(
+            'filterChange',
+            props.activeValues.filter((value) => !remove.has(value)),
+        );
+    }
+
     onUnmounted(cleanup);
 </script>
 
@@ -66,6 +82,8 @@
                 :placeholder="`Search ${columnLabel.toLowerCase()}...`"
                 @toggle="toggleValue"
                 @clear="emit('filterChange', [])"
+                @select-all="selectAll"
+                @deselect-all="deselectAll"
             />
         </div>
     </Popover>

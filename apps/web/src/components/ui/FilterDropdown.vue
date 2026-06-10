@@ -43,6 +43,19 @@
         model.value = [] as unknown as T;
     }
 
+    function selectAll(values: string[]) {
+        const merged = [...(model.value as string[])];
+        for (const value of values) {
+            if (!merged.includes(value)) merged.push(value);
+        }
+        model.value = merged as T;
+    }
+
+    function deselectAll(values: string[]) {
+        const remove = new Set(values);
+        model.value = (model.value as string[]).filter((value) => !remove.has(value)) as T;
+    }
+
     const buttonLabel = computed(() => {
         if (!props.multiple) return '';
         const selected = model.value as string[];
@@ -116,6 +129,8 @@
             :placeholder="searchPlaceholder"
             @toggle="toggleValue"
             @clear="clearAll"
+            @select-all="selectAll"
+            @deselect-all="deselectAll"
         />
     </Popover>
 </template>
