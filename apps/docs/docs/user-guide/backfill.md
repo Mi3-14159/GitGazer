@@ -75,6 +75,15 @@ The command returns as soon as the run is seeded — the actual import proceeds 
 
 Archived and disabled repositories are always skipped during discovery.
 
+:::note[How `since` / `until` are applied]
+The date window is interpreted differently per event type:
+
+- **Workflow runs** are filtered by their **created** date, server-side by the GitHub API — only runs in range are fetched.
+- **Pull requests** (and their reviews) are filtered by their **last-updated** date, client-side. Because the API returns PRs newest-first, providing `since` lets the worker **stop early** once it pages past the boundary. An `until`-only window still scans from the newest PR down to the in-range ones, so pair `until` with `since` for the most efficient PR backfills.
+
+GitHub also only exposes the **first 1,000 workflow runs** for any single query. If a repository has more runs than that in your window, the worker imports the most recent 1,000 and logs a warning — narrow `since` / `until` to capture the rest.
+:::
+
 ## Step 3 — Monitor the run
 
 Follow the worker logs to watch discovery and ingestion:

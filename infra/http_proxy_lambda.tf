@@ -115,3 +115,9 @@ resource "aws_iam_role_policy_attachment" "org_sync_invoke_http_proxy" {
   role       = aws_iam_role.org_sync_scheduler.id
   policy_arn = aws_iam_policy.invoke_http_proxy[0].arn
 }
+
+resource "aws_iam_role_policy_attachment" "backfill_worker_invoke_http_proxy" {
+  count      = var.enable_http_proxy ? 1 : 0
+  role       = aws_iam_role.backfill_worker.id
+  policy_arn = aws_iam_policy.invoke_http_proxy[0].arn
+}

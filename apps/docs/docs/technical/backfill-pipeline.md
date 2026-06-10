@@ -100,6 +100,7 @@ The `eventTypes` array flows through every task. Handlers use it to skip work th
 
 - **Workflow runs** use GitHub's server-side `created` query filter (`since..until`, `>=since`, or `<=until`).
 - **Pull requests** are listed newest-first by `updated_at` and filtered client-side. Because the list is descending, once the oldest PR on a page predates `since`, pagination stops early — no later page can contain in-range PRs.
+- GitHub exposes at most **1,000 runs** per workflow-runs query (`GITHUB_RUNS_RESULT_CAP`). `runs_page` stops paginating at that ceiling and logs a warning when `total_count` exceeds it, so any runs beyond the first 1,000 in a window are skipped — narrowing `since` / `until` is the way to reach them.
 
 ## SQS Queue Architecture
 
@@ -175,6 +176,10 @@ Inline retries happen only when the wait is **≤ 20 seconds** and within the 4-
 ## Idempotency & Safety
 
 Re-running a backfill, or retrying any individual task, is safe. Ingestion goes through the same `insertEvent()` path as live webhooks, whose upserts apply freshness guards (`upsertWorkflowRuns` / `upsertWorkflowJobs` return `stale=true` rather than overwriting newer rows). Duplicate and out-of-order arrivals are therefore harmless — which is exactly what lets the queue be standard and the concurrency be parallel.
+
+:::warning[Storage growth in the `events` backup table]
+Alongside the deduplicated domain tables, `insertEvent()` appends every record to the append-only `events` backup table, which has **no dedup or freshness guard**. A backfill writes one `events` row per workflow run, job, pull request, and review it processes — and **re-running an overlapping range appends those rows again**. Large or repeated imports can grow this table substantially. Budget RDS storage accordingly, and prune `events` on a retention schedule if you don't need it for replay.
+:::
 
 ## IAM & Permissions
 
