@@ -17,6 +17,7 @@ function buildQueryString(filter: MetricsFilter): string {
     const params = new URLSearchParams();
     if (filter.repositoryIds?.length) params.set('repositoryIds', filter.repositoryIds.join(','));
     else if (filter.repositoryId) params.set('repositoryId', String(filter.repositoryId));
+    if (filter.integrationIds?.length) params.set('integrationIds', filter.integrationIds.join(','));
     if (filter.topics?.length) params.set('topics', filter.topics.join(','));
     if (filter.from) params.set('from', filter.from);
     if (filter.to) params.set('to', filter.to);

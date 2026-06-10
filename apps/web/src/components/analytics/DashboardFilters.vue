@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import DefaultBranchFilter from '@/components/filters/DefaultBranchFilter.vue';
     import GroupByFilter from '@/components/filters/GroupByFilter.vue';
+    import IntegrationFilter from '@/components/filters/IntegrationFilter.vue';
     import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
     import TopicFilter from '@/components/filters/TopicFilter.vue';
     import UsersOnlyFilter from '@/components/filters/UsersOnlyFilter.vue';
@@ -8,6 +9,7 @@
     import {ChevronDown, SlidersHorizontal} from 'lucide-vue-next';
     import {computed, ref} from 'vue';
 
+    const integrationIds = defineModel<string[]>('integrationIds', {required: true});
     const repositoryIds = defineModel<number[]>('repositoryIds', {required: true});
     const topics = defineModel<string[]>('topics', {required: true});
     const defaultBranchOnly = defineModel<boolean>('defaultBranchOnly', {required: true});
@@ -18,6 +20,7 @@
 
     const activeFilterCount = computed(() => {
         let count = 0;
+        if (integrationIds.value.length) count++;
         if (repositoryIds.value.length) count++;
         if (topics.value.length) count++;
         if (groupBy.value !== 'none') count++;
@@ -56,6 +59,7 @@
             :class="[filtersOpen ? 'flex' : 'hidden', 'sm:flex']"
             class="flex-wrap items-center gap-x-3 gap-y-2 mt-2 sm:mt-0"
         >
+            <IntegrationFilter v-model="integrationIds" />
             <RepositoryFilter v-model="repositoryIds" />
             <TopicFilter v-model="topics" />
             <GroupByFilter v-model="groupBy" />

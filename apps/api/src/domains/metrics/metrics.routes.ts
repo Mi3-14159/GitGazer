@@ -29,15 +29,31 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
         defaultBranchOnly: params.defaultBranchOnly === 'true',
         usersOnly: params.usersOnly === 'true',
         granularity: params.granularity as 'hour' | 'day' | 'week' | 'month' | undefined,
-        groupBy: (['repository', 'topic'].includes(params.groupBy ?? '') ? params.groupBy : undefined) as GroupByOption | undefined,
+        groupBy: (['repository', 'topic', 'integration'].includes(params.groupBy ?? '') ? params.groupBy : undefined) as GroupByOption | undefined,
     };
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function resolveIntegrationIds(reqCtx: AppRequestContext, event: APIGatewayProxyEventV2): string[] | null {
     const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
     if (!userIntegrationIds.length) return null;
-    const requestedId = event.queryStringParameters?.integrationId;
-    return requestedId && userIntegrationIds.includes(requestedId) ? [requestedId] : userIntegrationIds;
+
+    const authorized = new Set(userIntegrationIds);
+    const params = event.queryStringParameters ?? {};
+
+    // Multi-select filter: keep only valid ids the user is actually assigned to.
+    if (params.integrationIds) {
+        const requested = params.integrationIds.split(',').filter((id) => UUID_RE.test(id) && authorized.has(id));
+        if (requested.length > 0) return requested;
+    }
+
+    // Backward-compatible single-integration selection.
+    if (params.integrationId && authorized.has(params.integrationId)) {
+        return [params.integrationId];
+    }
+
+    return userIntegrationIds;
 }
 
 function jsonResponse(body: unknown, status: number = HttpStatusCodes.OK): Response {

@@ -1,7 +1,7 @@
 export const GRANULARITY_VALUES = ['hour', 'day', 'week', 'month'] as const;
 export type Granularity = (typeof GRANULARITY_VALUES)[number];
 
-export const GROUP_BY_OPTIONS = ['none', 'repository', 'topic'] as const;
+export const GROUP_BY_OPTIONS = ['none', 'repository', 'topic', 'integration'] as const;
 export type GroupByOption = (typeof GROUP_BY_OPTIONS)[number];
 
 export type MetricsFilter = {
@@ -14,13 +14,14 @@ export type MetricsFilter = {
     usersOnly?: boolean;
     granularity?: Granularity;
     groupBy?: GroupByOption;
+    integrationIds?: string[];
 };
 
 export const isMetricsFilter = (params: Record<string, unknown>): params is MetricsFilter & Record<string, unknown> => {
     if (params.repositoryId !== undefined && isNaN(Number(params.repositoryId))) return false;
-    if (params.granularity !== undefined && !['hour', 'day', 'week', 'month'].includes(String(params.granularity))) return false;
+    if (params.granularity !== undefined && !(GRANULARITY_VALUES as readonly string[]).includes(String(params.granularity))) return false;
     if (params.usersOnly !== undefined && !['true', 'false'].includes(String(params.usersOnly))) return false;
-    if (params.groupBy !== undefined && !['none', 'repository', 'topic'].includes(String(params.groupBy))) return false;
+    if (params.groupBy !== undefined && !(GROUP_BY_OPTIONS as readonly string[]).includes(String(params.groupBy))) return false;
     return true;
 };
 

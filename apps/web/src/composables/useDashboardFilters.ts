@@ -15,6 +15,7 @@ export interface DashboardFilters {
     defaultBranchOnly: Ref<boolean>;
     usersOnly: Ref<boolean>;
     groupBy: Ref<GroupByOption>;
+    integrationIds: Ref<string[]>;
     metricsFilter: Ref<MetricsFilter>;
 }
 
@@ -25,7 +26,7 @@ export interface DashboardFilters {
  * Call once in the page-level component.
  */
 export function useDashboardFilters(): DashboardFilters {
-    const {dateRange, granularity, repositoryIds, topics, defaultBranchOnly, usersOnly, groupBy} = useUrlFilters({
+    const {dateRange, granularity, repositoryIds, topics, defaultBranchOnly, usersOnly, groupBy, integrationIds} = useUrlFilters({
         dateRange: dateRangeFilter(),
         granularity: enumFilter<Granularity>('granularity', GRANULARITY_VALUES, 'day'),
         repositoryIds: numberArrayFilter('repos'),
@@ -33,6 +34,7 @@ export function useDashboardFilters(): DashboardFilters {
         defaultBranchOnly: booleanFilter('defaultBranch', true),
         usersOnly: booleanFilter('usersOnly', true),
         groupBy: enumFilter<GroupByOption>('groupBy', GROUP_BY_OPTIONS, 'repository'),
+        integrationIds: stringArrayFilter('integrations'),
     });
 
     const metricsFilter = computed<MetricsFilter>(() => {
@@ -45,8 +47,9 @@ export function useDashboardFilters(): DashboardFilters {
         if (defaultBranchOnly.value) filter.defaultBranchOnly = true;
         if (usersOnly.value) filter.usersOnly = true;
         if (groupBy.value !== 'none') filter.groupBy = groupBy.value;
+        if (integrationIds.value.length) filter.integrationIds = integrationIds.value;
         return filter;
     });
 
-    return {dateRange, granularity, repositoryIds, topics, defaultBranchOnly, usersOnly, groupBy, metricsFilter};
+    return {dateRange, granularity, repositoryIds, topics, defaultBranchOnly, usersOnly, groupBy, integrationIds, metricsFilter};
 }

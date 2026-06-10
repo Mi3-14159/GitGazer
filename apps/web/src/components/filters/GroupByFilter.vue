@@ -10,6 +10,7 @@
         {label: 'No grouping', value: 'none'},
         {label: 'Group by Repository', value: 'repository'},
         {label: 'Group by Topic', value: 'topic'},
+        {label: 'Group by Integration', value: 'integration'},
     ];
 
     const groupByRef = computed({
