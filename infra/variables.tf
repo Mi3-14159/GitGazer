@@ -68,7 +68,7 @@ variable "enable_http_proxy" {
 variable "backfill_max_concurrency" {
   type        = number
   description = "Maximum number of concurrent backfill-worker invocations consuming the backfill queue (caps GitHub API usage)"
-  default     = 1
+  default     = 2
 
   validation {
     condition     = var.backfill_max_concurrency >= 2 && var.backfill_max_concurrency <= 1000
