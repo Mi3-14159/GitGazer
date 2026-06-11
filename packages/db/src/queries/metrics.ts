@@ -837,7 +837,17 @@ export async function listRepositories({integrationIds}: {integrationIds: string
         integrationIds,
         callback: async (tx) => {
             const rows = await tx.select({id: repositories.id, name: repositories.name}).from(repositories).orderBy(repositories.name);
-            return rows;
+            // The repositories table has a composite PK [integration_id, id], so the same GitHub
+            // repository id appears once per integration. Collapse to a list that is distinct by id
+            // so consumers (e.g. the repository filter) receive unique keys.
+            const seen = new Set<number>();
+            return rows.filter((row) => {
+                if (seen.has(row.id)) {
+                    return false;
+                }
+                seen.add(row.id);
+                return true;
+            });
         },
     });
 }
