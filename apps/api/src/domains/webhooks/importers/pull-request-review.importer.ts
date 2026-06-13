@@ -31,10 +31,10 @@ export const importPullRequestReview = async (
         user = users.find((u) => u.id === reviewer.id) ?? null;
     } else {
         logger.info(`Review ${review.id} has no reviewer (account may be deleted)`, {
-            reviewId: review.id,
             integrationId,
-            pullRequestId: event.pull_request.id,
-            repositoryId: event.repository.id,
+            reviewId: review.id,
+            pullRequestNumber: event.pull_request.number,
+            repositoryName: event.repository.name,
         });
     }
 
