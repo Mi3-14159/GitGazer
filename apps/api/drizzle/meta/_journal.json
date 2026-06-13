@@ -344,6 +344,13 @@
       "when": 1778794243926,
       "tag": "0048_mighty_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1781350114945,
+      "tag": "0049_quick_katie_power",
+      "breakpoints": true
     }
   ]
 }

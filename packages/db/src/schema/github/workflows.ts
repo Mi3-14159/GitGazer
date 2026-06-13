@@ -373,7 +373,8 @@ export const pullRequestReviews = githubSchema
             id: bigint('id', {mode: 'number'}).notNull(),
             pullRequestId: bigint('pull_request_id', {mode: 'number'}).notNull(),
             repositoryId: bigint('repository_id', {mode: 'number'}).notNull(),
-            userId: bigint('user_id', {mode: 'number'}).notNull(),
+            // Nullable: GitHub sends `user: null` for reviews whose author account has been deleted.
+            userId: bigint('user_id', {mode: 'number'}),
             state: varchar('state', {length: 50}).notNull(),
             submittedAt: timestamp('submitted_at', {withTimezone: true}).notNull(),
             body: text('body'),

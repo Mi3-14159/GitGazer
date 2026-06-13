@@ -316,6 +316,30 @@ describe('importPullRequestReview', () => {
         expect(result.pullRequestReview.body).toBeNull();
     });
 
+    it('handles a deleted reviewer (null user) without crashing', async () => {
+        const expectedReview = {
+            integrationId: 'int-1',
+            id: 5001,
+            pullRequestId: 1001,
+            repositoryId: 200,
+            userId: null,
+            state: 'approved',
+            submittedAt: new Date('2026-01-02T10:00:00Z'),
+            body: 'Looks good!',
+        };
+
+        const tx = buildMockTx(expectedReview);
+        const event = buildReviewEvent();
+        (event.review as any).user = null;
+
+        const result = await reviewModule.importPullRequestReview('int-1', event, tx as any);
+
+        expect(result.pullRequestReview.userId).toBeNull();
+        expect(result.user).toBeNull();
+        // insert called only for the review row; the user upsert is skipped
+        expect(tx.insert).toHaveBeenCalledTimes(1);
+    });
+
     it('uses onConflictDoUpdate for idempotent upsert', async () => {
         const expectedReview = {
             integrationId: 'int-1',

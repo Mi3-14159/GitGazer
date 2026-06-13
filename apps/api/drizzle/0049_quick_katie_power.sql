@@ -1,0 +1,1 @@
+ALTER TABLE "github"."pull_request_reviews" ALTER COLUMN "user_id" DROP NOT NULL;

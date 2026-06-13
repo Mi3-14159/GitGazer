@@ -7,7 +7,7 @@ export const importPullRequestReview = async (
     tx: RdsTransaction,
 ): Promise<{
     pullRequestReview: PullRequestReview;
-    user: UserSelect;
+    user: UserSelect | null;
 }> => {
     const review = event.review;
 
@@ -15,8 +15,17 @@ export const importPullRequestReview = async (
         throw new Error(`Review ${review.id} has no submitted_at timestamp`);
     }
 
+    // GitHub sends `user: null` when the reviewer's account has been deleted,
+    // even though @octokit/webhooks-types declares `review.user` as non-null.
+    const reviewer = review.user as typeof review.user | null;
+
     const submittedAt = new Date(review.submitted_at);
-    const {users} = await upsertUsers(tx, [{integrationId, id: review.user.id, login: review.user.login, type: review.user.type}]);
+
+    let user: UserSelect | null = null;
+    if (reviewer) {
+        const {users} = await upsertUsers(tx, [{integrationId, id: reviewer.id, login: reviewer.login, type: reviewer.type}]);
+        user = users.find((u) => u.id === reviewer.id) ?? null;
+    }
 
     const {pullRequestReviews} = await upsertPullRequestReviews(tx, [
         {
@@ -24,7 +33,7 @@ export const importPullRequestReview = async (
             id: review.id,
             pullRequestId: event.pull_request.id,
             repositoryId: event.repository.id,
-            userId: review.user.id,
+            userId: reviewer?.id ?? null,
             state: review.state,
             submittedAt,
             body: review.body ?? null,
@@ -33,6 +42,6 @@ export const importPullRequestReview = async (
 
     return {
         pullRequestReview: pullRequestReviews[0],
-        user: users.find((u) => u.id === review.user.id)!,
+        user,
     };
 };
