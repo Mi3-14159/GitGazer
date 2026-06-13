@@ -56,6 +56,7 @@
     "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
     "dev:backfill": "node --env-file=.env -r ts-node/register src/scripts/run-backfill-task.ts",
+    "dev:worker": "node --env-file=.env -r ts-node/register src/scripts/run-worker-task.ts",
     "db:migrate:manual": "node --env-file=.env -r ts-node/register src/scripts/run-drizzle-migrations.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
