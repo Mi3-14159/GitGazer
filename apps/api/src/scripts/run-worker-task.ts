@@ -5,9 +5,10 @@
  * Primary use case: a message has landed in the webhook-events DLQ (the queue
  * uses maxReceiveCount=1, so any worker failure dead-letters immediately) and
  * you need to find out *why* it failed. This script pulls one message (or takes
- * an inline / file body), runs it through the exact same `processRecord` path
- * the deployed worker uses, and lets the error throw with a full stack trace
- * instead of being swallowed into a single `batchItemFailures` log line.
+ * an inline / file body), wraps it in a single-record SQS event, and runs it
+ * through the worker's `handler` — the exact entrypoint AWS invokes. The handler
+ * logs any failure with a full stack trace and reports it via `batchItemFailures`;
+ * this script inspects that result and exits non-zero when a record fails.
  *
  * It uses the same environment as `dev:api` and `dev:backfill`:
  *   - AWS credentials (e.g. `aws-vault exec <profile> --no-session -- ...`)
@@ -33,12 +34,10 @@
  *   # Replay a message body from a file (e.g. one dumped from CloudWatch)
  *   pnpm run dev:worker -- --file ./tmp/failed-message.json
  */
-import {processRecord} from '@/domains/webhooks/worker/batch-processor';
+import {handler} from '@/handlers/worker';
 import '@/shared/bootstrap';
-import {loadConfig} from '@/shared/config';
 import {ReceiveMessageCommand, SQSClient} from '@aws-sdk/client-sqs';
-import {initDb} from '@gitgazer/db/client';
-import type {SQSRecord} from 'aws-lambda';
+import type {SQSEvent, SQSRecord} from 'aws-lambda';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {parseArgs} from 'node:util';
@@ -146,8 +145,8 @@ const acquireMessage = async (opts: CliOptions): Promise<AcquiredMessage> => {
 };
 
 /**
- * Wraps a raw message body in a minimal SQSRecord so it can be passed to the
- * real `processRecord` handler. Only `body` is read by the worker; the rest are
+ * Wraps a raw message body in a minimal SQSRecord so it can be handed to the
+ * worker's `handler`. Only `body` is read by the worker; the rest are
  * plausible placeholders mirroring the deployed event shape.
  */
 const toSqsRecord = (body: string): SQSRecord => {
@@ -172,9 +171,6 @@ const toSqsRecord = (body: string): SQSRecord => {
 
 const main = async (): Promise<void> => {
     const opts = parseCliArgs();
-
-    await initDb();
-    await loadConfig();
 
     const {body, source} = await acquireMessage(opts);
     console.info(`\nLoaded message from ${source}:\n${body}\n`);
@@ -205,7 +201,19 @@ const main = async (): Promise<void> => {
         console.info('Post-commit side effects (WebSocket + alerts) ENABLED — real alerts may be sent.\n');
     }
 
-    await processRecord(toSqsRecord(effectiveBody));
+    // Invoke the worker exactly as AWS does: a single-record SQS event through
+    // `handler`. The handler never throws — it logs failures and returns them in
+    // `batchItemFailures` — so surface any failure here to keep this script's
+    // non-zero exit / stack-trace behaviour.
+    const event: SQSEvent = {Records: [toSqsRecord(effectiveBody)]};
+    const {batchItemFailures} = await handler(event);
+
+    if (batchItemFailures.length > 0) {
+        throw new Error(
+            `Worker handler reported a batch item failure (messageId=${batchItemFailures[0].itemIdentifier}). ` +
+                'See the "Failed to process SQS record" error logged above for the stack trace.',
+        );
+    }
 
     console.info('\nMessage processed successfully.');
 };
