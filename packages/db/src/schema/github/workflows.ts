@@ -268,7 +268,9 @@ export const workflowRuns = githubSchema
             createdAt: timestamp('created_at', {
                 withTimezone: true,
             }).notNull(),
-            headBranch: varchar('head_branch', {length: 255}).notNull(),
+            // Nullable: GitHub sends head_branch = null for some workflow_run events
+            // (e.g. pull_request_target). Octokit types it as `string | null`.
+            headBranch: varchar('head_branch', {length: 255}),
             name: text('name').notNull(),
             runAttempt: integer('run_attempt').notNull(),
             status: varchar('status', {length: 50}).notNull(),
