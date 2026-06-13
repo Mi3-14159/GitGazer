@@ -55,6 +55,7 @@
     "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler && pnpm run zip -- backfill-worker && pnpm run zip -- http-proxy",
     "clean": "rimraf dist tmp",
     "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
+    "dev:backfill": "node --env-file=.env -r ts-node/register src/scripts/run-backfill-task.ts",
     "db:migrate:manual": "node --env-file=.env -r ts-node/register src/scripts/run-drizzle-migrations.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
