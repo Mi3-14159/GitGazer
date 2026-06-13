@@ -1,6 +1,10 @@
 import {upsertPullRequestReviews, upsertUsers} from '@/domains/webhooks/importers/shared';
+import {getLogger} from '@/shared/logger';
 import {RdsTransaction} from '@gitgazer/db/client';
 import {PullRequestReview, PullRequestReviewEvent, UserSelect} from '@gitgazer/db/types';
+
+const logger = getLogger();
+
 export const importPullRequestReview = async (
     integrationId: string,
     event: PullRequestReviewEvent,
@@ -25,6 +29,13 @@ export const importPullRequestReview = async (
     if (reviewer) {
         const {users} = await upsertUsers(tx, [{integrationId, id: reviewer.id, login: reviewer.login, type: reviewer.type}]);
         user = users.find((u) => u.id === reviewer.id) ?? null;
+    } else {
+        logger.info(`Review ${review.id} has no reviewer (account may be deleted)`, {
+            reviewId: review.id,
+            integrationId,
+            pullRequestId: event.pull_request.id,
+            repositoryId: event.repository.id,
+        });
     }
 
     const {pullRequestReviews} = await upsertPullRequestReviews(tx, [
