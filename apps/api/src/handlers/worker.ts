@@ -25,10 +25,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         try {
             await processRecord(record);
         } catch (error) {
-            logger.error('Failed to process SQS record', {
-                messageId: record.messageId,
-                error: error instanceof Error ? error.stack : String(error),
-            });
+            logger.error('Failed to process SQS record', {messageId: record.messageId, error});
             batchItemFailures.push({itemIdentifier: record.messageId});
         }
     }
