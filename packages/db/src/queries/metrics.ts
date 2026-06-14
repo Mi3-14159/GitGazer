@@ -115,7 +115,7 @@ function getGroupByExpressions(filter: MetricsFilter): {select: SQL; join: SQL; 
  */
 function buildCteGroupBy(
     filter: MetricsFilter,
-    opts: {repoAlias: string; integrationSource: string},
+    opts: {repoAlias: 'r' | 'repo'; integrationSource: 'r' | 'fr'},
 ): {groupSelect: SQL; topicLateral: SQL; integrationJoin: SQL; repoTopicsFilter: SQL} {
     const isTopicGroup = filter.groupBy === 'topic';
     const isIntegrationGroup = filter.groupBy === 'integration';

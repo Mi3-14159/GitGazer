@@ -1,4 +1,5 @@
 import {inspect} from 'node:util';
+import {type SQL} from 'drizzle-orm';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -9,13 +10,15 @@ vi.mock('@gitgazer/db/client', () => ({
 /** Serialize a Drizzle SQL object to a debug string (handles circular refs). */
 const sqlToString = (query: unknown): string => inspect(query, {depth: 10, maxStringLength: Infinity});
 
+const dialect = new PgDialect();
+
 /**
  * Render a Drizzle SQL object to its fully-resolved, parameterized SQL text.
  * Unlike a shallow `queryChunks` join, this recurses into nested `sql` fragments
  * (group-by SELECT, lateral joins, etc.) and renders Drizzle column objects, so
  * characterization assertions can lock alias-specific tokens like `r.topics`.
  */
-const renderSql = (query: unknown): string => new PgDialect().sqlToQuery(query as never).sql;
+const renderSql = (query: SQL): string => dialect.sqlToQuery(query).sql;
 
 let rds: typeof import('@gitgazer/db/client');
 let metrics: typeof import('@gitgazer/db/queries/metrics');
