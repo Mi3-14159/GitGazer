@@ -58,6 +58,10 @@ jobs:
               working-directory: ./apps/api
               run: npm run lint
 
+            - name: Typecheck
+              working-directory: ./apps/api
+              run: npm run typecheck
+
             - name: Unit tests
               working-directory: ./apps/api
               run: npm run test:unit

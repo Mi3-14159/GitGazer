@@ -266,8 +266,8 @@ describe('importPullRequestReview', () => {
         const result = await reviewModule.importPullRequestReview('int-1', event, tx as any);
 
         expect(result.pullRequestReview).toEqual(expectedReview);
-        expect(result.user.id).toBe(700);
-        expect(result.user.login).toBe('reviewer');
+        expect(result.user?.id).toBe(700);
+        expect(result.user?.login).toBe('reviewer');
         // insert called for: users (upsert) and review
         expect(tx.insert).toHaveBeenCalledTimes(2);
     });
