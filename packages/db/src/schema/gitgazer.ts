@@ -1,4 +1,4 @@
-import {relations} from 'drizzle-orm';
+import {relations, sql} from 'drizzle-orm';
 import {bigint, boolean, index, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {
     EVENT_LOG_CATEGORIES,
@@ -70,6 +70,11 @@ export const eventLogEntries = gitgazerSchema
             readerTenantSeparationPolicy(),
             index('event_log_entries_created_at_idx').on(table.integrationId, table.createdAt),
             index('event_log_entries_category_idx').on(table.integrationId, table.category),
+            index('event_log_entries_repository_id_idx').on(
+                table.integrationId,
+                sql`((${table.metadata}->>'repositoryId')::BIGINT)`,
+                table.createdAt.desc(),
+            ),
         ],
     )
     .enableRLS();
