@@ -102,6 +102,56 @@ function getGroupByExpressions(filter: MetricsFilter): {select: SQL; join: SQL; 
     return null;
 }
 
+/**
+ * Builds the group-by SQL fragments for metrics that run over a custom CTE
+ * (getMeanTimeToRecovery, getPRReviewTime), where the shared getGroupByExpressions()
+ * cannot be used because the grouping columns live on a CTE-local table alias rather
+ * than the canonical Drizzle table reference.
+ *
+ * The alias arguments (repoAlias, integrationSource) are compile-time constants supplied
+ * by the call sites in this file — never user input — so rendering them with sql.raw is
+ * safe. Topic *values* always stay parameterized (sql`${t}`), never sql.raw, so user input
+ * can never reach a raw SQL fragment.
+ */
+function buildCteGroupBy(
+    filter: MetricsFilter,
+    opts: {repoAlias: 'r' | 'repo'; integrationSource: 'r' | 'fr'},
+): {groupSelect: SQL; topicLateral: SQL; integrationJoin: SQL; repoTopicsFilter: SQL} {
+    const isTopicGroup = filter.groupBy === 'topic';
+    const isIntegrationGroup = filter.groupBy === 'integration';
+    const repoAlias = sql.raw(opts.repoAlias);
+    const integrationSource = sql.raw(opts.integrationSource);
+    const topicValues = filter.topics?.length
+        ? sql.join(
+              filter.topics.map((t) => sql`${t}`),
+              sql`, `,
+          )
+        : null;
+
+    // Only applies to repository/integration grouping; topic grouping scopes via the lateral below.
+    // Referencing the CTE-local alias (e.g. r.topics / repo.topics) — not the canonical table — is
+    // required because the FROM clause aliases the repositories table.
+    const repoTopicsFilter = !isTopicGroup && topicValues ? sql`AND ${repoAlias}.topics ?| array[${topicValues}]` : sql``;
+
+    const topicLateral = isTopicGroup
+        ? topicValues
+            ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(${repoAlias}.topics) WHERE value = ANY(ARRAY[${topicValues}])) AS t`
+            : sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(${repoAlias}.topics)) AS t`
+        : sql``;
+
+    const integrationJoin = isIntegrationGroup
+        ? sql`JOIN ${integrations} i ON i.integration_id = ${integrationSource}.integration_id`
+        : sql``;
+
+    const groupSelect = isTopicGroup
+        ? sql`t.topic as group_key, t.topic as group_label`
+        : isIntegrationGroup
+          ? sql`i.integration_id::text as group_key, i.label as group_label`
+          : sql`${repoAlias}.id::text as group_key, ${repoAlias}.name as group_label`;
+
+    return {groupSelect, topicLateral, integrationJoin, repoTopicsFilter};
+}
+
 function buildWorkflowRunConditions(filter: MetricsFilter, from: Date, to: Date, integrationIds: string[]): SQL[] {
     const conditions: SQL[] = [
         integrationScope(workflowRuns.integrationId, integrationIds),
@@ -473,28 +523,10 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                 )`;
 
             if (filter.groupBy === 'repository' || filter.groupBy === 'topic' || filter.groupBy === 'integration') {
-                const isTopicGroup = filter.groupBy === 'topic';
-                const isIntegrationGroup = filter.groupBy === 'integration';
-                const repoTopicsFilter = filter.topics?.length
-                    ? sql`AND ${repositories.topics} ?| array[${sql.join(
-                          filter.topics.map((t) => sql`${t}`),
-                          sql`, `,
-                      )}]`
-                    : sql``;
-                const topicLateral = isTopicGroup
-                    ? filter.topics?.length
-                        ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(r.topics) WHERE value = ANY(ARRAY[${sql.join(
-                              filter.topics.map((t) => sql`${t}`),
-                              sql`, `,
-                          )}])) AS t`
-                        : sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(r.topics)) AS t`
-                    : sql``;
-                const integrationJoin = isIntegrationGroup ? sql`JOIN ${integrations} i ON i.integration_id = r.integration_id` : sql``;
-                const groupSelect = isTopicGroup
-                    ? sql`t.topic as group_key, t.topic as group_label`
-                    : isIntegrationGroup
-                      ? sql`i.integration_id::text as group_key, i.label as group_label`
-                      : sql`r.id::text as group_key, r.name as group_label`;
+                const {groupSelect, topicLateral, integrationJoin, repoTopicsFilter} = buildCteGroupBy(filter, {
+                    repoAlias: 'r',
+                    integrationSource: 'r',
+                });
 
                 const rows = await tx.execute(sql`
                     ${failedRunsCte}
@@ -505,7 +537,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                     JOIN ${repositories} r ON r.id = recovery.repository_id
                     ${integrationJoin}
                     ${topicLateral}
-                    WHERE TRUE ${isTopicGroup ? sql`` : repoTopicsFilter}
+                    WHERE TRUE ${repoTopicsFilter}
                     GROUP BY group_key, group_label, period
                     ORDER BY group_label, period
                 `);
@@ -846,29 +878,10 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                 : sql``;
 
             if (filter.groupBy === 'repository' || filter.groupBy === 'topic' || filter.groupBy === 'integration') {
-                const isTopicGroup = filter.groupBy === 'topic';
-                const isIntegrationGroup = filter.groupBy === 'integration';
-                const repoTopicsFilter =
-                    !isTopicGroup && filter.topics?.length
-                        ? sql`AND repo.topics ?| array[${sql.join(
-                              filter.topics.map((t) => sql`${t}`),
-                              sql`, `,
-                          )}]`
-                        : sql``;
-                const topicLateral = isTopicGroup
-                    ? filter.topics?.length
-                        ? sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(repo.topics) WHERE value = ANY(ARRAY[${sql.join(
-                              filter.topics.map((t) => sql`${t}`),
-                              sql`, `,
-                          )}])) AS t`
-                        : sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(repo.topics)) AS t`
-                    : sql``;
-                const integrationJoin = isIntegrationGroup ? sql`JOIN ${integrations} i ON i.integration_id = fr.integration_id` : sql``;
-                const groupSelect = isTopicGroup
-                    ? sql`t.topic as group_key, t.topic as group_label`
-                    : isIntegrationGroup
-                      ? sql`i.integration_id::text as group_key, i.label as group_label`
-                      : sql`repo.id::text as group_key, repo.name as group_label`;
+                const {groupSelect, topicLateral, integrationJoin, repoTopicsFilter} = buildCteGroupBy(filter, {
+                    repoAlias: 'repo',
+                    integrationSource: 'fr',
+                });
 
                 const rows = await tx.execute(sql`
                     ${reviewCte}
