@@ -17,7 +17,14 @@ const makeToken = (payload: object) => {
     return `${payloadEncoded}.${sign(payloadEncoded)}`;
 };
 
-const validPayload = () => ({userId: 1, username: 'testuser', email: 'test@example.com', integrations: ['int-1'], exp: Math.floor(Date.now() / 1000) + 3600, nonce: 'abc123'});
+const validPayload = () => ({
+    userId: 1,
+    username: 'testuser',
+    email: 'test@example.com',
+    integrations: ['int-1'],
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    nonce: 'abc123',
+});
 
 beforeEach(async () => {
     mod = await import('./websocket');
