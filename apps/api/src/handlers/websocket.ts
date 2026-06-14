@@ -5,7 +5,7 @@ import {db, initDb} from '@gitgazer/db/client';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
 import {WEBSOCKET_CHANNELS, WSToken, type WebSocketChannel} from '@gitgazer/db/types';
 import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
-import {createHmac} from 'crypto';
+import {createHmac, timingSafeEqual} from 'crypto';
 import {eq} from 'drizzle-orm';
 
 const logger = getLogger();
@@ -21,7 +21,7 @@ type WebsocketEvent = APIGatewayProxyWebsocketEventV2 & {
     queryStringParameters?: Record<string, string | undefined> | null;
 };
 
-const validateWebSocketToken = (token: string): WSToken => {
+export const validateWebSocketToken = (token: string): WSToken => {
     const parts = token.split('.');
     if (parts.length !== 2) {
         throw new Error('Invalid token format');
@@ -33,7 +33,9 @@ const validateWebSocketToken = (token: string): WSToken => {
     const wsTokenSecret = config.get('wsTokenSecret');
     const expectedSignature = createHmac('sha256', wsTokenSecret).update(payloadEncoded).digest('base64url');
 
-    if (signatureEncoded !== expectedSignature) {
+    const providedBuf = Buffer.from(signatureEncoded);
+    const expectedBuf = Buffer.from(expectedSignature);
+    if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
         throw new Error('Invalid token signature');
     }
 
