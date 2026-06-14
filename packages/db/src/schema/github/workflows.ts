@@ -333,7 +333,7 @@ export const pullRequests = githubSchema
             body: text('body'),
             headBranch: varchar('head_branch', {length: 255}).notNull(),
             baseBranch: varchar('base_branch', {length: 255}).notNull(),
-            authorId: bigint('author_id', {mode: 'number'}).notNull(),
+            authorId: bigint('author_id', {mode: 'number'}),
             draft: boolean('draft').notNull(),
             merged: boolean('merged'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull(),

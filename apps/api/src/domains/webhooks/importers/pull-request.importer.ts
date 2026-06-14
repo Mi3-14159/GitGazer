@@ -1,5 +1,6 @@
 import {upsertEnterprises, upsertOrganizations, upsertPullRequests, upsertRepositories, upsertUsers} from '@/domains/webhooks/importers/shared';
 import {isEnterprise} from '@/domains/webhooks/importers/types';
+import {getLogger} from '@/shared/logger';
 import {RdsTransaction} from '@gitgazer/db/client';
 import {EnterpriseSelect, OrganizationSelect, PullRequest, PullRequestEvent, UserSelect} from '@gitgazer/db/types';
 
@@ -10,7 +11,7 @@ export const importPullRequest = async (
 ): Promise<{
     enterprise?: EnterpriseSelect;
     organization?: OrganizationSelect;
-    user: UserSelect;
+    user: UserSelect | null;
     pullRequest: PullRequest;
 }> => {
     let enterprise: EnterpriseSelect | undefined = undefined;
@@ -55,10 +56,24 @@ export const importPullRequest = async (
         },
     ]);
 
-    const {users} = await upsertUsers(tx, [
+    // GitHub sends `user: null` when the author's account has been deleted,
+    // even though @octokit/webhooks-types declares `pull_request.user` non-null.
+    const author = event.pull_request.user as typeof event.pull_request.user | null;
+
+    const usersToUpsert = [
         {integrationId, id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type},
-        {integrationId, id: event.pull_request.user.id, login: event.pull_request.user.login, type: event.pull_request.user.type},
-    ]);
+    ];
+    if (author) {
+        usersToUpsert.push({integrationId, id: author.id, login: author.login, type: author.type});
+    } else {
+        getLogger().info(`Pull request ${event.pull_request.id} has no author (account may be deleted)`, {
+            integrationId,
+            pullRequestNumber: event.pull_request.number,
+            repositoryName: event.repository.name,
+        });
+    }
+
+    const {users} = await upsertUsers(tx, usersToUpsert);
 
     const {pullRequests} = await upsertPullRequests(tx, [
         {
@@ -71,7 +86,7 @@ export const importPullRequest = async (
             body: event.pull_request.body ?? null,
             headBranch: event.pull_request.head.ref,
             baseBranch: event.pull_request.base.ref,
-            authorId: event.pull_request.user.id,
+            authorId: author?.id ?? null,
             draft: event.pull_request.draft,
             merged: event.pull_request.merged ?? null,
             createdAt: new Date(event.pull_request.created_at),
@@ -88,7 +103,7 @@ export const importPullRequest = async (
     return {
         enterprise,
         organization,
-        user: users.find((user) => user.id === event.pull_request.user.id)!,
+        user: author ? (users.find((u) => u.id === author.id) ?? null) : null,
         pullRequest: pullRequests[0],
     };
 };
