@@ -1,56 +1,51 @@
-import {exchangeCodeForTokens, generateWsToken, refreshTokens} from '@/domains/auth/auth.controller';
+import {buildLoginRedirect, generateWsToken, handleOAuthCallback, refreshTokens} from '@/domains/auth/auth.controller';
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import {buildClearCookies, extractTokenFromCookies} from '@/shared/helpers/cookies';
+import {buildClearCookies, buildClearStateCookie, extractTokenFromCookies, OAUTH_STATE_COOKIE_NAME} from '@/shared/helpers/cookies';
 import {getLogger} from '@/shared/logger';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, ForbiddenError, HttpStatusCodes, Router, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
-import {State} from '@gitgazer/db/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
+
+router.get('/api/auth/login', async (reqCtx: AppRequestContext) => {
+    const logger = getLogger();
+    logger.info('OAuth login initiation handler invoked');
+
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const {location, stateCookie} = buildLoginRedirect(event.queryStringParameters?.redirect_url);
+
+    return new Response(null, {
+        status: HttpStatusCodes.FOUND,
+        headers: {
+            Location: location,
+            'Set-Cookie': stateCookie,
+        },
+    });
+});
 
 router.get('/api/auth/callback', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     logger.info('OAuth callback handler invoked');
 
-    const code = reqCtx.event.queryStringParameters?.code;
-    const state = reqCtx.event.queryStringParameters?.state;
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const code = event.queryStringParameters?.code;
+    const state = event.queryStringParameters?.state;
+    const oauthStateNonce = extractTokenFromCookies(event.cookies, OAUTH_STATE_COOKIE_NAME);
 
-    if (!code) {
-        throw new BadRequestError('Missing authorization code');
-    }
-
-    if (!state) {
-        throw new BadRequestError('Missing state parameter');
-    }
-
-    logger.debug('Exchanging authorization code for tokens', {state});
-
-    const {cookies} = await exchangeCodeForTokens(code);
-
-    // Decode state parameter (base64-encoded JSON)
-    const decodedState = Buffer.from(state, 'base64').toString('utf-8');
-    const stateData = JSON.parse(decodedState) as State;
-
-    if (!stateData.redirect_url) {
-        throw new BadRequestError('Missing redirect_url in state');
-    }
-
-    const validatedRedirectUrl = validateRedirectUrl(stateData.redirect_url);
-    if (!validatedRedirectUrl) {
-        throw new BadRequestError('Invalid redirect_url in state');
-    }
+    // Verify the signed state + nonce BEFORE exchanging the code (see handleOAuthCallback).
+    const {cookies, redirectUrl} = await handleOAuthCallback({code, state, oauthStateNonce});
 
     logger.info('OAuth callback successful, redirecting to frontend', {
-        frontendUrl: validatedRedirectUrl,
+        frontendUrl: redirectUrl,
     });
 
     return new Response(null, {
         status: HttpStatusCodes.FOUND,
         headers: {
-            Location: validatedRedirectUrl,
-            'Set-Cookie': cookies.join(', '),
+            Location: redirectUrl,
+            'Set-Cookie': [...cookies, buildClearStateCookie()].join(', '),
         },
     });
 });
@@ -148,6 +143,6 @@ router.get('/api/auth/ws-token', [addUserIntegrationsToCtx], async (reqCtx: AppR
     });
 });
 
-export const publicPrefixes = ['/api/auth/cognito/', '/api/auth/callback', '/api/auth/refresh'] as const;
+export const publicPrefixes = ['/api/auth/cognito/', '/api/auth/login', '/api/auth/callback', '/api/auth/refresh'] as const;
 
 export default router;

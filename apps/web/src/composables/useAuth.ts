@@ -1,8 +1,6 @@
 import {parseApiResponse} from '@/utils/apiResponse';
-import {isUserAttributes, State, UserAttributes} from '@common/types';
+import {isUserAttributes, UserAttributes} from '@common/types';
 
-const COGNITO_DOMAIN = import.meta.env.VITE_COGNITO_DOMAIN;
-const COGNITO_CLIENT_ID = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 let cachedUserAttributes: UserAttributes | null = null;
@@ -127,23 +125,10 @@ export const useAuth = () => {
     };
 
     const signIn = () => {
-        const authUrl = `https://${COGNITO_DOMAIN}/oauth2/authorize`;
-
-        // Encode the current origin in state parameter for dynamic redirect
+        // Initiate sign-in through the backend so it can mint a server-bound state
+        // nonce, set the httpOnly state cookie, and redirect to the Cognito hosted UI.
         const redirectUrl = window.location.origin;
-
-        const state: State = {redirect_url: redirectUrl};
-        const stateEncoded = btoa(JSON.stringify(state));
-
-        const params = new URLSearchParams({
-            client_id: COGNITO_CLIENT_ID,
-            response_type: 'code',
-            scope: 'email openid profile aws.cognito.signin.user.admin',
-            redirect_uri: `${API_ENDPOINT}/auth/callback`,
-            state: stateEncoded,
-        });
-
-        window.location.href = `${authUrl}?${params.toString()}`;
+        window.location.href = `${API_ENDPOINT}/auth/login?redirect_url=${encodeURIComponent(redirectUrl)}`;
     };
 
     const signOut = () => {
