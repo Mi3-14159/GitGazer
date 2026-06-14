@@ -33,8 +33,11 @@ export type WorkflowsRequestParameters = {
 };
 
 export const isWorkflowsRequestParameters = (params: any): params is WorkflowsRequestParameters => {
-    if (!params) {
+    if (params === undefined || params === null) {
         return true;
+    }
+    if (typeof params !== 'object') {
+        return false;
     }
 
     if (params.limit && isNaN(parseInt(params.limit, 10))) {
