@@ -31,12 +31,14 @@ export const getEventLogEntries = async (params: {
             // Keyset pagination: (createdAt, id) < (cursorCreatedAt, cursorId)
             if (cursor?.createdAt && cursor?.id) {
                 const cursorDate = new Date(cursor.createdAt);
-                conditions.push(
-                    or(
-                        lt(eventLogEntries.createdAt, cursorDate),
-                        and(eq(eventLogEntries.createdAt, cursorDate), lt(eventLogEntries.id, cursor.id)),
-                    )!,
-                );
+                if (!isNaN(cursorDate.getTime())) {
+                    conditions.push(
+                        or(
+                            lt(eventLogEntries.createdAt, cursorDate),
+                            and(eq(eventLogEntries.createdAt, cursorDate), lt(eventLogEntries.id, cursor.id)),
+                        )!,
+                    );
+                }
             }
 
             if (filters?.type?.length) {
