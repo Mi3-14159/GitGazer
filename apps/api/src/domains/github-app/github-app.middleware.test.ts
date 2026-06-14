@@ -1,10 +1,12 @@
 import * as crypto from 'crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const configGetMock = vi.fn((key: string) => {
-    expect(key).toBe('githubApp');
-    return {webhookSecret: 'shh'};
-});
+const {configGetMock} = vi.hoisted(() => ({
+    configGetMock: vi.fn((key: string) => {
+        if (key !== 'githubApp') throw new Error(`Unexpected config key: ${key}`);
+        return {webhookSecret: 'shh'};
+    }),
+}));
 
 vi.mock('@/shared/config', () => ({
     default: {get: configGetMock},
