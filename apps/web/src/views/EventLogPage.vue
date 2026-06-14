@@ -45,11 +45,7 @@
         );
     }
 
-    async function getEventLogEntries(
-        filters?: EventLogApiFilters,
-        cursor?: EventLogCursor,
-        signal?: AbortSignal,
-    ): Promise<EventLogResponse> {
+    async function getEventLogEntries(filters?: EventLogApiFilters, cursor?: EventLogCursor, signal?: AbortSignal): Promise<EventLogResponse> {
         loadingCount.value++;
         try {
             const params = new URLSearchParams();

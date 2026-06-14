@@ -1,4 +1,6 @@
 import {inspect} from 'node:util';
+import {type SQL} from 'drizzle-orm';
+import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/db/client', () => ({
@@ -7,6 +9,16 @@ vi.mock('@gitgazer/db/client', () => ({
 
 /** Serialize a Drizzle SQL object to a debug string (handles circular refs). */
 const sqlToString = (query: unknown): string => inspect(query, {depth: 10, maxStringLength: Infinity});
+
+const dialect = new PgDialect();
+
+/**
+ * Render a Drizzle SQL object to its fully-resolved, parameterized SQL text.
+ * Unlike a shallow `queryChunks` join, this recurses into nested `sql` fragments
+ * (group-by SELECT, lateral joins, etc.) and renders Drizzle column objects, so
+ * characterization assertions can lock alias-specific tokens like `r.topics`.
+ */
+const renderSql = (query: SQL): string => dialect.sqlToQuery(query).sql;
 
 let rds: typeof import('@gitgazer/db/client');
 let metrics: typeof import('@gitgazer/db/queries/metrics');
@@ -27,7 +39,8 @@ describe('metrics queries', () => {
         };
 
         it('returns metric with correct shape and unit', async () => {
-            mockExecute([{period: '2026-03-10T00:00:00Z', value: 4.5}]);
+            // 2026-03-09 is the Monday date_trunc('week') boundary for data around 2026-03-10.
+            mockExecute([{period: '2026-03-09T00:00:00Z', value: 4.5}]);
 
             const result = await metrics.getPRCycleTime({
                 integrationIds: ['11111111-1111-1111-1111-111111111111'],
@@ -36,11 +49,13 @@ describe('metrics queries', () => {
 
             expect(result.metric).toBe('PR Cycle Time');
             expect(result.unit).toBe('hours');
-            expect(result.data).toHaveLength(1);
-            expect(result.data[0].value).toBe(4.5);
+            // Weeks (Mon) spanning the range: 2026-02-23, 2026-03-02, 2026-03-09.
+            expect(result.data).toHaveLength(3);
+            const populated = result.data.find((d) => d.value === 4.5);
+            expect(populated?.period).toBe('2026-03-09T00:00:00.000Z');
         });
 
-        it('returns empty data when no merged PRs exist', async () => {
+        it('zero-fills the period axis when no merged PRs exist', async () => {
             mockExecute([]);
 
             const result = await metrics.getPRCycleTime({
@@ -48,18 +63,22 @@ describe('metrics queries', () => {
                 filter: {from: '2026-03-01', to: '2026-03-15', granularity: 'day'},
             });
 
-            expect(result.data).toEqual([]);
+            // Daily buckets from 2026-03-01 through 2026-03-15 inclusive, all zero.
+            expect(result.data).toHaveLength(15);
+            expect(result.data.every((d) => d.value === 0)).toBe(true);
+            expect(result.data[0].period).toBe('2026-03-01T00:00:00.000Z');
         });
 
         it('rounds values to two decimal places', async () => {
-            mockExecute([{period: '2026-03-10T00:00:00Z', value: 3.14159}]);
+            mockExecute([{period: '2026-03-09T00:00:00Z', value: 3.14159}]);
 
             const result = await metrics.getPRCycleTime({
                 integrationIds: ['11111111-1111-1111-1111-111111111111'],
                 filter: {from: '2026-03-01', to: '2026-03-15', granularity: 'week'},
             });
 
-            expect(result.data[0].value).toBe(3.14);
+            const populated = result.data.find((d) => d.period === '2026-03-09T00:00:00.000Z');
+            expect(populated?.value).toBe(3.14);
         });
 
         it('handles null values gracefully', async () => {
@@ -126,7 +145,7 @@ describe('metrics queries', () => {
 
         it('returns metric with correct shape and unit', async () => {
             (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-                const tx = {execute: vi.fn().mockResolvedValue({rows: [{period: '2026-03-10T00:00:00Z', value: 12.5}]})};
+                const tx = {execute: vi.fn().mockResolvedValue({rows: [{period: '2026-03-09T00:00:00Z', value: 12.5}]})};
                 return params.callback(tx);
             });
 
@@ -137,8 +156,9 @@ describe('metrics queries', () => {
 
             expect(result.metric).toBe('CI Duration');
             expect(result.unit).toBe('minutes');
-            expect(result.data).toHaveLength(1);
-            expect(result.data[0].value).toBe(12.5);
+            expect(result.data).toHaveLength(3);
+            const populated = result.data.find((d) => d.value === 12.5);
+            expect(populated?.period).toBe('2026-03-09T00:00:00.000Z');
         });
 
         it('applies topics filter in SQL', async () => {
@@ -400,6 +420,215 @@ describe('metrics queries', () => {
             });
 
             expect(calls.join(' ')).toContain(SINGLE);
+        });
+    });
+
+    // --- Characterization tests for the duplicated custom-CTE group-by blocks ---
+    // getMeanTimeToRecovery and getPRReviewTime each run over a custom CTE, so they cannot
+    // use getGroupByExpressions(). They re-implement the same group-by SQL by hand, and the
+    // two copies have drifted (table aliases r vs repo, integration join source r vs fr, and
+    // the repo-topics filter). These tests capture the *currently generated* SQL for each
+    // metric across every groupBy mode (with/without a topics filter) so that a later refactor
+    // extracting a shared helper can prove it preserved (or deliberately changed) the output.
+
+    describe('getMeanTimeToRecovery group-by SQL', () => {
+        const INTEGRATION = '11111111-1111-1111-1111-111111111111';
+        const renderGroupBySql = async (filter: Record<string, unknown>): Promise<string> => {
+            let sqlText = '';
+            (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+                const tx = {
+                    execute: vi.fn().mockImplementation((query: SQL) => {
+                        sqlText += renderSql(query);
+                        return {rows: []};
+                    }),
+                };
+                return params.callback(tx);
+            });
+            await metrics.getMeanTimeToRecovery({integrationIds: [INTEGRATION], filter: filter as any});
+            return sqlText;
+        };
+
+        it('groupBy=repository selects and joins on the r alias', async () => {
+            const sql = await renderGroupBySql({groupBy: 'repository'});
+            expect(sql).toContain('r.id::text as group_key');
+            expect(sql).toContain('r.name as group_label');
+            expect(sql).toContain('JOIN "github"."repositories" r');
+        });
+
+        it('groupBy=topic uses a lateral over jsonb_array_elements_text(r.topics)', async () => {
+            const sql = await renderGroupBySql({groupBy: 'topic'});
+            expect(sql).toContain('t.topic as group_key, t.topic as group_label');
+            expect(sql).toContain('jsonb_array_elements_text(r.topics)');
+        });
+
+        it('groupBy=topic with topics filter scopes the lateral with value = ANY(...)', async () => {
+            const sql = await renderGroupBySql({groupBy: 'topic', topics: ['x', 'y']});
+            expect(sql).toContain('jsonb_array_elements_text(r.topics) WHERE value = ANY(ARRAY[');
+        });
+
+        it('groupBy=integration joins integrations on the r alias', async () => {
+            const sql = await renderGroupBySql({groupBy: 'integration'});
+            expect(sql).toContain('i.integration_id::text as group_key, i.label as group_label');
+            expect(sql).toContain('i.integration_id = r.integration_id');
+        });
+
+        it('groupBy=repository with topics filter applies the repo-topics predicate', async () => {
+            const sql = await renderGroupBySql({groupBy: 'repository', topics: ['x', 'y']});
+            // PHASE 2 CORRECTION (intended, reviewable SQL change): previously this rendered the
+            // fully-qualified "github"."repositories"."topics" against the aliased table `r`, which
+            // PostgreSQL rejects. buildCteGroupBy now references the `r` alias, matching the lateral
+            // join and getPRReviewTime, fixing the invalid query for groupBy=repository + topics.
+            expect(sql).toContain('r.topics ?| array[');
+            expect(sql).not.toContain('"github"."repositories"."topics" ?| array[');
+        });
+
+        it('groupBy=integration with topics filter applies the repo-topics predicate', async () => {
+            const sql = await renderGroupBySql({groupBy: 'integration', topics: ['x', 'y']});
+            // See the repository case above: same latent bug, fixed in Phase 2.
+            expect(sql).toContain('r.topics ?| array[');
+            expect(sql).not.toContain('"github"."repositories"."topics" ?| array[');
+        });
+    });
+
+    describe('getPRReviewTime group-by SQL', () => {
+        const INTEGRATION = '11111111-1111-1111-1111-111111111111';
+        const renderGroupBySql = async (filter: Record<string, unknown>): Promise<string> => {
+            let sqlText = '';
+            (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+                const tx = {
+                    execute: vi.fn().mockImplementation((query: SQL) => {
+                        sqlText += renderSql(query);
+                        return {rows: []};
+                    }),
+                };
+                return params.callback(tx);
+            });
+            await metrics.getPRReviewTime({integrationIds: [INTEGRATION], filter: filter as any});
+            return sqlText;
+        };
+
+        it('groupBy=repository selects and joins on the repo alias', async () => {
+            const sql = await renderGroupBySql({groupBy: 'repository'});
+            expect(sql).toContain('repo.id::text as group_key');
+            expect(sql).toContain('repo.name as group_label');
+            expect(sql).toContain('JOIN "github"."repositories" repo');
+        });
+
+        it('groupBy=topic uses a lateral over jsonb_array_elements_text(repo.topics)', async () => {
+            const sql = await renderGroupBySql({groupBy: 'topic'});
+            expect(sql).toContain('t.topic as group_key, t.topic as group_label');
+            expect(sql).toContain('jsonb_array_elements_text(repo.topics)');
+        });
+
+        it('groupBy=topic with topics filter scopes the lateral with value = ANY(...)', async () => {
+            const sql = await renderGroupBySql({groupBy: 'topic', topics: ['x', 'y']});
+            expect(sql).toContain('jsonb_array_elements_text(repo.topics) WHERE value = ANY(ARRAY[');
+        });
+
+        it('groupBy=integration joins integrations on the fr alias', async () => {
+            const sql = await renderGroupBySql({groupBy: 'integration'});
+            expect(sql).toContain('i.integration_id::text as group_key, i.label as group_label');
+            expect(sql).toContain('i.integration_id = fr.integration_id');
+        });
+
+        it('groupBy=repository with topics filter applies the repo-topics predicate', async () => {
+            const sql = await renderGroupBySql({groupBy: 'repository', topics: ['x', 'y']});
+            expect(sql).toContain('repo.topics ?| array[');
+        });
+
+        it('groupBy=integration with topics filter applies the repo-topics predicate', async () => {
+            const sql = await renderGroupBySql({groupBy: 'integration', topics: ['x', 'y']});
+            expect(sql).toContain('repo.topics ?| array[');
+        });
+    });
+
+    describe('zero-fill of empty periods', () => {
+        const mockRows = (rows: Record<string, unknown>[]) => {
+            (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+                const tx = {execute: vi.fn().mockResolvedValue({rows})};
+                return params.callback(tx);
+            });
+        };
+
+        it('fills a missing middle period with value 0 (daily)', async () => {
+            // Data on the first and last day; the middle days have no rows.
+            mockRows([
+                {period: '2026-03-01T00:00:00Z', value: 5},
+                {period: '2026-03-04T00:00:00Z', value: 9},
+            ]);
+
+            const result = await metrics.getActivityVolume({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2026-03-01', to: '2026-03-04', granularity: 'day'},
+            });
+
+            expect(result.data).toEqual([
+                {period: '2026-03-01T00:00:00.000Z', value: 5},
+                {period: '2026-03-02T00:00:00.000Z', value: 0},
+                {period: '2026-03-03T00:00:00.000Z', value: 0},
+                {period: '2026-03-04T00:00:00.000Z', value: 9},
+            ]);
+        });
+
+        it('produces one point per period for the range and keeps them ordered (weekly, Monday boundaries)', async () => {
+            mockRows([{period: '2026-03-02T00:00:00Z', value: 3}]);
+
+            const result = await metrics.getDeploymentFrequency({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2026-03-01', to: '2026-03-22', granularity: 'week'},
+            });
+
+            // Mondays spanning the range: 02-23, 03-02, 03-09, 03-16.
+            expect(result.data.map((d) => d.period)).toEqual([
+                '2026-02-23T00:00:00.000Z',
+                '2026-03-02T00:00:00.000Z',
+                '2026-03-09T00:00:00.000Z',
+                '2026-03-16T00:00:00.000Z',
+            ]);
+            const sorted = [...result.data].sort((a, b) => a.period.localeCompare(b.period));
+            expect(result.data).toEqual(sorted);
+            expect(result.data.find((d) => d.period === '2026-03-02T00:00:00.000Z')?.value).toBe(3);
+        });
+
+        it('fills monthly periods across a year boundary', async () => {
+            mockRows([{period: '2026-01-01T00:00:00Z', value: 7}]);
+
+            const result = await metrics.getDeploymentFrequency({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2025-11-15', to: '2026-02-10', granularity: 'month'},
+            });
+
+            expect(result.data.map((d) => d.period)).toEqual([
+                '2025-11-01T00:00:00.000Z',
+                '2025-12-01T00:00:00.000Z',
+                '2026-01-01T00:00:00.000Z',
+                '2026-02-01T00:00:00.000Z',
+            ]);
+            expect(result.data.find((d) => d.period === '2026-01-01T00:00:00.000Z')?.value).toBe(7);
+        });
+
+        it('fills every grouped series with the full period spine (aligned x-axis)', async () => {
+            mockRows([
+                {group_key: 'a', group_label: 'Acme', period: '2026-03-01T00:00:00Z', value: 2},
+                {group_key: 'b', group_label: 'Globex', period: '2026-03-03T00:00:00Z', value: 4},
+            ]);
+
+            const result = await metrics.getDeploymentFrequency({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2026-03-01', to: '2026-03-03', granularity: 'day', groupBy: 'integration'},
+            });
+
+            expect(result.data).toEqual([]);
+            expect(result.series).toHaveLength(2);
+            const expectedPeriods = ['2026-03-01T00:00:00.000Z', '2026-03-02T00:00:00.000Z', '2026-03-03T00:00:00.000Z'];
+            for (const series of result.series ?? []) {
+                expect(series.data.map((d) => d.period)).toEqual(expectedPeriods);
+            }
+            // Acme has data only on day 1, Globex only on day 3; the gaps are zero-filled.
+            const acme = result.series?.find((s) => s.groupKey === 'a');
+            const globex = result.series?.find((s) => s.groupKey === 'b');
+            expect(acme?.data.map((d) => d.value)).toEqual([2, 0, 0]);
+            expect(globex?.data.map((d) => d.value)).toEqual([0, 0, 4]);
         });
     });
 });

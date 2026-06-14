@@ -112,9 +112,7 @@ describe('event-log controller', () => {
 
         it('returns nextCursor when a full page is returned', async () => {
             const last = {id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', createdAt: new Date('2026-06-14T00:00:00.000Z')};
-            const page = Array.from({length: 50}, (_, i) =>
-                i === 49 ? last : {id: `id-${i}`, createdAt: new Date('2026-06-14T01:00:00.000Z')},
-            );
+            const page = Array.from({length: 50}, (_, i) => (i === 49 ? last : {id: `id-${i}`, createdAt: new Date('2026-06-14T01:00:00.000Z')}));
             const mockLimit = vi.fn().mockResolvedValue(page);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});

@@ -32,10 +32,7 @@ export const getEventLogEntries = async (params: {
             if (cursor?.createdAt && cursor?.id) {
                 const cursorDate = new Date(cursor.createdAt);
                 conditions.push(
-                    or(
-                        lt(eventLogEntries.createdAt, cursorDate),
-                        and(eq(eventLogEntries.createdAt, cursorDate), lt(eventLogEntries.id, cursor.id)),
-                    )!,
+                    or(lt(eventLogEntries.createdAt, cursorDate), and(eq(eventLogEntries.createdAt, cursorDate), lt(eventLogEntries.id, cursor.id)))!,
                 );
             }
 
