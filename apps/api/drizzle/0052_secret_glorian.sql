@@ -1,0 +1,1 @@
+CREATE INDEX "event_log_entries_repository_id_idx" ON "gitgazer"."event_log_entries" USING btree ("integration_id",(("metadata"->>'repositoryId')::BIGINT),"created_at" DESC NULLS LAST);

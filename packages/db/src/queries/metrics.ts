@@ -272,6 +272,82 @@ function mapTimeBucketRows(rows: any[], round = true): MetricDataPoint[] {
     }));
 }
 
+// --- Zero-fill of empty periods (plan 020) ---
+//
+// The metric queries GROUP BY period over only the rows that exist, so periods with no
+// data are simply absent from the series. That makes line/bar charts either bridge the gap
+// (implying continuity that did not happen) or drop points. We post-process every result so
+// the period axis is evenly spaced and gaps render as explicit zeros.
+//
+// Boundary semantics MUST agree with the database's date_trunc():
+//   - Timezone: UTC. Both the DB session and this JS enumeration truncate in UTC.
+//   - Week start: Monday, matching Postgres date_trunc('week', …).
+// Enumerated ISO strings use the same `new Date(period).toISOString()` shape the row mappers
+// emit, so the Map lookup in fillMissingPeriods matches existing data points exactly.
+
+function truncatePeriodStart(date: Date, granularity: Granularity): Date {
+    const d = new Date(date.getTime());
+    d.setUTCMilliseconds(0);
+    d.setUTCSeconds(0);
+    d.setUTCMinutes(0);
+    if (granularity === 'hour') return d;
+    d.setUTCHours(0);
+    if (granularity === 'day') return d;
+    if (granularity === 'week') {
+        // Postgres weeks start on Monday. getUTCDay(): 0=Sun..6=Sat.
+        const offset = (d.getUTCDay() + 6) % 7;
+        d.setUTCDate(d.getUTCDate() - offset);
+        return d;
+    }
+    // month
+    d.setUTCDate(1);
+    return d;
+}
+
+function advancePeriod(date: Date, granularity: Granularity): Date {
+    const d = new Date(date.getTime());
+    if (granularity === 'hour') d.setUTCHours(d.getUTCHours() + 1);
+    else if (granularity === 'day') d.setUTCDate(d.getUTCDate() + 1);
+    else if (granularity === 'week') d.setUTCDate(d.getUTCDate() + 7);
+    else d.setUTCMonth(d.getUTCMonth() + 1); // month — handles variable length / year rollover
+    return d;
+}
+
+function enumeratePeriods(from: Date, to: Date, granularity: Granularity): string[] {
+    const periods: string[] = [];
+    if (!(from.getTime() <= to.getTime())) return periods;
+    // Bound the spine so an unvalidated from/to (e.g. an hour granularity over many years)
+    // cannot allocate an unbounded array. Mirrors the frontend's MAX_PERIODS guard.
+    const MAX_PERIODS = 10_000;
+    const toMs = to.getTime();
+    for (
+        let cursor = truncatePeriodStart(from, granularity);
+        cursor.getTime() <= toMs && periods.length < MAX_PERIODS;
+        cursor = advancePeriod(cursor, granularity)
+    ) {
+        periods.push(cursor.toISOString());
+    }
+    return periods;
+}
+
+function fillMissingPeriods(points: MetricDataPoint[], from: Date, to: Date, granularity: Granularity): MetricDataPoint[] {
+    const byPeriod = new Map(points.map((p) => [p.period, p.value]));
+    return enumeratePeriods(from, to, granularity).map((period) => ({period, value: byPeriod.get(period) ?? 0}));
+}
+
+// Single place every metric routes through so the zero-fill lives in one helper and never
+// drifts across the ~22 return sites. Applies to both the single-series `data` path and each
+// grouped `series[].data` (full period spine per group, so all series align on the x-axis).
+function fillResultPeriods(result: MetricResult, from: Date, to: Date, granularity: Granularity): MetricResult {
+    if (result.series) {
+        return {
+            ...result,
+            series: result.series.map((s) => ({...s, data: fillMissingPeriods(s.data, from, to, granularity)})),
+        };
+    }
+    return {...result, data: fillMissingPeriods(result.data, from, to, granularity)};
+}
+
 function buildUnionFilters(filter: MetricsFilter, repoIds: number[] | undefined, integrationIds: string[]) {
     const wrIntegrationFilter = sql`AND ${integrationScope(workflowRuns.integrationId, integrationIds)}`;
     const prIntegrationFilter = sql`AND ${integrationScope(pullRequests.integrationId, integrationIds)}`;
@@ -337,11 +413,11 @@ export async function getDeploymentFrequency({integrationIds, filter}: MetricsPa
                     ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Deployment Frequency', unit: 'deployments', data: [], series};
+                return fillResultPeriods({metric: 'Deployment Frequency', unit: 'deployments', data: [], series}, from, to, granularity);
             }
 
             const data = await queryTimeBuckets(tx, sql`count(*)`, workflowRuns, conditions, granularity, sql`${workflowRuns.createdAt}`);
-            return {metric: 'Deployment Frequency', unit: 'deployments', data};
+            return fillResultPeriods({metric: 'Deployment Frequency', unit: 'deployments', data}, from, to, granularity);
         },
     });
 }
@@ -365,14 +441,14 @@ export async function getLeadTimeForChanges({integrationIds, filter}: MetricsPar
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Lead Time for Changes', unit: 'hours', data: [], series};
+                return fillResultPeriods({metric: 'Lead Time for Changes', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'Lead Time for Changes', unit: 'hours', data};
+            return fillResultPeriods({metric: 'Lead Time for Changes', unit: 'hours', data}, from, to, granularity);
         },
     });
 }
@@ -394,14 +470,14 @@ export async function getChangeFailureRate({integrationIds, filter}: MetricsPara
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Change Failure Rate', unit: '%', data: [], series};
+                return fillResultPeriods({metric: 'Change Failure Rate', unit: '%', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'Change Failure Rate', unit: '%', data};
+            return fillResultPeriods({metric: 'Change Failure Rate', unit: '%', data}, from, to, granularity);
         },
     });
 }
@@ -466,7 +542,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                     ORDER BY group_label, period
                 `);
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Mean Time to Recovery', unit: 'hours', data: [], series};
+                return fillResultPeriods({metric: 'Mean Time to Recovery', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(sql`
@@ -478,7 +554,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                 ORDER BY period
             `);
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'Mean Time to Recovery', unit: 'hours', data};
+            return fillResultPeriods({metric: 'Mean Time to Recovery', unit: 'hours', data}, from, to, granularity);
         },
     });
 }
@@ -503,14 +579,14 @@ export async function getPRMergeRate({integrationIds, filter}: MetricsParams): P
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'PR Merge Rate', unit: '%', data: [], series};
+                return fillResultPeriods({metric: 'PR Merge Rate', unit: '%', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'PR Merge Rate', unit: '%', data};
+            return fillResultPeriods({metric: 'PR Merge Rate', unit: '%', data}, from, to, granularity);
         },
     });
 }
@@ -566,7 +642,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                     ORDER BY group_label, period
                 `);
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Activity Volume', unit: 'events', data: [], series};
+                return fillResultPeriods({metric: 'Activity Volume', unit: 'events', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(sql`
@@ -589,7 +665,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                 ORDER BY period
             `);
             const data = mapTimeBucketRows(rows.rows, false);
-            return {metric: 'Activity Volume', unit: 'events', data};
+            return fillResultPeriods({metric: 'Activity Volume', unit: 'events', data}, from, to, granularity);
         },
     });
 }
@@ -643,7 +719,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                     ORDER BY group_label, period
                 `);
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'Contributor Count', unit: 'contributors', data: [], series};
+                return fillResultPeriods({metric: 'Contributor Count', unit: 'contributors', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(sql`
@@ -664,7 +740,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                 ORDER BY period
             `);
             const data = mapTimeBucketRows(rows.rows, false);
-            return {metric: 'Contributor Count', unit: 'contributors', data};
+            return fillResultPeriods({metric: 'Contributor Count', unit: 'contributors', data}, from, to, granularity);
         },
     });
 }
@@ -686,14 +762,14 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'CI Duration', unit: 'minutes', data: [], series};
+                return fillResultPeriods({metric: 'CI Duration', unit: 'minutes', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'CI Duration', unit: 'minutes', data};
+            return fillResultPeriods({metric: 'CI Duration', unit: 'minutes', data}, from, to, granularity);
         },
     });
 }
@@ -717,14 +793,14 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'PR Cycle Time', unit: 'hours', data: [], series};
+                return fillResultPeriods({metric: 'PR Cycle Time', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
                 sql`SELECT ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'PR Cycle Time', unit: 'hours', data};
+            return fillResultPeriods({metric: 'PR Cycle Time', unit: 'hours', data}, from, to, granularity);
         },
     });
 }
@@ -753,7 +829,7 @@ export async function getPRSize({integrationIds, filter}: MetricsParams): Promis
                     ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'PR Size', unit: 'lines', data: [], series};
+                return fillResultPeriods({metric: 'PR Size', unit: 'lines', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
@@ -764,7 +840,7 @@ export async function getPRSize({integrationIds, filter}: MetricsParams): Promis
                 ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'PR Size', unit: 'lines', data};
+            return fillResultPeriods({metric: 'PR Size', unit: 'lines', data}, from, to, granularity);
         },
     });
 }
@@ -823,7 +899,7 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                     ORDER BY group_label, period
                 `);
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
-                return {metric: 'PR Review Time', unit: 'hours', data: [], series};
+                return fillResultPeriods({metric: 'PR Review Time', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(sql`
@@ -838,7 +914,7 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                 ORDER BY period
             `);
             const data = mapTimeBucketRows(rows.rows);
-            return {metric: 'PR Review Time', unit: 'hours', data};
+            return fillResultPeriods({metric: 'PR Review Time', unit: 'hours', data}, from, to, granularity);
         },
     });
 }
