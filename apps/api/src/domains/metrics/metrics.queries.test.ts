@@ -429,7 +429,7 @@ describe('metrics queries', () => {
             let sqlText = '';
             (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
                 const tx = {
-                    execute: vi.fn().mockImplementation((query: unknown) => {
+                    execute: vi.fn().mockImplementation((query: SQL) => {
                         sqlText += renderSql(query);
                         return {rows: []};
                     }),
@@ -488,7 +488,7 @@ describe('metrics queries', () => {
             let sqlText = '';
             (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
                 const tx = {
-                    execute: vi.fn().mockImplementation((query: unknown) => {
+                    execute: vi.fn().mockImplementation((query: SQL) => {
                         sqlText += renderSql(query);
                         return {rows: []};
                     }),
