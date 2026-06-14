@@ -1,7 +1,7 @@
-import { useAuth } from '@/composables/useAuth';
-import { parseApiResponse } from '@/utils/apiResponse';
-import type { Integration, IntegrationWithRole, OrgSyncDefaultRole } from '@common/types';
-import { ref } from 'vue';
+import {useAuth} from '@/composables/useAuth';
+import {parseApiResponse} from '@/utils/apiResponse';
+import type {Integration, IntegrationWithRole, OrgSyncDefaultRole} from '@common/types';
+import {ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 

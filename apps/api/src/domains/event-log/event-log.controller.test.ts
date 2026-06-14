@@ -112,7 +112,7 @@ describe('event-log controller', () => {
                 return params.callback({select: mockSelect});
             });
 
-            await eventLog.getEventLogEntries({integrationIds: ['int-1'], filters: {type: 'failure'}});
+            await eventLog.getEventLogEntries({integrationIds: ['int-1'], filters: {type: ['failure']}});
 
             // When a type filter is set, where() should be called with a defined condition (not undefined)
             expect(mockWhere).toHaveBeenCalledWith(expect.anything());
