@@ -463,18 +463,19 @@ describe('metrics queries', () => {
 
         it('groupBy=repository with topics filter applies the repo-topics predicate', async () => {
             const sql = await renderGroupBySql({groupBy: 'repository', topics: ['x', 'y']});
-            // CHARACTERIZATION OF CURRENT (BUGGY) BEHAVIOR: the predicate currently renders the
-            // fully-qualified column "github"."repositories"."topics" even though the FROM clause
-            // aliases the table as `r` (JOIN ... repositories r). PostgreSQL rejects a qualified
-            // reference to an aliased table, so this query is invalid whenever a topics filter is
-            // combined with groupBy=repository|integration. Phase 2 converges this onto `r.topics`.
-            expect(sql).toContain('"github"."repositories"."topics" ?| array[');
+            // PHASE 2 CORRECTION (intended, reviewable SQL change): previously this rendered the
+            // fully-qualified "github"."repositories"."topics" against the aliased table `r`, which
+            // PostgreSQL rejects. buildCteGroupBy now references the `r` alias, matching the lateral
+            // join and getPRReviewTime, fixing the invalid query for groupBy=repository + topics.
+            expect(sql).toContain('r.topics ?| array[');
+            expect(sql).not.toContain('"github"."repositories"."topics" ?| array[');
         });
 
         it('groupBy=integration with topics filter applies the repo-topics predicate', async () => {
             const sql = await renderGroupBySql({groupBy: 'integration', topics: ['x', 'y']});
-            // See the repository case above: same latent bug, locked here before the Phase 2 fix.
-            expect(sql).toContain('"github"."repositories"."topics" ?| array[');
+            // See the repository case above: same latent bug, fixed in Phase 2.
+            expect(sql).toContain('r.topics ?| array[');
+            expect(sql).not.toContain('"github"."repositories"."topics" ?| array[');
         });
     });
 
