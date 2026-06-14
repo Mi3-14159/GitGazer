@@ -29,6 +29,15 @@ resource "random_password" "ws_token_secret" {
   }
 }
 
+resource "random_password" "state_secret" {
+  length  = 64
+  special = false
+
+  lifecycle {
+    ignore_changes = [length, special]
+  }
+}
+
 resource "aws_secretsmanager_secret" "lambda_config" {
   name                    = "${var.name_prefix}-lambda-config-${terraform.workspace}"
   description             = "Application configuration for ${var.name_prefix} Lambda functions (${terraform.workspace})"
@@ -65,6 +74,7 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       clientSecret = data.aws_kms_secrets.this.plaintext["gh_oauth_app_client_secret"]
     }
     wsTokenSecret         = random_password.ws_token_secret.result
+    stateSecret           = random_password.state_secret.result
     webhookQueueUrl       = aws_sqs_queue.webhook_events.url
     httpProxyFunctionName = var.enable_http_proxy ? aws_lambda_function.http_proxy[0].function_name : null
     sesConfig = var.ses_config.enabled ? {
