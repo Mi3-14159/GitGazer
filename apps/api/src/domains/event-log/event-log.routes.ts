@@ -2,7 +2,14 @@ import {getEventLogEntries, getEventLogStats, markAllEventLogRead, toggleEventLo
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, NotFoundError, Router} from '@aws-lambda-powertools/event-handler/http';
-import {EVENT_LOG_CATEGORIES, EVENT_LOG_TYPES, type EventLogCategory, type EventLogFilters, type EventLogType} from '@gitgazer/db/types';
+import {
+    EVENT_LOG_CATEGORIES,
+    EVENT_LOG_TYPES,
+    type EventLogCategory,
+    type EventLogCursor,
+    type EventLogFilters,
+    type EventLogType,
+} from '@gitgazer/db/types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -53,12 +60,17 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         if (!isNaN(parsed) && parsed > 0) filters.limit = parsed;
     }
 
-    if (params.offset) {
-        const parsed = parseInt(params.offset, 10);
-        if (!isNaN(parsed) && parsed >= 0) filters.offset = parsed;
+    const hasAnyCursorParam = params.cursor_created_at !== undefined || params.cursor_id !== undefined;
+    let cursor: EventLogCursor | undefined;
+    if (hasAnyCursorParam) {
+        if (!params.cursor_created_at || !params.cursor_id) throw new BadRequestError('Both cursor_created_at and cursor_id are required');
+        if (!UUID_RE.test(params.cursor_id)) throw new BadRequestError('Invalid cursor_id');
+        const d = new Date(params.cursor_created_at);
+        if (isNaN(d.getTime())) throw new BadRequestError('Invalid cursor_created_at');
+        cursor = {createdAt: d.toISOString(), id: params.cursor_id};
     }
 
-    const entries = await getEventLogEntries({integrationIds, filters});
+    const entries = await getEventLogEntries({integrationIds, cursor, filters});
     return new Response(JSON.stringify(entries), {
         status: HttpStatusCodes.OK,
         headers: {

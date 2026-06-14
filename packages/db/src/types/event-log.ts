@@ -76,5 +76,14 @@ export type EventLogFilters = {
     topics?: string[];
     integrationIds?: string[];
     limit?: number;
-    offset?: number;
+};
+
+export type EventLogCursor = {
+    createdAt: string;
+    id: string;
+};
+
+export type EventLogResponse = {
+    items: EventLogEntryRow[];
+    cursor?: EventLogCursor;
 };
