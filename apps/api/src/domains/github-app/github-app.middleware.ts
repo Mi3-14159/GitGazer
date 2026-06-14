@@ -22,8 +22,9 @@ export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
         throw new BadRequestError('Missing signature or payload');
     }
 
+    const rawBody = event.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload, 'utf-8');
     const hmac = crypto.createHmac('sha256', webhookSecret);
-    const digestBuf = Buffer.from('sha256=' + hmac.update(payload).digest('hex'));
+    const digestBuf = Buffer.from('sha256=' + hmac.update(rawBody).digest('hex'));
     const signatureBuf = Buffer.from(signature);
 
     if (digestBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(digestBuf, signatureBuf)) {
