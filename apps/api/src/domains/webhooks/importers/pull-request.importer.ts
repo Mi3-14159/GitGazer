@@ -60,9 +60,7 @@ export const importPullRequest = async (
     // even though @octokit/webhooks-types declares `pull_request.user` non-null.
     const author = event.pull_request.user as typeof event.pull_request.user | null;
 
-    const usersToUpsert = [
-        {integrationId, id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type},
-    ];
+    const usersToUpsert = [{integrationId, id: event.repository.owner.id, login: event.repository.owner.login, type: event.repository.owner.type}];
     if (author) {
         usersToUpsert.push({integrationId, id: author.id, login: author.login, type: author.type});
     } else {
