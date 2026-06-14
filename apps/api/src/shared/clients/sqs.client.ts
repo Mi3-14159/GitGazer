@@ -49,17 +49,32 @@ export const sendOrgMemberSyncTask = async (queueUrl: string, task: OrgMemberSyn
     );
 };
 
+export type BatchMessage = {
+    /** Pre-serialised message body. */
+    body: string;
+    /**
+     * Tenant identifier for SQS fair queues. On a standard queue this groups
+     * messages by tenant for noisy-neighbor mitigation only — it does NOT
+     * enforce FIFO ordering. Omit to send without a group.
+     */
+    groupId?: string;
+};
+
 /**
- * Sends pre-serialised message bodies to a standard (non-FIFO) queue, chunked
- * into batches of 10. Throws if any individual message fails so the caller can
+ * Sends pre-serialised messages to a standard (non-FIFO) queue, chunked into
+ * batches of 10. Throws if any individual message fails so the caller can
  * surface the error (SQS will redeliver the originating task).
+ *
+ * When a message sets `groupId`, SQS fair queues use it as the tenant
+ * identifier to keep one noisy tenant from starving others' dwell time.
  */
-export const sendMessageBatch = async (queueUrl: string, bodies: string[]): Promise<void> => {
-    for (let i = 0; i < bodies.length; i += SQS_BATCH_LIMIT) {
-        const chunk = bodies.slice(i, i + SQS_BATCH_LIMIT);
-        const entries: SendMessageBatchRequestEntry[] = chunk.map((body, index) => ({
+export const sendMessageBatch = async (queueUrl: string, messages: BatchMessage[]): Promise<void> => {
+    for (let i = 0; i < messages.length; i += SQS_BATCH_LIMIT) {
+        const chunk = messages.slice(i, i + SQS_BATCH_LIMIT);
+        const entries: SendMessageBatchRequestEntry[] = chunk.map((message, index) => ({
             Id: String(index),
-            MessageBody: body,
+            MessageBody: message.body,
+            ...(message.groupId ? {MessageGroupId: message.groupId} : {}),
         }));
 
         const result = await client.send(new SendMessageBatchCommand({QueueUrl: queueUrl, Entries: entries}));

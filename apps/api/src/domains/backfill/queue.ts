@@ -18,6 +18,8 @@ export const sendBackfillTasks = async (tasks: BackfillTask[]): Promise<void> =>
 
     await sendMessageBatch(
         queueUrl,
-        tasks.map((task) => JSON.stringify(task)),
+        // `integrationId` is the SQS fair-queue tenant key: concurrent backfills
+        // for different integrations won't starve each other's dwell time.
+        tasks.map((task) => ({body: JSON.stringify(task), groupId: task.integrationId})),
     );
 };
