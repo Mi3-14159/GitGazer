@@ -12,6 +12,7 @@ export type NotificationRule = {
 
 // implement a guard clause for NotificationRule
 export const isNotificationRule = (rule: any): rule is NotificationRule => {
+    if (typeof rule !== 'object' || rule === null) return false;
     return (
         typeof rule.integrationId === 'string' &&
         typeof rule.label === 'string' &&
