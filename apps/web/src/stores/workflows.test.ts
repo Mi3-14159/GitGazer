@@ -1,4 +1,3 @@
-import {useWorkflowsStore} from '@/stores/workflows';
 import {createPinia, setActivePinia} from 'pinia';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -13,6 +12,7 @@ vi.mock('@/composables/useWebSocket', () => ({
     useWebSocket: () => ({connect}),
 }));
 
+import {useWorkflowsStore} from '@/stores/workflows';
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
     return {
         ok,
