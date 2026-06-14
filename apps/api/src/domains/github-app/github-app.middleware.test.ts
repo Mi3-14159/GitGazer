@@ -1,15 +1,20 @@
 import * as crypto from 'crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+const configGetMock = vi.fn((key: string) => {
+    expect(key).toBe('githubApp');
+    return {webhookSecret: 'shh'};
+});
+
 vi.mock('@/shared/config', () => ({
-    default: {get: () => ({webhookSecret: 'shh'})},
+    default: {get: configGetMock},
 }));
 
 function makeReqCtx(event: any) {
     return {event} as any;
 }
 
-function signatureFor(payload: string, secret: string) {
+function signatureFor(payload: crypto.BinaryLike, secret: string) {
     const hmac = crypto.createHmac('sha256', secret);
     return 'sha256=' + hmac.update(payload).digest('hex');
 }
@@ -17,6 +22,7 @@ function signatureFor(payload: string, secret: string) {
 describe('verifyGithubAppSignature middleware', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        configGetMock.mockClear();
     });
 
     it('calls next for a plain body with a valid signature', async () => {
@@ -35,9 +41,10 @@ describe('verifyGithubAppSignature middleware', () => {
         const {verifyGithubAppSignature} = await import('./github-app.middleware');
         const next = vi.fn(async () => undefined);
         const payload = JSON.stringify({action: 'created'});
+        const rawBody = Buffer.from(payload, 'utf-8');
         const event = {
-            headers: {'x-hub-signature-256': signatureFor(payload, 'shh')},
-            body: Buffer.from(payload, 'utf-8').toString('base64'),
+            headers: {'x-hub-signature-256': signatureFor(rawBody, 'shh')},
+            body: rawBody.toString('base64'),
             isBase64Encoded: true,
         };
 

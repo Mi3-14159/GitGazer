@@ -11,7 +11,7 @@ function makeReqCtx(event: any) {
     return {event} as any;
 }
 
-function signatureFor(payload: string, secret: string) {
+function signatureFor(payload: crypto.BinaryLike, secret: string) {
     const hmac = crypto.createHmac('sha256', secret);
     return 'sha256=' + hmac.update(payload).digest('hex');
 }
@@ -140,11 +140,12 @@ describe('verifyGithubSign middleware', () => {
         });
 
         const payload = JSON.stringify({deploy: true});
-        const sig = signatureFor(payload, secret); // signature over the RAW (decoded) bytes
+        const rawBody = Buffer.from(payload, 'utf-8');
+        const sig = signatureFor(rawBody, secret); // signature over the RAW (decoded) bytes
         const event = {
             pathParameters: {integrationId: 'int-1'},
             headers: {'x-hub-signature-256': sig},
-            body: Buffer.from(payload, 'utf-8').toString('base64'),
+            body: rawBody.toString('base64'),
             isBase64Encoded: true,
         };
 
