@@ -94,6 +94,25 @@ describe('proxyFetch', () => {
         expect(await result.text()).toBe('{"ok":true}');
     });
 
+    it('sets response.url to the request url so octokit pagination can parse it', async () => {
+        mockConfigGet.mockReturnValue('gitgazer-http-proxy-default');
+        mockSend.mockResolvedValue({
+            Payload: Buffer.from(
+                JSON.stringify({
+                    statusCode: 200,
+                    headers: {'content-type': 'application/json'},
+                    body: '{"total_count":1,"repositories":[]}',
+                }),
+            ),
+        });
+
+        const result = await proxyFetch(new URL('https://api.github.com/installation/repositories?per_page=100'), {method: 'GET'});
+
+        expect(result.url).toBe('https://api.github.com/installation/repositories?per_page=100');
+        // Must not throw when consumers construct a URL from the response url.
+        expect(() => new URL(result.url)).not.toThrow();
+    });
+
     it('throws when proxy lambda returns function error', async () => {
         mockConfigGet.mockReturnValue('gitgazer-http-proxy-default');
         mockSend.mockResolvedValue({

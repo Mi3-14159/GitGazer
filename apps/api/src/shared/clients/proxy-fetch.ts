@@ -61,8 +61,15 @@ export async function proxyFetch(url: string | URL, init?: FetchRetryOptions): P
 
     const proxyResponse: ProxyResponse = JSON.parse(new TextDecoder().decode(result.Payload));
 
-    return new Response(proxyResponse.body, {
+    const response = new Response(proxyResponse.body, {
         status: proxyResponse.statusCode,
         headers: proxyResponse.headers,
     });
+
+    // The Response constructor always leaves `url` as an empty string, but consumers such as
+    // @octokit/request read `response.url` (e.g. the paginate plugin calls `new URL(response.url)`
+    // for total_count/total_commits responses). Expose the request URL to avoid `Invalid URL` errors.
+    Object.defineProperty(response, 'url', {value: url.toString(), configurable: true});
+
+    return response;
 }
