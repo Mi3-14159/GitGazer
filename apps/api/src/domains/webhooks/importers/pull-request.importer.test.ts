@@ -58,15 +58,20 @@ const buildMockTx = (
 
     // Track which table is being inserted/selected
     let currentTable: symbol | null = null;
+    let insertedValues: any[] = [];
 
     const returning = vi.fn(() => {
         // For repository insert
         if (currentTable === mockRepositories) {
             return Promise.resolve(options.returnExistingRepo ? [] : [mockRepo]);
         }
-        // For users bulk insert
+        // For users bulk insert (reflect only the users actually inserted)
         if (currentTable === mockUser) {
-            return Promise.resolve(options.returnExistingUsers ? [] : mockUsers);
+            if (options.returnExistingUsers) {
+                return Promise.resolve([]);
+            }
+            const insertedIds = new Set(insertedValues.map((u) => u.id));
+            return Promise.resolve(mockUsers.filter((u) => insertedIds.has(u.id)));
         }
         // For pull request (uses onConflictDoUpdate, always returns)
         if (currentTable === mockPullRequests) {
@@ -86,7 +91,8 @@ const buildMockTx = (
     const onConflictDoNothing = vi.fn(() => ({returning}));
     const onConflictDoUpdate = vi.fn(() => ({returning}));
 
-    const values = vi.fn(() => {
+    const values = vi.fn((rows: any) => {
+        insertedValues = Array.isArray(rows) ? rows : [rows];
         return {
             onConflictDoNothing,
             onConflictDoUpdate,
@@ -540,8 +546,8 @@ describe('importPullRequest', () => {
         const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
         expect(result.pullRequest).toEqual(expectedPr);
-        expect(result.user.id).toBe(500);
-        expect(result.user.login).toBe('author');
+        expect(result.user?.id).toBe(500);
+        expect(result.user?.login).toBe('author');
         expect(result.enterprise).toBeUndefined();
         expect(result.organization).toBeUndefined();
         // insert called for: repository, users (bulk: owner + author), and pull request itself
@@ -639,5 +645,35 @@ describe('importPullRequest', () => {
         expect(result.pullRequest.merged).toBe(true);
         expect(result.pullRequest.closedAt).toEqual(new Date(closedAt));
         expect(result.pullRequest.mergedAt).toEqual(new Date(mergedAt));
+    });
+
+    it('handles a deleted PR author (user: null) without throwing', async () => {
+        const expectedPr = {
+            integrationId: 'int-1',
+            repositoryId: 200,
+            id: 1001,
+            number: 42,
+            state: 'open',
+            title: 'Add new feature',
+            body: 'PR body text',
+            headBranch: 'feature-branch',
+            baseBranch: 'main',
+            authorId: null,
+            draft: false,
+            merged: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-02T00:00:00Z'),
+            closedAt: null,
+            mergedAt: null,
+        };
+
+        const tx = buildMockTx(expectedPr);
+        const baseEvent = buildPullRequestEvent();
+        const event = {...baseEvent, pull_request: {...baseEvent.pull_request, user: null}} as any;
+
+        const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
+
+        expect(result.pullRequest.authorId).toBeNull();
+        expect(result.user).toBeNull();
     });
 });
