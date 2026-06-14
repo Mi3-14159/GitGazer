@@ -46,7 +46,8 @@
     "dev:prod": "vite --mode production",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "pretty": "prettier --write src"
+    "pretty": "prettier --write src",
+    "pretty:check": "prettier --check src"
   },
   "type": "module",
   "version": "0.0.0"

@@ -62,6 +62,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0",
     "lint:fix": "eslint src --ext .ts --fix",
     "pretty": "prettier --write src",
+    "pretty:check": "prettier --check src",
     "test:unit": "vitest --project unit --run",
     "zip": "f() { [ \"$1\" = \"--\" ] && shift; cd dist/$1 && zip gitgazer-$1.zip -qr * && mkdir -p ../../tmp && mv gitgazer-$1.zip ../../tmp/; }; f"
   },

@@ -1,8 +1,8 @@
-import { useGithubApp } from '@/composables/useGithubApp';
-import { useIntegration } from '@/composables/useIntegration';
-import { useMembers } from '@/composables/useMembers';
-import type { IntegrationWithRole, OrgSyncDefaultRole } from '@common/types';
-import { ref } from 'vue';
+import {useGithubApp} from '@/composables/useGithubApp';
+import {useIntegration} from '@/composables/useIntegration';
+import {useMembers} from '@/composables/useMembers';
+import type {IntegrationWithRole, OrgSyncDefaultRole} from '@common/types';
+import {ref} from 'vue';
 
 const IMPORT_URL_BASE = import.meta.env.VITE_IMPORT_URL_BASE;
 
