@@ -27,7 +27,8 @@ describe('metrics queries', () => {
         };
 
         it('returns metric with correct shape and unit', async () => {
-            mockExecute([{period: '2026-03-10T00:00:00Z', value: 4.5}]);
+            // 2026-03-09 is the Monday date_trunc('week') boundary for data around 2026-03-10.
+            mockExecute([{period: '2026-03-09T00:00:00Z', value: 4.5}]);
 
             const result = await metrics.getPRCycleTime({
                 integrationIds: ['11111111-1111-1111-1111-111111111111'],
@@ -36,11 +37,13 @@ describe('metrics queries', () => {
 
             expect(result.metric).toBe('PR Cycle Time');
             expect(result.unit).toBe('hours');
-            expect(result.data).toHaveLength(1);
-            expect(result.data[0].value).toBe(4.5);
+            // Weeks (Mon) spanning the range: 2026-02-23, 2026-03-02, 2026-03-09.
+            expect(result.data).toHaveLength(3);
+            const populated = result.data.find((d) => d.value === 4.5);
+            expect(populated?.period).toBe('2026-03-09T00:00:00.000Z');
         });
 
-        it('returns empty data when no merged PRs exist', async () => {
+        it('zero-fills the period axis when no merged PRs exist', async () => {
             mockExecute([]);
 
             const result = await metrics.getPRCycleTime({
@@ -48,18 +51,22 @@ describe('metrics queries', () => {
                 filter: {from: '2026-03-01', to: '2026-03-15', granularity: 'day'},
             });
 
-            expect(result.data).toEqual([]);
+            // Daily buckets from 2026-03-01 through 2026-03-15 inclusive, all zero.
+            expect(result.data).toHaveLength(15);
+            expect(result.data.every((d) => d.value === 0)).toBe(true);
+            expect(result.data[0].period).toBe('2026-03-01T00:00:00.000Z');
         });
 
         it('rounds values to two decimal places', async () => {
-            mockExecute([{period: '2026-03-10T00:00:00Z', value: 3.14159}]);
+            mockExecute([{period: '2026-03-09T00:00:00Z', value: 3.14159}]);
 
             const result = await metrics.getPRCycleTime({
                 integrationIds: ['11111111-1111-1111-1111-111111111111'],
                 filter: {from: '2026-03-01', to: '2026-03-15', granularity: 'week'},
             });
 
-            expect(result.data[0].value).toBe(3.14);
+            const populated = result.data.find((d) => d.period === '2026-03-09T00:00:00.000Z');
+            expect(populated?.value).toBe(3.14);
         });
 
         it('handles null values gracefully', async () => {
@@ -126,7 +133,7 @@ describe('metrics queries', () => {
 
         it('returns metric with correct shape and unit', async () => {
             (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-                const tx = {execute: vi.fn().mockResolvedValue({rows: [{period: '2026-03-10T00:00:00Z', value: 12.5}]})};
+                const tx = {execute: vi.fn().mockResolvedValue({rows: [{period: '2026-03-09T00:00:00Z', value: 12.5}]})};
                 return params.callback(tx);
             });
 
@@ -137,8 +144,9 @@ describe('metrics queries', () => {
 
             expect(result.metric).toBe('CI Duration');
             expect(result.unit).toBe('minutes');
-            expect(result.data).toHaveLength(1);
-            expect(result.data[0].value).toBe(12.5);
+            expect(result.data).toHaveLength(3);
+            const populated = result.data.find((d) => d.value === 12.5);
+            expect(populated?.period).toBe('2026-03-09T00:00:00.000Z');
         });
 
         it('applies topics filter in SQL', async () => {
@@ -400,6 +408,96 @@ describe('metrics queries', () => {
             });
 
             expect(calls.join(' ')).toContain(SINGLE);
+        });
+    });
+
+    describe('zero-fill of empty periods', () => {
+        const mockRows = (rows: Record<string, unknown>[]) => {
+            (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+                const tx = {execute: vi.fn().mockResolvedValue({rows})};
+                return params.callback(tx);
+            });
+        };
+
+        it('fills a missing middle period with value 0 (daily)', async () => {
+            // Data on the first and last day; the middle days have no rows.
+            mockRows([
+                {period: '2026-03-01T00:00:00Z', value: 5},
+                {period: '2026-03-04T00:00:00Z', value: 9},
+            ]);
+
+            const result = await metrics.getActivityVolume({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2026-03-01', to: '2026-03-04', granularity: 'day'},
+            });
+
+            expect(result.data).toEqual([
+                {period: '2026-03-01T00:00:00.000Z', value: 5},
+                {period: '2026-03-02T00:00:00.000Z', value: 0},
+                {period: '2026-03-03T00:00:00.000Z', value: 0},
+                {period: '2026-03-04T00:00:00.000Z', value: 9},
+            ]);
+        });
+
+        it('produces one point per period for the range and keeps them ordered (weekly, Monday boundaries)', async () => {
+            mockRows([{period: '2026-03-02T00:00:00Z', value: 3}]);
+
+            const result = await metrics.getDeploymentFrequency({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2026-03-01', to: '2026-03-22', granularity: 'week'},
+            });
+
+            // Mondays spanning the range: 02-23, 03-02, 03-09, 03-16.
+            expect(result.data.map((d) => d.period)).toEqual([
+                '2026-02-23T00:00:00.000Z',
+                '2026-03-02T00:00:00.000Z',
+                '2026-03-09T00:00:00.000Z',
+                '2026-03-16T00:00:00.000Z',
+            ]);
+            const sorted = [...result.data].sort((a, b) => a.period.localeCompare(b.period));
+            expect(result.data).toEqual(sorted);
+            expect(result.data.find((d) => d.period === '2026-03-02T00:00:00.000Z')?.value).toBe(3);
+        });
+
+        it('fills monthly periods across a year boundary', async () => {
+            mockRows([{period: '2026-01-01T00:00:00Z', value: 7}]);
+
+            const result = await metrics.getDeploymentFrequency({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2025-11-15', to: '2026-02-10', granularity: 'month'},
+            });
+
+            expect(result.data.map((d) => d.period)).toEqual([
+                '2025-11-01T00:00:00.000Z',
+                '2025-12-01T00:00:00.000Z',
+                '2026-01-01T00:00:00.000Z',
+                '2026-02-01T00:00:00.000Z',
+            ]);
+            expect(result.data.find((d) => d.period === '2026-01-01T00:00:00.000Z')?.value).toBe(7);
+        });
+
+        it('fills every grouped series with the full period spine (aligned x-axis)', async () => {
+            mockRows([
+                {group_key: 'a', group_label: 'Acme', period: '2026-03-01T00:00:00Z', value: 2},
+                {group_key: 'b', group_label: 'Globex', period: '2026-03-03T00:00:00Z', value: 4},
+            ]);
+
+            const result = await metrics.getDeploymentFrequency({
+                integrationIds: ['11111111-1111-1111-1111-111111111111'],
+                filter: {from: '2026-03-01', to: '2026-03-03', granularity: 'day', groupBy: 'integration'},
+            });
+
+            expect(result.data).toEqual([]);
+            expect(result.series).toHaveLength(2);
+            const expectedPeriods = ['2026-03-01T00:00:00.000Z', '2026-03-02T00:00:00.000Z', '2026-03-03T00:00:00.000Z'];
+            for (const series of result.series ?? []) {
+                expect(series.data.map((d) => d.period)).toEqual(expectedPeriods);
+            }
+            // Acme has data only on day 1, Globex only on day 3; the gaps are zero-filled.
+            const acme = result.series?.find((s) => s.groupKey === 'a');
+            const globex = result.series?.find((s) => s.groupKey === 'b');
+            expect(acme?.data.map((d) => d.value)).toEqual([2, 0, 0]);
+            expect(globex?.data.map((d) => d.value)).toEqual([0, 0, 4]);
         });
     });
 });
