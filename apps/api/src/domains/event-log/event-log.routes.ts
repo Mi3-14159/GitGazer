@@ -60,10 +60,14 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         if (!isNaN(parsed) && parsed > 0) filters.limit = parsed;
     }
 
+    const hasAnyCursorParam = params.cursor_created_at !== undefined || params.cursor_id !== undefined;
     let cursor: EventLogCursor | undefined;
-    if (params.cursor_created_at && params.cursor_id && UUID_RE.test(params.cursor_id)) {
+    if (hasAnyCursorParam) {
+        if (!params.cursor_created_at || !params.cursor_id) throw new BadRequestError('Both cursor_created_at and cursor_id are required');
+        if (!UUID_RE.test(params.cursor_id)) throw new BadRequestError('Invalid cursor_id');
         const d = new Date(params.cursor_created_at);
-        if (!isNaN(d.getTime())) cursor = {createdAt: params.cursor_created_at, id: params.cursor_id};
+        if (isNaN(d.getTime())) throw new BadRequestError('Invalid cursor_created_at');
+        cursor = {createdAt: d.toISOString(), id: params.cursor_id};
     }
 
     const entries = await getEventLogEntries({integrationIds, cursor, filters});
