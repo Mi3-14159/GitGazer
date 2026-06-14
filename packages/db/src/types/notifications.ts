@@ -63,6 +63,7 @@ const isAllowedWebhookUrl = (url: string): boolean => {
 };
 
 export const isNotificationRuleChannel = (channel: any): channel is NotificationRuleChannel => {
+    if (typeof channel !== 'object' || channel === null) return false;
     return (
         Object.values(NotificationRuleChannelType).includes(channel.type) &&
         typeof channel.webhook_url === 'string' &&
