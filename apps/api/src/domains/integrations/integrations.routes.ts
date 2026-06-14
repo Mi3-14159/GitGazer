@@ -292,7 +292,20 @@ router.patch(
             throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
         }
 
-        await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
+        try {
+            await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
+        } catch (error) {
+            getLogger().error('Failed to update webhook events', {error});
+            await createEventLogEntry({
+                integrationId,
+                category: 'integration',
+                type: 'failure',
+                title: 'Webhook events update failed',
+                message: `Failed to update subscribed webhook events for installation ${installationId}`,
+                metadata: {integrationId, installationId, webhookEvents: requestBody.events},
+            });
+            throw error;
+        }
 
         await createEventLogEntry({
             integrationId,
