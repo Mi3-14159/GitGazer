@@ -590,8 +590,8 @@ describe('importPullRequest', () => {
         const result = await pullRequestModule.importPullRequest('int-1', event, tx as any);
 
         expect(result.organization).toBeDefined();
-        expect(result.organization.id).toBe(999);
-        expect(result.organization.login).toBe('my-org');
+        expect(result.organization?.id).toBe(999);
+        expect(result.organization?.login).toBe('my-org');
         // insert called for: org, repository, users (bulk: owner + author), and pull request itself
         expect(tx.insert).toHaveBeenCalledTimes(4);
     });
