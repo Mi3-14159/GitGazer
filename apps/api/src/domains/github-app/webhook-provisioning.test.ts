@@ -34,8 +34,8 @@ const installationUpdateWhere = vi.fn(async () => undefined);
 const dbUpdate = vi.fn(() => ({set: () => ({where: installationUpdateWhere})}));
 const withRlsTransaction = vi.fn();
 vi.mock('@gitgazer/db/client', () => ({
-    db: {update: (...a: unknown[]) => dbUpdate(...a)},
-    withRlsTransaction: (...a: unknown[]) => withRlsTransaction(...a),
+    db: {update: dbUpdate},
+    withRlsTransaction,
     RdsTransaction: class {},
 }));
 
