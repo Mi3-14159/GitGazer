@@ -245,7 +245,16 @@ export const updateAllWebhookEvents = async (integrationId: string, installation
 
     const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
     if (failures.length > 0) {
-        failures.forEach((f) => logger.error('Failed to update webhook events on a target', {error: f.reason}));
+        results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+                const webhook = webhooks[idx];
+                logger.error('Failed to update webhook events on a target', {
+                    error: r.reason,
+                    webhookId: webhook.webhookId,
+                    targetName: webhook.targetName,
+                });
+            }
+        });
         throw new Error(`Failed to update events on ${failures.length} of ${webhooks.length} webhook(s)`);
     }
 
@@ -288,7 +297,16 @@ export const updateAllWebhookSecrets = async (integrationId: string, installatio
 
     const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
     if (failures.length > 0) {
-        failures.forEach((f) => logger.error('Failed to update webhook secret on a target', {error: f.reason}));
+        results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+                const webhook = webhooks[idx];
+                logger.error('Failed to update webhook secret on a target', {
+                    error: r.reason,
+                    webhookId: webhook.webhookId,
+                    targetName: webhook.targetName,
+                });
+            }
+        });
         throw new Error(`Failed to update secret on ${failures.length} of ${webhooks.length} webhook(s)`);
     }
 
