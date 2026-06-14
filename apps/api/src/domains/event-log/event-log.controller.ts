@@ -2,26 +2,42 @@ import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {eventLogEntries, gitgazerWriter, repositories} from '@gitgazer/db/schema';
 import type {
     EventLogCategory,
+    EventLogCursor,
     EventLogEntryInsert,
     EventLogEntryMetadata,
     EventLogEntryRow,
     EventLogFilters,
+    EventLogResponse,
     EventLogStats,
     EventLogType,
 } from '@gitgazer/db/types';
-import {and, count, eq, ilike, inArray, or, sql} from 'drizzle-orm';
+import {and, count, desc, eq, ilike, inArray, lt, or, sql} from 'drizzle-orm';
 
-export const getEventLogEntries = async (params: {integrationIds: string[]; filters?: EventLogFilters}): Promise<EventLogEntryRow[]> => {
-    const {integrationIds, filters} = params;
-    if (integrationIds.length === 0) return [];
+export const getEventLogEntries = async (params: {
+    integrationIds: string[];
+    cursor?: EventLogCursor;
+    filters?: EventLogFilters;
+}): Promise<EventLogResponse> => {
+    const {integrationIds, cursor, filters} = params;
+    if (integrationIds.length === 0) return {items: [], cursor: undefined};
 
     const limit = Math.min(filters?.limit ?? 50, 100);
-    const offset = filters?.offset ?? 0;
 
     return await withRlsTransaction({
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             const conditions = [];
+
+            // Keyset pagination: (createdAt, id) < (cursorCreatedAt, cursorId)
+            if (cursor?.createdAt && cursor?.id) {
+                const cursorDate = new Date(cursor.createdAt);
+                conditions.push(
+                    or(
+                        lt(eventLogEntries.createdAt, cursorDate),
+                        and(eq(eventLogEntries.createdAt, cursorDate), lt(eventLogEntries.id, cursor.id)),
+                    )!,
+                );
+            }
 
             if (filters?.type?.length) {
                 conditions.push(inArray(eventLogEntries.type, filters.type));
@@ -64,11 +80,14 @@ export const getEventLogEntries = async (params: {integrationIds: string[]; filt
                 .select()
                 .from(eventLogEntries)
                 .where(conditions.length > 0 ? and(...conditions) : undefined)
-                .orderBy(sql`${eventLogEntries.createdAt} desc`)
-                .limit(limit)
-                .offset(offset);
+                .orderBy(desc(eventLogEntries.createdAt), desc(eventLogEntries.id))
+                .limit(limit);
 
-            return rows;
+            const last = rows[rows.length - 1];
+            const nextCursor: EventLogCursor | undefined =
+                rows.length >= limit && last ? {createdAt: last.createdAt.toISOString(), id: last.id} : undefined;
+
+            return {items: rows, cursor: nextCursor};
         },
     });
 };

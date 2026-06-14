@@ -10,8 +10,16 @@
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useAuth} from '@/composables/useAuth';
     import {useEventLogFilters} from '@/composables/useEventLogFilters';
-    import {isArrayOf, parseApiResponse} from '@/utils/apiResponse';
-    import type {EventLogFilters as EventLogApiFilters, EventLogCategory, EventLogEntryRow, EventLogStats, EventLogType} from '@common/types';
+    import {isObject, parseApiResponse} from '@/utils/apiResponse';
+    import type {
+        EventLogFilters as EventLogApiFilters,
+        EventLogCategory,
+        EventLogCursor,
+        EventLogEntryRow,
+        EventLogResponse,
+        EventLogStats,
+        EventLogType,
+    } from '@common/types';
     import {isEventLogEntry, isEventLogStats} from '@common/types';
     import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
     import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
@@ -24,7 +32,24 @@
     const isLoading = computed(() => loadingCount.value > 0);
     let entriesAbortController: AbortController | null = null;
 
-    async function getEventLogEntries(filters?: EventLogApiFilters, signal?: AbortSignal) {
+    function isEventLogCursor(value: unknown): value is EventLogCursor {
+        return isObject(value) && typeof value.createdAt === 'string' && typeof value.id === 'string';
+    }
+
+    function isEventLogResponse(value: unknown): value is EventLogResponse {
+        return (
+            isObject(value) &&
+            Array.isArray(value.items) &&
+            value.items.every(isEventLogEntry) &&
+            (value.cursor === undefined || isEventLogCursor(value.cursor))
+        );
+    }
+
+    async function getEventLogEntries(
+        filters?: EventLogApiFilters,
+        cursor?: EventLogCursor,
+        signal?: AbortSignal,
+    ): Promise<EventLogResponse> {
         loadingCount.value++;
         try {
             const params = new URLSearchParams();
@@ -35,6 +60,11 @@
                 }
             });
 
+            if (cursor) {
+                params.set('cursor_created_at', cursor.createdAt);
+                params.set('cursor_id', cursor.id);
+            }
+
             const qs = params.toString();
             const url = `${API_ENDPOINT}/event-log${qs ? `?${qs}` : ''}`;
             const response = await fetchWithAuth(url, {signal});
@@ -43,7 +73,7 @@
                 throw new Error(`Failed to fetch event log: ${response.status}`);
             }
 
-            return parseApiResponse<EventLogEntryRow[]>(response, isArrayOf(isEventLogEntry));
+            return parseApiResponse<EventLogResponse>(response, isEventLogResponse);
         } finally {
             loadingCount.value--;
         }
@@ -89,6 +119,7 @@
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});
     const hasMore = ref(true);
     const isLoadingMore = ref(false);
+    let cursor: EventLogCursor | undefined;
 
     const apiFilters = computed(() => {
         const filters: EventLogApiFilters = {};
@@ -120,10 +151,11 @@
         entriesAbortController = controller;
 
         try {
-            const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE}, controller.signal);
+            const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE}, undefined, controller.signal);
             if (controller.signal.aborted) return;
-            entries.value = result ?? [];
-            hasMore.value = (result?.length ?? 0) >= PAGE_SIZE;
+            entries.value = result.items;
+            cursor = result.cursor;
+            hasMore.value = result.cursor !== undefined;
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') return;
             throw e;
@@ -148,16 +180,13 @@
     onBeforeUnmount(() => entriesAbortController?.abort());
 
     async function handleLoadMore() {
-        if (isLoadingMore.value || !hasMore.value) return;
+        if (isLoadingMore.value || !hasMore.value || !cursor) return;
         isLoadingMore.value = true;
         try {
-            const result = await getEventLogEntries(
-                {...apiFilters.value, limit: PAGE_SIZE, offset: entries.value.length},
-                entriesAbortController?.signal,
-            );
-            const newEntries = result ?? [];
-            entries.value = [...entries.value, ...newEntries];
-            hasMore.value = newEntries.length >= PAGE_SIZE;
+            const result = await getEventLogEntries({...apiFilters.value, limit: PAGE_SIZE}, cursor, entriesAbortController?.signal);
+            entries.value = [...entries.value, ...result.items];
+            cursor = result.cursor;
+            hasMore.value = result.cursor !== undefined;
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') return;
             throw e;

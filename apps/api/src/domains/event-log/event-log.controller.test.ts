@@ -23,14 +23,14 @@ describe('event-log controller', () => {
     // getEventLogEntries
     // ---------------------------------------------------------------
     describe('getEventLogEntries', () => {
-        it('returns [] when integrationIds is empty', async () => {
+        it('returns empty items when integrationIds is empty', async () => {
             const out = await eventLog.getEventLogEntries({integrationIds: []});
-            expect(out).toEqual([]);
+            expect(out).toEqual({items: [], cursor: undefined});
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
         });
 
         it('calls withRlsTransaction with integrationIds', async () => {
-            mockWithRlsTransaction.mockResolvedValue([]);
+            mockWithRlsTransaction.mockResolvedValue({items: [], cursor: undefined});
             await eventLog.getEventLogEntries({integrationIds: ['int-1']});
 
             expect(mockWithRlsTransaction).toHaveBeenCalledOnce();
@@ -38,14 +38,11 @@ describe('event-log controller', () => {
         });
 
         it('passes callback to withRlsTransaction that builds query with no filters', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
@@ -56,18 +53,15 @@ describe('event-log controller', () => {
             expect(mockSelect).toHaveBeenCalled();
             expect(mockFrom).toHaveBeenCalled();
             expect(mockWhere).toHaveBeenCalledWith(undefined); // no conditions
-            expect(result).toEqual([]);
+            expect(result).toEqual({items: [], cursor: undefined});
         });
 
         it('clamps limit to 100', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
@@ -78,15 +72,12 @@ describe('event-log controller', () => {
             expect(mockLimit).toHaveBeenCalledWith(100);
         });
 
-        it('defaults limit to 50 and offset to 0', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+        it('defaults limit to 50', async () => {
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
@@ -95,18 +86,75 @@ describe('event-log controller', () => {
             await eventLog.getEventLogEntries({integrationIds: ['int-1']});
 
             expect(mockLimit).toHaveBeenCalledWith(50);
-            expect(mockOffset).toHaveBeenCalledWith(0);
         });
 
-        it('applies type filter when provided', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+        it('applies keyset cursor condition when cursor is provided', async () => {
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
 
-            mockLimit.mockReturnValue({offset: mockOffset});
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                return params.callback({select: mockSelect});
+            });
+
+            await eventLog.getEventLogEntries({
+                integrationIds: ['int-1'],
+                cursor: {createdAt: '2026-06-14T00:00:00.000Z', id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'},
+            });
+
+            // A cursor produces a defined WHERE condition for the keyset seek
+            expect(mockWhere).toHaveBeenCalledWith(expect.anything());
+            const whereArg = mockWhere.mock.calls[0][0];
+            expect(whereArg).not.toBeUndefined();
+        });
+
+        it('returns nextCursor when a full page is returned', async () => {
+            const last = {id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', createdAt: new Date('2026-06-14T00:00:00.000Z')};
+            const page = Array.from({length: 50}, (_, i) =>
+                i === 49 ? last : {id: `id-${i}`, createdAt: new Date('2026-06-14T01:00:00.000Z')},
+            );
+            const mockLimit = vi.fn().mockResolvedValue(page);
+            const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
+
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                return params.callback({select: mockSelect});
+            });
+
+            const result = await eventLog.getEventLogEntries({integrationIds: ['int-1']});
+
+            expect(result.items).toHaveLength(50);
+            expect(result.cursor).toEqual({createdAt: last.createdAt.toISOString(), id: last.id});
+        });
+
+        it('returns undefined nextCursor when fewer than limit rows are returned', async () => {
+            const page = [{id: 'only-one', createdAt: new Date('2026-06-14T00:00:00.000Z')}];
+            const mockLimit = vi.fn().mockResolvedValue(page);
+            const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
+
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                return params.callback({select: mockSelect});
+            });
+
+            const result = await eventLog.getEventLogEntries({integrationIds: ['int-1']});
+
+            expect(result.items).toHaveLength(1);
+            expect(result.cursor).toBeUndefined();
+        });
+
+        it('applies type filter when provided', async () => {
+            const mockLimit = vi.fn().mockResolvedValue([]);
+            const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
@@ -121,14 +169,11 @@ describe('event-log controller', () => {
         });
 
         it('applies search filter with escaped special characters', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
@@ -142,14 +187,11 @@ describe('event-log controller', () => {
         });
 
         it('applies repositoryIds filter via subquery', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
@@ -167,13 +209,10 @@ describe('event-log controller', () => {
             const mockSubqueryWhere = vi.fn().mockReturnValue([{id: 'repo-1'}, {id: 'repo-2'}]);
             const mockSubqueryFrom = vi.fn().mockReturnValue({where: mockSubqueryWhere});
 
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockMainWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockMainFrom = vi.fn().mockReturnValue({where: mockMainWhere});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             let selectCallCount = 0;
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
@@ -198,14 +237,11 @@ describe('event-log controller', () => {
         });
 
         it('applies integrationIds filter when provided', async () => {
-            const mockLimit = vi.fn().mockReturnThis();
-            const mockOffset = vi.fn().mockResolvedValue([]);
+            const mockLimit = vi.fn().mockResolvedValue([]);
             const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
             const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
             const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
             const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
-
-            mockLimit.mockReturnValue({offset: mockOffset});
 
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 return params.callback({select: mockSelect});
