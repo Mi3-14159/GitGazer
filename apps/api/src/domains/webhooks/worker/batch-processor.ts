@@ -49,7 +49,7 @@ export const processRecord = async (record: SQSRecord): Promise<void> => {
             });
         }
 
-        if (eventType === 'workflow_job') {
+        if (!stale && eventType === 'workflow_job') {
             await sendWorkflowJobAlerts(data as WorkflowJobWithRelations);
         }
     } catch (error) {
