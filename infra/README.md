@@ -233,6 +233,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_apigateway_logging_enabled"></a> [apigateway\_logging\_enabled](#input\_apigateway\_logging\_enabled) | Enable logging of the HTTP API Gateway | `bool` | `true` | no |
+| <a name="input_auth_relay_throttling"></a> [auth\_relay\_throttling](#input\_auth\_relay\_throttling) | Throttling for the public OAuth relay endpoints (POST /api/auth/cognito/token, GET /api/auth/cognito/user). rate\_limit = steady-state requests/sec; burst\_limit = max concurrent requests. Tune up only if interactive login volume requires it. | <pre>object({<br/>    rate_limit  = optional(number, 20)<br/>    burst_limit = optional(number, 40)<br/>  })</pre> | `{}` | no |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region to deploy the resources | `string` | n/a | yes |
 | <a name="input_backfill_max_concurrency"></a> [backfill\_max\_concurrency](#input\_backfill\_max\_concurrency) | Maximum number of concurrent backfill-worker invocations consuming the backfill queue (caps GitHub API usage) | `number` | `2` | no |
 | <a name="input_callback_urls"></a> [callback\_urls](#input\_callback\_urls) | List of callback URLs for the Cognito User Pool Client | `list(string)` | `[]` | no |
