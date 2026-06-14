@@ -1,15 +1,15 @@
 <script setup lang="ts">
     import GitHubInstallation from '@/components/integrations/GitHubInstallation.vue';
-import IntegrationHeader from '@/components/integrations/IntegrationHeader.vue';
-import OrgSyncSettings from '@/components/integrations/OrgSyncSettings.vue';
-import WebhookCredentials from '@/components/integrations/WebhookCredentials.vue';
-import WebhookEventEditor from '@/components/integrations/WebhookEventEditor.vue';
-import Card from '@/components/ui/Card.vue';
-import CardContent from '@/components/ui/CardContent.vue';
-import { formatDate } from '@/utils/formatDate';
-import type { IntegrationWithRole, MemberRole, OrgSyncDefaultRole } from '@common/types';
-import { hasRole } from '@common/types';
-import { Calendar } from 'lucide-vue-next';
+    import IntegrationHeader from '@/components/integrations/IntegrationHeader.vue';
+    import OrgSyncSettings from '@/components/integrations/OrgSyncSettings.vue';
+    import WebhookCredentials from '@/components/integrations/WebhookCredentials.vue';
+    import WebhookEventEditor from '@/components/integrations/WebhookEventEditor.vue';
+    import Card from '@/components/ui/Card.vue';
+    import CardContent from '@/components/ui/CardContent.vue';
+    import {formatDate} from '@/utils/formatDate';
+    import type {IntegrationWithRole, MemberRole, OrgSyncDefaultRole} from '@common/types';
+    import {hasRole} from '@common/types';
+    import {Calendar} from 'lucide-vue-next';
 
     const props = defineProps<{
         integration: IntegrationWithRole;

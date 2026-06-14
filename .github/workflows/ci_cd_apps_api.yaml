@@ -52,7 +52,7 @@ jobs:
 
             - name: Prettier
               working-directory: ./apps/api
-              run: npm run pretty
+              run: npm run pretty:check
 
             - name: Lint
               working-directory: ./apps/api
