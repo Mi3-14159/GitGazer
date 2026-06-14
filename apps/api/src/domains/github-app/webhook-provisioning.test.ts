@@ -24,6 +24,7 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
         integrationId: Symbol('integrationId'),
         installationId: Symbol('installationId'),
         webhookId: Symbol('webhookId'),
+        targetType: Symbol('targetType'),
     },
     integrations: {
         integrationId: Symbol('integrationId'),
@@ -32,9 +33,13 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
 
 const installationUpdateWhere = vi.fn(async () => undefined);
 const dbUpdate = vi.fn(() => ({set: () => ({where: installationUpdateWhere})}));
+const dbSelectWhere = vi.fn(async () => [] as unknown[]);
+const dbSelect = vi.fn(() => ({from: () => ({where: dbSelectWhere})}));
+const dbInsertValues = vi.fn(async () => undefined);
+const dbInsert = vi.fn(() => ({values: dbInsertValues}));
 const withRlsTransaction = vi.fn();
 vi.mock('@gitgazer/db/client', () => ({
-    db: {update: dbUpdate},
+    db: {update: dbUpdate, select: dbSelect, insert: dbInsert},
     withRlsTransaction,
     RdsTransaction: class {},
 }));
@@ -90,5 +95,88 @@ describe('updateAllWebhookSecrets', () => {
         await expect(mod.updateAllWebhookSecrets('int-1', 1, 'super-secret')).rejects.toThrow(/Failed to update secret on 1 of 2/);
 
         expect(client.updateOrgWebhookSecret).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('provisionWebhooks', () => {
+    const orgInstallation = {
+        installationId: 1,
+        accountType: 'Organization',
+        accountLogin: 'my-org',
+        accountId: 42,
+        repositorySelection: 'all',
+        webhookEvents: ['workflow_run'],
+    };
+
+    it('creates a single org-level webhook even when the org has no repositories', async () => {
+        withRlsTransaction.mockResolvedValueOnce([{secret: 'sek'}]); // integration lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]); // installation lookup
+        client.createOrgWebhook.mockResolvedValueOnce(99);
+
+        const count = await mod.provisionWebhooks('int-1', 1);
+
+        expect(count).toBe(1);
+        expect(client.createOrgWebhook).toHaveBeenCalledTimes(1);
+        expect(client.createOrgWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 'https://example.test/webhooks/int-1', 'sek', [
+            'workflow_run',
+        ]);
+        // No repo listing or per-repo webhooks for an org-level install.
+        expect(client.listInstallationRepos).not.toHaveBeenCalled();
+        expect(client.createRepoWebhook).not.toHaveBeenCalled();
+        expect(dbInsertValues).toHaveBeenCalledTimes(1);
+        expect(dbInsertValues).toHaveBeenCalledWith(
+            expect.objectContaining({targetType: 'organization', targetName: 'my-org', targetId: 42, webhookId: 99}),
+        );
+    });
+
+    it('falls back to per-repo webhooks when org webhook creation fails', async () => {
+        withRlsTransaction.mockResolvedValueOnce([{secret: 'sek'}]); // integration lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]); // installation lookup
+        client.createOrgWebhook.mockRejectedValueOnce(new Error('GitHub 403'));
+        client.listInstallationRepos.mockResolvedValueOnce([{id: 7, name: 'repo', fullName: 'my-org/repo', owner: 'my-org', private: false}]);
+        client.createRepoWebhook.mockResolvedValueOnce(123);
+
+        const count = await mod.provisionWebhooks('int-1', 1);
+
+        expect(count).toBe(1);
+        expect(client.createRepoWebhook).toHaveBeenCalledTimes(1);
+        expect(dbInsertValues).toHaveBeenCalledWith(expect.objectContaining({targetType: 'repository', targetName: 'my-org/repo', webhookId: 123}));
+    });
+});
+
+describe('provisionWebhooksForRepos', () => {
+    const orgInstallation = {
+        installationId: 1,
+        accountType: 'Organization',
+        accountLogin: 'my-org',
+        accountId: 42,
+        repositorySelection: 'all',
+        webhookEvents: ['workflow_run'],
+    };
+    const newRepos = [{id: 7, name: 'repo', fullName: 'my-org/repo', owner: 'my-org', private: false}];
+
+    it('skips per-repo provisioning when an org-level webhook already covers the installation', async () => {
+        withRlsTransaction.mockResolvedValueOnce([{secret: 'sek'}]); // integration lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]); // installation lookup
+        withRlsTransaction.mockResolvedValueOnce([{targetType: 'organization', webhookId: 99}]); // org webhook exists
+
+        const count = await mod.provisionWebhooksForRepos('int-1', 1, newRepos);
+
+        expect(count).toBe(0);
+        expect(client.createRepoWebhook).not.toHaveBeenCalled();
+        expect(dbInsertValues).not.toHaveBeenCalled();
+    });
+
+    it('creates per-repo webhooks when no org-level webhook covers the installation', async () => {
+        withRlsTransaction.mockResolvedValueOnce([{secret: 'sek'}]); // integration lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]); // installation lookup
+        withRlsTransaction.mockResolvedValueOnce([]); // no org webhook
+        client.createRepoWebhook.mockResolvedValueOnce(123);
+
+        const count = await mod.provisionWebhooksForRepos('int-1', 1, newRepos);
+
+        expect(count).toBe(1);
+        expect(client.createRepoWebhook).toHaveBeenCalledTimes(1);
+        expect(dbInsertValues).toHaveBeenCalledWith(expect.objectContaining({targetType: 'repository', targetName: 'my-org/repo', webhookId: 123}));
     });
 });

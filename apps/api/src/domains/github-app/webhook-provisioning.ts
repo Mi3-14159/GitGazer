@@ -49,51 +49,37 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
         throw new Error(`Installation ${installationId} not found`);
     }
 
-    const repos = await listInstallationRepos(installationId);
     const webhookUrl = getWebhookUrl(integrationId);
     const events = installation.webhookEvents;
     const octokit = getInstallationOctokit(installationId);
 
-    // Group repos by org owner
-    const reposByOrg = new Map<string, RepoInfo[]>();
-
-    for (const repo of repos) {
-        // Check if repo belongs to an org (we look at the owner)
-        const ownerRepos = reposByOrg.get(repo.owner) ?? [];
-        ownerRepos.push(repo);
-        reposByOrg.set(repo.owner, ownerRepos);
+    // An org installation with "all repositories" selected is covered by a single
+    // org-level webhook that automatically captures every current AND future repo.
+    // Decide this up front (independent of the current repo list) so the webhook is
+    // still provisioned when the org currently has zero repositories.
+    if (installation.repositorySelection === 'all' && installation.accountType === 'Organization') {
+        try {
+            const webhookId = await createOrgWebhook(octokit, installation.accountLogin, webhookUrl, integration.secret, events);
+            await db.insert(githubAppWebhooks).values({
+                integrationId,
+                installationId,
+                webhookId,
+                targetType: 'organization',
+                targetId: installation.accountId,
+                targetName: installation.accountLogin,
+                events,
+            });
+            logger.info(`Created org-level webhook for ${installation.accountLogin} (ID: ${webhookId})`);
+            return 1;
+        } catch (error) {
+            logger.error(`Failed to create org webhook for ${installation.accountLogin}, falling back to per-repo webhooks`, {error});
+            // Fall through to per-repo provisioning below.
+        }
     }
 
-    const counts = await Promise.all(
-        Array.from(reposByOrg.entries()).map(async ([owner, orgRepos]) => {
-            // If "all" repos selected and this is an org account, use org-level webhook
-            if (installation.repositorySelection === 'all' && installation.accountType === 'Organization' && owner === installation.accountLogin) {
-                try {
-                    const webhookId = await createOrgWebhook(octokit, owner, webhookUrl, integration.secret, events);
-                    await db.insert(githubAppWebhooks).values({
-                        integrationId,
-                        installationId,
-                        webhookId,
-                        targetType: 'organization',
-                        targetId: installation.accountId,
-                        targetName: owner,
-                        events,
-                    });
-                    logger.info(`Created org-level webhook for ${owner} (ID: ${webhookId})`);
-                    return 1;
-                } catch (error) {
-                    logger.error(`Failed to create org webhook for ${owner}`, {error});
-                    // Fall back to per-repo webhooks
-                    return await createPerRepoWebhooks(integrationId, installationId, octokit, orgRepos, webhookUrl, integration.secret, events);
-                }
-            } else {
-                // Per-repo webhooks
-                return await createPerRepoWebhooks(integrationId, installationId, octokit, orgRepos, webhookUrl, integration.secret, events);
-            }
-        }),
-    );
-
-    const webhookCount = counts.reduce((sum, n) => sum + n, 0);
+    // Per-repo webhooks: selected-repository installs, user accounts, or org webhook fallback.
+    const repos = await listInstallationRepos(installationId);
+    const webhookCount = await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, integration.secret, events);
 
     logger.info(`Provisioned ${webhookCount} webhooks for integration ${integrationId}`);
     return webhookCount;
@@ -154,6 +140,29 @@ export const provisionWebhooksForRepos = async (integrationId: string, installat
 
     if (!installation) {
         throw new Error(`Installation ${installationId} not found`);
+    }
+
+    // If this installation is already covered by an org-level webhook, newly added repos are
+    // delivered through it automatically. Creating per-repo webhooks as well would double-deliver
+    // every event for those repos, so skip per-repo provisioning.
+    const [orgWebhook] = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) =>
+            await tx
+                .select()
+                .from(githubAppWebhooks)
+                .where(
+                    and(
+                        eq(githubAppWebhooks.integrationId, integrationId),
+                        eq(githubAppWebhooks.installationId, installationId),
+                        eq(githubAppWebhooks.targetType, 'organization'),
+                    ),
+                ),
+    });
+
+    if (orgWebhook) {
+        logger.info(`Installation ${installationId} is covered by an org-level webhook; skipping per-repo provisioning for ${repos.length} repo(s)`);
+        return 0;
     }
 
     const webhookUrl = getWebhookUrl(integrationId);
