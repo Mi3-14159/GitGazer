@@ -1,4 +1,6 @@
 import {proxyFetch} from '@/shared/clients/proxy-fetch';
+import config from '@/shared/config';
+import {getLogger} from '@/shared/logger';
 
 type OAuthTokenBody = {
     client_id: string;
@@ -24,16 +26,31 @@ export const parseOAuthTokenBody = (body: string, isBase64Encoded: boolean): OAu
 
 /**
  * Exchange an OAuth code for a GitHub access token.
+ *
+ * The GitHub OAuth app credentials are always sourced from server configuration.
+ * The only legitimate caller is the Cognito identity provider, which is
+ * configured with the same OAuth app, so caller-supplied client credentials are
+ * never trusted — only the authorization `code` is accepted from the request.
  */
-export const exchangeGitHubOAuthToken = async (clientId: string, clientSecret: string, code: string): Promise<unknown> => {
+export const exchangeGitHubOAuthToken = async (code: string): Promise<unknown> => {
+    const oauthClientId = config.get('githubOAuthApp.clientId');
+    const oauthClientSecret = config.get('githubOAuthApp.clientSecret');
+
     const response = await proxyFetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
         },
-        body: JSON.stringify({client_id: clientId, client_secret: clientSecret, code}),
+        body: JSON.stringify({client_id: oauthClientId, client_secret: oauthClientSecret, code}),
     });
+
+    if (!response.ok) {
+        // Log the upstream status server-side only; never reflect upstream text to the caller.
+        getLogger().error('GitHub OAuth token exchange failed', {status: response.status});
+        throw new Error('Failed to exchange GitHub OAuth token');
+    }
+
     return response.json();
 };
 
@@ -50,6 +67,8 @@ export const fetchGitHubUser = async (authorizationHeader: string): Promise<{sta
     });
 
     if (!response.ok) {
+        // Log the upstream status server-side only; the caller receives a generic body.
+        getLogger().error('Failed to fetch GitHub user info', {status: response.status});
         return {
             status: response.status,
             body: JSON.stringify({error: 'Failed to fetch user info from GitHub'}),

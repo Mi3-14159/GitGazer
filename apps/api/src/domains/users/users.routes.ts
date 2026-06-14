@@ -13,11 +13,11 @@ router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
     }
 
     const result = parseOAuthTokenBody(body, isBase64Encoded);
-    if (!result.client_id || !result.client_secret || !result.code) {
+    if (!result.code) {
         throw new BadRequestError('Missing required parameters');
     }
 
-    const token = await exchangeGitHubOAuthToken(result.client_id, result.client_secret, result.code);
+    const token = await exchangeGitHubOAuthToken(result.code);
 
     return new Response(JSON.stringify(token), {
         status: HttpStatusCodes.OK,
