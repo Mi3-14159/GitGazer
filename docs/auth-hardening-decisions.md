@@ -37,21 +37,21 @@ legs exist:
    GitHub using a **custom OIDC shim**. In [`infra/cognito.tf`](../infra/cognito.tf) the
    GitHub identity provider is configured with:
 
-   ```hcl
-   token_url      = "${api_endpoint}/api/auth/cognito/token"
-   attributes_url = "${api_endpoint}/api/auth/cognito/user"
-   jwks_uri       = "${api_endpoint}/api/auth/cognito/token"
-   ```
+    ```hcl
+    token_url      = "${api_endpoint}/api/auth/cognito/token"
+    attributes_url = "${api_endpoint}/api/auth/cognito/user"
+    jwks_uri       = "${api_endpoint}/api/auth/cognito/token"
+    ```
 
-   So **Cognito itself** (not the browser) calls `/api/auth/cognito/token` with the GitHub
-   OAuth app `client_id` + `client_secret` (from `provider_details.client_secret`) + `code`
-   to exchange the GitHub authorization code, then calls `/api/auth/cognito/user` with the
-   resulting GitHub access token to read the profile.
+    So **Cognito itself** (not the browser) calls `/api/auth/cognito/token` with the GitHub
+    OAuth app `client_id` + `client_secret` (from `provider_details.client_secret`) + `code`
+    to exchange the GitHub authorization code, then calls `/api/auth/cognito/user` with the
+    resulting GitHub access token to read the profile.
 
 ### Usage determination (Done-criteria evidence)
 
-| Endpoint                     | Status   | Evidence                                                                                                                             |
-| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Endpoint                       | Status   | Evidence                                                                                                                             |
+| ------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `POST /api/auth/cognito/token` | **LIVE** | Wired as the GitHub IdP `token_url`/`jwks_uri` in [`infra/cognito.tf:28,30`](../infra/cognito.tf). Removing it breaks login.         |
 | `GET /api/auth/cognito/user`   | **LIVE** | Wired as the GitHub IdP `attributes_url` in [`infra/cognito.tf:29`](../infra/cognito.tf). Removing it breaks profile attribute sync. |
 
@@ -68,16 +68,19 @@ legacy/dead path; both are required for the current GitHub federation.
 
 ### A. Public OAuth token relay accepts `client_secret` from the request body
 
-| Attribute    | Value                                                                       |
-| ------------ | --------------------------------------------------------------------------- |
-| OWASP        | A04 Insecure Design, A07 Identification & Auth Failures, A10-adjacent (SSRF) |
-| Severity     | Medium                                                                       |
-| Decision     | **Harden in place — do NOT remove** (endpoint is LIVE; see usage table)      |
+| Attribute | Value                                                                        |
+| --------- | ---------------------------------------------------------------------------- |
+| OWASP     | A04 Insecure Design, A07 Identification & Auth Failures, A10-adjacent (SSRF) |
+| Severity  | Medium                                                                       |
+| Decision  | **Harden in place — do NOT remove** (endpoint is LIVE; see usage table)      |
 
 **Threat model.** `POST /api/auth/cognito/token` and `GET /api/auth/cognito/user` are
-unauthenticated, public endpoints (`publicPrefixes` includes `/api/auth/cognito/` in
-[`auth.routes.ts`](../apps/api/src/domains/auth/auth.routes.ts)). As written they are an
-**open relay/proxy** to GitHub's token and user APIs:
+unauthenticated, public endpoints — the `/api/auth/cognito/` prefix is registered in
+`publicPrefixes` in [`auth.routes.ts`](../apps/api/src/domains/auth/auth.routes.ts), but the
+actual route **handlers** live in
+[`users.routes.ts`](../apps/api/src/domains/users/users.routes.ts) (delegating to
+[`users.controller.ts`](../apps/api/src/domains/users/users.controller.ts)). As written they
+are an **open relay/proxy** to GitHub's token and user APIs:
 
 - `exchangeGitHubOAuthToken` forwards an **arbitrary caller-supplied** `client_id` /
   `client_secret` / `code` to `https://github.com/login/oauth/access_token`
@@ -94,30 +97,33 @@ host), plus reflected upstream error text.
 
 **Decision.** Keep the endpoints (login depends on them) but **constrain the proxy**:
 
-1. **Pin the credentials server-side.** Validate the incoming `client_id`/`client_secret`
-   against the values held in config / Secrets Manager (the same GitHub OAuth app the IdP
-   uses) and reject anything else, rather than blindly forwarding caller-supplied secrets.
-   This converts the open relay into a closed exchange usable only for the legitimate IdP.
-2. **Constrain the user proxy.** `GET /api/auth/cognito/user` should only ever be reached
-   as part of the IdP flow; it must not become a general GitHub-API proxy. The upstream host
-   is already fixed (`api.github.com/user`), which bounds SSRF, but abuse/rate concerns
-   remain.
+1. **Pin the credentials server-side (preferred: ignore caller-supplied secrets entirely).**
+   The only legitimate caller is the Cognito IdP, configured with the same GitHub OAuth app
+   credentials. So the token exchange should **always use the server-config
+   `client_id`/`client_secret`** and take only `code` from the request — removing the
+   comparison surface altogether. If the request-supplied-credentials contract must be kept,
+   fall back to a safe (length-normalised) constant-time comparison against config.
+2. **Constrain the user proxy.** `GET /api/auth/cognito/user` forwards a per-user GitHub
+   token Cognito holds, so there is **no static secret to pin it against**; its only controls
+   are the already-fixed upstream host (`api.github.com/user`, bounding SSRF) plus
+   no-error-reflection and edge rate-limiting.
 3. **Add rate limiting / origin constraints** at the edge (API Gateway / WAF) for the
-   `/api/auth/cognito/*` prefix.
+   `/api/auth/cognito/*` prefix — this is infra-only, tracked as a **separate sibling plan**
+   with its own review gate.
 4. **Do not reflect upstream error bodies** verbatim to the caller.
 
 Implementation is specified in
 [`auth-oauth-relay-hardening-plan.md`](./auth-oauth-relay-hardening-plan.md) (human-review
-gated). Because the change is coupled to the Cognito IdP config, it must ship with a
-coordinated `infra/` review.
+gated). The TypeScript change is self-contained; the coupled edge-controls and Cognito IdP
+config land via the sibling `infra/` plan and review.
 
 ### B. OAuth `state` is not a CSRF nonce; code is exchanged before state is validated
 
-| Attribute    | Value                                                                |
-| ------------ | -------------------------------------------------------------------- |
-| OWASP        | A01 Broken Access Control (login-CSRF), A04 Insecure Design           |
-| Severity     | Medium                                                                |
-| Decision     | **Remediate** — introduce a real state nonce and reorder validation   |
+| Attribute | Value                                                               |
+| --------- | ------------------------------------------------------------------- |
+| OWASP     | A01 Broken Access Control (login-CSRF), A04 Insecure Design         |
+| Severity  | Medium                                                              |
+| Decision  | **Remediate** — introduce a real state nonce and reorder validation |
 
 **Threat model.** In
 [`GET /api/auth/callback`](../apps/api/src/domains/auth/auth.routes.ts) the `state`
@@ -148,11 +154,11 @@ This spans frontend + backend. Implementation is specified in
 
 ### C. Open-redirect — already mitigated; do NOT re-open
 
-| Attribute    | Value                                                            |
-| ------------ | --------------------------------------------------------------- |
-| OWASP        | A01 Broken Access Control (open redirect)                        |
-| Severity     | N/A — closed                                                     |
-| Decision     | **Confirmed closed** (with a deploy-config caveat)               |
+| Attribute | Value                                              |
+| --------- | -------------------------------------------------- |
+| OWASP     | A01 Broken Access Control (open redirect)          |
+| Severity  | N/A — closed                                       |
+| Decision  | **Confirmed closed** (with a deploy-config caveat) |
 
 [`validateRedirectUrl`](../apps/api/src/domains/auth/auth.helpers.ts) is called on the
 callback (`auth.routes.ts:40-43`) and on logout (`auth.routes.ts:106-109`); the redirect is
@@ -171,11 +177,11 @@ The helper checks the URL's origin against
 
 ### D. Verbose auth logging — low severity, confirmed safe
 
-| Attribute    | Value                                              |
-| ------------ | -------------------------------------------------- |
-| OWASP        | A09 Security Logging & Monitoring (informational)  |
-| Severity     | Low / informational                                |
-| Decision     | **No action required** (optional cleanup)          |
+| Attribute | Value                                             |
+| --------- | ------------------------------------------------- |
+| OWASP     | A09 Security Logging & Monitoring (informational) |
+| Severity  | Low / informational                               |
+| Decision  | **No action required** (optional cleanup)         |
 
 Reviewed log statements:
 
@@ -204,9 +210,9 @@ request context (it currently does not). No follow-up plan is required for D.
 
 ## Follow-up plans
 
-| Item | Decision        | Follow-up plan                                                            | Review gate     |
-| ---- | --------------- | ------------------------------------------------------------------------- | --------------- |
+| Item | Decision        | Follow-up plan                                                               | Review gate      |
+| ---- | --------------- | ---------------------------------------------------------------------------- | ---------------- |
 | A    | Harden in place | [`auth-oauth-relay-hardening-plan.md`](./auth-oauth-relay-hardening-plan.md) | Human + Security |
-| B    | Remediate       | [`auth-state-nonce-plan.md`](./auth-state-nonce-plan.md)                   | Human + Security |
-| C    | Closed          | — (verify deploy config only)                                             | —               |
-| D    | No action       | — (optional cleanup, low priority)                                        | —               |
+| B    | Remediate       | [`auth-state-nonce-plan.md`](./auth-state-nonce-plan.md)                     | Human + Security |
+| C    | Closed          | — (verify deploy config only)                                                | —                |
+| D    | No action       | — (optional cleanup, low priority)                                           | —                |
