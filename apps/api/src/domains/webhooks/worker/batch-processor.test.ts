@@ -51,16 +51,15 @@ describe('processRecord', () => {
         expect(mockSendWorkflowJobAlerts).toHaveBeenCalledWith({id: 7});
     });
 
-    it('does NOT broadcast a stale workflow_job, but currently STILL alerts (pre-plan-004 behavior)', async () => {
-        // CHARACTERIZATION: documents the current bug — a stale (no-op) upsert
-        // skips the WebSocket broadcast yet still fires Slack alerts. plans/004-*
-        // changes this assertion to `not.toHaveBeenCalled()`.
+    it('does NOT broadcast or alert for a stale workflow_job', async () => {
+        // A stale (no-op) upsert means a duplicate/out-of-order redelivery —
+        // neither the WebSocket broadcast nor the Slack alert should fire.
         mockInsertEvent.mockResolvedValue({data: {id: 7}, stale: true});
 
         await batchProcessor.processRecord(makeRecord({integrationId: 'int-1', eventType: 'workflow_job', payload: {}}));
 
         expect(mockPostToConnections).not.toHaveBeenCalled();
-        expect(mockSendWorkflowJobAlerts).toHaveBeenCalledWith({id: 7});
+        expect(mockSendWorkflowJobAlerts).not.toHaveBeenCalled();
     });
 
     it('skips all post-commit side effects when source is "backfill"', async () => {

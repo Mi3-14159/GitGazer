@@ -16,7 +16,7 @@ import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/e
 import {db} from '@gitgazer/db/client';
 import {githubAppInstallations, integrations as integrationsTable} from '@gitgazer/db/schema/github/workflows';
 import {isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
-import {and, eq} from 'drizzle-orm';
+import {and, eq, isNull} from 'drizzle-orm';
 
 const router = new Router();
 
@@ -158,11 +158,18 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         throw new BadRequestError('Installation is already linked to an integration');
     }
 
-    // Link installation to integration
-    await db
+    // Link installation to integration — atomic guard against a concurrent link.
+    // The UPDATE only matches while integration_id IS NULL; if a racing request
+    // linked it first, 0 rows are returned and we reject instead of overwriting.
+    const linked = await db
         .update(githubAppInstallations)
         .set({integrationId, updatedAt: new Date()})
-        .where(eq(githubAppInstallations.installationId, installationId));
+        .where(and(eq(githubAppInstallations.installationId, installationId), isNull(githubAppInstallations.integrationId)))
+        .returning({installationId: githubAppInstallations.installationId});
+
+    if (linked.length === 0) {
+        throw new BadRequestError('Installation is already linked to an integration');
+    }
 
     // Provision webhooks
     let webhookCount = 0;
