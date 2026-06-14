@@ -115,6 +115,21 @@ const config = convict({
             sensitive: true,
         },
     },
+    githubOAuthApp: {
+        clientId: {
+            doc: 'GitHub OAuth app client ID (matches the Cognito IdP)',
+            format: String,
+            default: '',
+            env: 'GH_OAUTH_APP_CLIENT_ID',
+        },
+        clientSecret: {
+            doc: 'GitHub OAuth app client secret (matches the Cognito IdP)',
+            format: String,
+            default: '',
+            env: 'GH_OAUTH_APP_CLIENT_SECRET',
+            sensitive: true,
+        },
+    },
     wsTokenSecret: {
         doc: 'Dedicated HMAC key for signing WebSocket tokens (separate from Cognito client secret)',
         format: String,

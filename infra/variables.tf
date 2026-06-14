@@ -15,6 +15,15 @@ variable "apigateway_logging_enabled" {
   default     = true
 }
 
+variable "auth_relay_throttling" {
+  type = object({
+    rate_limit  = optional(number, 20)
+    burst_limit = optional(number, 40)
+  })
+  description = "Throttling for the public OAuth relay endpoints (POST /api/auth/cognito/token, GET /api/auth/cognito/user). rate_limit = steady-state requests/sec; burst_limit = max concurrent requests. Tune up only if interactive login volume requires it."
+  default     = {}
+}
+
 variable "custom_domain_config" {
   type = object({
     hosted_zone_id  = string

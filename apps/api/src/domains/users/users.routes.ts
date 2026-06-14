@@ -1,4 +1,4 @@
-import {exchangeGitHubOAuthToken, fetchGitHubUser, parseOAuthTokenBody} from '@/domains/users/users.controller';
+import {assertCognitoCaller, exchangeGitHubOAuthToken, fetchGitHubUser, parseOAuthTokenBody} from '@/domains/users/users.controller';
 import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, ForbiddenError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {UserAttributes} from '@gitgazer/db/types';
@@ -13,11 +13,16 @@ router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
     }
 
     const result = parseOAuthTokenBody(body, isBase64Encoded);
-    if (!result.client_id || !result.client_secret || !result.code) {
+
+    // Authenticate the caller (only the Cognito IdP knows the OAuth app secret) before
+    // doing any work with the request.
+    assertCognitoCaller(result.client_id, result.client_secret);
+
+    if (!result.code) {
         throw new BadRequestError('Missing required parameters');
     }
 
-    const token = await exchangeGitHubOAuthToken(result.client_id, result.client_secret, result.code);
+    const token = await exchangeGitHubOAuthToken(result.code);
 
     return new Response(JSON.stringify(token), {
         status: HttpStatusCodes.OK,

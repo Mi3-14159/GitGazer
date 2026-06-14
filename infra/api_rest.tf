@@ -162,6 +162,23 @@ resource "aws_apigatewayv2_stage" "this" {
     detailed_metrics_enabled = true
   }
 
+  # Tight per-route throttling for the public, unauthenticated OAuth relay endpoints.
+  # These routes are reachable by anyone and each call fans out to GitHub, so they are
+  # rate limited well below normal API traffic to cap abuse/amplification. The legitimate
+  # caller is the Cognito IdP during interactive login, whose volume stays far below these
+  # limits. Tune via the auth_relay_throttling_* variables if needed.
+  route_settings {
+    route_key              = "POST /api/auth/cognito/token"
+    throttling_rate_limit  = var.auth_relay_throttling.rate_limit
+    throttling_burst_limit = var.auth_relay_throttling.burst_limit
+  }
+
+  route_settings {
+    route_key              = "GET /api/auth/cognito/user"
+    throttling_rate_limit  = var.auth_relay_throttling.rate_limit
+    throttling_burst_limit = var.auth_relay_throttling.burst_limit
+  }
+
   dynamic "access_log_settings" {
     for_each = var.apigateway_logging_enabled ? [1] : []
     content {
@@ -179,7 +196,7 @@ resource "aws_apigatewayv2_stage" "this" {
     }
   }
 
-  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
+  depends_on = [aws_cloudwatch_log_group.gw_access_logs, aws_apigatewayv2_route.api_routes]
 }
 
 data "aws_iam_policy_document" "invocation_assume_role" {
