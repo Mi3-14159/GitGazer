@@ -3,8 +3,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@/shared/bootstrap', () => ({}));
 vi.mock('@/shared/config', () => ({default: {get: () => 'test-secret'}, loadConfig: vi.fn()}));
+vi.mock('@/shared/logger', () => ({getLogger: () => ({info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn()})}));
 vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: vi.fn()}));
 vi.mock('@gitgazer/db/schema/gitgazer', () => ({wsConnections: {}}));
+vi.mock('@gitgazer/db/types', () => ({WEBSOCKET_CHANNELS: ['workflow_run', 'workflow_job']}));
 
 let mod: typeof import('./websocket');
 
@@ -15,7 +17,7 @@ const makeToken = (payload: object) => {
     return `${payloadEncoded}.${sign(payloadEncoded)}`;
 };
 
-const validPayload = () => ({userId: 'u1', integrations: ['int-1'], exp: Math.floor(Date.now() / 1000) + 3600});
+const validPayload = () => ({userId: 1, username: 'testuser', email: 'test@example.com', integrations: ['int-1'], exp: Math.floor(Date.now() / 1000) + 3600, nonce: 'abc123'});
 
 beforeEach(async () => {
     mod = await import('./websocket');
@@ -23,7 +25,7 @@ beforeEach(async () => {
 
 describe('validateWebSocketToken', () => {
     it('accepts a correctly signed, unexpired token', () => {
-        expect(mod.validateWebSocketToken(makeToken(validPayload()))).toMatchObject({userId: 'u1', integrations: ['int-1']});
+        expect(mod.validateWebSocketToken(makeToken(validPayload()))).toMatchObject({userId: 1, integrations: ['int-1']});
     });
 
     it('rejects a tampered (same-length) signature', () => {

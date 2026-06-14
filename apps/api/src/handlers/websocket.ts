@@ -33,8 +33,8 @@ export const validateWebSocketToken = (token: string): WSToken => {
     const wsTokenSecret = config.get('wsTokenSecret');
     const expectedSignature = createHmac('sha256', wsTokenSecret).update(payloadEncoded).digest('base64url');
 
-    const providedBuf = Buffer.from(signatureEncoded);
-    const expectedBuf = Buffer.from(expectedSignature);
+    const providedBuf = Buffer.from(signatureEncoded, 'utf-8');
+    const expectedBuf = Buffer.from(expectedSignature, 'utf-8');
     if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
         throw new Error('Invalid token signature');
     }
