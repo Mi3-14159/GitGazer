@@ -246,7 +246,7 @@ export const getWorkflowFilterValues = async ({
                 .groupBy(dbColumn)
                 .orderBy(sql`count DESC`, dbColumn)
                 .limit(effectiveLimit);
-            return rows.filter((r): r is FilterValueResult => r.value != null);
+            return rows.filter((r): r is FilterValueResult => !!r.value);
         },
     });
 };
