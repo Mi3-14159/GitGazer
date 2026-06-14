@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 title: Managing Team Members
 description: Invite teammates, assign roles, and manage access to your integrations.
 ---

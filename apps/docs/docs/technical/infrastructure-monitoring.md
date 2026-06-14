@@ -71,7 +71,12 @@ Add one or more SNS subscriptions (email, webhook bridge, incident tooling) to a
 
 - HTTP API 5xx
 - HTTP API p95 latency
+- HTTP API throttling — a throttled request is rejected with HTTP 429; because HTTP APIs (API Gateway v2) expose no dedicated throttle metric, this is detected via a CloudWatch Logs metric filter on the access logs (`{ $.status = "429" }`)
 - WebSocket API 5xx
+
+:::note[HTTP API throttling requires access logging]
+The throttling alarm reads the API Gateway access logs, so it is only created when `apigateway_logging_enabled = true` (the access log group must exist). It emits a custom metric in the `<name_prefix>/ApiGateway` namespace.
+:::
 
 ### SQS
 

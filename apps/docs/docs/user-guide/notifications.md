@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 title: Configuring Notifications
 description: Set up Slack alerts for workflow failures with customizable filter criteria.
 ---

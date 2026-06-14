@@ -20,12 +20,16 @@ sequenceDiagram
     participant DB as Aurora PostgreSQL
 
     User->>SPA: Click "Sign in with GitHub"
-    SPA->>Cognito: Redirect to /oauth2/authorize
+    SPA->>API: Redirect to GET /api/auth/login?redirect_url=...
+    API->>API: Validate redirect_url, mint signed state token + nonce
+    API->>User: 302 to Cognito /oauth2/authorize (state) + Set-Cookie nonce
+    User->>Cognito: Follow redirect
     Cognito->>GitHub: Redirect to GitHub login
     GitHub->>User: Prompt for authorization
     User->>GitHub: Approve
     GitHub->>Cognito: Authorization code
     Cognito->>API: Redirect to /api/auth/callback?code=...&state=...
+    API->>API: Verify state signature + nonce cookie (before code exchange)
     API->>Cognito: Exchange code for tokens (token endpoint)
     Cognito-->>API: Access token, ID token, refresh token
     API->>API: Set httpOnly cookies (accessToken, idToken, refreshToken)
@@ -40,12 +44,23 @@ sequenceDiagram
 
 ### How It Works
 
-1. The SPA builds a Cognito authorize URL with `response_type=code` and a `state` parameter containing the `redirect_url` (base64-encoded JSON).
-2. Cognito redirects to GitHub for OAuth consent.
-3. After approval, Cognito receives an authorization code and redirects to `GET /api/auth/callback`.
-4. The callback handler exchanges the code for tokens via Cognito's token endpoint.
-5. Tokens are set as **httpOnly, Secure, SameSite=Lax** cookies on the response.
-6. The user is redirected back to the SPA. All subsequent API requests include cookies automatically.
+1. The SPA redirects the browser to `GET /api/auth/login?redirect_url=<app-origin>`. Sign-in is initiated **server-side** — the SPA no longer builds the Cognito authorize URL itself.
+2. The login endpoint validates the `redirect_url`, mints a **signed, single-use `state` token** bound to a random **nonce**, stores the nonce in a short-lived httpOnly cookie (`oauthStateNonce`, 10-minute TTL), and 302-redirects to Cognito's `/oauth2/authorize` with the signed token in the `state` parameter.
+3. Cognito redirects to GitHub for OAuth consent.
+4. After approval, Cognito receives an authorization code and redirects to `GET /api/auth/callback?code=...&state=...`.
+5. The callback handler **verifies the signed `state` token and nonce cookie before anything else** — checking the HMAC signature, the expiry, and that the nonce embedded in the token matches the nonce cookie. If any check fails it returns HTTP 403 and **never exchanges the code**.
+6. Only after the state is verified does the handler exchange the code for tokens via Cognito's token endpoint.
+7. Tokens are set as **httpOnly, Secure, SameSite=Lax** cookies, the state cookie is cleared, and the user is redirected back to the validated app URL. All subsequent API requests include cookies automatically.
+
+### OAuth State Binding (Login-CSRF Protection)
+
+The `state` parameter is not just an opaque redirect hint — it is a signed token that protects against login cross-site request forgery (an attacker tricking a victim into completing a login the attacker started).
+
+- **Signed payload** — the token is `base64url(payload).hmacSHA256(payload)`, where the payload carries the `redirect_url`, a random `nonce`, and an `exp` timestamp. It is signed with a dedicated `stateSecret`.
+- **Nonce binding** — the same nonce is stored in the httpOnly `oauthStateNonce` cookie. The callback only succeeds if the nonce inside the signed token matches the nonce in the cookie, so a `state` value cannot be replayed in another browser.
+- **Constant-time checks** — the signature and nonce are compared in constant time (both sides are SHA-256 hashed first) so neither length nor content leaks through timing.
+- **Fail closed** — if `stateSecret` is not configured, login initiation and callback both fail loudly rather than silently accepting forgeable tokens.
+- **Short-lived & single-use** — the token expires after 10 minutes (matching the cookie `Max-Age`), and the nonce cookie is cleared once the callback completes.
 
 ### GitHub Identity Mapping
 
@@ -132,6 +147,15 @@ These route prefixes skip authentication because they have their own verificatio
 
 Each domain declares its own `publicPrefixes` export, which are aggregated into a central registry.
 
+### Cognito OAuth Token Relay
+
+The `/api/auth/cognito/` prefix backs a relay that Cognito itself calls to complete the GitHub identity-provider exchange. Because Cognito is the caller, these routes cannot sit behind the normal Cognito authorizer — so they enforce their own checks:
+
+- **Caller authentication** — `POST /api/auth/cognito/token` authenticates its caller against the GitHub OAuth app credentials (`client_id` / `client_secret`) using constant-time comparison. An attacker holding only an intercepted authorization `code` cannot drive the exchange without also holding the OAuth app secret.
+- **Server-held credentials only** — the upstream exchange with GitHub always uses the server-configured OAuth app credentials. Caller-supplied client secrets are used solely to authenticate the caller and are **never forwarded** to GitHub.
+- **No upstream error reflection** — invalid, expired, or already-used codes surface as a generic HTTP 400, and upstream error text is logged server-side only, never returned to the caller.
+- **Fail closed** — if the GitHub OAuth app credentials are not configured, the endpoint returns a server error instead of authenticating a caller with empty credentials.
+
 ## Role-Based Access Control (RBAC)
 
 ### Role Hierarchy
@@ -209,9 +233,9 @@ Route handlers that need RBAC protection use the `requireRole` middleware, which
 WebSocket connections use a signed token instead of cookies (API Gateway WebSocket doesn't forward cookies on `$connect`):
 
 1. The SPA calls `GET /api/auth/ws-token` (authenticated via cookies).
-2. The API generates an HMAC-signed token containing `userId`, `integrations`, and an expiry timestamp.
+2. The API generates a short-lived (60-second) HMAC-signed token containing `userId`, `integrations`, a random `nonce`, and an expiry timestamp.
 3. The SPA connects to the WebSocket API with `?token=<signed-token>&channel=workflows`.
-4. The WebSocket Lambda validates the HMAC signature, checks expiry, and stores one connection record per integration in `gitgazer.ws_connections`.
+4. The WebSocket Lambda validates the HMAC signature using a **constant-time comparison** (with a length check, since `timingSafeEqual` requires equal-length buffers), checks expiry, and stores one connection record per integration in `gitgazer.ws_connections`.
 5. On `$disconnect`, the Lambda removes the connection records.
 
 This ensures WebSocket access is scoped to the same integrations the user has access to via the REST API.

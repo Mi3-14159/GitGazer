@@ -50,4 +50,5 @@ The header also gives you access to:
 
 - **[Set up your first integration](integrations)** — connect GitGazer to your GitHub repositories.
 - **[Monitor workflows](workflows)** — see your CI/CD runs in real time.
+- **[View dashboards](dashboards)** — explore DORA and SPACE analytics for your delivery performance.
 - **[Configure notifications](notifications)** — get Slack alerts when workflows fail.

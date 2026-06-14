@@ -47,6 +47,7 @@ Click the filter icon on any supported column header to open a filter popover:
 
 - **Searchable**: Type to find specific values in the checklist.
 - **Multi-select**: Check multiple values to include them.
+- **Select all**: A checkbox at the top of the list toggles every value currently shown. After typing a search term, it selects (or clears) only the matching values, and shows an indeterminate state when some — but not all — visible values are selected.
 - **Clear**: Remove the filter for that column.
 
 Filterable columns: Workflow, Repository, Branch, Status, Actor, Topics.
