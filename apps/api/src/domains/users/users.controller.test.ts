@@ -62,6 +62,21 @@ describe('exchangeGitHubOAuthToken', () => {
         expect(error).toBeInstanceOf(Error);
         expect((error as Error).message).not.toContain(upstreamDetail);
     });
+
+    it('throws a generic error when GitHub returns HTTP 200 with an error body, without reflecting upstream text', async () => {
+        // GitHub responds 200 OK with an error payload for invalid/expired/already-used codes.
+        const upstreamError = 'bad_verification_code';
+        const upstreamDescription = 'UPSTREAM_200_ERROR_DESCRIPTION';
+        mockProxyFetch.mockResolvedValue(
+            res(200, {'Content-Type': 'application/json'}, JSON.stringify({error: upstreamError, error_description: upstreamDescription})),
+        );
+
+        const error = await exchangeGitHubOAuthToken('expired-code').catch((e: unknown) => e as Error);
+
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).not.toContain(upstreamError);
+        expect((error as Error).message).not.toContain(upstreamDescription);
+    });
 });
 
 describe('fetchGitHubUser', () => {

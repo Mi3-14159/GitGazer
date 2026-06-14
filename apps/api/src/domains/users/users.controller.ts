@@ -51,7 +51,17 @@ export const exchangeGitHubOAuthToken = async (code: string): Promise<unknown> =
         throw new Error('Failed to exchange GitHub OAuth token');
     }
 
-    return response.json();
+    const token: unknown = await response.json();
+
+    // GitHub returns HTTP 200 with an error body (e.g. bad_verification_code) for invalid,
+    // expired, or already-used codes. Detect that explicitly and surface a generic error
+    // without reflecting the upstream error text to the caller.
+    if (token !== null && typeof token === 'object' && 'error' in token) {
+        getLogger().error('GitHub OAuth token exchange returned an error body', {error: (token as {error?: unknown}).error});
+        throw new Error('Failed to exchange GitHub OAuth token');
+    }
+
+    return token;
 };
 
 /**
