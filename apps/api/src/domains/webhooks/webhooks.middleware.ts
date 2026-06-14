@@ -35,7 +35,8 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
         throw new BadRequestError('Missing signature or payload');
     }
 
-    const isValid = validateSignature(payload, userIntegrations[0].secret, signature);
+    const rawBody = event.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload, 'utf-8');
+    const isValid = validateSignature(rawBody, userIntegrations[0].secret, signature);
     if (!isValid) {
         throw new UnauthorizedError('Invalid signature');
     }
@@ -43,7 +44,7 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
     await next();
 };
 
-const validateSignature = (payload: string, secret: string, signature: string): boolean => {
+const validateSignature = (payload: Buffer, secret: string, signature: string): boolean => {
     const hmac = crypto.createHmac('sha256', secret);
     const digestBuf = Buffer.from('sha256=' + hmac.update(payload).digest('hex'));
     const signatureBuf = Buffer.from(signature);
