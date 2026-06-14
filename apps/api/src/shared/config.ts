@@ -137,6 +137,13 @@ const config = convict({
         env: 'WS_TOKEN_SECRET',
         sensitive: true,
     },
+    stateSecret: {
+        doc: 'Dedicated HMAC key for signing OAuth state tokens (CSRF nonce binding for the login flow)',
+        format: String,
+        default: '',
+        env: 'STATE_SECRET',
+        sensitive: true,
+    },
     webhookQueueUrl: {
         doc: 'SQS queue URL for async webhook event processing',
         format: String,
