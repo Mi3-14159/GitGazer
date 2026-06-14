@@ -160,6 +160,46 @@ resource "aws_cloudwatch_metric_alarm" "api_http_latency_p95" {
   insufficient_data_actions = []
 }
 
+# HTTP APIs (API Gateway v2) expose no dedicated throttle metric. A throttled request
+# is rejected with HTTP 429, which the application code never returns on its own, so a
+# 429 in the access log is unambiguously a rate/burst limit being hit (today: the public
+# OAuth relay routes). Detect it via a metric filter on the JSON access logs. Requires
+# apigateway_logging_enabled (the access log group only exists when logging is on).
+resource "aws_cloudwatch_log_metric_filter" "api_http_throttled" {
+  count = var.enable_cloudwatch_alarm_notifications && var.apigateway_logging_enabled ? 1 : 0
+
+  name           = "${var.name_prefix}-http-api-throttled-${terraform.workspace}"
+  pattern        = "{ $.status = \"429\" }"
+  log_group_name = aws_cloudwatch_log_group.gw_access_logs[0].name
+
+  metric_transformation {
+    name          = "${var.name_prefix}-http-api-throttled-${terraform.workspace}"
+    namespace     = "${var.name_prefix}/ApiGateway"
+    value         = "1"
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_http_throttled" {
+  count = var.enable_cloudwatch_alarm_notifications && var.apigateway_logging_enabled ? 1 : 0
+
+  alarm_name          = "${var.name_prefix}-http-api-throttled-${terraform.workspace}"
+  alarm_description   = "HTTP API Gateway is throttling requests (HTTP 429) — a client is exceeding the configured rate/burst limits"
+  namespace           = "${var.name_prefix}/ApiGateway"
+  metric_name         = aws_cloudwatch_log_metric_filter.api_http_throttled[0].metric_transformation[0].name
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions             = local.monitoring_alarm_actions
+  ok_actions                = []
+  insufficient_data_actions = []
+}
+
 resource "aws_cloudwatch_metric_alarm" "api_websocket_5xx" {
   count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
 
