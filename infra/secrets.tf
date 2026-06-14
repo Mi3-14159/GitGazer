@@ -60,6 +60,10 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       privateKey    = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]
       webhookSecret = data.aws_kms_secrets.this.plaintext["gh_app_webhook_secret"]
     }
+    githubOAuthApp = {
+      clientId     = data.aws_kms_secrets.this.plaintext["gh_oauth_app_client_id"]
+      clientSecret = data.aws_kms_secrets.this.plaintext["gh_oauth_app_client_secret"]
+    }
     wsTokenSecret         = random_password.ws_token_secret.result
     webhookQueueUrl       = aws_sqs_queue.webhook_events.url
     httpProxyFunctionName = var.enable_http_proxy ? aws_lambda_function.http_proxy[0].function_name : null
