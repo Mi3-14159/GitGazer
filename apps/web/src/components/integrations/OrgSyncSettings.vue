@@ -1,9 +1,9 @@
 <script setup lang="ts">
     import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { ORG_SYNC_DEFAULT_ROLES, type OrgSyncDefaultRole } from '@common/types';
-import { Shield, Users } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+    import Button from '@/components/ui/Button.vue';
+    import {ORG_SYNC_DEFAULT_ROLES, type OrgSyncDefaultRole} from '@common/types';
+    import {Shield, Users} from 'lucide-vue-next';
+    import {ref, watch} from 'vue';
 
     const props = defineProps<{
         integrationId: string;
@@ -57,8 +57,6 @@ import { ref, watch } from 'vue';
         isSaving.value = true;
         emit('update-role', props.integrationId, selectedRole.value);
     }
-
-
 </script>
 
 <template>
