@@ -96,6 +96,7 @@ export const isNotificationRuleRule = (rule: any): rule is NotificationRuleRule 
 export type NotificationRuleUpdate = Omit<NotificationRule, 'createdAt' | 'updatedAt' | 'integrationId' | 'id'>;
 
 export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpdate => {
+    if (typeof rule !== 'object' || rule === null) return false;
     return (
         typeof rule.label === 'string' &&
         rule.label.trim().length > 0 &&
