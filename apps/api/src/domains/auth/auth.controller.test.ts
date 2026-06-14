@@ -1,7 +1,7 @@
-import {BadRequestError, ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, ForbiddenError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mockConfigGet = vi.fn((key: string): unknown => {
+const defaultConfigGet = (key: string): unknown => {
     switch (key) {
         case 'stateSecret':
             return 'unit-test-state-secret';
@@ -18,7 +18,8 @@ const mockConfigGet = vi.fn((key: string): unknown => {
         default:
             return '';
     }
-});
+};
+const mockConfigGet = vi.fn(defaultConfigGet);
 
 vi.mock('@/shared/config', () => ({
     default: {
@@ -51,6 +52,7 @@ afterAll(() => {
 
 beforeEach(() => {
     mockFetch.mockReset();
+    mockConfigGet.mockImplementation(defaultConfigGet);
 });
 
 describe('mintStateToken / verifyStateToken', () => {
@@ -90,6 +92,26 @@ describe('mintStateToken / verifyStateToken', () => {
         expect(verifyStateToken('not-a-valid-token', 'some-nonce')).toBeNull();
         expect(verifyStateToken('', 'some-nonce')).toBeNull();
         expect(verifyStateToken(undefined, 'some-nonce')).toBeNull();
+    });
+
+    describe('fail closed when stateSecret is not configured', () => {
+        const withEmptyStateSecret = (): void => {
+            mockConfigGet.mockImplementation((key: string) => (key === 'stateSecret' ? '' : defaultConfigGet(key)));
+        };
+
+        it('mintStateToken throws instead of signing with an empty secret', () => {
+            withEmptyStateSecret();
+
+            expect(() => mintStateToken({redirect_url: ALLOWED_ORIGIN})).toThrow(InternalServerError);
+        });
+
+        it('verifyStateToken rejects an otherwise-valid token when the secret is empty', () => {
+            // Mint with a real secret, then verify after the secret is wiped.
+            const {token, nonce} = mintStateToken({redirect_url: ALLOWED_ORIGIN});
+            withEmptyStateSecret();
+
+            expect(verifyStateToken(token, nonce)).toBeNull();
+        });
     });
 
     describe('expiry', () => {
@@ -215,7 +237,9 @@ describe('handleOAuthCallback', () => {
     });
 
     it('does NOT exchange the code when the state parameter is missing', async () => {
-        const error = await handleOAuthCallback({code: 'auth-code', state: undefined, oauthStateNonce: 'some-nonce'}).catch((e: unknown) => e as Error);
+        const error = await handleOAuthCallback({code: 'auth-code', state: undefined, oauthStateNonce: 'some-nonce'}).catch(
+            (e: unknown) => e as Error,
+        );
 
         expect(error).toBeInstanceOf(BadRequestError);
         expect(mockFetch).not.toHaveBeenCalled();
@@ -229,6 +253,17 @@ describe('handleOAuthCallback', () => {
         const error = await handleOAuthCallback({code: 'auth-code', state: token, oauthStateNonce: nonce}).catch((e: unknown) => e as Error);
 
         expect(error).toBeInstanceOf(BadRequestError);
+        expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('does NOT exchange the code when the state secret is not configured', async () => {
+        // Mint with a real secret, then wipe it so verification fails closed at the callback.
+        const {token, nonce} = mintStateToken({redirect_url: ALLOWED_ORIGIN});
+        mockConfigGet.mockImplementation((key: string) => (key === 'stateSecret' ? '' : defaultConfigGet(key)));
+
+        const error = await handleOAuthCallback({code: 'auth-code', state: token, oauthStateNonce: nonce}).catch((e: unknown) => e as Error);
+
+        expect(error).toBeInstanceOf(ForbiddenError);
         expect(mockFetch).not.toHaveBeenCalled();
     });
 });

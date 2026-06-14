@@ -137,6 +137,14 @@ const constantTimeEqual = (a: string, b: string): boolean => {
  * (stored in a short-lived httpOnly cookie for callback verification).
  */
 export const mintStateToken = (params: {redirect_url: string}): {token: string; nonce: string} => {
+    const stateSecret = config.get('stateSecret');
+    if (!stateSecret) {
+        // Fail closed: an empty secret makes the state signature forgeable, silently voiding
+        // the login-CSRF protection. Surface the misconfiguration instead of degrading quietly.
+        getLogger().error('OAuth state secret is not configured');
+        throw new InternalServerError('Login is not configured');
+    }
+
     const nonce = randomBytes(16).toString('hex');
     const statePayload: StateTokenPayload = {
         redirect_url: params.redirect_url,
@@ -144,7 +152,6 @@ export const mintStateToken = (params: {redirect_url: string}): {token: string; 
         exp: Math.floor(Date.now() / 1000) + STATE_TOKEN_TTL_SECONDS,
     };
 
-    const stateSecret = config.get('stateSecret');
     const payload = Buffer.from(JSON.stringify(statePayload)).toString('base64url');
     const signature = createHmac('sha256', stateSecret).update(payload).digest('base64url');
     return {token: `${payload}.${signature}`, nonce};
@@ -160,13 +167,19 @@ export const verifyStateToken = (token: string | undefined, nonceFromCookie: str
         return null;
     }
 
+    const stateSecret = config.get('stateSecret');
+    if (!stateSecret) {
+        // Fail closed: without a configured secret no state token can be trusted.
+        getLogger().error('OAuth state secret is not configured');
+        return null;
+    }
+
     const parts = token.split('.');
     if (parts.length !== 2) {
         return null;
     }
     const [payload, signature] = parts;
 
-    const stateSecret = config.get('stateSecret');
     const expectedSignature = createHmac('sha256', stateSecret).update(payload).digest('base64url');
     if (!constantTimeEqual(signature, expectedSignature)) {
         return null;
