@@ -220,34 +220,45 @@ export const updateAllWebhookEvents = async (integrationId: string, installation
 
     const octokit = getInstallationOctokit(installationId);
 
-    await Promise.all(
+    const results = await Promise.allSettled(
         webhooks.map(async (webhook) => {
-            try {
-                if (webhook.targetType === 'organization') {
-                    await updateOrgWebhookEvents(octokit, webhook.targetName, webhook.webhookId, events);
-                } else {
-                    const [owner, repo] = webhook.targetName.split('/');
-                    await updateRepoWebhookEvents(octokit, owner, repo, webhook.webhookId, events);
-                }
-
-                // Update events in DB record
-                await withRlsTransaction({
-                    integrationIds: [integrationId],
-                    userName: gitgazerWriter.name,
-                    callback: async (tx: RdsTransaction) => {
-                        await tx
-                            .update(githubAppWebhooks)
-                            .set({events})
-                            .where(and(eq(githubAppWebhooks.integrationId, integrationId), eq(githubAppWebhooks.webhookId, webhook.webhookId)));
-                    },
-                });
-            } catch (error) {
-                logger.error(`Failed to update events on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
+            if (webhook.targetType === 'organization') {
+                await updateOrgWebhookEvents(octokit, webhook.targetName, webhook.webhookId, events);
+            } else {
+                const [owner, repo] = webhook.targetName.split('/');
+                await updateRepoWebhookEvents(octokit, owner, repo, webhook.webhookId, events);
             }
+
+            // Update events in DB record
+            await withRlsTransaction({
+                integrationIds: [integrationId],
+                userName: gitgazerWriter.name,
+                callback: async (tx: RdsTransaction) => {
+                    await tx
+                        .update(githubAppWebhooks)
+                        .set({events})
+                        .where(and(eq(githubAppWebhooks.integrationId, integrationId), eq(githubAppWebhooks.webhookId, webhook.webhookId)));
+                },
+            });
         }),
     );
 
-    // Update the installation's configured events
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failures.length > 0) {
+        results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+                const webhook = webhooks[idx];
+                logger.error('Failed to update webhook events on a target', {
+                    error: r.reason,
+                    webhookId: webhook.webhookId,
+                    targetName: webhook.targetName,
+                });
+            }
+        });
+        throw new Error(`Failed to update events on ${failures.length} of ${webhooks.length} webhook(s)`);
+    }
+
+    // Only reached when every per-webhook update succeeded.
     await db
         .update(githubAppInstallations)
         .set({webhookEvents: events, updatedAt: new Date()})
@@ -273,20 +284,31 @@ export const updateAllWebhookSecrets = async (integrationId: string, installatio
     const webhookUrl = getWebhookUrl(integrationId);
     const octokit = getInstallationOctokit(installationId);
 
-    await Promise.all(
+    const results = await Promise.allSettled(
         webhooks.map(async (webhook) => {
-            try {
-                if (webhook.targetType === 'organization') {
-                    await updateOrgWebhookSecret(octokit, webhook.targetName, webhook.webhookId, webhookUrl, secret);
-                } else {
-                    const [owner, repo] = webhook.targetName.split('/');
-                    await updateRepoWebhookSecret(octokit, owner, repo, webhook.webhookId, webhookUrl, secret);
-                }
-            } catch (error) {
-                logger.error(`Failed to update secret on webhook ${webhook.webhookId} (${webhook.targetName})`, {error});
+            if (webhook.targetType === 'organization') {
+                await updateOrgWebhookSecret(octokit, webhook.targetName, webhook.webhookId, webhookUrl, secret);
+            } else {
+                const [owner, repo] = webhook.targetName.split('/');
+                await updateRepoWebhookSecret(octokit, owner, repo, webhook.webhookId, webhookUrl, secret);
             }
         }),
     );
+
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failures.length > 0) {
+        results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+                const webhook = webhooks[idx];
+                logger.error('Failed to update webhook secret on a target', {
+                    error: r.reason,
+                    webhookId: webhook.webhookId,
+                    targetName: webhook.targetName,
+                });
+            }
+        });
+        throw new Error(`Failed to update secret on ${failures.length} of ${webhooks.length} webhook(s)`);
+    }
 
     logger.info(`Updated webhook secrets for installation ${installationId}`);
 };
