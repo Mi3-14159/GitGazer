@@ -60,6 +60,9 @@ locals {
     "auth/cognito/token" = {
       methods = ["POST"]
     },
+    "auth/login" = {
+      methods = ["GET"]
+    },
     "auth/callback" = {
       methods = ["GET"]
     },
