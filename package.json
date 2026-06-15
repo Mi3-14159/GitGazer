@@ -1,14 +1,14 @@
 {
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
     "dotenv": "^17.3.1",
     "eslint": "^10.4.1",
     "prettier": "^3.8.3",
     "rimraf": "^6.1.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "name": "gitgazer",
   "packageManager": "pnpm@10.33.0",
