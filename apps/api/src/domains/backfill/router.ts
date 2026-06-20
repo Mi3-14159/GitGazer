@@ -5,9 +5,7 @@ import {
     fetchPullRequest,
     fetchPullRequestReviews,
     fetchPullRequestsPage,
-    fetchRepo,
     fetchWorkflowJobs,
-    fetchWorkflowRun,
     fetchWorkflowRunsPage,
     filterReposByTopics,
     GITHUB_RUNS_RESULT_CAP,
@@ -15,6 +13,7 @@ import {
     PER_PAGE_SIZE,
 } from './github';
 import {resolvePat} from './pat-resolver';
+import {resolveRepo} from './stored-repo';
 import type {BackfillEventType, BackfillTask, DiscoverTask, PrsPageTask, PullRequestTask, RepoTask, RunsPageTask, WorkflowRunTask} from './tasks';
 import {transformPullRequest, transformPullRequestReview, transformWorkflowJob, transformWorkflowRun} from './transform';
 
@@ -98,7 +97,10 @@ const handleRunsPage = async (task: RunsPageTask, token: string): Promise<(Workf
         );
     }
 
-    const followUps: (WorkflowRunTask | RunsPageTask)[] = runs.map((run) => ({...ctx, kind: 'workflow_run', repo: task.repo, runId: run.id}));
+    // Thread the full run object (already returned by the page listing) onto each
+    // task so the handler doesn't re-fetch it — the list and single-run GET
+    // return the identical `workflow-run` shape.
+    const followUps: (WorkflowRunTask | RunsPageTask)[] = runs.map((run) => ({...ctx, kind: 'workflow_run', repo: task.repo, run}));
 
     // GitHub caps accessible runs at GITHUB_RUNS_RESULT_CAP, so stop there even
     // if totalCount is higher (further pages return empty).
@@ -143,10 +145,11 @@ const handlePrsPage = async (task: PrsPageTask, token: string): Promise<(PullReq
 };
 
 const handleWorkflowRun = async (task: WorkflowRunTask, token: string): Promise<void> => {
-    const [apiRun, fullRepo] = await Promise.all([
-        fetchWorkflowRun(task.owner, task.repo, task.runId, token),
-        fetchRepo(task.owner, task.repo, token),
-    ]);
+    // The run is threaded in from the page listing, so it never needs a GitHub
+    // fetch. The repository sub-dependency is reused from Postgres when it has
+    // already been imported, falling back to GitHub only when it is missing.
+    const apiRun = task.run;
+    const fullRepo = await resolveRepo(task.integrationId, task.owner, task.repo, token);
 
     if (wants(task.eventTypes, 'workflow_run')) {
         const workflowMeta = {id: apiRun.workflow_id, name: apiRun.name, path: apiRun.path};
@@ -154,7 +157,7 @@ const handleWorkflowRun = async (task: WorkflowRunTask, token: string): Promise<
     }
 
     if (wants(task.eventTypes, 'workflow_job')) {
-        const jobs = await fetchWorkflowJobs(task.owner, task.repo, task.runId, token);
+        const jobs = await fetchWorkflowJobs(task.owner, task.repo, apiRun.id, token);
         const sender = apiRun.triggering_actor ?? apiRun.actor;
         for (const job of jobs) {
             await insertEvent(task.integrationId, 'workflow_job', transformWorkflowJob(job, fullRepo, sender));
@@ -163,9 +166,12 @@ const handleWorkflowRun = async (task: WorkflowRunTask, token: string): Promise<
 };
 
 const handlePullRequest = async (task: PullRequestTask, token: string): Promise<void> => {
+    // The repository (and its organization) is reused from Postgres when already
+    // imported; only the PR detail — which the list endpoint omits diff stats
+    // for — is always fetched fresh.
     const [fullPR, fullRepo] = await Promise.all([
         fetchPullRequest(task.owner, task.repo, task.pullNumber, token),
-        fetchRepo(task.owner, task.repo, token),
+        resolveRepo(task.integrationId, task.owner, task.repo, token),
     ]);
 
     if (wants(task.eventTypes, 'pull_request')) {

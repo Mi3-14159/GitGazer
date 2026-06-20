@@ -73,7 +73,7 @@ Tasks are JSON bodies on the queue, modeled as a discriminated union (mirroring 
 | `repo`            | Seed pagination for one repository                             | `runs_page{page:1}` and/or `prs_page{page:1}`                             |
 | `runs_page{page}` | Fetch **one** page of workflow runs                            | a `workflow_run` task per run + `runs_page{page+1}` if the page is full   |
 | `prs_page{page}`  | Fetch **one** page of pull requests                            | a `pull_request` task per in-range PR + `prs_page{page+1}` if more remain |
-| `workflow_run`    | Fetch the run + its jobs, transform, ingest                    | _(none — writes to the database)_                                         |
+| `workflow_run`    | Ingest the threaded run; fetch its jobs too                    | _(none — writes to the database)_                                         |
 | `pull_request`    | Fetch the PR detail + reviews, transform, ingest               | _(none — writes to the database)_                                         |
 
 Every task carries the run context: `integrationId`, `owner`, `eventTypes`, and optional `since` / `until` date bounds.
@@ -82,9 +82,17 @@ Every task carries the run context: `integrationId`, `owner`, `eventTypes`, and 
 
 Because each task handles at most one page or one entity, **no single invocation can run long enough to hit the 60-second Lambda timeout**. The work naturally spreads across many short invocations, each independently retryable. This is what makes a run resilient and resumable.
 
-### Per-entity tasks carry only IDs
+### Per-entity task payloads
 
-A `workflow_run` task contains just `{ repo, runId }`, not the full run payload. The handler re-fetches the run, its jobs, and the full repository object at processing time. This keeps SQS messages tiny (well under the 256 KB limit) and lets the repository fetch be **cached per container** across tasks for the same repo.
+A `workflow_run` task carries the **full run object** (`{ repo, run }`), threaded straight from the `runs_page` listing — the list and single-run endpoints return the identical `workflow-run` shape, so re-fetching each run individually would burn one wasted GitHub call per run. A `pull_request` task carries `{ repo, pullNumber }`: the list endpoint omits the diff stats (additions, deletions, changed files, commits) that the importer persists, so the per-PR detail fetch is still required. At processing time each handler also needs the entity's **repository** (and organization) — which it reuses from Postgres when already imported, fetching from GitHub only when missing (see [Reusing sub-dependencies already in the database](#reusing-sub-dependencies-already-in-the-database)). Run objects stay well under SQS's 256 KB message limit.
+
+### Reusing sub-dependencies already in the database
+
+Importing any entity first requires its **repository** — and, for org-owned repos, its **organization** — to exist. GitHub supplies both through a single `GET /repos/{owner}/{repo}` call (`fetchRepo`), whose response embeds the organization. To minimize requests against the rate-limited GitHub API, the `workflow_run` and `pull_request` handlers check Postgres first: when the repository (resolved by owner login + name, RLS-scoped to the integration) is already stored, its repository and organization rows are rebuilt into the payload the importer reads and the GitHub fetch is skipped entirely.
+
+This pays off on re-runs and incremental backfills, where the repository was imported by an earlier run or a live webhook. When the repository is absent, the handler falls back to `fetchRepo`. Either way the resolved payload is **cached per container**, so repeated tasks for the same repository neither re-read the database nor re-call GitHub. The list-page fetches (`runs_page`, `prs_page`) and the per-entity detail fetches (`fetchWorkflowJobs`, `fetchPullRequest`, `fetchPullRequestReviews`) are unaffected — only the repository sub-dependency is served from the database.
+
+Because the reused payload is rebuilt from stored rows, a backfill **does not refresh repository or organization metadata** (visibility, default branch, topics, organization description) for an already-imported repository — the upsert simply rewrites the existing values, so it can never overwrite fresher data, but it also won't pull changes. Live webhooks keep that metadata current; and a repository or owner rename changes the lookup key, which misses the stored row and falls back to a fresh `fetchRepo`.
 
 ### Event-type filtering
 

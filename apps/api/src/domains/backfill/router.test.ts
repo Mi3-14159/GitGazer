@@ -1,17 +1,18 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+import type {WorkflowRunEvent} from '@gitgazer/db/types';
+
 const mockResolvePat = vi.fn();
 const mockInsertEvent = vi.fn();
 
 const mockFetchWorkflowRunsPage = vi.fn();
 const mockFetchPullRequestsPage = vi.fn();
-const mockFetchWorkflowRun = vi.fn();
 const mockFetchWorkflowJobs = vi.fn();
 const mockFetchPullRequest = vi.fn();
 const mockFetchPullRequestReviews = vi.fn();
-const mockFetchRepo = vi.fn();
 const mockListOwnerRepos = vi.fn();
 const mockFilterReposByTopics = vi.fn();
+const mockResolveRepo = vi.fn();
 
 vi.mock('./pat-resolver', () => ({
     resolvePat: (...args: any[]) => mockResolvePat(...args),
@@ -33,13 +34,15 @@ vi.mock('./github', () => ({
     GITHUB_RUNS_RESULT_CAP: 4,
     fetchWorkflowRunsPage: (...a: any[]) => mockFetchWorkflowRunsPage(...a),
     fetchPullRequestsPage: (...a: any[]) => mockFetchPullRequestsPage(...a),
-    fetchWorkflowRun: (...a: any[]) => mockFetchWorkflowRun(...a),
     fetchWorkflowJobs: (...a: any[]) => mockFetchWorkflowJobs(...a),
     fetchPullRequest: (...a: any[]) => mockFetchPullRequest(...a),
     fetchPullRequestReviews: (...a: any[]) => mockFetchPullRequestReviews(...a),
-    fetchRepo: (...a: any[]) => mockFetchRepo(...a),
     listOwnerRepos: (...a: any[]) => mockListOwnerRepos(...a),
     filterReposByTopics: (...a: any[]) => mockFilterReposByTopics(...a),
+}));
+
+vi.mock('./stored-repo', () => ({
+    resolveRepo: (...a: any[]) => mockResolveRepo(...a),
 }));
 
 import {routeTask} from './router';
@@ -48,12 +51,15 @@ import type {BackfillEventType} from './tasks';
 const ALL: BackfillEventType[] = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'];
 const base = {integrationId: 'int-1', owner: 'acme', eventTypes: ALL};
 
+// workflow_run fixtures are intentionally partial — handlers read only a handful of fields.
+const makeRun = (run: Record<string, unknown>): WorkflowRunEvent['workflow_run'] => run as unknown as WorkflowRunEvent['workflow_run'];
+
 describe('routeTask', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockResolvePat.mockResolvedValue('pat');
         mockInsertEvent.mockResolvedValue({data: {}, stale: false});
-        mockFetchRepo.mockResolvedValue({id: 1, name: 'web'});
+        mockResolveRepo.mockResolvedValue({id: 1, name: 'web'});
     });
 
     it('resolves the PAT for the task integration', async () => {
@@ -122,8 +128,8 @@ describe('routeTask', () => {
             const result = await routeTask({...base, kind: 'runs_page', repo: 'web', page: 1});
 
             expect(result).toEqual([
-                expect.objectContaining({kind: 'workflow_run', runId: 11}),
-                expect.objectContaining({kind: 'workflow_run', runId: 12}),
+                expect.objectContaining({kind: 'workflow_run', run: {id: 11}}),
+                expect.objectContaining({kind: 'workflow_run', run: {id: 12}}),
                 expect.objectContaining({kind: 'runs_page', page: 2}),
             ]);
         });
@@ -133,7 +139,7 @@ describe('routeTask', () => {
 
             const result = await routeTask({...base, kind: 'runs_page', repo: 'web', page: 1});
 
-            expect(result).toEqual([expect.objectContaining({kind: 'workflow_run', runId: 11})]);
+            expect(result).toEqual([expect.objectContaining({kind: 'workflow_run', run: {id: 11}})]);
         });
 
         it('stops paginating at the GitHub result cap even when more runs are reported', async () => {
@@ -144,8 +150,8 @@ describe('routeTask', () => {
             const result = await routeTask({...base, kind: 'runs_page', repo: 'web', page: 2});
 
             expect(result).toEqual([
-                expect.objectContaining({kind: 'workflow_run', runId: 13}),
-                expect.objectContaining({kind: 'workflow_run', runId: 14}),
+                expect.objectContaining({kind: 'workflow_run', run: {id: 13}}),
+                expect.objectContaining({kind: 'workflow_run', run: {id: 14}}),
             ]);
             expect(result).not.toContainEqual(expect.objectContaining({kind: 'runs_page'}));
         });
@@ -188,8 +194,9 @@ describe('routeTask', () => {
     });
 
     describe('workflow_run', () => {
-        it('ingests the run and its jobs', async () => {
-            mockFetchWorkflowRun.mockResolvedValue({
+        it('ingests the threaded run and its jobs without re-fetching the run', async () => {
+            const run = makeRun({
+                id: 11,
                 workflow_id: 9,
                 name: 'CI',
                 path: '.github/workflows/ci.yml',
@@ -198,18 +205,20 @@ describe('routeTask', () => {
             });
             mockFetchWorkflowJobs.mockResolvedValue([{id: 21}, {id: 22}]);
 
-            const result = await routeTask({...base, kind: 'workflow_run', repo: 'web', runId: 11});
+            const result = await routeTask({...base, kind: 'workflow_run', repo: 'web', run});
 
             expect(result).toEqual([]);
+            expect(mockResolveRepo).toHaveBeenCalledWith('int-1', 'acme', 'web', 'pat');
+            expect(mockFetchWorkflowJobs).toHaveBeenCalledWith('acme', 'web', 11, 'pat');
             expect(mockInsertEvent).toHaveBeenCalledWith('int-1', 'workflow_run', {transformed: 'run'});
             expect(mockInsertEvent).toHaveBeenCalledWith('int-1', 'workflow_job', {transformed: 'job'});
             expect(mockInsertEvent).toHaveBeenCalledTimes(3);
         });
 
         it('skips jobs when not requested', async () => {
-            mockFetchWorkflowRun.mockResolvedValue({workflow_id: 9, name: 'CI', path: 'p', status: 'completed', actor: {id: 1}});
+            const run = makeRun({id: 11, workflow_id: 9, name: 'CI', path: 'p', status: 'completed', actor: {id: 1}});
 
-            await routeTask({...base, eventTypes: ['workflow_run'], kind: 'workflow_run', repo: 'web', runId: 11});
+            await routeTask({...base, eventTypes: ['workflow_run'], kind: 'workflow_run', repo: 'web', run});
 
             expect(mockFetchWorkflowJobs).not.toHaveBeenCalled();
             expect(mockInsertEvent).toHaveBeenCalledTimes(1);
@@ -227,6 +236,7 @@ describe('routeTask', () => {
             const result = await routeTask({...base, kind: 'pull_request', repo: 'web', pullNumber: 1});
 
             expect(result).toEqual([]);
+            expect(mockResolveRepo).toHaveBeenCalledWith('int-1', 'acme', 'web', 'pat');
             expect(mockInsertEvent).toHaveBeenCalledWith('int-1', 'pull_request', {transformed: 'pr'});
             expect(mockInsertEvent).toHaveBeenCalledWith('int-1', 'pull_request_review', {transformed: 'review'});
             expect(mockInsertEvent).toHaveBeenCalledTimes(2);

@@ -33,9 +33,10 @@ describe('parseTask', () => {
     });
 
     it('validates per-entity tasks require their identifier', () => {
-        expect(() => parseTask({...ctx, kind: 'workflow_run', repo: 'web'})).toThrow(/runId/);
+        expect(() => parseTask({...ctx, kind: 'workflow_run', repo: 'web'})).toThrow(/run/);
+        expect(() => parseTask({...ctx, kind: 'workflow_run', repo: 'web', run: {id: 0}})).toThrow(/run/);
         expect(() => parseTask({...ctx, kind: 'pull_request', repo: 'web'})).toThrow(/pullNumber/);
-        expect(parseTask({...ctx, kind: 'workflow_run', repo: 'web', runId: 5}).kind).toBe('workflow_run');
+        expect(parseTask({...ctx, kind: 'workflow_run', repo: 'web', run: {id: 5}}).kind).toBe('workflow_run');
         expect(parseTask({...ctx, kind: 'pull_request', repo: 'web', pullNumber: 7}).kind).toBe('pull_request');
     });
 

@@ -8,6 +8,8 @@
  * retries independently via SQS and the whole run resumes automatically.
  */
 
+import type {WorkflowRunEvent} from '@gitgazer/db/types';
+
 export const BACKFILL_EVENT_TYPES = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'] as const;
 export type BackfillEventType = (typeof BACKFILL_EVENT_TYPES)[number];
 
@@ -56,11 +58,16 @@ export interface PrsPageTask extends BackfillContext {
     page: number;
 }
 
-/** Fetches a single workflow run (and its jobs) and ingests them. */
+/** Ingests a single workflow run (and its jobs). */
 export interface WorkflowRunTask extends BackfillContext {
     kind: 'workflow_run';
     repo: string;
-    runId: number;
+    /**
+     * Full workflow-run object, threaded from the `runs_page` listing. The list
+     * endpoint already returns the complete run, so carrying it here avoids a
+     * redundant per-run GET (`fetchWorkflowRun`) in the handler.
+     */
+    run: WorkflowRunEvent['workflow_run'];
 }
 
 /** Fetches a single pull request (and its reviews) and ingests them. */
@@ -110,6 +117,12 @@ const assertPositiveInt = (value: unknown, field: string, kind: string): void =>
     }
 };
 
+const assertRunPayload = (value: unknown): void => {
+    if (!isObject(value) || typeof value.id !== 'number' || !Number.isInteger(value.id) || value.id <= 0) {
+        throw new Error('Backfill "workflow_run" task "run" must be an object with a positive integer "id"');
+    }
+};
+
 /**
  * Validates and narrows an unknown SQS message body into a `BackfillTask`.
  * Throws on any malformed payload so the record is routed to the DLQ rather
@@ -145,7 +158,7 @@ export const parseTask = (value: unknown): BackfillTask => {
             return value as unknown as PrsPageTask;
         case 'workflow_run':
             assertRepo(value);
-            assertPositiveInt(value.runId, 'runId', 'workflow_run');
+            assertRunPayload(value.run);
             return value as unknown as WorkflowRunTask;
         case 'pull_request':
             assertRepo(value);

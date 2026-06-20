@@ -163,6 +163,8 @@ Because backfilled data flows through the **same ingestion path** as live webhoo
 
 The worker handles GitHub rate limits automatically: short waits are retried inline, while longer waits release the task back to SQS so no compute is wasted idling. Concurrency is capped (default 5 parallel workers) to stay clear of GitHub's secondary limits.
 
+The worker also skips redundant calls on its own: once a repository (and its organization) has been imported — by an earlier backfill or by a live webhook — the worker reuses those stored details instead of re-fetching them from GitHub. Re-runs and incremental backfills of repositories GitGazer already tracks therefore make fewer API calls.
+
 For very large imports, you can still reduce total API calls by:
 
 - Narrowing the window with `since` and `until`.
