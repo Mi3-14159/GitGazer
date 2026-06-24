@@ -216,6 +216,11 @@ resource "aws_lambda_function" "backfill_worker" {
   }
 }
 
+resource "aws_lambda_function_recursion_config" "backfill_worker" {
+  function_name  = aws_lambda_function.backfill_worker.function_name
+  recursive_loop = "Allow"
+}
+
 resource "aws_lambda_event_source_mapping" "backfill_sqs" {
   event_source_arn        = aws_sqs_queue.backfill_tasks.arn
   function_name           = aws_lambda_function.backfill_worker.arn
