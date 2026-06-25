@@ -23,9 +23,9 @@ jobs:
       url: ${{ github.ref == 'refs/heads/main' && 'https://docs.gitgazer.com/' || null }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
 
-      - uses: pnpm/action-setup@v6.0.8
+      - uses: pnpm/action-setup@v6.0.9
         with:
           run_install: false
 
