@@ -81,11 +81,20 @@ export const handler = async (event: SQSEvent | unknown): Promise<SQSBatchRespon
             const followUps = await routeTask(task);
             await sendBackfillTasks(followUps);
         } catch (error) {
-            logger.error('Failed to process backfill task', {messageId: record.messageId, error});
+            const isRateLimited = error instanceof GitHubApiError && Boolean(error.retryAfterMs && error.retryAfterMs > 0);
+            if (isRateLimited) {
+                logger.warn('Backfill task hit GitHub rate limit', {
+                    messageId: record.messageId,
+                    retryAfterMs: error.retryAfterMs,
+                    error,
+                });
+            } else {
+                logger.error('Failed to process backfill task', {messageId: record.messageId, error});
+            }
 
             // On a GitHub rate limit, hold the message until the limit resets so
             // it doesn't exhaust its retries (and hit the DLQ) within the window.
-            if (error instanceof GitHubApiError && error.retryAfterMs && error.retryAfterMs > 0) {
+            if (isRateLimited) {
                 await deferUntilRateLimitReset(record, error.retryAfterMs);
             }
 
