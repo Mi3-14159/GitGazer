@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends string | string[]">
     import Popover from '@/components/ui/Popover.vue';
     import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
+    import type {FilterMode} from '@common/types';
     import {ChevronDown} from 'lucide-vue-next';
     import {computed, ref, type Component} from 'vue';
 
@@ -19,9 +20,13 @@
         placeholder?: string;
         /** Placeholder for the search input inside the popover (multi-select only). */
         searchPlaceholder?: string;
+        /** Enable the include/exclude mode toggle (multi-select only). */
+        excludable?: boolean;
     }>();
 
     const model = defineModel<T>({required: true});
+    /** Whether the selected values are included or excluded (multi-select only). */
+    const mode = defineModel<FilterMode>('mode', {default: 'include'});
 
     // --- Single-select mode ---
     function onChange(event: Event) {
@@ -60,10 +65,11 @@
         if (!props.multiple) return '';
         const selected = model.value as string[];
         if (!selected.length) return props.placeholder ?? props.label ?? '';
+        const prefix = props.excludable && mode.value === 'exclude' ? 'Not: ' : '';
         if (selected.length <= 2) {
-            return selected.map((v) => props.options.find((o) => o.value === v)?.label ?? v).join(', ');
+            return prefix + selected.map((v) => props.options.find((o) => o.value === v)?.label ?? v).join(', ');
         }
-        return `${selected.length} selected`;
+        return `${prefix}${selected.length} selected`;
     });
 
     const hasSelection = computed(() => props.multiple && (model.value as string[]).length > 0);
@@ -123,14 +129,45 @@
                 <ChevronDown class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </button>
         </template>
-        <SearchableCheckboxList
-            :options="options"
-            :selected="model as string[]"
-            :placeholder="searchPlaceholder"
-            @toggle="toggleValue"
-            @clear="clearAll"
-            @select-all="selectAll"
-            @deselect-all="deselectAll"
-        />
+        <div class="space-y-2">
+            <div
+                v-if="excludable"
+                class="flex rounded-md bg-muted p-0.5 text-xs font-medium"
+                role="group"
+                :aria-label="`${label ?? ''} filter mode`"
+            >
+                <button
+                    type="button"
+                    :class="[
+                        'flex-1 rounded px-2 py-1 transition-colors',
+                        mode === 'include' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                    ]"
+                    :aria-pressed="mode === 'include'"
+                    @click="mode = 'include'"
+                >
+                    Include
+                </button>
+                <button
+                    type="button"
+                    :class="[
+                        'flex-1 rounded px-2 py-1 transition-colors',
+                        mode === 'exclude' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                    ]"
+                    :aria-pressed="mode === 'exclude'"
+                    @click="mode = 'exclude'"
+                >
+                    Exclude
+                </button>
+            </div>
+            <SearchableCheckboxList
+                :options="options"
+                :selected="model as string[]"
+                :placeholder="searchPlaceholder"
+                @toggle="toggleValue"
+                @clear="clearAll"
+                @select-all="selectAll"
+                @deselect-all="deselectAll"
+            />
+        </div>
     </Popover>
 </template>
