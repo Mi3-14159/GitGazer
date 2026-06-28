@@ -144,6 +144,19 @@ export function stringFilter(urlKey: string, defaultValue = ''): FilterDef<strin
     };
 }
 
+/**
+ * An include/exclude filter mode mapped to a single URL param. Defaults to
+ * `'include'` and is omitted from the URL while at that default to keep links clean.
+ */
+export function modeFilter(urlKey: string): FilterDef<'include' | 'exclude'> {
+    return {
+        defaultValue: 'include',
+        fromUrl: (q) => (q[urlKey] === 'exclude' ? 'exclude' : 'include'),
+        toUrl: (v) => (v === 'exclude' ? {[urlKey]: v} : {}),
+        ownedKeys: [urlKey],
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Date-range filter
 // ---------------------------------------------------------------------------

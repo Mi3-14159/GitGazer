@@ -1,10 +1,14 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {useMetrics} from '@/composables/useMetric';
+    import type {FilterMode} from '@common/types';
     import {GitFork} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedIds = defineModel<number[]>({required: true});
+    const mode = defineModel<FilterMode>('mode', {default: 'include'});
+
+    defineProps<{excludable?: boolean}>();
 
     const {fetchRepositories} = useMetrics();
     const repositories = ref<{id: number; name: string}[]>([]);
@@ -30,9 +34,11 @@
 <template>
     <FilterDropdown
         v-model="stringsRef"
+        v-model:mode="mode"
         :options="options"
         :icon="GitFork"
         multiple
+        :excludable="excludable"
         placeholder="Repositories"
         search-placeholder="Search repositories..."
         label="Repositories"
