@@ -43,6 +43,11 @@
         isEditing.value = false;
     }
 
+    function handleInputKeyDown(e: KeyboardEvent) {
+        if (e.key === 'Enter') saveLabel();
+        else if (e.key === 'Escape') cancelEditing();
+    }
+
     function getLastActivity(): string | null {
         const installations = props.integration.githubAppInstallations;
         if (!installations || installations.length === 0) return null;
@@ -69,8 +74,7 @@
                         :model-value="editLabel"
                         class="!h-7 text-sm max-w-xs"
                         @update:model-value="(v: string) => (editLabel = v)"
-                        @keydown.enter="saveLabel"
-                        @keydown.escape="cancelEditing"
+                        @keydown="handleInputKeyDown"
                     />
                     <Button
                         variant="ghost"
