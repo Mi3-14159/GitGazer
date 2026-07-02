@@ -3,11 +3,11 @@
     "@octokit/webhooks": "^14.2.0",
     "@octokit/webhooks-schemas": "^7.6.1",
     "@octokit/webhooks-types": "^7.6.1",
-    "pg": "^8.21.0"
+    "pg": "^8.22.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-rds-data": "^3.1063.0",
-    "@aws-sdk/rds-signer": "^3.1063.0",
+    "@aws-sdk/client-rds-data": "^3.1073.0",
+    "@aws-sdk/rds-signer": "^3.1073.0",
     "@types/pg": "^8.11.0"
   },
   "name": "@gitgazer/db",
