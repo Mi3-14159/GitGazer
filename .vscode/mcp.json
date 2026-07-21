@@ -6,5 +6,6 @@
       "gallery": "https://api.mcp.github.com",
       "version": "1.0.3"
     }
-  }
+  },
+  "inputs": []
 }
