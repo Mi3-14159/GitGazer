@@ -29,6 +29,9 @@ describe('config', () => {
         // Use a key not set in .env.test so SM value is not overridden by an env var
         (getSecretValue as ReturnType<typeof vi.fn>).mockResolvedValue({
             importUrlBase: 'https://sm.example.com/import',
+            stateSecret: 'test-state-secret',
+            wsTokenSecret: 'test-ws-secret',
+            cognito: {clientId: 'test-client', clientSecret: 'test-secret'},
         });
 
         process.env.CONFIG_SECRET_ARN = 'arn:aws:secretsmanager:eu-central-1:123456789:secret:test-secret';
@@ -46,6 +49,9 @@ describe('config', () => {
         // SM provides a value for uiBucketName
         (getSecretValue as ReturnType<typeof vi.fn>).mockResolvedValue({
             uiBucketName: 'sm-bucket',
+            stateSecret: 'test-state-secret',
+            wsTokenSecret: 'test-ws-secret',
+            cognito: {clientId: 'test-client', clientSecret: 'test-secret'},
         });
 
         process.env.CONFIG_SECRET_ARN = 'arn:aws:secretsmanager:eu-central-1:123456789:secret:test-secret';

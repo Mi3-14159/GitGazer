@@ -1,7 +1,7 @@
-import config from '@/shared/config';
 import {extractTokenFromCookies} from '@/shared/helpers/cookies';
 import {getLogger} from '@/shared/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
+import {getVerifiers} from '@/shared/middleware/token-verifier';
 import {AppRequestContext} from '@/shared/types';
 import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
@@ -9,45 +9,23 @@ import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
-import {CognitoJwtVerifier} from 'aws-jwt-verify';
 import {CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 import {eq} from 'drizzle-orm';
-
-type TokenVerifiers = {
-    accessTokenVerifier: ReturnType<typeof CognitoJwtVerifier.create>;
-    idTokenVerifier: ReturnType<typeof CognitoJwtVerifier.create>;
-};
-
-let verifiers: TokenVerifiers | null = null;
-
-const getVerifiers = (): TokenVerifiers => {
-    if (!verifiers) {
-        const {userPoolId, clientId} = config.get('cognito');
-
-        verifiers = {
-            accessTokenVerifier: CognitoJwtVerifier.create({
-                userPoolId,
-                clientId,
-                tokenUse: 'access',
-            }),
-            idTokenVerifier: CognitoJwtVerifier.create({
-                userPoolId,
-                clientId,
-                tokenUse: 'id',
-            }),
-        };
-    }
-    return verifiers;
-};
 
 export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
     const logger = getLogger();
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const {rawPath} = event;
 
-    // Skip authentication for public routes (declared by each domain)
-    if (publicRoutePrefixes.some((prefix) => rawPath.startsWith(prefix))) {
+    // Skip authentication for public routes (declared by each domain). A prefix ending in `/`
+    // is a subtree match; a non-slash prefix must match exactly or on a `/` segment boundary
+    // (so `/api/mcp` does not also exempt `/api/mcpx`).
+    if (
+        publicRoutePrefixes.some((prefix) =>
+            prefix.endsWith('/') ? rawPath.startsWith(prefix) : rawPath === prefix || rawPath.startsWith(`${prefix}/`),
+        )
+    ) {
         logger.debug('Skipping authentication for public route', {rawPath});
         await next();
         return;

@@ -66,6 +66,12 @@ const config = convict({
             default: '',
             env: 'COGNITO_REDIRECT_URI',
         },
+        mcpClientId: {
+            doc: 'AWS Cognito App Client ID for the public MCP OAuth client (PKCE, no secret)',
+            format: String,
+            default: '',
+            env: 'COGNITO_MCP_CLIENT_ID',
+        },
     },
     websocket: {
         apiDomainName: {
@@ -144,6 +150,32 @@ const config = convict({
         env: 'STATE_SECRET',
         sensitive: true,
     },
+    mcpQuota: {
+        maxPerWindow: {
+            doc: 'Maximum MCP run_sql queries a user may run per quota window',
+            format: Number,
+            default: 100,
+            env: 'MCP_QUERY_QUOTA_MAX',
+        },
+        windowSeconds: {
+            doc: 'MCP query quota window length, in seconds',
+            format: Number,
+            default: 3600,
+            env: 'MCP_QUERY_QUOTA_WINDOW_SECONDS',
+        },
+    },
+    mcpServerUrl: {
+        doc: 'Public URL of the MCP endpoint, used in OAuth Protected Resource Metadata (e.g. https://app.gitgazer.com/api/mcp). Falls back to the request domain when empty.',
+        format: String,
+        default: '',
+        env: 'MCP_SERVER_URL',
+    },
+    mcpAllowedRedirectHosts: {
+        doc: 'Hostnames accepted as HTTPS OAuth redirect targets for MCP clients (e.g. vscode.dev, claude.ai). Native-app loopback (127.0.0.1/localhost) is always allowed regardless of this list.',
+        format: Array,
+        default: ['vscode.dev', 'claude.ai'],
+        env: 'MCP_ALLOWED_REDIRECT_HOSTS',
+    },
     webhookQueueUrl: {
         doc: 'SQS queue URL for async webhook event processing',
         format: String,
@@ -208,6 +240,28 @@ export const loadConfig = async (): Promise<void> => {
         config.load(secretValues);
     }
     config.validate({allowed: 'warn'});
+    // Presence check runs only when config was loaded from Secrets Manager (real deploy / local
+    // with a secret ARN). convict's validate() only checks types, not presence.
+    if (secretArn) {
+        assertCriticalConfig();
+    }
+};
+
+/**
+ * Fail closed on missing security-critical values. An empty HMAC secret makes OAuth state
+ * forgeable, and empty Cognito client ids would disable client_id validation in the MCP token
+ * verifier (accepting any pool token) — both would otherwise pass validate() silently.
+ */
+const assertCriticalConfig = (): void => {
+    const missing: string[] = [];
+    if (!config.get('stateSecret')) missing.push('stateSecret');
+    if (!config.get('wsTokenSecret')) missing.push('wsTokenSecret');
+    const {clientId, clientSecret, mcpClientId} = config.get('cognito');
+    if (!clientSecret) missing.push('cognito.clientSecret');
+    if (!clientId && !mcpClientId) missing.push('cognito.clientId or cognito.mcpClientId');
+    if (missing.length > 0) {
+        throw new Error(`Missing required configuration: ${missing.join(', ')}`);
+    }
 };
 
 export default config;

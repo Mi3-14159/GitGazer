@@ -14,6 +14,7 @@ GitGazer is a monitoring and notification system for GitHub workflows, built on 
 - **Smart Notifications** — configure Slack alert rules with filters for repositories, branches, workflows, and topics
 - **GitHub Integration** — connect via the GitHub App (recommended) or manual webhooks
 - **Role-based Access** — owner, admin, member, and viewer roles per integration
+- **AI Assistant Access (MCP)** — query your workflow data from VS Code, Claude, or any MCP client through a read-only, OAuth-secured Model Context Protocol server
 - **Serverless Architecture** — AWS Lambda, API Gateway, Aurora PostgreSQL, SQS, and CloudFront
 
 ## Documentation
@@ -27,12 +28,14 @@ Full documentation is available at **<https://docs.gitgazer.com/>** (source in `
 - [Monitoring Workflows](https://docs.gitgazer.com/user-guide/workflows) — dashboard, filtering, saved views
 - [Configuring Notifications](https://docs.gitgazer.com/user-guide/notifications) — Slack alert rules
 - [Managing Team Members](https://docs.gitgazer.com/user-guide/team-management) — roles, invitations, org sync
+- [Querying Data with AI Assistants](https://docs.gitgazer.com/user-guide/ai-assistants) — connect VS Code or Claude via MCP to query your data
 
 ### Technical Documentation
 
 - [Architecture Overview](https://docs.gitgazer.com/technical/architecture-overview) — system design and technology choices
 - [Authentication & Authorization](https://docs.gitgazer.com/technical/authentication) — OAuth flow, RBAC, middleware chain
 - [Webhook Pipeline](https://docs.gitgazer.com/technical/webhook-pipeline) — ingress, SQS processing, event handling
+- [MCP Server](https://docs.gitgazer.com/technical/mcp-server) — read-only SQL access for AI assistants over OAuth 2.1, with tenant isolation
 - [Local Development Guide](https://docs.gitgazer.com/technical/local-development) — dev setup, environment config, database access
 
 ### CI/CD

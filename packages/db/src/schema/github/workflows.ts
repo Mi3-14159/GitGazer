@@ -2,7 +2,7 @@ import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {GITHUB_ORG_ROLES, MEMBER_ASSIGNMENT_SOURCES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
 import {users} from '../gitgazer';
-import {analystTenantSeparationPolicy, githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
+import {githubSchema, mcpTenantSeparationPolicy, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
 export const integrations = githubSchema
     .table(
@@ -17,7 +17,7 @@ export const integrations = githubSchema
             orgSyncDefaultRole: varchar('org_sync_default_role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull().default('viewer'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
-        () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
+        () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy(), mcpTenantSeparationPolicy()],
     )
     .enableRLS();
 
@@ -75,7 +75,7 @@ export const enterprises = githubSchema
             primaryKey({columns: [table.integrationId, table.id]}),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -102,7 +102,7 @@ export const organizations = githubSchema
             }).onDelete('set null'),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -142,7 +142,7 @@ export const repositories = githubSchema
             }).onDelete('set null'),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
             foreignKey({
                 columns: [table.integrationId, table.ownerId],
                 foreignColumns: [user.integrationId, user.id],
@@ -178,7 +178,7 @@ export const user = githubSchema
             primaryKey({columns: [table.integrationId, table.id]}),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -221,7 +221,7 @@ export const workflowJobs = githubSchema
             primaryKey({columns: [table.integrationId, table.id]}),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
             foreignKey({
                 columns: [table.integrationId, table.repositoryId],
                 foreignColumns: [repositories.integrationId, repositories.id],
@@ -298,7 +298,7 @@ export const workflowRuns = githubSchema
             }).onDelete('set null'),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
             index('workflow_runs_created_id').on(table.integrationId, table.createdAt, table.id),
             index('workflow_runs_recovery_lookup').on(table.integrationId, table.workflowId, table.headBranch, table.conclusion, table.createdAt),
         ],
@@ -357,7 +357,7 @@ export const pullRequests = githubSchema
             }),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
             index('pull_requests_merged_at').on(table.integrationId, table.mergedAt),
             index('pull_requests_closed_at').on(table.integrationId, table.closedAt),
             index('pull_requests_created_at').on(table.integrationId, table.createdAt),
@@ -399,7 +399,6 @@ export const pullRequestReviews = githubSchema
             index('pull_request_reviews_repo_submitted').on(table.integrationId, table.repositoryId, table.submittedAt),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
         ],
     )
     .enableRLS();
@@ -450,7 +449,7 @@ export const workflowRunPullRequests = githubSchema
             }).onDelete('cascade'),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            analystTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
             // no foreign key to pull requests, because pull request events are optional
         ],
     )

@@ -7,16 +7,12 @@
 //  - integrationId uuid → references integrations.integrationId, onDelete: 'cascade'
 //  - composite primary key with integrationId FIRST
 //  - writer + reader tenant-separation policies + .enableRLS() are MANDATORY for tenant data
-//  - analyst policy ONLY if the analytics/Bedrock layer must read this table
+//  - mcp policy ONLY if the MCP server should expose this table for read-only SQL
 
-import { relations } from 'drizzle-orm';
-import { bigint, index, primaryKey, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import {
-    githubSchema,
-    readerTenantSeparationPolicy,
-    writerTenantSeparationPolicy,
-} from './misc';
-import { integrations } from './workflows';
+import {relations} from 'drizzle-orm';
+import {bigint, index, primaryKey, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
+import {githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
+import {integrations} from './workflows';
 
 export const myEntities = githubSchema
     .table(
@@ -33,7 +29,7 @@ export const myEntities = githubSchema
             primaryKey({columns: [table.integrationId, table.id]}),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
-            // analystTenantSeparationPolicy(),
+            // mcpTenantSeparationPolicy(),
             index('my_entities_name_idx').on(table.integrationId, table.name),
         ],
     )

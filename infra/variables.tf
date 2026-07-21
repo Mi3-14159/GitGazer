@@ -24,6 +24,27 @@ variable "auth_relay_throttling" {
   default     = {}
 }
 
+variable "mcp_throttling" {
+  type = object({
+    rate_limit  = optional(number, 20)
+    burst_limit = optional(number, 40)
+  })
+  description = "Edge throttling for the public MCP endpoint (POST /api/mcp). rate_limit = steady-state requests/sec; burst_limit = max concurrent requests. A coarse safety net on top of the per-user query quota enforced in the Lambda."
+  default     = {}
+}
+
+variable "mcp_callback_urls" {
+  type        = list(string)
+  description = "Extra OAuth callback URLs registered directly on the MCP Cognito client, in addition to the proxy's own /api/mcp/oauth/callback. WARNING: entries here are fully-trusted redirect targets Cognito sends the auth code to directly, bypassing the proxy's mcpAllowedRedirectHosts allowlist — normally leave empty."
+  default     = []
+}
+
+variable "mcp_allowed_redirect_hosts" {
+  type        = list(string)
+  description = "Hostnames the MCP OAuth proxy accepts as HTTPS redirect (callback) targets, beyond native-app loopback (127.0.0.1/localhost, always allowed). Defaults cover VS Code (vscode.dev) and Claude Desktop / claude.ai connectors."
+  default     = ["vscode.dev", "claude.ai"]
+}
+
 variable "custom_domain_config" {
   type = object({
     hosted_zone_id  = string

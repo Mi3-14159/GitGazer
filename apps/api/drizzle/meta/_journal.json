@@ -372,6 +372,41 @@
       "when": 1781463833812,
       "tag": "0052_secret_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1784620913972,
+      "tag": "0053_new_mcp_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1784620930222,
+      "tag": "0054_new_mcp_role_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1784660906374,
+      "tag": "0055_clean_freak",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1784666476259,
+      "tag": "0056_tough_black_bolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1784669986812,
+      "tag": "0057_regular_night_nurse",
+      "breakpoints": true
     }
   ]
 }

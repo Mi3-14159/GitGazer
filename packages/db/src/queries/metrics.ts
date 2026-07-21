@@ -139,9 +139,7 @@ function buildCteGroupBy(
             : sql`CROSS JOIN LATERAL (SELECT value AS topic FROM jsonb_array_elements_text(${repoAlias}.topics)) AS t`
         : sql``;
 
-    const integrationJoin = isIntegrationGroup
-        ? sql`JOIN ${integrations} i ON i.integration_id = ${integrationSource}.integration_id`
-        : sql``;
+    const integrationJoin = isIntegrationGroup ? sql`JOIN ${integrations} i ON i.integration_id = ${integrationSource}.integration_id` : sql``;
 
     const groupSelect = isTopicGroup
         ? sql`t.topic as group_key, t.topic as group_label`

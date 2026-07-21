@@ -20,7 +20,7 @@ Add or change database schema safely. GitGazer uses Drizzle ORM against Aurora P
 - **Migrations are generated from the schema**, never hand-written for ordinary DDL. Output goes to [apps/api/drizzle/](../../../apps/api/drizzle/).
 - **RLS is defined in the Drizzle schema**, not in raw SQL. drizzle-kit generates the `ENABLE ROW LEVEL SECURITY` + `CREATE POLICY` statements from the schema helpers. See the policy helpers in [packages/db/src/schema/github/misc.ts](../../../packages/db/src/schema/github/misc.ts).
 - **Grants auto-apply.** `ALTER DEFAULT PRIVILEGES` was set once (migrations `0002`, `0024`, `0026`), so a new table in an existing schema **inherits grants automatically** — do NOT add manual GRANT statements for new tables.
-- **Roles**: `gitgazer_writer` (read/write), `gitgazer_reader` (read-only, the default), `gitgazer_analyst` (read-only, analytics/Bedrock). The RLS transaction sets the role per request — see `withRlsTransaction` in [packages/db/src/client.ts](../../../packages/db/src/client.ts).
+- **Roles**: `gitgazer_writer` (read/write), `gitgazer_reader` (read-only, the default), `gitgazer_mcp` (read-only, the MCP server's SQL surface). The RLS transaction sets the role per request — see `withRlsTransaction` in [packages/db/src/client.ts](../../../packages/db/src/client.ts).
 
 ## The Tenant-Separation Rule (most important)
 
@@ -31,7 +31,7 @@ Any table holding tenant data **must**:
 3. Attach the policy helpers and call `.enableRLS()`:
     - `writerTenantSeparationPolicy()` — always
     - `readerTenantSeparationPolicy()` — always
-    - `analystTenantSeparationPolicy()` — **only** if the analytics/Bedrock layer must read it (e.g. enterprises, organizations, repositories)
+    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories)
 
 Use the bundled template: [assets/tenant-table.template.ts](./assets/tenant-table.template.ts).
 
@@ -81,7 +81,7 @@ Then edit the new file under `apps/api/drizzle/`. Separate statements with `--> 
 
 - [ ] Tenant table has `integrationId` FK (`onDelete: 'cascade'`) + composite PK with `integrationId` first
 - [ ] `writerTenantSeparationPolicy()` + `readerTenantSeparationPolicy()` attached and `.enableRLS()` called
-- [ ] `analystTenantSeparationPolicy()` added only if analytics needs read access
+- [ ] `mcpTenantSeparationPolicy()` added only if the MCP server should expose the table
 - [ ] `relations()` defined if the table is queried with `.with`
 - [ ] Generated SQL reviewed; no manual GRANTs for new tables
 - [ ] Indexes are prefixed with `integrationId` for tenant-scoped lookups

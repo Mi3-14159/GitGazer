@@ -215,11 +215,11 @@ domains/webhooks/
 
 Choose the correct role for the operation:
 
-| Role      | Use When                     |
-| --------- | ---------------------------- |
-| `reader`  | Read-only queries (default)  |
-| `writer`  | Inserts, updates, deletes    |
-| `analyst` | Custom SQL / metrics queries |
+| Role     | Use When                    |
+| -------- | --------------------------- |
+| `reader` | Read-only queries (default) |
+| `writer` | Inserts, updates, deletes   |
+| `mcp`    | MCP server read-only SQL    |
 
 ```typescript
 // Read
