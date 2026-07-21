@@ -1,5 +1,5 @@
 import {relations, sql} from 'drizzle-orm';
-import {bigint, boolean, index, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
+import {bigint, boolean, index, integer, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,
@@ -23,6 +23,20 @@ export const users = gitgazerSchema.table('users', {
     githubId: bigint('github_id', {mode: 'number'}).unique(),
     githubLogin: varchar('github_login', {length: 255}),
 });
+
+// Per-user MCP query-quota counter (fixed window). Global (no tenant RLS) like `users`;
+// written by the app connection role, never by gitgazer_mcp.
+export const mcpQueryUsage = gitgazerSchema.table(
+    'mcp_query_usage',
+    {
+        userId: bigint('user_id', {mode: 'number'})
+            .notNull()
+            .references(() => users.id, {onDelete: 'cascade'}),
+        windowStart: timestamp('window_start', {withTimezone: true}).notNull(),
+        count: integer('count').notNull().default(0),
+    },
+    (table) => [primaryKey({columns: [table.userId, table.windowStart]})],
+);
 
 export const wsConnections = gitgazerSchema.table(
     'ws_connections',

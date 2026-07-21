@@ -144,6 +144,20 @@ const config = convict({
         env: 'STATE_SECRET',
         sensitive: true,
     },
+    mcpQuota: {
+        maxPerWindow: {
+            doc: 'Maximum MCP run_sql queries a user may run per quota window',
+            format: Number,
+            default: 100,
+            env: 'MCP_QUERY_QUOTA_MAX',
+        },
+        windowSeconds: {
+            doc: 'MCP query quota window length, in seconds',
+            format: Number,
+            default: 3600,
+            env: 'MCP_QUERY_QUOTA_WINDOW_SECONDS',
+        },
+    },
     webhookQueueUrl: {
         doc: 'SQS queue URL for async webhook event processing',
         format: String,

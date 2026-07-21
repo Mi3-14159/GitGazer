@@ -37,7 +37,7 @@ router.post('/api/mcp', async (reqCtx: AppRequestContext) => {
         });
     }
 
-    const response = await handleMcpRequest(rpc, caller.integrationIds);
+    const response = await handleMcpRequest(rpc, caller);
     // Notifications produce no response body.
     if (response === null) {
         return new Response(null, {status: HttpStatusCodes.ACCEPTED});

@@ -1,3 +1,4 @@
+import {type McpCaller} from '@/domains/mcp/mcp.controller';
 import {MCP_TOOLS, runToolCall} from '@/domains/mcp/mcp.tools';
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -16,7 +17,7 @@ const fail = (id: JsonRpcId, code: number, message: string): JsonRpcResponse => 
  *
  * Read-only server: only `initialize`, `ping`, `tools/list` and `tools/call` are supported.
  */
-export const handleMcpRequest = async (req: JsonRpcRequest, integrationIds: string[]): Promise<JsonRpcResponse | null> => {
+export const handleMcpRequest = async (req: JsonRpcRequest, caller: McpCaller): Promise<JsonRpcResponse | null> => {
     const isNotification = req.id === undefined;
     const id: JsonRpcId = req.id ?? null;
     const method = req.method;
@@ -38,7 +39,7 @@ export const handleMcpRequest = async (req: JsonRpcRequest, integrationIds: stri
             const args = (params.arguments as Record<string, unknown> | undefined) ?? {};
             if (typeof name !== 'string') return fail(id, -32602, 'Invalid params: tool name is required');
             try {
-                return ok(id, await runToolCall(name, args, integrationIds));
+                return ok(id, await runToolCall(name, args, caller));
             } catch (error) {
                 // Tool failures are reported in-band (MCP convention), not as JSON-RPC errors.
                 const message = error instanceof Error ? error.message : 'Tool execution failed';

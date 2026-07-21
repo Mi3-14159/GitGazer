@@ -1,3 +1,5 @@
+import type {McpCaller} from '@/domains/mcp/mcp.controller';
+import {enforceQuota, QuotaExceededError} from '@/domains/mcp/mcp.quota';
 import {runReadOnlyQuery, type ReadOnlyQueryResult} from '@gitgazer/db/queries';
 
 /** MCP tool-call result shape (a single text block holding the JSON payload). */
@@ -61,14 +63,21 @@ const toResult = (result: ReadOnlyQueryResult): McpToolResult => ({content: [{ty
 
 /** Dispatch a tool call. Every tool runs through `runReadOnlyQuery`, so the gitgazer_mcp
  * role GRANTs + RLS are the single enforcement point. */
-export const runToolCall = async (name: string, args: Record<string, unknown>, integrationIds: string[]): Promise<McpToolResult> => {
+export const runToolCall = async (name: string, args: Record<string, unknown>, caller: McpCaller): Promise<McpToolResult> => {
+    const {integrationIds} = caller;
     switch (name) {
         case 'run_sql': {
             const sql = args.sql;
             if (typeof sql !== 'string' || !sql.trim()) {
                 throw new McpToolError("'sql' must be a non-empty string");
             }
-            return toResult(await runReadOnlyQuery({sql, integrationIds}));
+            // Per-user quota: counted + enforced before the (potentially expensive) query runs.
+            const budget = await enforceQuota(caller.userId).catch((error: unknown) => {
+                if (error instanceof QuotaExceededError) throw new McpToolError(error.message);
+                throw error;
+            });
+            const result = await runReadOnlyQuery({sql, integrationIds});
+            return {content: [{type: 'text', text: JSON.stringify({...result, budget})}]};
         }
         case 'list_tables':
             return toResult(
