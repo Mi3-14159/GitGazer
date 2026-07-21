@@ -400,6 +400,13 @@
       "when": 1784666476259,
       "tag": "0056_tough_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1784669986812,
+      "tag": "0057_regular_night_nurse",
+      "breakpoints": true
     }
   ]
 }
