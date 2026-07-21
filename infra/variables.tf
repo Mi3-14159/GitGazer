@@ -24,6 +24,15 @@ variable "auth_relay_throttling" {
   default     = {}
 }
 
+variable "mcp_throttling" {
+  type = object({
+    rate_limit  = optional(number, 20)
+    burst_limit = optional(number, 40)
+  })
+  description = "Edge throttling for the public MCP endpoint (POST /api/mcp). rate_limit = steady-state requests/sec; burst_limit = max concurrent requests. A coarse safety net on top of the per-user query quota enforced in the Lambda."
+  default     = {}
+}
+
 variable "custom_domain_config" {
   type = object({
     hosted_zone_id  = string

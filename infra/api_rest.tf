@@ -109,6 +109,9 @@ locals {
     "event-log/mark-all-read" = {
       methods = ["POST"]
     },
+    "mcp" = {
+      methods = ["POST"]
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations
@@ -180,6 +183,14 @@ resource "aws_apigatewayv2_stage" "this" {
     route_key              = "GET /api/auth/cognito/user"
     throttling_rate_limit  = var.auth_relay_throttling.rate_limit
     throttling_burst_limit = var.auth_relay_throttling.burst_limit
+  }
+
+  # The MCP endpoint is publicly reachable (bearer auth happens in the Lambda) and can run
+  # arbitrary read-only SQL, so it is throttled at the edge on top of the per-user quota.
+  route_settings {
+    route_key              = "POST /api/mcp"
+    throttling_rate_limit  = var.mcp_throttling.rate_limit
+    throttling_burst_limit = var.mcp_throttling.burst_limit
   }
 
   dynamic "access_log_settings" {
@@ -267,5 +278,13 @@ resource "aws_apigatewayv2_route" "import_integration" {
 resource "aws_apigatewayv2_route" "fe_failover" {
   api_id    = aws_apigatewayv2_api.this.id
   route_key = "GET /${local.frontend_failover_sub_path}/{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+# OAuth 2.0 Protected Resource Metadata (RFC 9728) for MCP client discovery. Lives outside
+# the /api/* prefix, so it needs an explicit route (like import_integration / fe_failover).
+resource "aws_apigatewayv2_route" "mcp_oauth_metadata" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "GET /.well-known/oauth-protected-resource"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
