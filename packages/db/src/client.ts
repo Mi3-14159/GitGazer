@@ -114,11 +114,16 @@ export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
     userName?: string;
     lockTimeoutS?: number;
+    statementTimeoutS?: number;
+    readOnly?: boolean;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
-    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5} = params;
+    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5, statementTimeoutS, readOnly = false} = params;
     if (!Number.isInteger(lockTimeoutS) || lockTimeoutS <= 0) {
         throw new Error('lockTimeoutS must be a positive integer');
+    }
+    if (statementTimeoutS !== undefined && (!Number.isInteger(statementTimeoutS) || statementTimeoutS <= 0)) {
+        throw new Error('statementTimeoutS must be a positive integer');
     }
 
     // Validate integration IDs to prevent SQL injection via the raw SET LOCAL
@@ -129,9 +134,16 @@ export const withRlsTransaction = async <T>(params: {
     }
 
     return await db.transaction(async (tx) => {
+        // Must be declared before the transaction's first query.
+        if (readOnly) {
+            await tx.execute(sql.raw('SET TRANSACTION READ ONLY;'));
+        }
         await tx.execute(sql`SET LOCAL ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
         await tx.execute(sql.raw(`SET LOCAL lock_timeout = '${lockTimeoutS}s';`));
+        if (statementTimeoutS !== undefined) {
+            await tx.execute(sql.raw(`SET LOCAL statement_timeout = '${statementTimeoutS}s';`));
+        }
 
         return await callback(tx);
     });
