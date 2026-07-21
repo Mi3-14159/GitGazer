@@ -372,6 +372,20 @@
       "when": 1781463833812,
       "tag": "0052_secret_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1784620913972,
+      "tag": "0053_new_mcp_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1784620930222,
+      "tag": "0054_new_mcp_role_grants",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import {sql} from 'drizzle-orm';
 import {withRlsTransaction} from '../client';
-import {gitgazerAnalyst} from '../schema';
+import {gitgazerMcp} from '../schema';
 
 export const DEFAULT_ROW_CAP = 1000;
 export const DEFAULT_STATEMENT_TIMEOUT_S = 10;
@@ -24,7 +24,7 @@ export class ReadOnlyQueryError extends Error {
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
 // Defense-in-depth: session-mutating / host-reading functions callable inside a SELECT.
-// The real boundary is the analyst role's GRANTs + the `set_config` REVOKE (Phase C).
+// The real boundary is the MCP role's GRANTs + the `set_config` REVOKE (Phase C).
 const BLOCKED_TOKENS =
     /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
 
@@ -60,7 +60,7 @@ export function assertReadOnlySelect(rawSql: string): string {
  *  2. Subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — structurally forbids
  *     statement stacking / non-SELECT statements and caps the row count.
  *  3. `SET TRANSACTION READ ONLY` — no writes.
- *  4. `SET LOCAL ROLE gitgazer_analyst` — GRANTs restrict which tables/columns are visible.
+ *  4. `SET LOCAL ROLE gitgazer_mcp` — GRANTs restrict which tables/columns are visible.
  *  5. `SET LOCAL rls.integration_ids` — RLS restricts rows to the caller's tenants.
  *  6. `statement_timeout` — bounds execution time.
  */
@@ -79,7 +79,7 @@ export async function runReadOnlyQuery(params: {
 
     return withRlsTransaction({
         integrationIds: params.integrationIds,
-        userName: gitgazerAnalyst.name,
+        userName: gitgazerMcp.name,
         readOnly: true,
         statementTimeoutS,
         callback: async (tx) => {

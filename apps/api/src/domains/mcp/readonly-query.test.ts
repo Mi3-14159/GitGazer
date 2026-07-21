@@ -69,7 +69,7 @@ describe('runReadOnlyQuery', () => {
         mockRun([{a: 1}], [{name: 'a'}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationIds: [INTEGRATION_ID], statementTimeoutS: 7});
 
-        expect(capture.params?.userName).toBe('gitgazer_analyst');
+        expect(capture.params?.userName).toBe('gitgazer_mcp');
         expect(capture.params?.readOnly).toBe(true);
         expect(capture.params?.statementTimeoutS).toBe(7);
         expect(capture.params?.integrationIds).toEqual([INTEGRATION_ID]);

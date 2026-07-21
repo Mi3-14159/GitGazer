@@ -1,6 +1,6 @@
 import {sql} from 'drizzle-orm';
 import {pgPolicy, pgSchema} from 'drizzle-orm/pg-core';
-import {gitgazerAnalyst, gitgazerReader, gitgazerWriter} from '../app';
+import {gitgazerAnalyst, gitgazerMcp, gitgazerReader, gitgazerWriter} from '../app';
 
 export const githubSchema = pgSchema('github');
 
@@ -26,6 +26,14 @@ export const analystTenantSeparationPolicy = () =>
     pgPolicy('tenant separation analyst', {
         as: 'permissive',
         to: gitgazerAnalyst,
+        for: 'select',
+        using,
+    });
+
+export const mcpTenantSeparationPolicy = () =>
+    pgPolicy('tenant separation mcp', {
+        as: 'permissive',
+        to: gitgazerMcp,
         for: 'select',
         using,
     });
