@@ -1,7 +1,7 @@
 import {type McpCaller} from '@/domains/mcp/mcp.controller';
 import {MCP_TOOLS, runToolCall} from '@/domains/mcp/mcp.tools';
 
-const PROTOCOL_VERSION = '2025-06-18';
+const PROTOCOL_VERSION = '2025-11-25';
 const SERVER_INFO = {name: 'gitgazer-mcp', version: '1.0.0'} as const;
 
 export type JsonRpcId = string | number | null;

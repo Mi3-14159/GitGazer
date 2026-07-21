@@ -18,7 +18,7 @@ For the end-user walkthrough (how to connect a client), see [Querying Data with 
 | ---------------- | ------------------------------------------------------- |
 | Endpoint         | `POST https://<your-gitgazer-domain>/api/mcp`           |
 | Transport        | Streamable HTTP (JSON responses, stateless)             |
-| Protocol version | `2025-06-18`                                            |
+| Protocol version | `2025-11-25`                                            |
 | Auth             | OAuth 2.1 Bearer access token (`Authorization: Bearer`) |
 
 `<your-gitgazer-domain>` is the same host as the GitGazer web app (the CloudFront/custom domain).
