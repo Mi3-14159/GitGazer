@@ -23,15 +23,29 @@ export class ReadOnlyQueryError extends Error {
 // Leading whitespace/comments — stripped only to inspect the first keyword.
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
-// Defense-in-depth: session-mutating / host-reading functions callable inside a SELECT.
-// The real boundary is the MCP role's GRANTs + the `set_config` REVOKE (Phase C).
+// Blocklist of session-mutating / host-reading / cross-tenant-leaking functions and views
+// callable from inside a SELECT. This is the AUTHORITATIVE barrier against the
+// `set_config('rls.integration_ids', …)` RLS bypass: overwriting that GUC mid-query would
+// return another tenant's rows. (Migration 0056 also attempts a DB-level REVOKE of set_config,
+// but managed Postgres may not permit revoking a pg_catalog grant, so this guard must stand on
+// its own.) `pg_stat_activity` is blocked because every MCP request shares the gitgazer_mcp
+// role, so it would otherwise expose other tenants' in-flight query text and integration UUIDs.
 const BLOCKED_TOKENS =
-    /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
+    /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|pg_stat_activity|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
+
+// SQL-standard Unicode-escape introducer (`U&'…'` / `U&"…"`). It lets an identifier or string be
+// spelled with `\XXXX` character escapes — e.g. `U&"\0073et_config"` resolves to the identifier
+// `set_config` at parse time while the raw text never contains the literal token, defeating
+// BLOCKED_TOKENS. Legitimate analytics queries never need it, so it is rejected outright.
+const UNICODE_ESCAPE = /u&['"]/i;
 
 /**
  * Validate that a string is a single read-only SELECT/WITH query and return it with any
- * trailing semicolons removed. Throws `ReadOnlyQueryError` otherwise. This is a lightweight
- * guard; the hard guarantees come from the execution layer in `runReadOnlyQuery`.
+ * trailing semicolons removed. Throws `ReadOnlyQueryError` otherwise.
+ *
+ * Together with the subquery-wrapping in `runReadOnlyQuery` (which structurally forbids
+ * statement stacking) this keeps a caller from smuggling in a `set_config` call to overwrite
+ * the `rls.integration_ids` GUC and read another tenant's rows.
  */
 export function assertReadOnlySelect(rawSql: string): string {
     const trimmed = rawSql
@@ -44,6 +58,9 @@ export function assertReadOnlySelect(rawSql: string): string {
     const firstKeyword = trimmed.replace(LEADING_NOISE, '');
     if (!/^(?:select|with)\b/i.test(firstKeyword)) {
         throw new ReadOnlyQueryError('Only read-only SELECT/WITH queries are allowed');
+    }
+    if (UNICODE_ESCAPE.test(trimmed)) {
+        throw new ReadOnlyQueryError('Query uses unsupported Unicode-escape syntax');
     }
     if (BLOCKED_TOKENS.test(trimmed)) {
         throw new ReadOnlyQueryError('Query references a blocked function');

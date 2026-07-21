@@ -37,3 +37,23 @@ export const getVerifiers = (): TokenVerifiers => {
 
 /** Verify a Cognito access token (used by the MCP server's bearer auth). */
 export const verifyAccessToken = (token: string) => getVerifiers().accessTokenVerifier.verify(token);
+
+let mcpAccessVerifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
+
+/**
+ * Access-token verifier for the MCP server. Accepts tokens from either the web app client
+ * or the dedicated public MCP client, so both an OAuth-obtained MCP token and a user's
+ * existing web access token are valid bearer credentials.
+ */
+export const getMcpAccessVerifier = (): ReturnType<typeof CognitoJwtVerifier.create> => {
+    if (!mcpAccessVerifier) {
+        const {userPoolId, clientId, mcpClientId} = config.get('cognito');
+        const clientIds = [clientId, mcpClientId].filter(Boolean);
+        mcpAccessVerifier = CognitoJwtVerifier.create({
+            userPoolId,
+            clientId: clientIds.length > 0 ? clientIds : null,
+            tokenUse: 'access',
+        });
+    }
+    return mcpAccessVerifier;
+};

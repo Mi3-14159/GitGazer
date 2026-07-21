@@ -112,6 +112,18 @@ locals {
     "mcp" = {
       methods = ["POST"]
     },
+    "mcp/oauth/register" = {
+      methods = ["POST"]
+    },
+    "mcp/oauth/authorize" = {
+      methods = ["GET"]
+    },
+    "mcp/oauth/callback" = {
+      methods = ["GET"]
+    },
+    "mcp/oauth/token" = {
+      methods = ["POST"]
+    },
   }
 
   # Flatten the structure to create a map of resource-method combinations
@@ -286,5 +298,13 @@ resource "aws_apigatewayv2_route" "fe_failover" {
 resource "aws_apigatewayv2_route" "mcp_oauth_metadata" {
   api_id    = aws_apigatewayv2_api.this.id
   route_key = "GET /.well-known/oauth-protected-resource"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+# OAuth 2.0 Authorization Server Metadata (RFC 8414) advertised by the MCP OAuth proxy. Also
+# lives outside /api/*, so it needs its own explicit route.
+resource "aws_apigatewayv2_route" "mcp_oauth_as_metadata" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "GET /.well-known/oauth-authorization-server"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

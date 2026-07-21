@@ -393,6 +393,13 @@
       "when": 1784660906374,
       "tag": "0055_clean_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1784666476259,
+      "tag": "0056_tough_black_bolt",
+      "breakpoints": true
     }
   ]
 }

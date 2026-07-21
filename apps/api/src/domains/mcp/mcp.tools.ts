@@ -82,7 +82,7 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
         case 'list_tables':
             return toResult(
                 await runReadOnlyQuery({
-                    sql: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('github', 'gitgazer') ORDER BY table_schema, table_name",
+                    sql: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'github' ORDER BY table_name",
                     integrationIds,
                 }),
             );
@@ -93,7 +93,7 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             }
             return toResult(
                 await runReadOnlyQuery({
-                    sql: `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
+                    sql: `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'github' AND table_name = '${table}' ORDER BY ordinal_position`,
                     integrationIds,
                 }),
             );

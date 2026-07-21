@@ -55,6 +55,7 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       userPoolId   = aws_cognito_user_pool.this.id
       clientId     = aws_cognito_user_pool_client.this.id
       clientSecret = aws_cognito_user_pool_client.this.client_secret
+      mcpClientId  = aws_cognito_user_pool_client.mcp.id
       domain       = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
       redirectUri  = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
     }
@@ -62,8 +63,10 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       apiDomainName = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
       apiStage      = aws_apigatewayv2_stage.websocket_ws.name
     }
-    uiBucketName  = module.ui_bucket.s3_bucket_id
-    importUrlBase = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
+    uiBucketName            = module.ui_bucket.s3_bucket_id
+    importUrlBase           = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
+    mcpServerUrl            = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/mcp"
+    mcpAllowedRedirectHosts = var.mcp_allowed_redirect_hosts
     githubApp = {
       id            = var.gh_app.id
       privateKey    = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]

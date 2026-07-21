@@ -3,11 +3,13 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 const {verify} = vi.hoisted(() => ({verify: vi.fn()}));
 
 vi.mock('@/shared/middleware/token-verifier', () => ({
-    getVerifiers: () => ({accessTokenVerifier: {verify}, idTokenVerifier: {verify: vi.fn()}}),
+    getMcpAccessVerifier: () => ({verify}),
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
 vi.mock('@gitgazer/db/client', () => ({db: {select: vi.fn()}}));
-vi.mock('@/shared/config', () => ({default: {get: vi.fn(() => ({userPoolId: 'eu-central-1_ABC123'}))}}));
+vi.mock('@/shared/config', () => ({
+    default: {get: vi.fn((key: string) => (key === 'mcpServerUrl' ? 'https://app.gitgazer.com/api/mcp' : {userPoolId: 'eu-central-1_ABC123'}))},
+}));
 
 let ctrl: typeof import('@/domains/mcp/mcp.controller');
 let integrations: typeof import('@/domains/integrations/integrations.controller');
@@ -61,11 +63,13 @@ describe('buildProtectedResourceMetadata', () => {
         ctrl = await import('@/domains/mcp/mcp.controller');
     });
 
-    it('advertises the mcp resource and the Cognito issuer', () => {
+    it('advertises the configured mcp resource, our authorization-server origin, and bearer/scope hints', () => {
         const meta = ctrl.buildProtectedResourceMetadata({requestContext: {domainName: 'api.example.com'}} as never);
         expect(meta).toEqual({
-            resource: 'https://api.example.com/api/mcp',
-            authorization_servers: ['https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_ABC123'],
+            resource: 'https://app.gitgazer.com/api/mcp',
+            authorization_servers: ['https://app.gitgazer.com'],
+            bearer_methods_supported: ['header'],
+            scopes_supported: ['openid', 'email', 'profile'],
         });
     });
 });

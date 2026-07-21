@@ -49,6 +49,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_apigatewayv2_route.api_routes](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
 | [aws_apigatewayv2_route.fe_failover](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
 | [aws_apigatewayv2_route.import_integration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
+| [aws_apigatewayv2_route.mcp_oauth_as_metadata](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
 | [aws_apigatewayv2_route.mcp_oauth_metadata](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
 | [aws_apigatewayv2_route.websocket_connect](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
 | [aws_apigatewayv2_route.websocket_disconnect](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
@@ -101,6 +102,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_cognito_identity_pool_roles_attachment.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_identity_pool_roles_attachment) | resource |
 | [aws_cognito_identity_provider.github](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_identity_provider) | resource |
 | [aws_cognito_user_pool.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool) | resource |
+| [aws_cognito_user_pool_client.mcp](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_client) | resource |
 | [aws_cognito_user_pool_client.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_client) | resource |
 | [aws_cognito_user_pool_domain.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_domain) | resource |
 | [aws_iam_instance_profile.bastion](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile) | resource |
@@ -255,6 +257,8 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | <a name="input_gh_oauth_app_client_id_encrypted"></a> [gh\_oauth\_app\_client\_id\_encrypted](#input\_gh\_oauth\_app\_client\_id\_encrypted) | GitHub OAuth app client id, encrypted with KMS | `string` | n/a | yes |
 | <a name="input_gh_oauth_app_client_secret_encrypted"></a> [gh\_oauth\_app\_client\_secret\_encrypted](#input\_gh\_oauth\_app\_client\_secret\_encrypted) | GitHub OAuth app client secret, encrypted with KMS | `string` | n/a | yes |
 | <a name="input_github_oauth_scopes"></a> [github\_oauth\_scopes](#input\_github\_oauth\_scopes) | List of additional GitHub OAuth scopes to request | `list(string)` | `[]` | no |
+| <a name="input_mcp_allowed_redirect_hosts"></a> [mcp\_allowed\_redirect\_hosts](#input\_mcp\_allowed\_redirect\_hosts) | Hostnames the MCP OAuth proxy accepts as HTTPS redirect (callback) targets, beyond native-app loopback (127.0.0.1/localhost, always allowed). Defaults cover VS Code (vscode.dev) and Claude Desktop / claude.ai connectors. | `list(string)` | <pre>[<br/>  "vscode.dev",<br/>  "claude.ai"<br/>]</pre> | no |
+| <a name="input_mcp_callback_urls"></a> [mcp\_callback\_urls](#input\_mcp\_callback\_urls) | Additional OAuth redirect (callback) URLs for the public MCP Cognito app client, beyond https://vscode.dev/redirect (e.g. other MCP clients' loopback URLs). | `list(string)` | `[]` | no |
 | <a name="input_mcp_throttling"></a> [mcp\_throttling](#input\_mcp\_throttling) | Edge throttling for the public MCP endpoint (POST /api/mcp). rate\_limit = steady-state requests/sec; burst\_limit = max concurrent requests. A coarse safety net on top of the per-user query quota enforced in the Lambda. | <pre>object({<br/>    rate_limit  = optional(number, 20)<br/>    burst_limit = optional(number, 40)<br/>  })</pre> | `{}` | no |
 | <a name="input_name_prefix"></a> [name\_prefix](#input\_name\_prefix) | Prefix to add to the name of the resources | `string` | `"gitgazer"` | no |
 | <a name="input_ses_config"></a> [ses\_config](#input\_ses\_config) | SES configuration for sending invitation emails. Domain defaults to custom\_domain\_config.domain\_name if not set. | <pre>object({<br/>    enabled     = bool<br/>    domain      = optional(string)<br/>    from_prefix = optional(string, "noreply")<br/>  })</pre> | <pre>{<br/>  "enabled": false<br/>}</pre> | no |

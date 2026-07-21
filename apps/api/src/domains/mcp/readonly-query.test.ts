@@ -48,9 +48,20 @@ describe('runReadOnlyQuery', () => {
             }
         });
 
-        it('rejects blocked functions (GUC tampering / host access)', () => {
+        it('rejects blocked functions (GUC tampering / host access / cross-tenant leak)', () => {
             expect(() => mod.assertReadOnlySelect("SELECT set_config('rls.integration_ids', 'other', false)")).toThrow(/blocked function/);
             expect(() => mod.assertReadOnlySelect('SELECT pg_sleep(10)')).toThrow(/blocked function/);
+            // pg_stat_activity leaks other tenants' in-flight query text + UUIDs under the shared mcp role.
+            expect(() => mod.assertReadOnlySelect('SELECT query FROM pg_stat_activity')).toThrow(/blocked function/);
+            // Quoting the identifier does NOT evade the blocklist (the word boundary still matches).
+            expect(() => mod.assertReadOnlySelect(`SELECT "set_config"('rls.integration_ids', 'other', true)`)).toThrow(/blocked function/);
+        });
+
+        it('rejects Unicode-escaped identifiers that smuggle a blocked function past the blocklist', () => {
+            // U&"\0073et_config" parses as the identifier `set_config`, but the raw text never
+            // contains the literal token, which the previous regex-only guard missed.
+            const escaped = `WITH x AS MATERIALIZED (SELECT U&"\\0073et_config"('rls.integration_ids', 'other', true)) SELECT * FROM workflow_runs`;
+            expect(() => mod.assertReadOnlySelect(escaped)).toThrow(/Unicode-escape/);
         });
     });
 
@@ -65,7 +76,7 @@ describe('runReadOnlyQuery', () => {
         });
     };
 
-    it('runs under the analyst role, read-only, with a statement timeout', async () => {
+    it('runs under the mcp role, read-only, with a statement timeout', async () => {
         mockRun([{a: 1}], [{name: 'a'}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationIds: [INTEGRATION_ID], statementTimeoutS: 7});
 

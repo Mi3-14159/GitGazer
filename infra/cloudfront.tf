@@ -156,6 +156,32 @@ resource "aws_cloudfront_distribution" "this" {
     response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
   }
 
+  # OAuth Protected Resource Metadata (RFC 9728) for MCP client discovery lives outside
+  # /api/*, so it needs its own behavior routing it to the API origin.
+  ordered_cache_behavior {
+    path_pattern               = "/.well-known/oauth-protected-resource"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id           = aws_apigatewayv2_api.this.id
+    viewer_protocol_policy     = "https-only"
+    cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
+  }
+
+  # OAuth Authorization Server Metadata (RFC 8414) advertised by the MCP OAuth proxy; also
+  # outside /api/*, so it needs its own behavior routing it to the API origin.
+  ordered_cache_behavior {
+    path_pattern               = "/.well-known/oauth-authorization-server"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id           = aws_apigatewayv2_api.this.id
+    viewer_protocol_policy     = "https-only"
+    cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
+  }
+
   default_cache_behavior {
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cached_methods             = ["GET", "HEAD", "OPTIONS"]

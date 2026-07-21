@@ -66,6 +66,12 @@ const config = convict({
             default: '',
             env: 'COGNITO_REDIRECT_URI',
         },
+        mcpClientId: {
+            doc: 'AWS Cognito App Client ID for the public MCP OAuth client (PKCE, no secret)',
+            format: String,
+            default: '',
+            env: 'COGNITO_MCP_CLIENT_ID',
+        },
     },
     websocket: {
         apiDomainName: {
@@ -157,6 +163,18 @@ const config = convict({
             default: 3600,
             env: 'MCP_QUERY_QUOTA_WINDOW_SECONDS',
         },
+    },
+    mcpServerUrl: {
+        doc: 'Public URL of the MCP endpoint, used in OAuth Protected Resource Metadata (e.g. https://app.gitgazer.com/api/mcp). Falls back to the request domain when empty.',
+        format: String,
+        default: '',
+        env: 'MCP_SERVER_URL',
+    },
+    mcpAllowedRedirectHosts: {
+        doc: 'Hostnames accepted as HTTPS OAuth redirect targets for MCP clients (e.g. vscode.dev, claude.ai). Native-app loopback (127.0.0.1/localhost) is always allowed regardless of this list.',
+        format: Array,
+        default: ['vscode.dev', 'claude.ai'],
+        env: 'MCP_ALLOWED_REDIRECT_HOSTS',
     },
     webhookQueueUrl: {
         doc: 'SQS queue URL for async webhook event processing',

@@ -66,6 +66,28 @@ resource "aws_cognito_user_pool_client" "this" {
   allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
 }
 
+# Public (PKCE, no secret) app client for MCP clients (VS Code, etc.) to obtain access tokens
+# via the OAuth 2.1 authorization-code flow. Separate from the confidential web client so it
+# can be a public client with the MCP clients' redirect URIs.
+resource "aws_cognito_user_pool_client" "mcp" {
+  name            = "mcp"
+  user_pool_id    = aws_cognito_user_pool.this.id
+  generate_secret = false
+
+  # Cognito only ever redirects back to the MCP OAuth proxy's callback; the proxy then relays
+  # the code to the real MCP client (loopback / vscode.dev). Keep this in sync with the
+  # `mcpServerUrl` origin in secrets.tf.
+  callback_urls = distinct(compact(concat(
+    ["https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/mcp/oauth/callback"],
+    var.mcp_callback_urls,
+  )))
+
+  supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_scopes                 = ["email", "openid", "profile"]
+}
+
 resource "aws_cognito_identity_pool" "this" {
   identity_pool_name               = "${var.name_prefix}-${terraform.workspace}"
   allow_unauthenticated_identities = false

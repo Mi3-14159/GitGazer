@@ -1,6 +1,6 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
 import config from '@/shared/config';
-import {getVerifiers} from '@/shared/middleware/token-verifier';
+import {getMcpAccessVerifier} from '@/shared/middleware/token-verifier';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
@@ -29,8 +29,7 @@ export const resolveMcpCaller = async (authorizationHeader: string | undefined):
 
     let sub: string;
     try {
-        const {accessTokenVerifier} = getVerifiers();
-        const payload = await accessTokenVerifier.verify(match[1]);
+        const payload = await getMcpAccessVerifier().verify(match[1]);
         sub = payload.sub;
     } catch {
         throw new McpAuthError('Invalid or expired access token');
@@ -43,18 +42,28 @@ export const resolveMcpCaller = async (authorizationHeader: string | undefined):
     return {userId: rows[0].id, integrationIds: Object.keys(roles)};
 };
 
-const baseUrl = (event: APIGatewayProxyEventV2): string => `https://${event.requestContext.domainName}`;
+// The public MCP URL is configured (the CloudFront/custom domain), because behind CloudFront
+// the API Gateway only sees its own execute-api host. Falls back to the request domain for
+// local dev where mcpServerUrl is unset.
+export const mcpServerUrl = (event: APIGatewayProxyEventV2): string =>
+    config.get('mcpServerUrl') || `https://${event.requestContext.domainName}/api/mcp`;
+
+/** Public origin of the MCP deployment (e.g. `https://app.gitgazer.com`). */
+export const mcpOrigin = (event: APIGatewayProxyEventV2): string => new URL(mcpServerUrl(event)).origin;
 
 /** URL advertised in the `WWW-Authenticate` challenge on a 401 (RFC 9728). */
-export const protectedResourceMetadataUrl = (event: APIGatewayProxyEventV2): string => `${baseUrl(event)}/.well-known/oauth-protected-resource`;
+export const protectedResourceMetadataUrl = (event: APIGatewayProxyEventV2): string => `${mcpOrigin(event)}/.well-known/oauth-protected-resource`;
 
-/** OAuth 2.0 Protected Resource Metadata (RFC 9728) pointing clients at the Cognito user pool. */
+/**
+ * OAuth 2.0 Protected Resource Metadata (RFC 9728). Points clients at OUR authorization-server
+ * facade (the OAuth proxy) rather than Cognito directly, so registration-based discovery works
+ * and MCP clients connect without manual client-ID prompts.
+ */
 export const buildProtectedResourceMetadata = (event: APIGatewayProxyEventV2): Record<string, unknown> => {
-    const {userPoolId} = config.get('cognito');
-    const region = userPoolId.split('_')[0] || '';
-    const issuer = region ? `https://cognito-idp.${region}.amazonaws.com/${userPoolId}` : '';
     return {
-        resource: `${baseUrl(event)}/api/mcp`,
-        authorization_servers: issuer ? [issuer] : [],
+        resource: mcpServerUrl(event),
+        authorization_servers: [mcpOrigin(event)],
+        bearer_methods_supported: ['header'],
+        scopes_supported: ['openid', 'email', 'profile'],
     };
 };

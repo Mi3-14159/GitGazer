@@ -33,6 +33,18 @@ variable "mcp_throttling" {
   default     = {}
 }
 
+variable "mcp_callback_urls" {
+  type        = list(string)
+  description = "Additional OAuth redirect (callback) URLs for the public MCP Cognito app client, beyond https://vscode.dev/redirect (e.g. other MCP clients' loopback URLs)."
+  default     = []
+}
+
+variable "mcp_allowed_redirect_hosts" {
+  type        = list(string)
+  description = "Hostnames the MCP OAuth proxy accepts as HTTPS redirect (callback) targets, beyond native-app loopback (127.0.0.1/localhost, always allowed). Defaults cover VS Code (vscode.dev) and Claude Desktop / claude.ai connectors."
+  default     = ["vscode.dev", "claude.ai"]
+}
+
 variable "custom_domain_config" {
   type = object({
     hosted_zone_id  = string
