@@ -23,14 +23,11 @@ export class ReadOnlyQueryError extends Error {
 // Leading whitespace/comments — stripped only to inspect the first keyword.
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
-// Blocklist of host-reading / cross-tenant-leaking FUNCTIONS callable from inside a SELECT.
-// `set_config` could overwrite the `rls.integration_ids` GUC (the tenant key); the `pg_stat_*`
-// family (the view AND underlying `pg_stat_get_*` functions + `pg_stat_statements`) would leak
-// other tenants' in-flight query text + integration UUIDs, since every MCP request shares the
-// gitgazer_mcp role. NOTE: the `SET`/`RESET` *statements* need no blocklist entry — they can only
-// run as a separate statement, which the single-`;` guard in `assertReadOnlySelect` already forbids
-// (and blocklisting the words `set`/`reset` would false-positive on string searches like `%reset%`).
-// (Migration 0056 also REVOKEs set_config where the platform allows.)
+// Blocklist of host-reading / cross-tenant-leaking FUNCTIONS callable inside a SELECT: `set_config`
+// (could overwrite the rls.integration_ids tenant GUC) and the `pg_stat_*` family (leaks other
+// tenants' in-flight SQL + UUIDs, since every request shares the gitgazer_mcp role). The `SET`/`RESET`
+// statements are deliberately NOT listed — they need a `;` to run, which assertReadOnlySelect already
+// rejects, and blocklisting the words would false-positive on searches like `%reset%`.
 const BLOCKED_TOKENS =
     /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_\w+|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
 
@@ -74,18 +71,14 @@ export function assertReadOnlySelect(rawSql: string): string {
 }
 
 /**
- * Execute an arbitrary read-only SQL query on behalf of an MCP client, bounded by the
- * caller's Postgres role permissions and a per-query budget.
+ * Execute an arbitrary read-only SQL query for an MCP client, bounded by the caller's Postgres
+ * role permissions and a per-query budget.
  *
- * Safety model (defense-in-depth):
- *  1. `assertReadOnlySelect` — a single SELECT/WITH only; rejects extra statements (`;`), blocked
- *     statements/functions, and Unicode-escape obfuscation. This provides the single-statement
- *     guarantee (the wrap below does NOT, under the simple query protocol).
- *  2. Subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — forces SELECT context + row cap.
- *  3. `SET TRANSACTION READ ONLY` — no writes.
- *  4. `SET LOCAL ROLE gitgazer_mcp` — GRANTs restrict which tables/columns are visible.
- *  5. `SET LOCAL rls.integration_ids` — RLS restricts rows to the caller's tenants.
- *  6. `statement_timeout` — bounds execution time.
+ * Tenant isolation is layered (defense-in-depth):
+ *  1. assertReadOnlySelect — the single-SELECT guarantee (this, NOT the wrap, stops `;` stacking).
+ *  2. subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — SELECT context + row cap.
+ *  3. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` (RLS),
+ *     and a statement_timeout — the actual tenant / permission / DoS boundary.
  */
 export async function runReadOnlyQuery(params: {
     sql: string;

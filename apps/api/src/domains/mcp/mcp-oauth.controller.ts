@@ -10,17 +10,11 @@ const SUPPORTED_SCOPES = ['openid', 'email', 'profile'] as const;
 const DEFAULT_SCOPE = SUPPORTED_SCOPES.join(' ');
 
 /**
- * Allowlist for the client redirect_uri we relay the authorization code to. This is the
- * open-redirect gate: our /callback receives the code from Cognito and 302-relays it to this
- * URI, so an unrestricted value would leak authorization codes to attacker-controlled sites.
- * Because the proxy uses a single static Cognito client, this allowlist stands in for the
- * per-client "pre-registered redirect URIs" that OAuth would normally enforce.
- *
- * Native-app loopback (RFC 8252) is always allowed — VS Code, Claude Code, and most desktop
- * clients catch the redirect on a temporary http://127.0.0.1|localhost:<port>/callback listener.
- * Hosted HTTPS redirects (VS Code's vscode.dev, Claude Desktop / claude.ai connectors, …) come
- * from the operator-configurable `mcpAllowedRedirectHosts` list, so a new MCP client can be
- * onboarded without a code change.
+ * Open-redirect gate for the client's redirect_uri: /callback relays the Cognito auth code to this
+ * URI, so an unrestricted value would leak codes to attackers. Because the proxy uses one static
+ * Cognito client, this allowlist substitutes for the per-client redirect URIs OAuth would normally
+ * register. Native-app loopback (RFC 8252) is always allowed; hosted HTTPS redirects come from the
+ * operator-configurable `mcpAllowedRedirectHosts` (so a new client is onboarded without code changes).
  */
 const isAllowedRedirectUri = (uri: string): boolean => {
     let u: URL;
@@ -29,7 +23,6 @@ const isAllowedRedirectUri = (uri: string): boolean => {
     } catch {
         return false;
     }
-    // Native-app loopback (RFC 8252): any 127.0.0.0/8 address, localhost, or IPv6 ::1.
     if (u.protocol === 'http:' && (/^127(?:\.\d{1,3}){3}$/.test(u.hostname) || u.hostname === 'localhost' || u.hostname === '[::1]')) return true;
     if (u.protocol === 'https:') {
         const allowedHosts = config.get('mcpAllowedRedirectHosts') as string[];

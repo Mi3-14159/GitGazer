@@ -54,9 +54,8 @@ export const MCP_TOOLS: McpTool[] = [
     },
 ];
 
-// Table names are embedded into a fixed introspection query, so restrict them to a bare
-// identifier — the role + read-only transaction are the real guard, this prevents a
-// confusing error and closes the interpolation surface.
+// describe_table interpolates the table name into a fixed introspection query; restrict it to a
+// bare identifier (the role + read-only txn are the real guard, this just closes the surface).
 const IDENTIFIER = /^[A-Za-z0-9_]+$/;
 
 const toResult = (result: ReadOnlyQueryResult): McpToolResult => ({content: [{type: 'text', text: JSON.stringify(result)}]});
@@ -71,7 +70,6 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             if (typeof sql !== 'string' || !sql.trim()) {
                 throw new McpToolError("'sql' must be a non-empty string");
             }
-            // Per-user quota: counted + enforced before the (potentially expensive) query runs.
             const budget = await enforceQuota(caller.userId).catch((error: unknown) => {
                 if (error instanceof QuotaExceededError) throw new McpToolError(error.message);
                 throw error;
