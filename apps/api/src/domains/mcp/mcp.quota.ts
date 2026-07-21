@@ -19,12 +19,16 @@ export type QueryBudget = {limit: number; remaining: number; resetAt: string};
  */
 export const enforceQuota = async (userId: number): Promise<QueryBudget> => {
     const {maxPerWindow, windowSeconds} = config.get('mcpQuota');
+    if (!Number.isInteger(maxPerWindow) || maxPerWindow <= 0 || !Number.isInteger(windowSeconds) || windowSeconds <= 0) {
+        throw new Error('mcpQuota is misconfigured: maxPerWindow and windowSeconds must be positive integers');
+    }
     const nowSeconds = Math.floor(Date.now() / 1000);
     const windowStartSeconds = Math.floor(nowSeconds / windowSeconds) * windowSeconds;
     const windowStart = new Date(windowStartSeconds * 1000);
     const resetAt = new Date((windowStartSeconds + windowSeconds) * 1000).toISOString();
 
-    const count = await consumeMcpQuota(userId, windowStart);
+    // Cap the stored counter at maxPerWindow + 1 (enough to detect "over") so it never grows unbounded.
+    const count = await consumeMcpQuota(userId, windowStart, maxPerWindow + 1);
     if (count > maxPerWindow) {
         throw new QuotaExceededError(`Query quota exceeded: ${maxPerWindow} queries per ${windowSeconds}s. Resets at ${resetAt}.`);
     }

@@ -43,8 +43,9 @@ describe('enforceQuota', () => {
 
         await mod.enforceQuota(7);
 
-        const [userId, windowStart] = asMock(db.consumeMcpQuota).mock.calls[0];
+        const [userId, windowStart, cap] = asMock(db.consumeMcpQuota).mock.calls[0];
         expect(userId).toBe(7);
+        expect(cap).toBe(4); // maxPerWindow (3) + 1, so the stored counter can't grow unbounded
         // windowSeconds 3600 → the bucket start is the top of the hour.
         expect((windowStart as Date).toISOString()).toBe('2026-07-21T00:00:00.000Z');
     });

@@ -156,7 +156,7 @@ Infrastructure (Terraform):
 
 - `var.mcp_allowed_redirect_hosts` — feeds `mcpAllowedRedirectHosts`; add a client's hosted callback host here to onboard it without a code change.
 - `var.mcp_throttling` — edge throttle on `POST /api/mcp` (default 20 req/s, burst 40).
-- `aws_cognito_user_pool_client.mcp` — the public PKCE client; its ID is exported as `mcp_cognito_client_id`.
+- `aws_cognito_user_pool_client.mcp` — the public PKCE client; its ID is plumbed to the Lambda via Secrets Manager and handed to clients by the `/register` endpoint (no manual paste needed).
 
 Database (Drizzle migrations):
 

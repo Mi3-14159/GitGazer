@@ -1,5 +1,7 @@
 import {type McpCaller} from '@/domains/mcp/mcp.controller';
-import {MCP_TOOLS, runToolCall} from '@/domains/mcp/mcp.tools';
+import {MCP_TOOLS, McpToolError, runToolCall} from '@/domains/mcp/mcp.tools';
+import {getLogger} from '@/shared/logger';
+import {ReadOnlyQueryError} from '@gitgazer/db/queries';
 
 const PROTOCOL_VERSION = '2025-11-25';
 const SERVER_INFO = {name: 'gitgazer-mcp', version: '1.0.0'} as const;
@@ -18,13 +20,19 @@ const fail = (id: JsonRpcId, code: number, message: string): JsonRpcResponse => 
  * Read-only server: only `initialize`, `ping`, `tools/list` and `tools/call` are supported.
  */
 export const handleMcpRequest = async (req: JsonRpcRequest, caller: McpCaller): Promise<JsonRpcResponse | null> => {
-    const isNotification = req.id === undefined;
-    const id: JsonRpcId = req.id ?? null;
+    // JSON-RPC notifications (no `id`) are fire-and-forget: never execute a request method or reply.
+    if (req.id === undefined) {
+        return null;
+    }
+    const id: JsonRpcId = req.id;
     const method = req.method;
     const params = req.params ?? {};
 
+    if (req.jsonrpc !== undefined && req.jsonrpc !== '2.0') {
+        return fail(id, -32600, 'Invalid Request: jsonrpc must be "2.0"');
+    }
     if (typeof method !== 'string') {
-        return isNotification ? null : fail(id, -32600, 'Invalid Request: missing method');
+        return fail(id, -32600, 'Invalid Request: missing method');
     }
 
     switch (method) {
@@ -42,12 +50,18 @@ export const handleMcpRequest = async (req: JsonRpcRequest, caller: McpCaller): 
                 return ok(id, await runToolCall(name, args, caller));
             } catch (error) {
                 // Tool failures are reported in-band (MCP convention), not as JSON-RPC errors.
-                const message = error instanceof Error ? error.message : 'Tool execution failed';
+                // Only echo messages from trusted error types; anything else (raw DB/Postgres
+                // errors) is logged server-side and returned generically so schema/role internals
+                // don't leak to the client.
+                const safe = error instanceof McpToolError || error instanceof ReadOnlyQueryError;
+                if (!safe) {
+                    getLogger().error('MCP tool call failed', {tool: name, error});
+                }
+                const message = safe && error instanceof Error ? error.message : 'Tool execution failed';
                 return ok(id, {content: [{type: 'text', text: message}], isError: true});
             }
         }
         default:
-            // Unknown notifications (e.g. notifications/initialized) are silently accepted.
-            return isNotification ? null : fail(id, -32601, `Method not found: ${method}`);
+            return fail(id, -32601, `Method not found: ${method}`);
     }
 };

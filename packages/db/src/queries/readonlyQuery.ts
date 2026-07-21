@@ -23,15 +23,16 @@ export class ReadOnlyQueryError extends Error {
 // Leading whitespace/comments — stripped only to inspect the first keyword.
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
-// Blocklist of session-mutating / host-reading / cross-tenant-leaking functions and views
-// callable from inside a SELECT. This is the AUTHORITATIVE barrier against the
-// `set_config('rls.integration_ids', …)` RLS bypass: overwriting that GUC mid-query would
-// return another tenant's rows. (Migration 0056 also attempts a DB-level REVOKE of set_config,
-// but managed Postgres may not permit revoking a pg_catalog grant, so this guard must stand on
-// its own.) `pg_stat_activity` is blocked because every MCP request shares the gitgazer_mcp
-// role, so it would otherwise expose other tenants' in-flight query text and integration UUIDs.
+// Blocklist of host-reading / cross-tenant-leaking FUNCTIONS callable from inside a SELECT.
+// `set_config` could overwrite the `rls.integration_ids` GUC (the tenant key); the `pg_stat_*`
+// family (the view AND underlying `pg_stat_get_*` functions + `pg_stat_statements`) would leak
+// other tenants' in-flight query text + integration UUIDs, since every MCP request shares the
+// gitgazer_mcp role. NOTE: the `SET`/`RESET` *statements* need no blocklist entry — they can only
+// run as a separate statement, which the single-`;` guard in `assertReadOnlySelect` already forbids
+// (and blocklisting the words `set`/`reset` would false-positive on string searches like `%reset%`).
+// (Migration 0056 also REVOKEs set_config where the platform allows.)
 const BLOCKED_TOKENS =
-    /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|pg_stat_activity|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
+    /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_\w+|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
 
 // SQL-standard Unicode-escape introducer (`U&'…'` / `U&"…"`). It lets an identifier or string be
 // spelled with `\XXXX` character escapes — e.g. `U&"\0073et_config"` resolves to the identifier
@@ -40,12 +41,13 @@ const BLOCKED_TOKENS =
 const UNICODE_ESCAPE = /u&['"]/i;
 
 /**
- * Validate that a string is a single read-only SELECT/WITH query and return it with any
+ * Validate that a string is a SINGLE read-only SELECT/WITH statement and return it with any
  * trailing semicolons removed. Throws `ReadOnlyQueryError` otherwise.
  *
- * Together with the subquery-wrapping in `runReadOnlyQuery` (which structurally forbids
- * statement stacking) this keeps a caller from smuggling in a `set_config` call to overwrite
- * the `rls.integration_ids` GUC and read another tenant's rows.
+ * Rejecting an embedded `;` is the crux of the tenant boundary: `runReadOnlyQuery` executes the
+ * wrapped query with no bind parameters, so node-postgres uses the simple query protocol, which
+ * would otherwise run multiple `;`-separated statements — letting a caller break out of the wrap
+ * and `SET rls.integration_ids` to another tenant. The subquery-wrap alone does NOT prevent this.
  */
 export function assertReadOnlySelect(rawSql: string): string {
     const trimmed = rawSql
@@ -55,6 +57,9 @@ export function assertReadOnlySelect(rawSql: string): string {
     if (!trimmed) {
         throw new ReadOnlyQueryError('Query is empty');
     }
+    if (trimmed.includes(';')) {
+        throw new ReadOnlyQueryError('Only a single statement is allowed (no ";")');
+    }
     const firstKeyword = trimmed.replace(LEADING_NOISE, '');
     if (!/^(?:select|with)\b/i.test(firstKeyword)) {
         throw new ReadOnlyQueryError('Only read-only SELECT/WITH queries are allowed');
@@ -63,7 +68,7 @@ export function assertReadOnlySelect(rawSql: string): string {
         throw new ReadOnlyQueryError('Query uses unsupported Unicode-escape syntax');
     }
     if (BLOCKED_TOKENS.test(trimmed)) {
-        throw new ReadOnlyQueryError('Query references a blocked function');
+        throw new ReadOnlyQueryError('Query references a blocked statement or function');
     }
     return trimmed;
 }
@@ -73,9 +78,10 @@ export function assertReadOnlySelect(rawSql: string): string {
  * caller's Postgres role permissions and a per-query budget.
  *
  * Safety model (defense-in-depth):
- *  1. `assertReadOnlySelect` — must be a single SELECT/WITH; blocked functions rejected.
- *  2. Subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — structurally forbids
- *     statement stacking / non-SELECT statements and caps the row count.
+ *  1. `assertReadOnlySelect` — a single SELECT/WITH only; rejects extra statements (`;`), blocked
+ *     statements/functions, and Unicode-escape obfuscation. This provides the single-statement
+ *     guarantee (the wrap below does NOT, under the simple query protocol).
+ *  2. Subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — forces SELECT context + row cap.
  *  3. `SET TRANSACTION READ ONLY` — no writes.
  *  4. `SET LOCAL ROLE gitgazer_mcp` — GRANTs restrict which tables/columns are visible.
  *  5. `SET LOCAL rls.integration_ids` — RLS restricts rows to the caller's tenants.

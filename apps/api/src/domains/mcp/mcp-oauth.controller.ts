@@ -6,7 +6,8 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';
 
 const PROXY_STATE_TTL_S = 600;
-const DEFAULT_SCOPE = 'openid email profile';
+const SUPPORTED_SCOPES = ['openid', 'email', 'profile'] as const;
+const DEFAULT_SCOPE = SUPPORTED_SCOPES.join(' ');
 
 /**
  * Allowlist for the client redirect_uri we relay the authorization code to. This is the
@@ -28,7 +29,8 @@ const isAllowedRedirectUri = (uri: string): boolean => {
     } catch {
         return false;
     }
-    if (u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')) return true;
+    // Native-app loopback (RFC 8252): any 127.0.0.0/8 address, localhost, or IPv6 ::1.
+    if (u.protocol === 'http:' && (/^127(?:\.\d{1,3}){3}$/.test(u.hostname) || u.hostname === 'localhost' || u.hostname === '[::1]')) return true;
     if (u.protocol === 'https:') {
         const allowedHosts = config.get('mcpAllowedRedirectHosts') as string[];
         return allowedHosts.some((host) => host.toLowerCase() === u.hostname);
@@ -101,7 +103,7 @@ export const buildAuthServerMetadata = (event: APIGatewayProxyEventV2): Record<s
         grant_types_supported: ['authorization_code', 'refresh_token'],
         code_challenge_methods_supported: ['S256'],
         token_endpoint_auth_methods_supported: ['none'],
-        scopes_supported: ['openid', 'email', 'profile'],
+        scopes_supported: [...SUPPORTED_SCOPES],
     };
 };
 
@@ -141,7 +143,14 @@ export const handleAuthorize = (event: APIGatewayProxyEventV2): string => {
     authorizeUrl.searchParams.set('redirect_uri', callbackUrl(event));
     authorizeUrl.searchParams.set('code_challenge', q.code_challenge);
     authorizeUrl.searchParams.set('code_challenge_method', 'S256');
-    authorizeUrl.searchParams.set('scope', q.scope || DEFAULT_SCOPE);
+    // Clamp requested scopes to what we advertise, so a client cannot escalate (e.g. to
+    // aws.cognito.signin.user.admin); the Cognito client's allowed scopes are the second gate.
+    const scope =
+        (q.scope || DEFAULT_SCOPE)
+            .split(/\s+/)
+            .filter((s) => (SUPPORTED_SCOPES as readonly string[]).includes(s))
+            .join(' ') || DEFAULT_SCOPE;
+    authorizeUrl.searchParams.set('scope', scope);
     authorizeUrl.searchParams.set('state', signProxyState(q.redirect_uri, q.state));
     authorizeUrl.searchParams.set('identity_provider', 'Github');
     return authorizeUrl.toString();

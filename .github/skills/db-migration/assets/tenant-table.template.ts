@@ -7,7 +7,7 @@
 //  - integrationId uuid → references integrations.integrationId, onDelete: 'cascade'
 //  - composite primary key with integrationId FIRST
 //  - writer + reader tenant-separation policies + .enableRLS() are MANDATORY for tenant data
-//  - analyst policy ONLY if the analytics/Bedrock layer must read this table
+//  - mcp policy ONLY if the MCP server should expose this table for read-only SQL
 
 import {relations} from 'drizzle-orm';
 import {bigint, index, primaryKey, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';

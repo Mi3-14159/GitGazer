@@ -240,6 +240,28 @@ export const loadConfig = async (): Promise<void> => {
         config.load(secretValues);
     }
     config.validate({allowed: 'warn'});
+    // Presence check runs only when config was loaded from Secrets Manager (real deploy / local
+    // with a secret ARN). convict's validate() only checks types, not presence.
+    if (secretArn) {
+        assertCriticalConfig();
+    }
+};
+
+/**
+ * Fail closed on missing security-critical values. An empty HMAC secret makes OAuth state
+ * forgeable, and empty Cognito client ids would disable client_id validation in the MCP token
+ * verifier (accepting any pool token) — both would otherwise pass validate() silently.
+ */
+const assertCriticalConfig = (): void => {
+    const missing: string[] = [];
+    if (!config.get('stateSecret')) missing.push('stateSecret');
+    if (!config.get('wsTokenSecret')) missing.push('wsTokenSecret');
+    const {clientId, clientSecret, mcpClientId} = config.get('cognito');
+    if (!clientSecret) missing.push('cognito.clientSecret');
+    if (!clientId && !mcpClientId) missing.push('cognito.clientId or cognito.mcpClientId');
+    if (missing.length > 0) {
+        throw new Error(`Missing required configuration: ${missing.join(', ')}`);
+    }
 };
 
 export default config;

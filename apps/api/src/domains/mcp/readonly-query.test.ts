@@ -48,13 +48,24 @@ describe('runReadOnlyQuery', () => {
             }
         });
 
-        it('rejects blocked functions (GUC tampering / host access / cross-tenant leak)', () => {
-            expect(() => mod.assertReadOnlySelect("SELECT set_config('rls.integration_ids', 'other', false)")).toThrow(/blocked function/);
-            expect(() => mod.assertReadOnlySelect('SELECT pg_sleep(10)')).toThrow(/blocked function/);
-            // pg_stat_activity leaks other tenants' in-flight query text + UUIDs under the shared mcp role.
-            expect(() => mod.assertReadOnlySelect('SELECT query FROM pg_stat_activity')).toThrow(/blocked function/);
+        it('rejects blocked statements + functions (GUC tampering / host access / cross-tenant leak)', () => {
+            expect(() => mod.assertReadOnlySelect("SELECT set_config('rls.integration_ids', 'other', false)")).toThrow(/blocked/);
+            expect(() => mod.assertReadOnlySelect('SELECT pg_sleep(10)')).toThrow(/blocked/);
+            // pg_stat_activity (view) AND its underlying pg_stat_get_activity() function leak other
+            // tenants' in-flight query text + integration UUIDs under the shared gitgazer_mcp role.
+            expect(() => mod.assertReadOnlySelect('SELECT query FROM pg_stat_activity')).toThrow(/blocked/);
+            expect(() => mod.assertReadOnlySelect('SELECT query FROM pg_stat_get_activity(NULL)')).toThrow(/blocked/);
             // Quoting the identifier does NOT evade the blocklist (the word boundary still matches).
-            expect(() => mod.assertReadOnlySelect(`SELECT "set_config"('rls.integration_ids', 'other', true)`)).toThrow(/blocked function/);
+            expect(() => mod.assertReadOnlySelect(`SELECT "set_config"('rls.integration_ids', 'other', true)`)).toThrow(/blocked/);
+        });
+
+        it('rejects statement stacking that would break out of the subquery wrap (cross-tenant read)', () => {
+            // The wrapped query runs with no bind params -> simple query protocol -> multiple `;`
+            // statements would execute, so an embedded `;` must be rejected outright.
+            expect(() => mod.assertReadOnlySelect('SELECT 1; SELECT 2')).toThrow(/single statement/);
+            // The real exploit: break out of `SELECT * FROM (<sql>) _mcp`, flip the RLS GUC, re-select.
+            const breakout = `SELECT 1) x; SET rls.integration_ids='00000000-0000-0000-0000-000000000000'; SELECT * FROM (SELECT * FROM github.workflow_runs`;
+            expect(() => mod.assertReadOnlySelect(breakout)).toThrow(/single statement/);
         });
 
         it('rejects Unicode-escaped identifiers that smuggle a blocked function past the blocklist', () => {

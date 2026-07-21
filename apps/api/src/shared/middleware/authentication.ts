@@ -18,8 +18,14 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
     const event = reqCtx.event as APIGatewayProxyEventV2;
     const {rawPath} = event;
 
-    // Skip authentication for public routes (declared by each domain)
-    if (publicRoutePrefixes.some((prefix) => rawPath.startsWith(prefix))) {
+    // Skip authentication for public routes (declared by each domain). A prefix ending in `/`
+    // is a subtree match; a non-slash prefix must match exactly or on a `/` segment boundary
+    // (so `/api/mcp` does not also exempt `/api/mcpx`).
+    if (
+        publicRoutePrefixes.some((prefix) =>
+            prefix.endsWith('/') ? rawPath.startsWith(prefix) : rawPath === prefix || rawPath.startsWith(`${prefix}/`),
+        )
+    ) {
         logger.debug('Skipping authentication for public route', {rawPath});
         await next();
         return;

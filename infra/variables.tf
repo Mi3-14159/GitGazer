@@ -35,7 +35,7 @@ variable "mcp_throttling" {
 
 variable "mcp_callback_urls" {
   type        = list(string)
-  description = "Additional OAuth redirect (callback) URLs for the public MCP Cognito app client, beyond https://vscode.dev/redirect (e.g. other MCP clients' loopback URLs)."
+  description = "Extra OAuth callback URLs registered directly on the MCP Cognito client, in addition to the proxy's own /api/mcp/oauth/callback. WARNING: entries here are fully-trusted redirect targets Cognito sends the auth code to directly, bypassing the proxy's mcpAllowedRedirectHosts allowlist — normally leave empty."
   default     = []
 }
 

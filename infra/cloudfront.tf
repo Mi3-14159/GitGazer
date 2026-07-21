@@ -166,7 +166,7 @@ resource "aws_cloudfront_distribution" "this" {
     viewer_protocol_policy     = "https-only"
     cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
     origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.public_metadata_cors.id
   }
 
   # OAuth Authorization Server Metadata (RFC 8414) advertised by the MCP OAuth proxy; also
@@ -179,7 +179,7 @@ resource "aws_cloudfront_distribution" "this" {
     viewer_protocol_policy     = "https-only"
     cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
     origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.public_metadata_cors.id
   }
 
   default_cache_behavior {
@@ -190,5 +190,27 @@ resource "aws_cloudfront_distribution" "this" {
     cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
     response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
     compress                   = true
+  }
+}
+
+# Public, un-credentialed CORS for the OAuth discovery metadata (RFC 8414/9728). Unlike the app
+# cors_policy (credentialed + origin-restricted), discovery must be readable cross-origin by
+# browser-based MCP clients (e.g. the claude.ai connector), so Access-Control-Allow-Origin: *.
+resource "aws_cloudfront_response_headers_policy" "public_metadata_cors" {
+  name = "${var.name_prefix}-public-metadata-cors-${terraform.workspace}"
+
+  cors_config {
+    access_control_allow_credentials = false
+
+    access_control_allow_headers {
+      items = ["*"]
+    }
+    access_control_allow_methods {
+      items = ["GET", "HEAD", "OPTIONS"]
+    }
+    access_control_allow_origins {
+      items = ["*"]
+    }
+    origin_override = true
   }
 }

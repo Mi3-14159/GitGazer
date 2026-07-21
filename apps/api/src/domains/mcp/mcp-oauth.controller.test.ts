@@ -103,10 +103,24 @@ describe('handleAuthorize', () => {
         for (const redirect_uri of [
             'http://127.0.0.1:33418/callback',
             'http://localhost:51000/callback', // Claude Code / VS Code native loopback
+            'http://127.0.0.2:8080/cb', // 127.0.0.0/8 loopback block
             'https://vscode.dev/redirect',
             'https://claude.ai/api/mcp/auth_callback', // Claude Desktop / claude.ai connectors
         ]) {
             expect(() => ctrl.handleAuthorize(event({...validAuthorizeQuery, redirect_uri}))).not.toThrow();
+        }
+    });
+
+    it('rejects open-redirect bypass vectors on the redirect_uri', () => {
+        for (const redirect_uri of [
+            'https://vscode.dev@evil.com/x', // userinfo trick -> host is evil.com
+            'https://vscode.dev.evil.com/x', // suffix
+            'https://sub.vscode.dev/x', // non-allowlisted subdomain
+            'https://vscode.dev./redirect', // trailing dot
+            'http://localhost.evil.com/cb', // loopback-looking host
+            'http://127.0.0.1.evil.com/cb',
+        ]) {
+            expect(() => ctrl.handleAuthorize(event({...validAuthorizeQuery, redirect_uri}))).toThrow(/redirect_uri/);
         }
     });
 
@@ -135,6 +149,24 @@ describe('handleCallback', () => {
     it('rejects a forged or missing state', () => {
         expect(() => ctrl.handleCallback(event({state: 'forged.signature', code: 'x'}))).toThrow(/Invalid or expired/);
         expect(() => ctrl.handleCallback(event({code: 'x'}))).toThrow(/Invalid or expired/);
+    });
+
+    it('rejects a state whose payload was tampered (signature mismatch)', () => {
+        const [, sig] = signedState().split('.');
+        const forgedPayload = Buffer.from(JSON.stringify({redirectUri: 'http://127.0.0.1:1/cb', exp: 9999999999})).toString('base64url');
+        expect(() => ctrl.handleCallback(event({state: `${forgedPayload}.${sig}`, code: 'x'}))).toThrow(/Invalid or expired/);
+    });
+
+    it('rejects an expired state (past the 600s TTL)', () => {
+        vi.useFakeTimers();
+        try {
+            vi.setSystemTime(new Date('2026-07-22T00:00:00.000Z'));
+            const state = signedState();
+            vi.setSystemTime(new Date('2026-07-22T00:20:00.000Z')); // +20 min > TTL
+            expect(() => ctrl.handleCallback(event({state, code: 'AUTH_CODE'}))).toThrow(/Invalid or expired/);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 

@@ -49,9 +49,14 @@ export const getMcpAccessVerifier = (): ReturnType<typeof CognitoJwtVerifier.cre
     if (!mcpAccessVerifier) {
         const {userPoolId, clientId, mcpClientId} = config.get('cognito');
         const clientIds = [clientId, mcpClientId].filter(Boolean);
+        if (clientIds.length === 0) {
+            // Fail closed: passing `clientId: null` to aws-jwt-verify disables client_id validation
+            // entirely, accepting ANY access token in the user pool. Surface the misconfiguration.
+            throw new Error('MCP token verifier is not configured (no Cognito client IDs)');
+        }
         mcpAccessVerifier = CognitoJwtVerifier.create({
             userPoolId,
-            clientId: clientIds.length > 0 ? clientIds : null,
+            clientId: clientIds,
             tokenUse: 'access',
         });
     }

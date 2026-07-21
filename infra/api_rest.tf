@@ -205,6 +205,33 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.mcp_throttling.burst_limit
   }
 
+  # The MCP OAuth proxy routes are public + unauthenticated and fan out to Cognito
+  # (register/token) or issue redirects (authorize/callback), so throttle them like the
+  # MCP endpoint to cap abuse/amplification.
+  route_settings {
+    route_key              = "POST /api/mcp/oauth/register"
+    throttling_rate_limit  = var.mcp_throttling.rate_limit
+    throttling_burst_limit = var.mcp_throttling.burst_limit
+  }
+
+  route_settings {
+    route_key              = "GET /api/mcp/oauth/authorize"
+    throttling_rate_limit  = var.mcp_throttling.rate_limit
+    throttling_burst_limit = var.mcp_throttling.burst_limit
+  }
+
+  route_settings {
+    route_key              = "GET /api/mcp/oauth/callback"
+    throttling_rate_limit  = var.mcp_throttling.rate_limit
+    throttling_burst_limit = var.mcp_throttling.burst_limit
+  }
+
+  route_settings {
+    route_key              = "POST /api/mcp/oauth/token"
+    throttling_rate_limit  = var.mcp_throttling.rate_limit
+    throttling_burst_limit = var.mcp_throttling.burst_limit
+  }
+
   dynamic "access_log_settings" {
     for_each = var.apigateway_logging_enabled ? [1] : []
     content {

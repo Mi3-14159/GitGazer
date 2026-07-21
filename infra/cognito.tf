@@ -86,6 +86,17 @@ resource "aws_cognito_user_pool_client" "mcp" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
+
+  # MCP tokens live on many developer machines; bound the blast radius of a leaked refresh token.
+  enable_token_revocation = true
+  access_token_validity   = 60 # minutes
+  id_token_validity       = 60 # minutes
+  refresh_token_validity  = 7  # days (Cognito default is 30)
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
 }
 
 resource "aws_cognito_identity_pool" "this" {

@@ -7,14 +7,21 @@ import {mcpQueryUsage} from '../schema/gitgazer';
  * the new count. `mcp_query_usage` is a global per-user counter (no tenant RLS), written by
  * the app connection role — mirroring the users-table upsert pattern.
  */
-export const consumeMcpQuota = async (userId: number, windowStart: Date): Promise<number> => {
+export const consumeMcpQuota = async (userId: number, windowStart: Date, countCap: number): Promise<number> => {
     const rows = await db
         .insert(mcpQueryUsage)
         .values({userId, windowStart, count: 1})
         .onConflictDoUpdate({
             target: [mcpQueryUsage.userId, mcpQueryUsage.windowStart],
-            set: {count: sql`${mcpQueryUsage.count} + 1`},
+            // Cap the counter so a rejected, over-quota caller can't grow it unboundedly (int overflow).
+            set: {count: sql`LEAST(${mcpQueryUsage.count} + 1, ${countCap})`},
         })
         .returning({count: mcpQueryUsage.count});
-    return rows[0]?.count ?? 0;
+    const count = rows[0]?.count;
+    if (count === undefined) {
+        // An upsert with RETURNING always yields a row; a missing one means something is wrong.
+        // Fail closed rather than reporting 0 used (which would silently bypass the quota).
+        throw new Error('Quota upsert returned no row');
+    }
+    return count;
 };
