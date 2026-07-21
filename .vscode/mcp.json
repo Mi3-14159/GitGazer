@@ -5,21 +5,6 @@
       "url": "https://mcp.figma.com/mcp",
       "gallery": "https://api.mcp.github.com",
       "version": "1.0.3"
-    },
-    "gitgazer-local": {
-      "url": "http://localhost:8080/api/mcp",
-      "type": "http",
-      "headers": {
-        "Authorization": "Bearer ${input:gitgazer-token}"
-      }
     }
-  },
-  "inputs": [
-    {
-      "id": "gitgazer-token",
-      "type": "promptString",
-      "description": "GitGazer Cognito access token (the accessToken cookie after signing in to the web app)",
-      "password": true
-    }
-  ]
+  }
 }
