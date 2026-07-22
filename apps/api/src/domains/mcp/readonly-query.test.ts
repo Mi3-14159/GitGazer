@@ -142,6 +142,7 @@ describe('runReadOnlyQuery', () => {
         await expect(mod.runReadOnlyQuery({sql: 'DELETE FROM workflow_runs', integrationIds: [INTEGRATION_ID]})).rejects.toThrow(/read-only SELECT/);
         expect(rds.withRlsTransaction).not.toHaveBeenCalled();
     });
+<<<<<<< HEAD
 
     it('rethrows a Postgres statement-timeout cancellation as an actionable ReadOnlyQueryError', async () => {
         // drizzle re-wraps the node-postgres driver error (SQLSTATE 57014) as the `cause` of a
@@ -219,4 +220,6 @@ describe('runReadOnlyQuery', () => {
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(boom);
         await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID]})).rejects.toBe(boom);
     });
+=======
+>>>>>>> origin/main
 });

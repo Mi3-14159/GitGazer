@@ -70,6 +70,7 @@ export function assertReadOnlySelect(rawSql: string): string {
     return trimmed;
 }
 
+<<<<<<< HEAD
 // Postgres SQLSTATE for a statement aborted by `statement_timeout` (query_canceled). Handled
 // specially below with a bespoke, actionable message rather than the raw driver text.
 const STATEMENT_TIMEOUT_CODE = '57014';
@@ -117,6 +118,8 @@ const findPgError = (error: unknown): PgError | undefined => {
     return undefined;
 };
 
+=======
+>>>>>>> origin/main
 /**
  * Execute an arbitrary read-only SQL query for an MCP client, bounded by the caller's Postgres
  * role permissions and a per-query budget.
@@ -140,6 +143,7 @@ export async function runReadOnlyQuery(params: {
     const statementTimeoutS = params.statementTimeoutS ?? DEFAULT_STATEMENT_TIMEOUT_S;
     const userSql = assertReadOnlySelect(params.sql);
 
+<<<<<<< HEAD
     try {
         return await withRlsTransaction({
             integrationIds: params.integrationIds,
@@ -175,4 +179,24 @@ export async function runReadOnlyQuery(params: {
         }
         throw error;
     }
+=======
+    return withRlsTransaction({
+        integrationIds: params.integrationIds,
+        userName: gitgazerMcp.name,
+        readOnly: true,
+        statementTimeoutS,
+        callback: async (tx) => {
+            // The newline before `)` neutralizes any trailing line comment in userSql.
+            const wrapped = sql.raw(`SELECT * FROM (\n${userSql}\n) AS _mcp LIMIT ${rowCap + 1}`);
+            const result = (await tx.execute(wrapped)) as {rows?: Record<string, unknown>[]; fields?: {name: string}[]};
+
+            const allRows = result.rows ?? [];
+            const truncated = allRows.length > rowCap;
+            const rows = truncated ? allRows.slice(0, rowCap) : allRows;
+            const columns = result.fields?.map((f) => f.name) ?? (rows[0] ? Object.keys(rows[0]) : []);
+
+            return {columns, rows, rowCount: rows.length, truncated};
+        },
+    });
+>>>>>>> origin/main
 }
