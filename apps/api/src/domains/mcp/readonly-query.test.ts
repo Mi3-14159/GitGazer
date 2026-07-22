@@ -142,4 +142,81 @@ describe('runReadOnlyQuery', () => {
         await expect(mod.runReadOnlyQuery({sql: 'DELETE FROM workflow_runs', integrationIds: [INTEGRATION_ID]})).rejects.toThrow(/read-only SELECT/);
         expect(rds.withRlsTransaction).not.toHaveBeenCalled();
     });
+
+    it('rethrows a Postgres statement-timeout cancellation as an actionable ReadOnlyQueryError', async () => {
+        // drizzle re-wraps the node-postgres driver error (SQLSTATE 57014) as the `cause` of a
+        // "Failed query: …" Error; the raw query text must not leak to the client.
+        const pgError = Object.assign(new Error('canceling statement due to statement timeout'), {code: '57014'});
+        const wrapped = Object.assign(new Error('Failed query: SELECT * FROM (…)'), {cause: pgError});
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID], statementTimeoutS: 10}).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toMatch(/exceeded the 10s statement timeout/);
+        expect((error as Error).message).not.toContain('Failed query');
+    });
+
+    it('surfaces a syntax error (SQLSTATE 42601) with the Postgres primary message', async () => {
+        // Input passes assertReadOnlySelect (starts with SELECT); the syntax error is only raised by Postgres.
+        const pgError = Object.assign(new Error('syntax error at or near "FRM"'), {code: '42601'});
+        const wrapped = Object.assign(new Error('Failed query: SELECT 1 FRM t'), {cause: pgError});
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 FRM t', integrationIds: [INTEGRATION_ID]}).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toBe('Query failed: syntax error at or near "FRM"');
+        // The drizzle wrapper's "Failed query: <sql>" text must never reach the client.
+        expect((error as Error).message).not.toContain('Failed query');
+    });
+
+    it('surfaces an undefined-column error (SQLSTATE 42703) so the caller can self-correct', async () => {
+        const pgError = Object.assign(new Error('column "athor" does not exist'), {code: '42703'});
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+            Object.assign(new Error('Failed query: …'), {cause: pgError}),
+        );
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT athor FROM t', integrationIds: [INTEGRATION_ID]}).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toBe('Query failed: column "athor" does not exist');
+    });
+
+    it('surfaces a data exception (SQLSTATE 22P02, invalid input) with the primary message', async () => {
+        const pgError = Object.assign(new Error('invalid input syntax for type uuid: "nope"'), {code: '22P02'});
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+            Object.assign(new Error('Failed query: …'), {cause: pgError}),
+        );
+
+        const error = await mod.runReadOnlyQuery({sql: "SELECT 'nope'::uuid", integrationIds: [INTEGRATION_ID]}).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toBe('Query failed: invalid input syntax for type uuid: "nope"');
+    });
+
+    it('surfaces a read-only-transaction violation (SQLSTATE 25006) from a smuggled write', async () => {
+        const pgError = Object.assign(new Error('cannot execute INSERT in a read-only transaction'), {code: '25006'});
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+            Object.assign(new Error('Failed query: …'), {cause: pgError}),
+        );
+
+        const error = await mod
+            .runReadOnlyQuery({sql: 'WITH x AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM x', integrationIds: [INTEGRATION_ID]})
+            .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toBe('Query failed: cannot execute INSERT in a read-only transaction');
+    });
+
+    it('does NOT surface insufficient-privilege (SQLSTATE 42501) — stays generic to avoid leaking schema/role internals', async () => {
+        const pgError = Object.assign(new Error('permission denied for table secrets'), {code: '42501'});
+        const wrapped = Object.assign(new Error('Failed query: SELECT * FROM secrets'), {cause: pgError});
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
+
+        // Rethrown as-is -> the MCP layer logs it and returns a generic "Tool execution failed".
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID]})).rejects.toBe(wrapped);
+    });
+
+    it('passes a driver error with no SQLSTATE through unchanged', async () => {
+        const boom = new Error('connection reset by peer');
+        (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(boom);
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID]})).rejects.toBe(boom);
+    });
 });
