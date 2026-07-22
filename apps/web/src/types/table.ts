@@ -18,18 +18,7 @@ export interface TableView {
 }
 
 export type WorkflowColumnId =
-    | 'workflow'
-    | 'repository'
-    | 'branch'
-    | 'status'
-    | 'jobs'
-    | 'actor'
-    | 'duration'
-    | 'created'
-    | 'started'
-    | 'commit'
-    | 'run_number'
-    | 'topics';
+    'workflow' | 'repository' | 'branch' | 'status' | 'jobs' | 'actor' | 'duration' | 'created' | 'started' | 'commit' | 'run_number' | 'topics';
 
 export const defaultColumns: ColumnConfig[] = [
     {id: 'workflow', label: 'Workflow', visible: true},
