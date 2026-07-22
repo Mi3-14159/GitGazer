@@ -70,6 +70,53 @@ export function assertReadOnlySelect(rawSql: string): string {
     return trimmed;
 }
 
+// Postgres SQLSTATE for a statement aborted by `statement_timeout` (query_canceled). Handled
+// specially below with a bespoke, actionable message rather than the raw driver text.
+const STATEMENT_TIMEOUT_CODE = '57014';
+
+// Insufficient-privilege: deliberately NOT surfaced. Its message can reveal tables/roles a tenant
+// cannot see, so it stays a generic "Tool execution failed" (logged server-side by the MCP layer).
+// Flip this by dropping it from isClientActionable if you decide the clearer message is worth it.
+const INSUFFICIENT_PRIVILEGE_CODE = '42501';
+
+// Read-only-transaction violation — e.g. a write smuggled in via a data-modifying CTE that slips
+// past assertReadOnlySelect but is then rejected by SET TRANSACTION READ ONLY. Surfaced so the
+// caller learns why instead of seeing a generic failure.
+const READ_ONLY_VIOLATION_CODE = '25006';
+
+/**
+ * Whether a SQLSTATE's primary message is safe + useful to echo back so an (LLM) caller can
+ * self-correct: class 22 (data exceptions — bad literals, division by zero, …) and class 42
+ * (syntax errors, undefined column/table/function), plus the read-only violation. 42501
+ * (insufficient_privilege) is excluded on purpose to avoid leaking schema/role internals.
+ */
+const isClientActionable = (code: string): boolean => {
+    if (code === INSUFFICIENT_PRIVILEGE_CODE) return false;
+    if (code === READ_ONLY_VIOLATION_CODE) return true;
+    return code.startsWith('22') || code.startsWith('42');
+};
+
+type PgError = {code: string; message: string};
+
+/**
+ * Walk the error's `cause` chain (node-postgres raises the driver error, which drizzle re-wraps as
+ * the `cause` of a "Failed query: …" Error) and return the first Postgres error — an object carrying
+ * a 5-char SQLSTATE `code` — as `{code, message}`, or `undefined` if none is present. Only the
+ * primary `message` is read; `detail`/`hint` (the leakier fields) are never surfaced.
+ */
+const findPgError = (error: unknown): PgError | undefined => {
+    for (let current: unknown = error, depth = 0; current != null && depth < 5; depth++) {
+        if (typeof current !== 'object') break;
+        const code = (current as {code?: unknown}).code;
+        if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) {
+            const message = (current as {message?: unknown}).message;
+            return {code, message: typeof message === 'string' ? message : ''};
+        }
+        current = (current as {cause?: unknown}).cause;
+    }
+    return undefined;
+};
+
 /**
  * Execute an arbitrary read-only SQL query for an MCP client, bounded by the caller's Postgres
  * role permissions and a per-query budget.
@@ -93,22 +140,39 @@ export async function runReadOnlyQuery(params: {
     const statementTimeoutS = params.statementTimeoutS ?? DEFAULT_STATEMENT_TIMEOUT_S;
     const userSql = assertReadOnlySelect(params.sql);
 
-    return withRlsTransaction({
-        integrationIds: params.integrationIds,
-        userName: gitgazerMcp.name,
-        readOnly: true,
-        statementTimeoutS,
-        callback: async (tx) => {
-            // The newline before `)` neutralizes any trailing line comment in userSql.
-            const wrapped = sql.raw(`SELECT * FROM (\n${userSql}\n) AS _mcp LIMIT ${rowCap + 1}`);
-            const result = (await tx.execute(wrapped)) as {rows?: Record<string, unknown>[]; fields?: {name: string}[]};
+    try {
+        return await withRlsTransaction({
+            integrationIds: params.integrationIds,
+            userName: gitgazerMcp.name,
+            readOnly: true,
+            statementTimeoutS,
+            callback: async (tx) => {
+                // The newline before `)` neutralizes any trailing line comment in userSql.
+                const wrapped = sql.raw(`SELECT * FROM (\n${userSql}\n) AS _mcp LIMIT ${rowCap + 1}`);
+                const result = (await tx.execute(wrapped)) as {rows?: Record<string, unknown>[]; fields?: {name: string}[]};
 
-            const allRows = result.rows ?? [];
-            const truncated = allRows.length > rowCap;
-            const rows = truncated ? allRows.slice(0, rowCap) : allRows;
-            const columns = result.fields?.map((f) => f.name) ?? (rows[0] ? Object.keys(rows[0]) : []);
+                const allRows = result.rows ?? [];
+                const truncated = allRows.length > rowCap;
+                const rows = truncated ? allRows.slice(0, rowCap) : allRows;
+                const columns = result.fields?.map((f) => f.name) ?? (rows[0] ? Object.keys(rows[0]) : []);
 
-            return {columns, rows, rowCount: rows.length, truncated};
-        },
-    });
+                return {columns, rows, rowCount: rows.length, truncated};
+            },
+        });
+    } catch (error) {
+        // Translate caller-caused Postgres errors into ReadOnlyQueryError so the MCP layer echoes an
+        // actionable message to the client instead of a generic "Tool execution failed". Anything not
+        // recognized here is rethrown as-is (logged server-side, returned generically to the client).
+        const pg = findPgError(error);
+        if (pg?.code === STATEMENT_TIMEOUT_CODE) {
+            throw new ReadOnlyQueryError(
+                `Query canceled: it exceeded the ${statementTimeoutS}s statement timeout. ` +
+                    'Simplify it or narrow the scope — add filters (e.g. integration_id, repository, a date range) or a smaller LIMIT.',
+            );
+        }
+        if (pg && pg.message && isClientActionable(pg.code)) {
+            throw new ReadOnlyQueryError(`Query failed: ${pg.message}`);
+        }
+        throw error;
+    }
 }
