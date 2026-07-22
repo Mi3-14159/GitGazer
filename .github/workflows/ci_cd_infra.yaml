@@ -4,12 +4,12 @@ on:
         branches:
             - main
         paths:
-            - 'infra/**'
-            - '.github/workflows/ci_cd_infra.yaml'
+            - "infra/**"
+            - ".github/workflows/ci_cd_infra.yaml"
     pull_request:
         paths:
-            - 'infra/**'
-            - '.github/workflows/ci_cd_infra.yaml'
+            - "infra/**"
+            - ".github/workflows/ci_cd_infra.yaml"
     workflow_dispatch:
         inputs:
             deploy:
@@ -29,7 +29,6 @@ jobs:
     build:
         name: Build
         runs-on: ubuntu-latest
-        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' && secrets.AWS_DEFAULT_REGION != '' && secrets.TERRAFORM_BACKEND != '' && secrets.TERRAFORM_TF_VARS != '' }}
         defaults:
             run:
                 working-directory: ./infra
