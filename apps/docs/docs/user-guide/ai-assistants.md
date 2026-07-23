@@ -83,11 +83,11 @@ To keep things fast and fair, a few limits apply:
 
 | Limit                   | Value                                    |
 | ----------------------- | ---------------------------------------- |
-| Data queries per hour   | ~100                                     |
+| Query time per hour     | 600 seconds of query time                |
 | Rows returned per query | 1000 (results beyond this are truncated) |
-| Query time              | 10 seconds                               |
+| Max time per query      | 20 seconds                               |
 
-Exploring tables and columns ("list tables", "describe table") does **not** count toward the hourly limit.
+Each query "costs" the time it takes to run, drawn from a rolling ~1-hour budget that starts on your first query and refreshes once it elapses. Exploring tables and columns ("list tables", "describe table") is free and does **not** count toward the budget.
 
 ## Troubleshooting
 

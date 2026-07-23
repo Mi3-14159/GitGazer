@@ -22,6 +22,7 @@ GitGazer is a GitHub workflow monitoring and notification system built on AWS se
 - **Auth**: AWS Cognito with OAuth, httpOnly cookies — no client-side token storage.
 - **Logging**: AWS Powertools Logger (structured logging) in the backend.
 - **Testing**: Vitest for backend unit tests. Mock all AWS services — never call real APIs in tests.
+- **Comments**: Comment sparingly. Only add a comment when it explains a non-obvious _why_ (rationale, constraint, gotcha); don't restate what the code or a well-named symbol already says. Prefer self-documenting names over narration.
 
 ---
 

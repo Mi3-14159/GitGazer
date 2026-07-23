@@ -151,17 +151,23 @@ const config = convict({
         sensitive: true,
     },
     mcpQuota: {
-        maxPerWindow: {
-            doc: 'Maximum MCP run_sql queries a user may run per quota window',
+        budgetSeconds: {
+            doc: 'Per-user MCP query-time budget per window, in seconds (each run_sql costs its execution duration)',
             format: Number,
-            default: 100,
-            env: 'MCP_QUERY_QUOTA_MAX',
+            default: 600,
+            env: 'MCP_QUERY_BUDGET_SECONDS',
         },
         windowSeconds: {
-            doc: 'MCP query quota window length, in seconds',
+            doc: 'MCP query budget window length, in seconds',
             format: Number,
             default: 3600,
             env: 'MCP_QUERY_QUOTA_WINDOW_SECONDS',
+        },
+        maxQuerySeconds: {
+            doc: 'Maximum duration of a single MCP run_sql query, in seconds (Postgres statement_timeout). keep below the API Lambda timeout.',
+            format: Number,
+            default: 20,
+            env: 'MCP_QUERY_MAX_SECONDS',
         },
     },
     mcpServerUrl: {

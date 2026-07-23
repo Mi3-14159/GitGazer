@@ -67,6 +67,9 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
     importUrlBase           = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
     mcpServerUrl            = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/mcp"
     mcpAllowedRedirectHosts = var.mcp_allowed_redirect_hosts
+    mcpQuota = {
+      maxQuerySeconds = local.mcp_query_timeout_seconds
+    }
     githubApp = {
       id            = var.gh_app.id
       privateKey    = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]

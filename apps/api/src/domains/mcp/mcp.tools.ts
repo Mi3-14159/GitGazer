@@ -1,5 +1,5 @@
 import type {McpCaller} from '@/domains/mcp/mcp.controller';
-import {enforceQuota, QuotaExceededError} from '@/domains/mcp/mcp.quota';
+import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
 import {runReadOnlyQuery, type ReadOnlyQueryResult} from '@gitgazer/db/queries';
 
 /** MCP tool-call result shape (a single text block holding the JSON payload). */
@@ -70,12 +70,19 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             if (typeof sql !== 'string' || !sql.trim()) {
                 throw new McpToolError("'sql' must be a non-empty string");
             }
-            const budget = await enforceQuota(caller.userId).catch((error: unknown) => {
+            const reservation = await reserveQueryBudget(caller.userId).catch((error: unknown) => {
                 if (error instanceof QuotaExceededError) throw new McpToolError(error.message);
                 throw error;
             });
-            const result = await runReadOnlyQuery({sql, integrationIds});
-            return {content: [{type: 'text', text: JSON.stringify({...result, budget})}]};
+            // Charge on every outcome (success, error, or timeout) so expensive queries can't run for free.
+            const start = Date.now();
+            const outcome = await runReadOnlyQuery({sql, integrationIds, statementTimeoutS: reservation.maxQuerySeconds}).then(
+                (result) => ({result}),
+                (error: unknown) => ({error}),
+            );
+            const budget = await chargeQueryBudget(reservation, Date.now() - start);
+            if ('error' in outcome) throw outcome.error;
+            return {content: [{type: 'text', text: JSON.stringify({...outcome.result, budget})}]};
         }
         case 'list_tables':
             return toResult(

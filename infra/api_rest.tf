@@ -1,4 +1,8 @@
 locals {
+  # MCP run_sql statement_timeout (seconds), written into the Lambda config secret (mcpQuota.maxQuerySeconds).
+  # Keep below the Lambda timeout so a timed-out query is charged before the invocation is killed.
+  mcp_query_timeout_seconds = 20
+
   api_resources = {
     "workflows" = {
       methods = ["GET"]

@@ -1,5 +1,5 @@
 import config from '@/shared/config';
-import {consumeMcpQuota} from '@gitgazer/db/queries';
+import {addMcpBudgetCostMs, getMcpBudgetUsedMs} from '@gitgazer/db/queries';
 
 export class QuotaExceededError extends Error {
     constructor(message: string) {
@@ -8,29 +8,51 @@ export class QuotaExceededError extends Error {
     }
 }
 
-/** Remaining query budget for the current window, surfaced to the MCP client. */
-export type QueryBudget = {limit: number; remaining: number; resetAt: string};
+/** Budget snapshot returned to the MCP client, in seconds. */
+export type QueryBudget = {limit: number; consumed: number; remaining: number; resetAt: string};
 
-/**
- * Count one query against the caller's per-user, fixed-window quota. Throws
- * `QuotaExceededError` once the window is exhausted; otherwise returns the remaining budget.
- * The window is a fixed calendar bucket (floor(now / windowSeconds)), so the count resets
- * automatically when the bucket rolls over.
- */
-export const enforceQuota = async (userId: number): Promise<QueryBudget> => {
-    const {maxPerWindow, windowSeconds} = config.get('mcpQuota');
-    if (!Number.isInteger(maxPerWindow) || maxPerWindow <= 0 || !Number.isInteger(windowSeconds) || windowSeconds <= 0) {
-        throw new Error('mcpQuota is misconfigured: maxPerWindow and windowSeconds must be positive integers');
-    }
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    const windowStartSeconds = Math.floor(nowSeconds / windowSeconds) * windowSeconds;
-    const windowStart = new Date(windowStartSeconds * 1000);
-    const resetAt = new Date((windowStartSeconds + windowSeconds) * 1000).toISOString();
+/** Resolved budget config carried from reserve to charge. */
+export type BudgetReservation = {
+    userId: number;
+    budgetMs: number;
+    windowSeconds: number;
+    maxQuerySeconds: number;
+};
 
-    // Cap the stored counter at maxPerWindow + 1 (enough to detect "over") so it never grows unbounded.
-    const count = await consumeMcpQuota(userId, windowStart, maxPerWindow + 1);
-    if (count > maxPerWindow) {
-        throw new QuotaExceededError(`Query quota exceeded: ${maxPerWindow} queries per ${windowSeconds}s. Resets at ${resetAt}.`);
+const resolveConfig = (): {budgetMs: number; windowSeconds: number; maxQuerySeconds: number} => {
+    const {budgetSeconds, windowSeconds, maxQuerySeconds} = config.get('mcpQuota');
+    if (
+        !Number.isInteger(budgetSeconds) ||
+        budgetSeconds <= 0 ||
+        !Number.isInteger(windowSeconds) ||
+        windowSeconds <= 0 ||
+        !Number.isInteger(maxQuerySeconds) ||
+        maxQuerySeconds <= 0
+    ) {
+        throw new Error('mcpQuota is misconfigured: budgetSeconds, windowSeconds and maxQuerySeconds must be positive integers');
     }
-    return {limit: maxPerWindow, remaining: Math.max(0, maxPerWindow - count), resetAt};
+    return {budgetMs: budgetSeconds * 1000, windowSeconds, maxQuerySeconds};
+};
+
+/** Pre-flight the caller's budget for the current rolling window; throws `QuotaExceededError` if it is already exhausted. */
+export const reserveQueryBudget = async (userId: number): Promise<BudgetReservation> => {
+    const {budgetMs, windowSeconds, maxQuerySeconds} = resolveConfig();
+    const {usedMs, windowStart} = await getMcpBudgetUsedMs(userId, windowSeconds);
+    if (windowStart && usedMs >= budgetMs) {
+        const resetAt = new Date(windowStart.getTime() + windowSeconds * 1000).toISOString();
+        throw new QuotaExceededError(`Query budget exceeded: ${budgetMs / 1000} query-seconds per ${windowSeconds}s window. Resets at ${resetAt}.`);
+    }
+    return {userId, budgetMs, windowSeconds, maxQuerySeconds};
+};
+
+/** Charge a query's measured cost (ms) against a reservation and return the budget snapshot (seconds). */
+export const chargeQueryBudget = async (reservation: BudgetReservation, costMs: number): Promise<QueryBudget> => {
+    const {userId, budgetMs, windowSeconds} = reservation;
+    const {consumedMs, windowStart} = await addMcpBudgetCostMs(userId, windowSeconds, Math.max(0, Math.round(costMs)));
+    return {
+        limit: budgetMs / 1000,
+        consumed: consumedMs / 1000,
+        remaining: Math.max(0, budgetMs - consumedMs) / 1000,
+        resetAt: new Date(windowStart.getTime() + windowSeconds * 1000).toISOString(),
+    };
 };

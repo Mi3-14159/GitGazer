@@ -66,14 +66,14 @@ Key points:
 
 All tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations.
 
-| Tool                | Input       | Description                                        | Counts against quota |
-| ------------------- | ----------- | -------------------------------------------------- | -------------------- |
-| `run_sql`           | `{ sql }`   | Run a single read-only `SELECT` / `WITH … SELECT`. | ✅ yes               |
-| `list_tables`       | —           | List the tables you may query (schema + name).     | ❌ no                |
-| `describe_table`    | `{ table }` | List a table's columns (name, type, nullability).  | ❌ no                |
-| `list_integrations` | —           | List the integrations (tenants) you can access.    | ❌ no                |
+| Tool                | Input       | Description                                        | Counts against budget |
+| ------------------- | ----------- | -------------------------------------------------- | --------------------- |
+| `run_sql`           | `{ sql }`   | Run a single read-only `SELECT` / `WITH … SELECT`. | ✅ yes                |
+| `list_tables`       | —           | List the tables you may query (schema + name).     | ❌ no                 |
+| `describe_table`    | `{ table }` | List a table's columns (name, type, nullability).  | ❌ no                 |
+| `list_integrations` | —           | List the integrations (tenants) you can access.    | ❌ no                 |
 
-`run_sql` returns the columns, rows, a `rowCount`, a `truncated` flag, and the remaining `budget` (see [Limits](#limits-and-budget)).
+`run_sql` returns the columns, rows, a `rowCount`, a `truncated` flag, and the query-time `budget` (see [Limits](#limits-and-budget)).
 
 ## Queryable data
 
@@ -121,36 +121,39 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 6. **Blocked-function + escape guard** — `set_config`, `pg_sleep`, `pg_stat_activity`, file/host functions, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected, so the `rls.integration_ids` GUC cannot be overwritten mid-query.
 7. **`set_config` REVOKE** — migration `0056` additionally attempts to revoke `EXECUTE` on `set_config` (best-effort; may be a no-op on managed PostgreSQL, which is why layer 6 is the authoritative control).
 8. **Resource caps** — a `statement_timeout` and a row cap bound each query.
-9. **Per-user quota** — a fixed-window budget bounds how many `run_sql` calls a user can make.
+9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
 ## Limits and budget
 
-| Limit             | Default    | Applies to         |
-| ----------------- | ---------- | ------------------ |
-| Row cap           | 1000 rows  | every `run_sql`    |
-| Statement timeout | 10 seconds | every `run_sql`    |
-| Query quota       | 100 / hour | `run_sql` per user |
+| Limit             | Default                | Applies to         |
+| ----------------- | ---------------------- | ------------------ |
+| Row cap           | 1000 rows              | every `run_sql`    |
+| Statement timeout | 20 seconds             | every `run_sql`    |
+| Query budget      | 600 query-seconds/hour | `run_sql` per user |
 
-When more rows exist than the cap, results are truncated to the cap and `truncated: true` is returned. Every `run_sql` result includes the remaining budget:
+When more rows exist than the cap, results are truncated to the cap and `truncated: true` is returned.
+
+Each `run_sql` costs the duration of the query. Every `run_sql` result includes the query-time budget (all values in **seconds**):
 
 ```json
 {
-    "budget": {"limit": 100, "remaining": 87, "resetAt": "2026-07-21T15:00:00.000Z"}
+    "budget": {"limit": 600, "consumed": 12.481, "remaining": 587.519, "resetAt": "2026-07-21T15:00:00.000Z"}
 }
 ```
 
-Exceeding the quota returns a tool error until the window resets. The discovery tools (`list_tables`, `describe_table`, `list_integrations`) do not consume quota.
+A query is charged whether it succeeds or fails (including hitting the statement timeout), so expensive queries can't run for free. The window is a rolling `windowSeconds` (default 1 hour) that starts on a user's first query and resets once it elapses; exceeding the budget returns a tool error until then. The discovery tools (`list_tables`, `describe_table`, `list_integrations`) do not consume budget.
 
 ## Configuration
 
 Application settings (convict; loaded from Secrets Manager, overridable by env var):
 
-| Setting                   | Env var                          | Default                | Purpose                                                   |
-| ------------------------- | -------------------------------- | ---------------------- | --------------------------------------------------------- |
-| `mcpServerUrl`            | `MCP_SERVER_URL`                 | derived from domain    | Public MCP URL advertised in OAuth metadata.              |
-| `mcpQuota.maxPerWindow`   | `MCP_QUERY_QUOTA_MAX`            | `100`                  | `run_sql` calls allowed per window, per user.             |
-| `mcpQuota.windowSeconds`  | `MCP_QUERY_QUOTA_WINDOW_SECONDS` | `3600`                 | Quota window length, in seconds.                          |
-| `mcpAllowedRedirectHosts` | `MCP_ALLOWED_REDIRECT_HOSTS`     | `vscode.dev,claude.ai` | Hosted OAuth redirect hosts (loopback is always allowed). |
+| Setting                    | Env var                          | Default                | Purpose                                                   |
+| -------------------------- | -------------------------------- | ---------------------- | --------------------------------------------------------- |
+| `mcpServerUrl`             | `MCP_SERVER_URL`                 | derived from domain    | Public MCP URL advertised in OAuth metadata.              |
+| `mcpQuota.budgetSeconds`   | `MCP_QUERY_BUDGET_SECONDS`       | `600`                  | Query-time budget per window, per user (in seconds).      |
+| `mcpQuota.windowSeconds`   | `MCP_QUERY_QUOTA_WINDOW_SECONDS` | `3600`                 | Budget window length, in seconds.                         |
+| `mcpQuota.maxQuerySeconds` | `MCP_QUERY_MAX_SECONDS`          | `20`                   | Max duration of a single `run_sql` (statement timeout).   |
+| `mcpAllowedRedirectHosts`  | `MCP_ALLOWED_REDIRECT_HOSTS`     | `vscode.dev,claude.ai` | Hosted OAuth redirect hosts (loopback is always allowed). |
 
 Infrastructure (Terraform):
 

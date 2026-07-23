@@ -24,8 +24,9 @@ export const users = gitgazerSchema.table('users', {
     githubLogin: varchar('github_login', {length: 255}),
 });
 
-// Per-user MCP query-quota counter (fixed window). Global (no tenant RLS) like `users`;
-// written by the app connection role, never by gitgazer_mcp.
+// Per-user MCP query-time budget in a rolling window anchored at the user's first request (lasts
+// mcpQuota.windowSeconds). Each window is its own row — closed windows are KEPT as analytics history,
+// so a new window inserts a new row. Global (no tenant RLS); written by the app role, never gitgazer_mcp.
 export const mcpQueryUsage = gitgazerSchema.table(
     'mcp_query_usage',
     {
@@ -33,7 +34,7 @@ export const mcpQueryUsage = gitgazerSchema.table(
             .notNull()
             .references(() => users.id, {onDelete: 'cascade'}),
         windowStart: timestamp('window_start', {withTimezone: true}).notNull(),
-        count: integer('count').notNull().default(0),
+        consumedMs: integer('consumed_ms').notNull().default(0),
     },
     (table) => [primaryKey({columns: [table.userId, table.windowStart]})],
 );

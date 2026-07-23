@@ -2,13 +2,20 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/db/queries', () => ({runReadOnlyQuery: vi.fn()}));
 vi.mock('@/domains/mcp/mcp.quota', () => ({
-    enforceQuota: vi.fn(),
+    reserveQueryBudget: vi.fn(),
+    chargeQueryBudget: vi.fn(),
     QuotaExceededError: class QuotaExceededError extends Error {},
 }));
 
 const IDS = ['11111111-1111-1111-1111-111111111111'];
 const CALLER = {userId: 42, integrationIds: IDS};
-const BUDGET = {limit: 100, remaining: 99, resetAt: '2026-07-21T01:00:00.000Z'};
+const RESERVATION = {
+    userId: 42,
+    budgetMs: 600_000,
+    windowSeconds: 3600,
+    maxQuerySeconds: 60,
+};
+const BUDGET = {limit: 600, consumed: 1.5, remaining: 598.5, resetAt: '2026-07-21T01:00:00.000Z'};
 
 let readonly: typeof import('@gitgazer/db/queries');
 let quota: typeof import('@/domains/mcp/mcp.quota');
@@ -23,7 +30,8 @@ describe('mcp tools', () => {
         quota = await import('@/domains/mcp/mcp.quota');
         mod = await import('@/domains/mcp/mcp.tools');
         asMock(readonly.runReadOnlyQuery).mockResolvedValue({columns: ['x'], rows: [{x: 1}], rowCount: 1, truncated: false});
-        asMock(quota.enforceQuota).mockResolvedValue(BUDGET);
+        asMock(quota.reserveQueryBudget).mockResolvedValue(RESERVATION);
+        asMock(quota.chargeQueryBudget).mockResolvedValue(BUDGET);
     });
 
     const lastSql = (): string => asMock(readonly.runReadOnlyQuery).mock.calls[0][0].sql;
@@ -32,30 +40,40 @@ describe('mcp tools', () => {
         expect(mod.MCP_TOOLS.map((t) => t.name)).toEqual(['run_sql', 'list_tables', 'describe_table', 'list_integrations']);
     });
 
-    it('run_sql enforces quota, runs the query, and returns the remaining budget', async () => {
+    it('run_sql reserves budget, runs with the max-query timeout, charges, and returns the budget', async () => {
         const res = await mod.runToolCall('run_sql', {sql: 'SELECT 1 AS x'}, CALLER);
-        expect(quota.enforceQuota).toHaveBeenCalledWith(42);
-        expect(readonly.runReadOnlyQuery).toHaveBeenCalledWith({sql: 'SELECT 1 AS x', integrationIds: IDS});
+        expect(quota.reserveQueryBudget).toHaveBeenCalledWith(42);
+        expect(readonly.runReadOnlyQuery).toHaveBeenCalledWith({sql: 'SELECT 1 AS x', integrationIds: IDS, statementTimeoutS: 60});
+        expect(quota.chargeQueryBudget).toHaveBeenCalledWith(RESERVATION, expect.any(Number));
         expect(JSON.parse(res.content[0].text)).toEqual({columns: ['x'], rows: [{x: 1}], rowCount: 1, truncated: false, budget: BUDGET});
     });
 
-    it('run_sql rejects when the quota is exhausted, without running the query', async () => {
-        asMock(quota.enforceQuota).mockRejectedValue(new quota.QuotaExceededError('over budget'));
+    it('run_sql charges the measured cost even when the query errors, then rethrows', async () => {
+        const boom = new Error('query blew up');
+        asMock(readonly.runReadOnlyQuery).mockRejectedValue(boom);
+        await expect(mod.runToolCall('run_sql', {sql: 'SELECT 1'}, CALLER)).rejects.toBe(boom);
+        expect(quota.chargeQueryBudget).toHaveBeenCalledWith(RESERVATION, expect.any(Number));
+    });
+
+    it('run_sql rejects when the budget is exhausted, without running or charging', async () => {
+        asMock(quota.reserveQueryBudget).mockRejectedValue(new quota.QuotaExceededError('over budget'));
         await expect(mod.runToolCall('run_sql', {sql: 'SELECT 1'}, CALLER)).rejects.toThrow(mod.McpToolError);
         expect(readonly.runReadOnlyQuery).not.toHaveBeenCalled();
+        expect(quota.chargeQueryBudget).not.toHaveBeenCalled();
     });
 
-    it('run_sql rejects a non-string / empty sql before touching quota or the DB', async () => {
+    it('run_sql rejects a non-string / empty sql before touching budget or the DB', async () => {
         await expect(mod.runToolCall('run_sql', {sql: 123}, CALLER)).rejects.toThrow(mod.McpToolError);
         await expect(mod.runToolCall('run_sql', {sql: '   '}, CALLER)).rejects.toThrow(mod.McpToolError);
-        expect(quota.enforceQuota).not.toHaveBeenCalled();
+        expect(quota.reserveQueryBudget).not.toHaveBeenCalled();
         expect(readonly.runReadOnlyQuery).not.toHaveBeenCalled();
     });
 
-    it('list_tables introspects information_schema without consuming quota', async () => {
+    it('list_tables introspects information_schema without consuming budget', async () => {
         await mod.runToolCall('list_tables', {}, CALLER);
         expect(lastSql()).toContain('information_schema.tables');
-        expect(quota.enforceQuota).not.toHaveBeenCalled();
+        expect(quota.reserveQueryBudget).not.toHaveBeenCalled();
+        expect(quota.chargeQueryBudget).not.toHaveBeenCalled();
     });
 
     it('describe_table embeds a validated identifier', async () => {
