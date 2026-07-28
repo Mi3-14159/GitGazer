@@ -1,6 +1,6 @@
 import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
-import {GITHUB_ORG_ROLES, MEMBER_ASSIGNMENT_SOURCES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
+import {GITHUB_APP_WEBHOOK_EVENTS, GITHUB_ORG_ROLES, MEMBER_ASSIGNMENT_SOURCES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
 import {users} from '../gitgazer';
 import {githubSchema, mcpTenantSeparationPolicy, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
@@ -477,7 +477,10 @@ export const githubAppInstallations = githubSchema.table(
         accountId: bigint('account_id', {mode: 'number'}).notNull(),
         repositorySelection: varchar('repository_selection', {length: 50}).notNull(),
         senderId: bigint('sender_id', {mode: 'number'}).notNull(),
-        webhookEvents: jsonb('webhook_events').$type<string[]>().notNull().default(['workflow_run', 'workflow_job']),
+        webhookEvents: jsonb('webhook_events')
+            .$type<string[]>()
+            .notNull()
+            .default([...GITHUB_APP_WEBHOOK_EVENTS]),
         createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),
     },

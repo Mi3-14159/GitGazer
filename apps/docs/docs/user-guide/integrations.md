@@ -98,6 +98,8 @@ Control which GitHub event types GitGazer receives:
 
 Click the webhook events section to toggle event types on or off.
 
+All event types are subscribed by default when an installation is linked.
+
 _Requires **admin** role or higher._
 
 ### Org Sync Default Role

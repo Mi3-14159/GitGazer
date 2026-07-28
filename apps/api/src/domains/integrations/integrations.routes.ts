@@ -15,7 +15,7 @@ import {AppRequestContext} from '@/shared/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
 import {githubAppInstallations, integrations as integrationsTable} from '@gitgazer/db/schema/github/workflows';
-import {isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
+import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq, isNull} from 'drizzle-orm';
 
 const router = new Router();
@@ -161,9 +161,11 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
     // Link installation to integration — atomic guard against a concurrent link.
     // The UPDATE only matches while integration_id IS NULL; if a racing request
     // linked it first, 0 rows are returned and we reject instead of overwriting.
+    // Events are (re)set here so installations created before a new event type was
+    // supported still subscribe to everything on link.
     const linked = await db
         .update(githubAppInstallations)
-        .set({integrationId, updatedAt: new Date()})
+        .set({integrationId, webhookEvents: [...GITHUB_APP_WEBHOOK_EVENTS], updatedAt: new Date()})
         .where(and(eq(githubAppInstallations.installationId, installationId), isNull(githubAppInstallations.integrationId)))
         .returning({installationId: githubAppInstallations.installationId});
 
@@ -287,7 +289,7 @@ router.patch(
             throw new BadRequestError('Invalid request body');
         }
 
-        const allowedEvents = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'];
+        const allowedEvents: readonly string[] = GITHUB_APP_WEBHOOK_EVENTS;
         if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
             throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
         }

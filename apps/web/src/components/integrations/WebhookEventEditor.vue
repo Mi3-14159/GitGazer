@@ -2,10 +2,9 @@
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
     import {formatEventName} from '@/utils/formatDate';
+    import {GITHUB_APP_WEBHOOK_EVENTS} from '@common/types';
     import {CheckCircle2, XCircle, Zap} from 'lucide-vue-next';
     import {reactive} from 'vue';
-
-    const SUPPORTED_EVENTS = ['workflow_run', 'workflow_job', 'pull_request', 'pull_request_review'] as const;
 
     const props = defineProps<{
         installations: any[];
@@ -79,7 +78,7 @@
                 <!-- Editing mode -->
                 <template v-if="editingEvents[inst.installationId]">
                     <button
-                        v-for="event in SUPPORTED_EVENTS"
+                        v-for="event in GITHUB_APP_WEBHOOK_EVENTS"
                         :key="event"
                         class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer"
                         :class="

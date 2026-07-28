@@ -1,0 +1,1 @@
+ALTER TABLE "github"."github_app_installations" ALTER COLUMN "webhook_events" SET DEFAULT '["workflow_run","workflow_job","pull_request","pull_request_review"]'::jsonb;

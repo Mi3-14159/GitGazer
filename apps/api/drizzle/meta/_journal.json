@@ -428,6 +428,13 @@
       "when": 1785223034040,
       "tag": "0060_aromatic_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1785224712693,
+      "tag": "0061_default_all_webhook_events",
+      "breakpoints": true
     }
   ]
 }
