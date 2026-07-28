@@ -399,6 +399,7 @@ export const pullRequestReviews = githubSchema
             index('pull_request_reviews_repo_submitted').on(table.integrationId, table.repositoryId, table.submittedAt),
             writerTenantSeparationPolicy(),
             readerTenantSeparationPolicy(),
+            mcpTenantSeparationPolicy(),
         ],
     )
     .enableRLS();

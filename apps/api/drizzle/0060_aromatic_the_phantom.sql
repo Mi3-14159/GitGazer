@@ -1,0 +1,1 @@
+CREATE POLICY "tenant separation mcp" ON "github"."pull_request_reviews" AS PERMISSIVE FOR SELECT TO "gitgazer_mcp" USING (integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[]));

@@ -1,0 +1,1 @@
+GRANT SELECT ON TABLE github.pull_request_reviews TO gitgazer_mcp;--> statement-breakpoint
