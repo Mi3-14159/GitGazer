@@ -32,6 +32,7 @@ export const processRecord = async (record: SQSRecord): Promise<void> => {
     }
 
     const {integrationId, eventType, payload, source} = message;
+    logger.appendKeys({integrationId, eventType, source});
 
     const {data, stale} = await insertEvent(integrationId, eventType, payload);
 
