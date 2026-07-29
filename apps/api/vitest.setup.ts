@@ -7,6 +7,7 @@ vi.mock('@/shared/logger', () => ({
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        appendKeys: vi.fn(),
     })),
     newLogger: vi.fn(() => ({
         debug: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('@/shared/logger', () => ({
         warn: vi.fn(),
         error: vi.fn(),
         injectLambdaContext: vi.fn(),
+        appendKeys: vi.fn(),
     })),
 }));
 
