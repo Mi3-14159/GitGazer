@@ -1,0 +1,2237 @@
+{
+  "id": "ec696d1a-72ff-4623-b381-ff042a8f612b",
+  "prevIds": [
+    "0793a883-8794-4589-b4f3-ce39e81076f4"
+  ],
+  "version": "8",
+  "dialect": "postgres",
+  "ddl": [
+    {
+      "name": "gitgazer",
+      "entityType": "schemas"
+    },
+    {
+      "name": "github",
+      "entityType": "schemas"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "notification_rules",
+      "schema": "gitgazer",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channels",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "enabled",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "ignore_dependabot",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "rule",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "notification_rules_integration_id_id_pk",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "notification_rules_integration_id_integrations_integration_id_f",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "gitgazer",
+      "table": "notification_rules",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "users",
+      "schema": "gitgazer",
+      "entityType": "tables"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "users_pkey",
+      "schema": "gitgazer",
+      "table": "users",
+      "entityType": "pks"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": {
+        "name": "users_id_seq",
+        "type": "always",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "9223372036854775807",
+        "increment": "1",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "id",
+      "schema": "gitgazer",
+      "table": "users",
+      "entityType": "columns"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "cognito_id",
+      "schema": "gitgazer",
+      "table": "users",
+      "entityType": "columns"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "cognito_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "users_cognito_id_unique",
+      "schema": "gitgazer",
+      "table": "users",
+      "entityType": "uniques"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "ws_connections",
+      "schema": "gitgazer",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "connected_at",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "connection_id",
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "name": "ws_connections_integration_id_connection_id_user_id_pk",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "ws_connections_connection_id_idx",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "indexes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "ws_connections_integration_id_integrations_integration_id_fk",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "user_id"
+      ],
+      "schemaTo": "gitgazer",
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "ws_connections_user_id_users_id_fk",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "gitgazer",
+      "table": "ws_connections",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "enterprises",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "enterprises",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "enterprises",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "github",
+      "table": "enterprises",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "enterprises_integration_id_id_pk",
+      "schema": "github",
+      "table": "enterprises",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "enterprises_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "enterprises",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "enterprises",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "events",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "events",
+      "entityType": "columns"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "events",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "events",
+      "entityType": "columns"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event",
+      "schema": "github",
+      "table": "events",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "events_integration_id_id_pk",
+      "schema": "github",
+      "table": "events",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "events_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "events",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "events",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "integrations",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "columns": [
+        "integration_id"
+      ],
+      "nameExplicit": false,
+      "name": "integrations_pkey",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "pks"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "label",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "owner_id",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "columns"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "secret",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "columns"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "owner_id"
+      ],
+      "schemaTo": "gitgazer",
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "integrations_owner_id_users_id_fk",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "integrations",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "organizations",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "enterprise_id",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "login",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "organizations_integration_id_id_pk",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "organizations_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "enterprise_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "enterprises",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "organizations_integration_id_enterprise_id_enterprises_integrat",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "organizations",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "pull_requests",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "repository_id",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "number",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(50)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "state",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "title",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "body",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "head_branch",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "base_branch",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "author_id",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "draft",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "merged",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "closed_at",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "merged_at",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "pull_requests_integration_id_id_pk",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "pull_requests_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "repository_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "repositories",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "pull_requests_integration_id_repository_id_repositories_integra",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "author_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "user",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "pull_requests_integration_id_author_id_user_integration_id_id_f",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "pull_requests",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "repositories",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "organization_id",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "private",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "owner_id",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "repositories_integration_id_id_pk",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "repositories_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "organization_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "organizations",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "repositories_integration_id_organization_id_organizations_integ",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "owner_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "user",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "repositories_integration_id_owner_id_user_integration_id_id_fk",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "repositories",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "user",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "user",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "user",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "login",
+      "schema": "github",
+      "table": "user",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "type",
+      "schema": "github",
+      "table": "user",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "user_integration_id_id_pk",
+      "schema": "github",
+      "table": "user",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "user_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "user",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "user",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "user-assignments",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "user_id",
+        "integration_id"
+      ],
+      "nameExplicit": false,
+      "name": "user-assignments_user_id_integration_id_pk",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "user-assignments_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "user_id"
+      ],
+      "schemaTo": "gitgazer",
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user-assignments_user_id_users_id_fk",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "user-assignments",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "workflow_jobs",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "repository_id",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "completed_at",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(50)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "conclusion",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "head_branch",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "runner_group_name",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "run_attempt",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "run_id",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "started_at",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(50)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "workflow_name",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "workflow_run_id",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "workflow_jobs_integration_id_id_pk",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "integration_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "workflow_run_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "workflow_jobs_run_lookup",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "indexes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "workflow_jobs_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "repository_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "repositories",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "workflow_jobs_integration_id_repository_id_repositories_integra",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "workflow_jobs",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "workflow_run_pull_requests",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "workflow_run_id",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "pull_request_id",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "workflow_run_id",
+        "pull_request_id"
+      ],
+      "nameExplicit": false,
+      "name": "workflow_run_pull_requests_integration_id_workflow_run_id_pull_request_id_pk",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "workflow_run_pull_requests_integration_id_integrations_integrat",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "workflow_run_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "workflow_runs",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "workflow_run_pull_requests_integration_id_workflow_run_id_workf",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "pull_request_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "pull_requests",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "workflow_run_pull_requests_integration_id_pull_request_id_pull_",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "workflow_run_pull_requests",
+      "entityType": "policies"
+    },
+    {
+      "isRlsEnabled": true,
+      "name": "workflow_runs",
+      "schema": "github",
+      "entityType": "tables"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "integration_id",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "repository_id",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "actor_id",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "conclusion",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "head_branch",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "run_attempt",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(50)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "run_started_at",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "workflow_id",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "varchar(255)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "head_commit_author_name",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "head_commit_message",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "columns"
+    },
+    {
+      "columns": [
+        "integration_id",
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "workflow_runs_integration_id_id_pk",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "integration_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "workflow_runs_created_id",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "indexes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "integrations",
+      "columnsTo": [
+        "integration_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "workflow_runs_integration_id_integrations_integration_id_fk",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "repository_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "repositories",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "workflow_runs_integration_id_repository_id_repositories_integra",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "fks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "integration_id",
+        "actor_id"
+      ],
+      "schemaTo": "github",
+      "tableTo": "user",
+      "columnsTo": [
+        "integration_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "workflow_runs_integration_id_actor_id_user_integration_id_id_fk",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "fks"
+    },
+    {
+      "as": "PERMISSIVE",
+      "for": "ALL",
+      "roles": [
+        "gitgazer_user"
+      ],
+      "using": "integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[])",
+      "withCheck": null,
+      "name": "tenant separation",
+      "schema": "github",
+      "table": "workflow_runs",
+      "entityType": "policies"
+    },
+    {
+      "superuser": null,
+      "createDb": false,
+      "createRole": true,
+      "inherit": true,
+      "canLogin": null,
+      "replication": null,
+      "bypassRls": null,
+      "connLimit": null,
+      "password": null,
+      "validUntil": null,
+      "name": "gitgazer_user",
+      "entityType": "roles"
+    }
+  ],
+  "renames": []
+}

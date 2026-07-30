@@ -1,0 +1,33 @@
+{
+  "id": "789b09b1-12fb-4359-a685-b2685d17f5ad",
+  "prevIds": [
+    "584f95b2-7fdb-4c2e-979c-81ff4736207a"
+  ],
+  "version": "8",
+  "dialect": "postgres",
+  "ddl": [
+    {
+      "name": "gitgazer",
+      "entityType": "schemas"
+    },
+    {
+      "name": "github",
+      "entityType": "schemas"
+    },
+    {
+      "superuser": null,
+      "createDb": false,
+      "createRole": true,
+      "inherit": true,
+      "canLogin": null,
+      "replication": null,
+      "bypassRls": null,
+      "connLimit": null,
+      "password": null,
+      "validUntil": null,
+      "name": "gitgazer_user",
+      "entityType": "roles"
+    }
+  ],
+  "renames": []
+}
