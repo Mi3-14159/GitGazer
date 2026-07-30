@@ -3,14 +3,16 @@
     import ThemeToggle from '@/components/ThemeToggle.vue';
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import {useAuth} from '@/composables/useAuth';
+    import {useMcp} from '@/composables/useMcp';
     import {useTour} from '@/composables/useTour';
     import type {UserAttributes} from '@common/types';
-    import {BookOpen, CircleHelp, Keyboard, LogOut, Play, RotateCcw} from 'lucide-vue-next';
+    import {BookOpen, CircleHelp, Keyboard, LogOut, Play, RotateCcw, Sparkles} from 'lucide-vue-next';
     import {DropdownMenuItem} from 'radix-vue';
     import {onMounted, ref} from 'vue';
 
     const {getUserAttributes, signOut} = useAuth();
     const {isActive, canResume, tourCompleted, resetTour, resumeTour} = useTour();
+    const {openConnectDialog} = useMcp();
 
     const user = ref<UserAttributes | null>(null);
     const helpOpen = ref(false);
@@ -34,6 +36,11 @@
     function handleResume() {
         helpOpen.value = false;
         void resumeTour();
+    }
+
+    function handleConnectAssistant() {
+        helpOpen.value = false;
+        openConnectDialog();
     }
 
     async function handleLogout() {
@@ -90,6 +97,13 @@
                         >
                             <Play class="h-3.5 w-3.5" />
                             Resume tour
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md cursor-pointer hover:bg-accent outline-none"
+                            @click="handleConnectAssistant"
+                        >
+                            <Sparkles class="h-3.5 w-3.5" />
+                            Connect an AI assistant
                         </DropdownMenuItem>
                         <DropdownMenuItem class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md cursor-pointer hover:bg-accent outline-none">
                             <Keyboard class="h-3.5 w-3.5" />

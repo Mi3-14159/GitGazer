@@ -2,6 +2,7 @@
     import AppFooter from '@/components/layout/AppFooter.vue';
     import AppHeader from '@/components/layout/AppHeader.vue';
     import AppNav from '@/components/layout/AppNav.vue';
+    import McpConnectDialog from '@/components/mcp/McpConnectDialog.vue';
     import GuidedTour from '@/components/tour/GuidedTour.vue';
 </script>
 
@@ -28,6 +29,9 @@
         <AppFooter />
 
         <GuidedTour />
+
+        <!-- Single instance shared by every trigger (header menu, hint cards) -->
+        <McpConnectDialog />
     </div>
 </template>
 

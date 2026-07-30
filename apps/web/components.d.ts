@@ -62,6 +62,8 @@ declare module 'vue' {
     InviteUserDialog: typeof import('./src/components/users/InviteUserDialog.vue')['default']
     Label: typeof import('./src/components/ui/Label.vue')['default']
     LeaveIntegrationDialog: typeof import('./src/components/integrations/LeaveIntegrationDialog.vue')['default']
+    McpConnectDialog: typeof import('./src/components/mcp/McpConnectDialog.vue')['default']
+    McpHintCard: typeof import('./src/components/mcp/McpHintCard.vue')['default']
     MetricWidget: typeof import('./src/components/analytics/widgets/MetricWidget.vue')['default']
     NotificationCard: typeof import('./src/components/notifications/NotificationCard.vue')['default']
     NotificationDetailsCard: typeof import('./src/components/notifications/NotificationDetailsCard.vue')['default']

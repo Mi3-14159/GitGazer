@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import DateTimeRangePicker from '@/components/filters/DateTimeRangePicker.vue';
+    import McpHintCard from '@/components/mcp/McpHintCard.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import WorkflowCardDetails from '@/components/workflows/WorkflowCardDetails.vue';
@@ -126,6 +127,12 @@
             @toggle-run="toggleRun"
             @job-click="onJobClick"
             @filter-change="handleColumnFilterChange"
+        />
+
+        <!-- Highest-intent moment: the filters came up empty -->
+        <McpHintCard
+            v-if="!isLoading && runs.length === 0"
+            variant="inline"
         />
 
         <!-- Job details dialog -->

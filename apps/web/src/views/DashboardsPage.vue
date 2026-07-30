@@ -4,6 +4,7 @@
     import WidgetGrid from '@/components/analytics/WidgetGrid.vue';
     import DateTimeRangePicker from '@/components/filters/DateTimeRangePicker.vue';
     import GranularitySelector from '@/components/filters/GranularitySelector.vue';
+    import McpHintCard from '@/components/mcp/McpHintCard.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import {useDashboardFilters} from '@/composables/useDashboardFilters';
@@ -90,6 +91,8 @@
                 :dashboards="dashboards"
                 @select="onSelectDashboard"
             />
+
+            <McpHintCard />
         </template>
     </div>
 </template>

@@ -1,4 +1,4 @@
-import {Activity, BellRing, Compass, LayoutDashboard, PartyPopper, PlayCircle, Sparkles, Webhook} from 'lucide-vue-next';
+import {Activity, BellRing, Bot, Compass, LayoutDashboard, PartyPopper, PlayCircle, Sparkles, Webhook} from 'lucide-vue-next';
 import type {Component} from 'vue';
 
 export interface TourStep {
@@ -87,6 +87,18 @@ export const tourSteps: TourStep[] = [
         tip: 'These dashboards work best with at least 2 weeks of workflow data.',
         target: '[data-tour="dashboards-content"]',
         popoverSide: 'bottom',
+        route: '/dashboards',
+    },
+    {
+        id: 'ai-assistants',
+        type: 'spotlight',
+        title: 'Ask Anything the Dashboards Don’t Cover',
+        description:
+            'GitGazer ships an MCP server, so VS Code, Claude Code, or Claude Desktop can answer questions about your workflow data in plain English — read-only, and scoped to your integrations.',
+        icon: Bot,
+        tip: 'Reachable any time from the help menu → Connect an AI assistant.',
+        target: '[data-tour="mcp-hint"]',
+        popoverSide: 'top',
         route: '/dashboards',
     },
     {

@@ -21,6 +21,10 @@ The assistant can only **read** your data. It cannot change settings, delete any
 
 You sign in with the same GitHub account you use for the GitGazer web app. No API keys or tokens to copy — the first time you connect, your client opens a browser to sign in.
 
+:::tip Get your endpoint from the app
+In the GitGazer web app, open the **help menu (?) → Connect an AI assistant**. It shows your exact MCP endpoint and a copy-paste config for each client below, so you never have to assemble the URL by hand.
+:::
+
 ## Connect VS Code
 
 1. Create (or open) `.vscode/mcp.json` in your workspace and add:
