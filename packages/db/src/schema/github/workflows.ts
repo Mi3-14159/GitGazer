@@ -1,4 +1,3 @@
-import {relations} from 'drizzle-orm';
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {GITHUB_APP_WEBHOOK_EVENTS, GITHUB_ORG_ROLES, MEMBER_ASSIGNMENT_SOURCES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
 import {users} from '../gitgazer';
@@ -21,10 +20,6 @@ export const integrations = githubSchema
     )
     .enableRLS();
 
-export const integrationsRelations = relations(integrations, ({many}) => ({
-    githubAppInstallations: many(githubAppInstallations),
-}));
-
 export const userAssignments = githubSchema
     .table(
         'user-assignments',
@@ -42,13 +37,6 @@ export const userAssignments = githubSchema
         (table) => [primaryKey({columns: [table.userId, table.integrationId]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
     )
     .enableRLS();
-
-export const userAssignmentsRelations = relations(userAssignments, ({one}) => ({
-    user: one(users, {
-        fields: [userAssignments.userId],
-        references: [users.id],
-    }),
-}));
 
 export const events = githubSchema
     .table(
@@ -80,10 +68,6 @@ export const enterprises = githubSchema
     )
     .enableRLS();
 
-export const enterprisesRelations = relations(enterprises, ({many}) => ({
-    organizations: many(organizations),
-}));
-
 export const organizations = githubSchema
     .table(
         'organizations',
@@ -106,14 +90,6 @@ export const organizations = githubSchema
         ],
     )
     .enableRLS();
-
-export const organizationsRelations = relations(organizations, ({one, many}) => ({
-    enterprise: one(enterprises, {
-        fields: [organizations.integrationId, organizations.enterpriseId],
-        references: [enterprises.integrationId, enterprises.id],
-    }),
-    repositories: many(repositories),
-}));
 
 export const repositories = githubSchema
     .table(
@@ -152,19 +128,6 @@ export const repositories = githubSchema
     )
     .enableRLS();
 
-export const repositoriesRelations = relations(repositories, ({one, many}) => ({
-    organization: one(organizations, {
-        fields: [repositories.integrationId, repositories.organizationId],
-        references: [organizations.integrationId, organizations.id],
-    }),
-    workflowRuns: many(workflowRuns),
-    workflowJobs: many(workflowJobs),
-    owner: one(user, {
-        fields: [repositories.integrationId, repositories.ownerId],
-        references: [user.integrationId, user.id],
-    }),
-}));
-
 export const user = githubSchema
     .table(
         'user',
@@ -182,11 +145,6 @@ export const user = githubSchema
         ],
     )
     .enableRLS();
-
-export const userRelations = relations(user, ({many}) => ({
-    workflowRuns: many(workflowRuns),
-    workflowJobs: many(workflowJobs),
-}));
 
 export const workflowJobs = githubSchema
     .table(
@@ -235,21 +193,6 @@ export const workflowJobs = githubSchema
         ],
     )
     .enableRLS();
-
-export const workflowJobsRelations = relations(workflowJobs, ({one}) => ({
-    repository: one(repositories, {
-        fields: [workflowJobs.integrationId, workflowJobs.repositoryId],
-        references: [repositories.integrationId, repositories.id],
-    }),
-    sender: one(user, {
-        fields: [workflowJobs.integrationId, workflowJobs.senderId],
-        references: [user.integrationId, user.id],
-    }),
-    workflowRun: one(workflowRuns, {
-        fields: [workflowJobs.integrationId, workflowJobs.workflowRunId],
-        references: [workflowRuns.integrationId, workflowRuns.id],
-    }),
-}));
 
 export const workflowRuns = githubSchema
     .table(
@@ -304,19 +247,6 @@ export const workflowRuns = githubSchema
         ],
     )
     .enableRLS();
-
-export const workflowRunsRelations = relations(workflowRuns, ({one, many}) => ({
-    repository: one(repositories, {
-        fields: [workflowRuns.integrationId, workflowRuns.repositoryId],
-        references: [repositories.integrationId, repositories.id],
-    }),
-    actor: one(user, {
-        fields: [workflowRuns.integrationId, workflowRuns.actorId],
-        references: [user.integrationId, user.id],
-    }),
-    workflowJobs: many(workflowJobs),
-    pullRequests: many(workflowRunPullRequests),
-}));
 
 export const pullRequests = githubSchema
     .table(
@@ -404,34 +334,6 @@ export const pullRequestReviews = githubSchema
     )
     .enableRLS();
 
-export const pullRequestReviewsRelations = relations(pullRequestReviews, ({one}) => ({
-    pullRequest: one(pullRequests, {
-        fields: [pullRequestReviews.integrationId, pullRequestReviews.pullRequestId],
-        references: [pullRequests.integrationId, pullRequests.id],
-    }),
-    repository: one(repositories, {
-        fields: [pullRequestReviews.integrationId, pullRequestReviews.repositoryId],
-        references: [repositories.integrationId, repositories.id],
-    }),
-    reviewer: one(user, {
-        fields: [pullRequestReviews.integrationId, pullRequestReviews.userId],
-        references: [user.integrationId, user.id],
-    }),
-}));
-
-export const pullRequestsRelations = relations(pullRequests, ({one, many}) => ({
-    repository: one(repositories, {
-        fields: [pullRequests.integrationId, pullRequests.repositoryId],
-        references: [repositories.integrationId, repositories.id],
-    }),
-    author: one(user, {
-        fields: [pullRequests.integrationId, pullRequests.authorId],
-        references: [user.integrationId, user.id],
-    }),
-    workflowRuns: many(workflowRunPullRequests),
-    reviews: many(pullRequestReviews),
-}));
-
 export const workflowRunPullRequests = githubSchema
     .table(
         'workflow_run_pull_requests',
@@ -455,17 +357,6 @@ export const workflowRunPullRequests = githubSchema
         ],
     )
     .enableRLS();
-
-export const workflowRunPullRequestsRelations = relations(workflowRunPullRequests, ({one}) => ({
-    workflowRun: one(workflowRuns, {
-        fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.workflowRunId],
-        references: [workflowRuns.integrationId, workflowRuns.id],
-    }),
-    pullRequest: one(pullRequests, {
-        fields: [workflowRunPullRequests.integrationId, workflowRunPullRequests.pullRequestId],
-        references: [pullRequests.integrationId, pullRequests.id],
-    }),
-}));
 
 export const githubAppInstallations = githubSchema.table(
     'github_app_installations',
@@ -491,14 +382,6 @@ export const githubAppInstallations = githubSchema.table(
     ],
 );
 
-export const githubAppInstallationsRelations = relations(githubAppInstallations, ({one, many}) => ({
-    integration: one(integrations, {
-        fields: [githubAppInstallations.integrationId],
-        references: [integrations.integrationId],
-    }),
-    webhooks: many(githubAppWebhooks),
-}));
-
 export const githubAppWebhooks = githubSchema
     .table(
         'github_app_webhooks',
@@ -520,17 +403,6 @@ export const githubAppWebhooks = githubSchema
     )
     .enableRLS();
 
-export const githubAppWebhooksRelations = relations(githubAppWebhooks, ({one}) => ({
-    integration: one(integrations, {
-        fields: [githubAppWebhooks.integrationId],
-        references: [integrations.integrationId],
-    }),
-    installation: one(githubAppInstallations, {
-        fields: [githubAppWebhooks.installationId],
-        references: [githubAppInstallations.installationId],
-    }),
-}));
-
 export const githubOrgMembers = githubSchema.table(
     'github_org_members',
     {
@@ -544,13 +416,6 @@ export const githubOrgMembers = githubSchema.table(
     },
     (table) => [primaryKey({columns: [table.installationId, table.githubUserId]})],
 );
-
-export const githubOrgMembersRelations = relations(githubOrgMembers, ({one}) => ({
-    installation: one(githubAppInstallations, {
-        fields: [githubOrgMembers.installationId],
-        references: [githubAppInstallations.installationId],
-    }),
-}));
 
 export const pendingOrgSync = githubSchema
     .table(

@@ -47,7 +47,8 @@ cd apps/api   # drizzle-kit always runs from here
 # 1. Edit the schema in packages/db/src/schema/ (use the tenant-table template).
 #    - github entity  → packages/db/src/schema/github/*.ts
 #    - app data       → packages/db/src/schema/gitgazer.ts
-#    Add relations() + export the type if other code consumes it.
+#    Add an entry to packages/db/src/schema/relations.ts (ONE central defineRelations()
+#    call) if the table is queried with `.with`, + export the type if other code consumes it.
 
 # 2. Generate the migration (diffs schema → SQL in apps/api/drizzle/)
 npx drizzle-kit generate
@@ -82,7 +83,7 @@ Then edit the new file under `apps/api/drizzle/`. Separate statements with `--> 
 - [ ] Tenant table has `integrationId` FK (`onDelete: 'cascade'`) + composite PK with `integrationId` first
 - [ ] `writerTenantSeparationPolicy()` + `readerTenantSeparationPolicy()` attached and `.enableRLS()` called
 - [ ] `mcpTenantSeparationPolicy()` added only if the MCP server should expose the table
-- [ ] `relations()` defined if the table is queried with `.with`
+- [ ] Relation added to `packages/db/src/schema/relations.ts` if the table is queried with `.with`
 - [ ] Generated SQL reviewed; no manual GRANTs for new tables
 - [ ] Indexes are prefixed with `integrationId` for tenant-scoped lookups
 - [ ] Migration applied locally and a query verified under `withRlsTransaction`

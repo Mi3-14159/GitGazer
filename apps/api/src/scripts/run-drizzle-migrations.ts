@@ -36,7 +36,7 @@ async function run(): Promise<void> {
         ssl,
     });
 
-    const db = drizzle(pool);
+    const db = drizzle({client: pool});
     const migrationsFolder = path.resolve(__dirname, '../../', config.out ?? './drizzle');
 
     try {

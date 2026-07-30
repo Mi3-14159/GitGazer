@@ -1,11 +1,11 @@
-import type {ExtractTablesWithRelations} from 'drizzle-orm';
 import type {BuildQueryResult} from 'drizzle-orm/relations';
 
 import type {integrationsQueryRelations, memberQueryRelations, workflowJobRelations, workflowRunRelations} from '../queries';
 import type * as schema from '../schema';
+import type {DbRelations} from '../schema/relations';
 import type {MemberRole} from './members';
 
-export type Schema = ExtractTablesWithRelations<typeof schema>;
+export type Schema = DbRelations;
 
 export type WorkflowRun = typeof schema.workflowRuns.$inferSelect;
 export type WorkflowRunInsert = typeof schema.workflowRuns.$inferInsert;

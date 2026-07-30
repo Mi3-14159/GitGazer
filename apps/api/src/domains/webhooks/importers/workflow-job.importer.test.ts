@@ -5,12 +5,7 @@ const mockUpsertWorkflowJobs = vi.fn();
 vi.mock('./shared', () => ({
     upsertWorkflowJobs: (...args: any[]) => mockUpsertWorkflowJobs(...args),
 }));
-vi.mock('@gitgazer/db/schema', () => ({workflowJobs: {integrationId: 'integrationId', id: 'id'}}));
 vi.mock('@gitgazer/db/queries', () => ({workflowJobRelations: {}}));
-vi.mock('drizzle-orm', () => ({
-    and: (...args: any[]) => ({__and: args}),
-    eq: (col: any, val: any) => ({__eq: [col, val]}),
-}));
 
 let importer: typeof import('./workflow-job.importer');
 

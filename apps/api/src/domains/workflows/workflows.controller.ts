@@ -1,8 +1,16 @@
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {workflowRunRelations} from '@gitgazer/db/queries';
 import {repositories, workflowRuns} from '@gitgazer/db/schema';
-import {FilterValueResult, FilterValuesParams, GetWorkflowsResponse, PaginationCursor, WorkflowFilters} from '@gitgazer/db/types';
-import {and, desc, eq, gte, ilike, inArray, lt, lte, or, sql, SQL} from 'drizzle-orm';
+import {
+    resolveDateBounds,
+    type FilterValueResult,
+    type FilterValuesParams,
+    type GetWorkflowsResponse,
+    type PaginationCursor,
+    type Schema,
+    type WorkflowFilters,
+} from '@gitgazer/db/types';
+import {and, eq, gte, ilike, inArray, lte, RelationsFilter, sql, SQL} from 'drizzle-orm';
 
 type WorkflowsParams = {
     integrationIds: string[];
@@ -19,45 +27,45 @@ export const getWorkflows = async ({integrationIds, limit, cursor, filters}: Wor
     return withRlsTransaction({
         integrationIds,
         callback: async (tx: RdsTransaction) => {
-            const conditions: SQL[] = [];
+            const conditions: RelationsFilter<Schema['workflowRuns'], Schema>[] = [];
 
             // Keyset pagination: (createdAt, id) < (cursorCreatedAt, cursorId)
             if (cursor?.createdAt && cursor?.id != null) {
                 const cursorDate = new Date(cursor.createdAt);
-                conditions.push(
-                    or(lt(workflowRuns.createdAt, cursorDate), and(eq(workflowRuns.createdAt, cursorDate), lt(workflowRuns.id, cursor.id)))!,
-                );
+                conditions.push({OR: [{createdAt: {lt: cursorDate}}, {createdAt: {eq: cursorDate}, id: {lt: cursor.id}}]});
             }
 
             // Column filters
             if (filters?.workflow?.length) {
-                conditions.push(inArray(workflowRuns.name, filters.workflow));
+                conditions.push({name: {in: filters.workflow}});
             }
             if (filters?.repository?.length) {
-                conditions.push(
-                    inArray(
+                // Subquery-based filter — the declarative object DSL's `in`/`notIn` only accept literal
+                // value arrays, not subqueries, so this one needs the RAW escape hatch.
+                conditions.push({
+                    RAW: inArray(
                         workflowRuns.repositoryId,
                         tx.select({id: repositories.id}).from(repositories).where(inArray(repositories.name, filters.repository)),
                     ),
-                );
+                });
             }
             if (filters?.branch?.length) {
-                conditions.push(inArray(workflowRuns.headBranch, filters.branch));
+                conditions.push({headBranch: {in: filters.branch}});
             }
             if (filters?.status?.length) {
                 const statusValues = filters.status as (typeof workflowRuns.conclusion.enumValues)[number][];
-                conditions.push(or(inArray(workflowRuns.conclusion, statusValues), inArray(workflowRuns.status, filters.status))!);
+                conditions.push({OR: [{conclusion: {in: statusValues}}, {status: {in: filters.status}}]});
             }
             if (filters?.actor?.length) {
-                conditions.push(inArray(workflowRuns.headCommitAuthorName, filters.actor));
+                conditions.push({headCommitAuthorName: {in: filters.actor}});
             }
             if (filters?.commit?.length) {
-                conditions.push(inArray(workflowRuns.headCommitMessage, filters.commit));
+                conditions.push({headCommitMessage: {in: filters.commit}});
             }
             if (filters?.run_number?.length) {
                 const nums = filters.run_number.map(Number).filter((n) => !isNaN(n));
                 if (nums.length) {
-                    conditions.push(inArray(workflowRuns.runAttempt, nums));
+                    conditions.push({runAttempt: {in: nums}});
                 }
             }
             if (filters?.topics?.length) {
@@ -65,53 +73,28 @@ export const getWorkflows = async ({integrationIds, limit, cursor, filters}: Wor
                     filters.topics.map((t) => sql`${t}`),
                     sql`, `,
                 );
-                conditions.push(
-                    inArray(
+                // Subquery + raw jsonb `?|` operator — no declarative equivalent, needs RAW.
+                conditions.push({
+                    RAW: inArray(
                         workflowRuns.repositoryId,
                         tx
                             .select({id: repositories.id})
                             .from(repositories)
                             .where(sql`${repositories.topics} ?| array[${topicParams}]`),
                     ),
-                );
+                });
             }
 
             // Date range filter
-            if (filters?.window) {
-                const now = new Date();
-                let from: Date;
-                switch (filters.window) {
-                    case '1h':
-                        from = new Date(now.getTime() - 60 * 60 * 1000);
-                        break;
-                    case '24h':
-                        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                        break;
-                    case '7d':
-                        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                        break;
-                    case '30d':
-                        from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                        break;
-                    default:
-                        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                        break;
-                }
-                conditions.push(gte(workflowRuns.createdAt, from));
-                conditions.push(lte(workflowRuns.createdAt, now));
-            } else {
-                if (filters?.created_from) {
-                    conditions.push(gte(workflowRuns.createdAt, new Date(filters.created_from)));
-                }
-                if (filters?.created_to) {
-                    conditions.push(lte(workflowRuns.createdAt, new Date(filters.created_to)));
-                }
+            const {from, to} = resolveDateBounds(filters);
+            if (from || to) {
+                conditions.push({createdAt: {gte: from, lte: to}});
             }
 
             const runs = await tx.query.workflowRuns.findMany({
                 with: workflowRunRelations,
-                ...(conditions.length ? {where: and(...conditions)} : {}),
-                orderBy: [desc(workflowRuns.createdAt), desc(workflowRuns.id)],
+                ...(conditions.length ? {where: {AND: conditions}} : {}),
+                orderBy: (t, {desc}) => [desc(t.createdAt), desc(t.id)],
                 limit: effectiveLimit,
             });
 
@@ -125,18 +108,8 @@ export const getWorkflows = async ({integrationIds, limit, cursor, filters}: Wor
 };
 
 function buildDateConditions(params: Pick<FilterValuesParams, 'window' | 'created_from' | 'created_to'>): SQL[] {
-    const conditions: SQL[] = [];
-    if (params.window) {
-        const now = new Date();
-        const ms: Record<string, number> = {'1h': 3_600_000, '24h': 86_400_000, '7d': 604_800_000, '30d': 2_592_000_000};
-        const from = new Date(now.getTime() - (ms[params.window] ?? 86_400_000));
-        conditions.push(gte(workflowRuns.createdAt, from));
-        conditions.push(lte(workflowRuns.createdAt, now));
-    } else {
-        if (params.created_from) conditions.push(gte(workflowRuns.createdAt, new Date(params.created_from)));
-        if (params.created_to) conditions.push(lte(workflowRuns.createdAt, new Date(params.created_to)));
-    }
-    return conditions;
+    const {from, to} = resolveDateBounds(params);
+    return [...(from ? [gte(workflowRuns.createdAt, from)] : []), ...(to ? [lte(workflowRuns.createdAt, to)] : [])];
 }
 
 export const getWorkflowFilterValues = async ({

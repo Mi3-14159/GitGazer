@@ -1,4 +1,4 @@
-import {relations, sql} from 'drizzle-orm';
+import {sql} from 'drizzle-orm';
 import {bigint, boolean, index, integer, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {
     EVENT_LOG_CATEGORIES,
@@ -122,19 +122,6 @@ export const integrationInvitations = gitgazerSchema
         ],
     )
     .enableRLS();
-
-export const integrationInvitationsRelations = relations(integrationInvitations, ({one}) => ({
-    invitedByUser: one(users, {
-        fields: [integrationInvitations.invitedBy],
-        references: [users.id],
-        relationName: 'invitedByUser',
-    }),
-    invitee: one(users, {
-        fields: [integrationInvitations.inviteeId],
-        references: [users.id],
-        relationName: 'invitee',
-    }),
-}));
 
 export const notificationRules = gitgazerSchema
     .table(

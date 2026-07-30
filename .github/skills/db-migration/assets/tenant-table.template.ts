@@ -9,7 +9,6 @@
 //  - writer + reader tenant-separation policies + .enableRLS() are MANDATORY for tenant data
 //  - mcp policy ONLY if the MCP server should expose this table for read-only SQL
 
-import {relations} from 'drizzle-orm';
 import {bigint, index, primaryKey, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {githubSchema, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 import {integrations} from './workflows';
@@ -35,10 +34,17 @@ export const myEntities = githubSchema
     )
     .enableRLS();
 
-// Define relations only if you query this table with `.with`.
-export const myEntitiesRelations = relations(myEntities, ({one}) => ({
-    integration: one(integrations, {
-        fields: [myEntities.integrationId],
-        references: [integrations.integrationId],
-    }),
-}));
+// Relations are NOT defined here. Since drizzle-orm v1 they all live in ONE central
+// `defineRelations()` call — add an entry to packages/db/src/schema/relations.ts only if you
+// query this table with `.with`:
+//
+//     myEntities: {
+//         integration: r.one.integrations({
+//             from: r.myEntities.integrationId,
+//             to: r.integrations.integrationId,
+//             optional: false, // integrationId is notNull — omit for nullable FKs
+//         }),
+//     },
+//
+// A table missing from that file still works for plain .select(), but
+// `tx.query.myEntities.findMany({with: {...}})` will fail at runtime.

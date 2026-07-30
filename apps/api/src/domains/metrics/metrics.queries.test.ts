@@ -1,4 +1,3 @@
-import {inspect} from 'node:util';
 import {type SQL} from 'drizzle-orm';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -6,9 +5,6 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: vi.fn(),
 }));
-
-/** Serialize a Drizzle SQL object to a debug string (handles circular refs). */
-const sqlToString = (query: unknown): string => inspect(query, {depth: 10, maxStringLength: Infinity});
 
 const dialect = new PgDialect();
 
@@ -19,6 +15,17 @@ const dialect = new PgDialect();
  * characterization assertions can lock alias-specific tokens like `r.topics`.
  */
 const renderSql = (query: SQL): string => dialect.sqlToQuery(query).sql;
+
+/**
+ * Render a query to its SQL text plus its bound parameter list, for assertions that need to
+ * see literal values (e.g. integration UUIDs) rather than just `$1` placeholders. Asserting
+ * against rendered SQL — not a `util.inspect` dump of the SQL AST — keeps these tests coupled
+ * to the SQL Drizzle emits rather than to its internal object nesting depth.
+ */
+const sqlToString = (query: SQL): string => {
+    const {sql, params} = dialect.sqlToQuery(query);
+    return `${sql} -- params: ${JSON.stringify(params)}`;
+};
 
 let rds: typeof import('@gitgazer/db/client');
 let metrics: typeof import('@gitgazer/db/queries/metrics');
@@ -314,7 +321,7 @@ describe('metrics queries', () => {
 
             const allSql = calls.join(' ');
             expect(allSql).toContain('group_label');
-            expect(allSql).toContain('org_sync_default_role');
+            expect(allSql).toContain('"github"."integrations"');
         });
 
         it('joins the integrations table for Mean Time to Recovery', async () => {
@@ -327,7 +334,7 @@ describe('metrics queries', () => {
 
             const allSql = calls.join(' ');
             expect(allSql).toContain('i.label as group_label');
-            expect(allSql).toContain('org_sync_default_role');
+            expect(allSql).toContain('"github"."integrations"');
         });
 
         it('joins the integrations table for PR Review Time', async () => {
@@ -340,7 +347,7 @@ describe('metrics queries', () => {
 
             const allSql = calls.join(' ');
             expect(allSql).toContain('i.label as group_label');
-            expect(allSql).toContain('org_sync_default_role');
+            expect(allSql).toContain('"github"."integrations"');
         });
     });
 
@@ -359,9 +366,10 @@ describe('metrics queries', () => {
             return calls;
         };
 
-        // The integration id only reaches the query text via the explicit sargable predicate:
-        // RLS scoping is applied out-of-band (SET LOCAL rls.integration_ids), never inlined into
-        // the query. So finding the id in the captured SQL proves the index-friendly predicate exists.
+        // The integration id only reaches the query via the explicit sargable predicate, where it
+        // is a bound parameter: RLS scoping is applied out-of-band (SET LOCAL rls.integration_ids),
+        // never inlined into the query. So finding the id in the captured param list proves the
+        // index-friendly predicate exists.
         const SINGLE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
         const SECOND = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 

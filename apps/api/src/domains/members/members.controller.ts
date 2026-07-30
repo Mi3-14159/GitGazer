@@ -9,7 +9,7 @@ import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationInvitations, users} from '@gitgazer/db/schema/gitgazer';
 import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {MEMBER_ROLES, type CreateInvitationInput, type IntegrationInvitation, type IntegrationMember, type MemberRole} from '@gitgazer/db/types';
-import {and, eq, gt, ne} from 'drizzle-orm';
+import {and, eq, gt} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -27,7 +27,7 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             return await tx.query.userAssignments.findMany({
-                where: eq(userAssignments.integrationId, integrationId),
+                where: {integrationId},
                 with: memberQueryRelations,
             });
         },
@@ -283,7 +283,7 @@ export const getInvitations = async (params: {integrationId: string; integration
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             return await tx.query.integrationInvitations.findMany({
-                where: and(eq(integrationInvitations.integrationId, integrationId), ne(integrationInvitations.status, 'accepted')),
+                where: {integrationId, status: {ne: 'accepted'}},
                 with: invitationQueryRelations,
             });
         },

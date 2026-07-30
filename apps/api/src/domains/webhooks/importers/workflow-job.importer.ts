@@ -1,8 +1,6 @@
 import {RdsTransaction} from '@gitgazer/db/client';
 import {workflowJobRelations} from '@gitgazer/db/queries';
-import {workflowJobs} from '@gitgazer/db/schema';
 import {WorkflowJobEvent, WorkflowJobWithRelations} from '@gitgazer/db/types';
-import {and, eq} from 'drizzle-orm';
 import {upsertWorkflowJobs} from './shared';
 
 export const importWorkflowJob = async (
@@ -35,7 +33,7 @@ export const importWorkflowJob = async (
     ]);
 
     const workflowJob = await tx.query.workflowJobs.findFirst({
-        where: and(eq(workflowJobs.integrationId, integrationId), eq(workflowJobs.id, event.workflow_job.id)),
+        where: {integrationId, id: event.workflow_job.id},
         with: workflowJobRelations,
     });
 

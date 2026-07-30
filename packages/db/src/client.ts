@@ -4,10 +4,10 @@ import {sql} from 'drizzle-orm';
 import {drizzle as drizzleDataApi} from 'drizzle-orm/aws-data-api/pg';
 import {drizzle as drizzleNodePg, type NodePgDatabase} from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import * as schema from './schema';
+import {dbRelations, type DbRelations} from './schema/relations';
 import {gitgazerReader} from './schema';
 
-type DbClient = NodePgDatabase<typeof schema>;
+type DbClient = NodePgDatabase<DbRelations>;
 type ConnectionMode = 'rds-proxy' | 'data-api';
 
 let _db: DbClient | null = null;
@@ -51,8 +51,9 @@ function initializeRdsProxy(): void {
         idleTimeoutMillis: 10 * 60 * 1000, // recycle idle connections before IAM token expiry (15 min)
     });
 
-    _db = drizzleNodePg(_pool, {
-        schema,
+    _db = drizzleNodePg({
+        client: _pool,
+        relations: dbRelations,
         logger: process.env['DB_LOGGING'] === 'true',
     });
 }
@@ -70,11 +71,12 @@ function initializeDataApi(): void {
 
     // Both adapters extend PgDatabase and share the same runtime API surface.
     // The cast is safe — only the raw execute() return wrapper differs.
-    _db = drizzleDataApi(client, {
+    _db = drizzleDataApi({
+        client,
         database,
         resourceArn,
         secretArn,
-        schema,
+        relations: dbRelations,
         logger: process.env['DB_LOGGING'] === 'true',
     }) as unknown as DbClient;
 }
