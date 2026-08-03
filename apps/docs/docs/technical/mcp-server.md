@@ -18,14 +18,34 @@ For the end-user walkthrough (how to connect a client), see [Querying Data with 
 | ---------------- | ------------------------------------------------------- |
 | Endpoint         | `POST https://<your-gitgazer-domain>/api/mcp`           |
 | Transport        | Streamable HTTP (JSON responses, stateless)             |
-| Protocol version | `2025-11-25`                                            |
+| Protocol version | `2026-07-28`, and `2025-11-25` for older clients        |
 | Auth             | OAuth 2.1 Bearer access token (`Authorization: Bearer`) |
 
 `<your-gitgazer-domain>` is the same host as the GitGazer web app (the CloudFront/custom domain).
 
+The server is **dual-era**: revision `2026-07-28` removed the `initialize` handshake and moved the
+protocol version into per-request `_meta`, so which era a request belongs to is decided per request.
+
+- A request carrying `_meta["io.modelcontextprotocol/protocolVersion"]` is served as `2026-07-28`.
+  It must also mirror `MCP-Protocol-Version`, `Mcp-Method` and (for `tools/call`) `Mcp-Name` into
+  HTTP headers; a mismatch is rejected with `400` and JSON-RPC error `-32020`. An unsupported
+  version returns `400` and `-32022` listing the versions the server does support, and an unknown
+  method returns `404` and `-32601`.
+- Any other request is served as `2025-11-25`: `initialize` and `ping` remain available, and every
+  JSON-RPC message — including errors — is returned with HTTP `200`.
+
+`server/discover` is answered in both eras and reports the supported versions, capabilities and
+server identity in a single call.
+
 ## Authentication
 
 The server is an OAuth 2.1 **Resource Server**, but Cognito on its own does not implement Dynamic Client Registration (RFC 7591), which MCP clients rely on for zero-configuration sign-in. To bridge that, GitGazer ships a small **OAuth authorization-server proxy** in front of Cognito. Clients discover it automatically and connect **without any manual client-ID entry**.
+
+:::note
+RFC 7591 Dynamic Client Registration is deprecated as of MCP `2026-07-28` in favour of Client ID
+Metadata Documents. The registration shim below still works and remains supported for clients that
+rely on it.
+:::
 
 ```mermaid
 sequenceDiagram

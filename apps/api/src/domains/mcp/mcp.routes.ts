@@ -10,6 +10,9 @@ const router = new Router();
 
 const JSON_HEADERS = {'Content-Type': 'application/json', 'Cache-Control': 'no-store'} as const;
 
+const jsonRpcError = (code: number, message: string, status: number): Response =>
+    new Response(JSON.stringify({jsonrpc: '2.0', id: null, error: {code, message}}), {status, headers: JSON_HEADERS});
+
 router.post('/api/mcp', async (reqCtx: AppRequestContext) => {
     const logger = getLogger();
     const event = reqCtx.event as APIGatewayProxyEventV2;
@@ -28,21 +31,22 @@ router.post('/api/mcp', async (reqCtx: AppRequestContext) => {
         throw error;
     }
 
-    let rpc: JsonRpcRequest;
+    let rpc: unknown;
     try {
-        rpc = (await reqCtx.req.json()) as JsonRpcRequest;
+        rpc = await reqCtx.req.json();
     } catch {
-        return new Response(JSON.stringify({jsonrpc: '2.0', id: null, error: {code: -32700, message: 'Parse error'}}), {
-            status: HttpStatusCodes.OK,
-            headers: JSON_HEADERS,
-        });
+        return jsonRpcError(-32700, 'Parse error', HttpStatusCodes.OK);
+    }
+    // A JSON-RPC batch (array) or a bare scalar parses cleanly but is not a request object.
+    if (typeof rpc !== 'object' || rpc === null || Array.isArray(rpc)) {
+        return jsonRpcError(-32600, 'Invalid Request: expected a single JSON-RPC object', HttpStatusCodes.BAD_REQUEST);
     }
 
-    const response = await handleMcpRequest(rpc, caller);
-    if (response === null) {
+    const outcome = await handleMcpRequest(rpc as JsonRpcRequest, caller, event.headers ?? {});
+    if (outcome === null) {
         return new Response(null, {status: HttpStatusCodes.ACCEPTED});
     }
-    return new Response(JSON.stringify(response), {status: HttpStatusCodes.OK, headers: JSON_HEADERS});
+    return new Response(JSON.stringify(outcome.response), {status: outcome.status, headers: JSON_HEADERS});
 });
 
 router.get('/.well-known/oauth-protected-resource', async (reqCtx: AppRequestContext) => {
