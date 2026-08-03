@@ -33,9 +33,26 @@ describe('handleMcpRequest', () => {
         expect(r).toMatchObject({id: 2, result: {}});
     });
 
-    it('tools/list returns the advertised tools', async () => {
+    it('tools/list returns the advertised tools with cache hints', async () => {
         const r = await mod.handleMcpRequest({id: 3, method: 'tools/list'}, CALLER);
-        expect((r as {result: {tools: unknown[]}}).result.tools).toHaveLength(1);
+        const result = (r as {result: {tools: unknown[]; ttlMs: number; cacheScope: string}}).result;
+        expect(result.tools).toHaveLength(1);
+        expect(result.ttlMs).toBeGreaterThan(0);
+        expect(result.cacheScope).toBe('private');
+    });
+
+    it('every result carries resultType "complete"', async () => {
+        (tools.runToolCall as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({content: []});
+        const requests = [
+            {id: 1, method: 'initialize'},
+            {id: 2, method: 'ping'},
+            {id: 3, method: 'tools/list'},
+            {id: 4, method: 'tools/call', params: {name: 'run_sql', arguments: {}}},
+        ];
+        for (const req of requests) {
+            const r = await mod.handleMcpRequest(req, CALLER);
+            expect((r as {result: {resultType: string}}).result.resultType).toBe('complete');
+        }
     });
 
     it('tools/call dispatches to runToolCall with the resolved caller', async () => {

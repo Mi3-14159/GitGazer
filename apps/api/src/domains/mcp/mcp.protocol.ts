@@ -5,12 +5,14 @@ import {ReadOnlyQueryError} from '@gitgazer/db/queries';
 
 const PROTOCOL_VERSION = '2025-11-25';
 const SERVER_INFO = {name: 'gitgazer-mcp', version: '1.0.0'} as const;
+const TOOLS_LIST_TTL_MS = 1000 * 60 * 10;
 
 export type JsonRpcId = string | number | null;
 export type JsonRpcRequest = {jsonrpc?: string; id?: JsonRpcId; method?: string; params?: Record<string, unknown>};
 export type JsonRpcResponse = {jsonrpc: '2.0'; id: JsonRpcId; result?: unknown; error?: {code: number; message: string}};
 
-const ok = (id: JsonRpcId, result: unknown): JsonRpcResponse => ({jsonrpc: '2.0', id, result});
+// `resultType` is required from protocol 2026-07-28 onward; earlier clients ignore the extra field.
+const ok = (id: JsonRpcId, result: Record<string, unknown>): JsonRpcResponse => ({jsonrpc: '2.0', id, result: {resultType: 'complete', ...result}});
 const fail = (id: JsonRpcId, code: number, message: string): JsonRpcResponse => ({jsonrpc: '2.0', id, error: {code, message}});
 
 /**
@@ -41,7 +43,7 @@ export const handleMcpRequest = async (req: JsonRpcRequest, caller: McpCaller): 
         case 'ping':
             return ok(id, {});
         case 'tools/list':
-            return ok(id, {tools: MCP_TOOLS});
+            return ok(id, {tools: MCP_TOOLS, ttlMs: TOOLS_LIST_TTL_MS, cacheScope: 'private'});
         case 'tools/call': {
             const name = params.name;
             const args = (params.arguments as Record<string, unknown> | undefined) ?? {};

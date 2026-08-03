@@ -55,6 +55,7 @@ describe('buildAuthServerMetadata', () => {
             registration_endpoint: 'https://app.gitgazer.com/api/mcp/oauth/register',
             code_challenge_methods_supported: ['S256'],
             token_endpoint_auth_methods_supported: ['none'],
+            authorization_response_iss_parameter_supported: true,
         });
     });
 });
@@ -138,12 +139,14 @@ describe('handleCallback', () => {
         expect(`${url.origin}${url.pathname}`).toBe('http://127.0.0.1:33418/callback');
         expect(url.searchParams.get('code')).toBe('AUTH_CODE');
         expect(url.searchParams.get('state')).toBe('client-xyz');
+        expect(url.searchParams.get('iss')).toBe('https://app.gitgazer.com');
     });
 
     it('relays OAuth errors back to the client', () => {
         const url = new URL(ctrl.handleCallback(event({state: signedState(), error: 'access_denied', error_description: 'nope'})));
         expect(url.searchParams.get('error')).toBe('access_denied');
         expect(url.searchParams.get('error_description')).toBe('nope');
+        expect(url.searchParams.get('iss')).toBe('https://app.gitgazer.com');
     });
 
     it('rejects a forged or missing state', () => {

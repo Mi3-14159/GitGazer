@@ -96,6 +96,7 @@ export const buildAuthServerMetadata = (event: APIGatewayProxyEventV2): Record<s
         grant_types_supported: ['authorization_code', 'refresh_token'],
         code_challenge_methods_supported: ['S256'],
         token_endpoint_auth_methods_supported: ['none'],
+        authorization_response_iss_parameter_supported: true,
         scopes_supported: [...SUPPORTED_SCOPES],
     };
 };
@@ -156,6 +157,8 @@ export const handleCallback = (event: APIGatewayProxyEventV2): string => {
     if (!decoded) throw new BadRequestError('Invalid or expired OAuth state');
 
     const target = new URL(decoded.redirectUri);
+    // RFC 9207 mix-up defence: must be the same value advertised as `issuer` in the AS metadata.
+    target.searchParams.set('iss', mcpOrigin(event));
     if (q.error) {
         target.searchParams.set('error', q.error);
         if (q.error_description) target.searchParams.set('error_description', q.error_description);
