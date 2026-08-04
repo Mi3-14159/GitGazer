@@ -15,7 +15,7 @@
     "grid-layout-plus": "^1.1.1",
     "lucide-vue-next": "^0.577.0",
     "papaparse": "^5.5.4",
-    "pinia": "^3.0.4",
+    "pinia": "^4.0.2",
     "radix-vue": "^1.9.17",
     "sql-formatter": "^15.8.2",
     "tailwind-merge": "^3.6.0",
