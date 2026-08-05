@@ -11,49 +11,86 @@
         stats: OverviewResponse['stats'];
     }>();
 
-    const pieGradient = computed(() => {
+    const RADIUS = 42;
+    const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+    const segments = computed(() => {
         const total = props.stats.total || 1;
-        const s = (props.stats.success / total) * 100;
-        const f = (props.stats.failure / total) * 100;
-        const p = (props.stats.inProgress / total) * 100;
-        const sEnd = s;
-        const fEnd = sEnd + f;
-        const pEnd = fEnd + p;
-        return `conic-gradient(#22c55e 0% ${sEnd}%, #ef4444 ${sEnd}% ${fEnd}%, #3b82f6 ${fEnd}% ${pEnd}%, #94a3b8 ${pEnd}% 100%)`;
+        let consumed = 0;
+        return [
+            {label: 'Success', value: props.stats.success, color: '#22c55e'},
+            {label: 'Failed', value: props.stats.failure, color: '#ef4444'},
+            {label: 'In Progress', value: props.stats.inProgress, color: '#3b82f6'},
+            {label: 'Other', value: props.stats.other, color: '#94a3b8'},
+        ].map(({label, value, color}) => {
+            // `other` is derived by subtraction server-side and can go negative; a negative dash invalidates the whole arc.
+            const safeValue = Math.max(0, value);
+            const share = safeValue / total;
+            const dash = share * CIRCUMFERENCE;
+            const arc = {label, color, value: safeValue, share, dash, gap: CIRCUMFERENCE - dash, offset: -consumed * CIRCUMFERENCE};
+            consumed += share;
+            return arc;
+        });
     });
+
+    const successRate = computed(() => (props.stats.total > 0 ? ((props.stats.success / props.stats.total) * 100).toFixed(1) : '0.0'));
 </script>
 
 <template>
     <Card>
         <CardHeader>
             <CardTitle>Workflow Status Distribution</CardTitle>
-            <CardDescription>Overview of all workflow statuses</CardDescription>
+            <CardDescription>Share of runs by outcome</CardDescription>
         </CardHeader>
-        <CardContent class="flex justify-center">
-            <div class="relative">
-                <div
-                    class="w-48 h-48 rounded-full"
-                    :style="{background: pieGradient}"
-                />
-                <div class="mt-4 flex flex-wrap gap-3 justify-center text-xs">
-                    <span class="flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full bg-green-500" />
-                        Success {{ stats.success }}
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full bg-red-500" />
-                        Failed {{ stats.failure }}
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full bg-blue-500" />
-                        In Progress {{ stats.inProgress }}
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full bg-gray-400" />
-                        Other {{ stats.other }}
-                    </span>
+        <CardContent class="flex flex-col items-center gap-6 sm:flex-row sm:items-center xl:flex-col">
+            <div class="relative shrink-0">
+                <svg
+                    viewBox="0 0 100 100"
+                    class="h-36 w-36 -rotate-90"
+                    aria-hidden="true"
+                >
+                    <circle
+                        cx="50"
+                        cy="50"
+                        :r="RADIUS"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="12"
+                        class="text-muted"
+                    />
+                    <circle
+                        v-for="segment in segments"
+                        :key="segment.label"
+                        cx="50"
+                        cy="50"
+                        :r="RADIUS"
+                        fill="none"
+                        :stroke="segment.color"
+                        stroke-width="12"
+                        :stroke-dasharray="`${segment.dash} ${segment.gap}`"
+                        :stroke-dashoffset="segment.offset"
+                    />
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-2xl font-semibold tabular-nums">{{ successRate }}%</span>
+                    <span class="text-xs text-muted-foreground">success</span>
                 </div>
             </div>
+            <ul class="w-full min-w-0 space-y-2.5">
+                <li
+                    v-for="segment in segments"
+                    :key="segment.label"
+                    class="flex items-center gap-3 text-sm"
+                >
+                    <span
+                        class="h-2.5 w-2.5 shrink-0 rounded-full"
+                        :style="{backgroundColor: segment.color}"
+                    />
+                    <span class="min-w-0 flex-1 truncate text-muted-foreground">{{ segment.label }}</span>
+                    <span class="font-medium tabular-nums">{{ segment.value.toLocaleString('en-US') }}</span>
+                    <span class="w-12 text-right text-xs text-muted-foreground tabular-nums">{{ (segment.share * 100).toFixed(1) }}%</span>
+                </li>
+            </ul>
         </CardContent>
     </Card>
 </template>

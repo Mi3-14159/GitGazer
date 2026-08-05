@@ -57,7 +57,10 @@
 
 <template>
     <div class="space-y-4 p-4">
-        <PageHeader description="Real-time CI/CD pipeline monitoring and engineering metrics">
+        <PageHeader
+            title="Overview"
+            description="Real-time CI/CD pipeline monitoring and engineering metrics"
+        >
             <DateTimeRangePicker v-model:date-range="dateRange" />
         </PageHeader>
 
@@ -68,11 +71,14 @@
             />
         </div>
 
-        <StatusDistributionChart :stats="stats" />
+        <div class="grid items-start gap-4 xl:grid-cols-3">
+            <RecentWorkflowRuns
+                class="xl:col-span-2"
+                :workflows="recentWorkflows"
+                :is-loading="isLoading"
+            />
 
-        <RecentWorkflowRuns
-            :workflows="recentWorkflows"
-            :is-loading="isLoading"
-        />
+            <StatusDistributionChart :stats="stats" />
+        </div>
     </div>
 </template>
