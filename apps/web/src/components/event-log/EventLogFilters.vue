@@ -6,15 +6,21 @@
     import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
     import TopicFilter from '@/components/filters/TopicFilter.vue';
     import Input from '@/components/ui/Input.vue';
+    import type {FilterMode} from '@common/types';
     import {Search} from 'lucide-vue-next';
 
     const type = defineModel<string[]>('type', {required: true});
+    const typeMode = defineModel<FilterMode>('typeMode', {required: true});
     const read = defineModel<string[]>('read', {required: true});
     const category = defineModel<string[]>('category', {required: true});
+    const categoryMode = defineModel<FilterMode>('categoryMode', {required: true});
     const search = defineModel<string>('search', {required: true});
     const repositoryIds = defineModel<number[]>('repositoryIds', {required: true});
+    const repositoryIdsMode = defineModel<FilterMode>('repositoryIdsMode', {required: true});
     const topics = defineModel<string[]>('topics', {required: true});
+    const topicsMode = defineModel<FilterMode>('topicsMode', {required: true});
     const integrationIds = defineModel<string[]>('integrationIds', {required: true});
+    const integrationIdsMode = defineModel<FilterMode>('integrationIdsMode', {required: true});
 </script>
 
 <template>
@@ -30,12 +36,32 @@
 
         <div class="flex flex-col sm:flex-row items-center gap-2">
             <div class="flex flex-wrap items-center gap-2">
-                <EventTypeFilter v-model="type" />
+                <EventTypeFilter
+                    v-model="type"
+                    v-model:mode="typeMode"
+                    excludable
+                />
                 <ReadStatusFilter v-model="read" />
-                <EventCategoryFilter v-model="category" />
-                <RepositoryFilter v-model="repositoryIds" />
-                <TopicFilter v-model="topics" />
-                <IntegrationFilter v-model="integrationIds" />
+                <EventCategoryFilter
+                    v-model="category"
+                    v-model:mode="categoryMode"
+                    excludable
+                />
+                <RepositoryFilter
+                    v-model="repositoryIds"
+                    v-model:mode="repositoryIdsMode"
+                    excludable
+                />
+                <TopicFilter
+                    v-model="topics"
+                    v-model:mode="topicsMode"
+                    excludable
+                />
+                <IntegrationFilter
+                    v-model="integrationIds"
+                    v-model:mode="integrationIdsMode"
+                    excludable
+                />
             </div>
             <div class="sm:ml-auto">
                 <slot />

@@ -254,6 +254,45 @@ describe('event-log controller', () => {
             const whereArg = mockWhere.mock.calls[0][0];
             expect(whereArg).not.toBeUndefined();
         });
+
+        it('builds a NOT IN condition when a filter mode is "exclude"', async () => {
+            const mockLimit = vi.fn().mockResolvedValue([]);
+            const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
+
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                return params.callback({select: mockSelect});
+            });
+
+            await eventLog.getEventLogEntries({integrationIds: ['int-1'], filters: {type: ['failure'], typeMode: 'exclude'}});
+
+            const whereArg = mockWhere.mock.calls[0][0];
+            const {PgDialect} = await import('drizzle-orm/pg-core');
+            const sql = new PgDialect().sqlToQuery(whereArg).sql.toLowerCase();
+            expect(sql).toContain('not in');
+        });
+
+        it('builds an IN condition when a filter mode is "include"', async () => {
+            const mockLimit = vi.fn().mockResolvedValue([]);
+            const mockOrderBy = vi.fn().mockReturnValue({limit: mockLimit});
+            const mockWhere = vi.fn().mockReturnValue({orderBy: mockOrderBy});
+            const mockFrom = vi.fn().mockReturnValue({where: mockWhere});
+            const mockSelect = vi.fn().mockReturnValue({from: mockFrom});
+
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                return params.callback({select: mockSelect});
+            });
+
+            await eventLog.getEventLogEntries({integrationIds: ['int-1'], filters: {type: ['failure'], typeMode: 'include'}});
+
+            const whereArg = mockWhere.mock.calls[0][0];
+            const {PgDialect} = await import('drizzle-orm/pg-core');
+            const sql = new PgDialect().sqlToQuery(whereArg).sql.toLowerCase();
+            expect(sql).toContain(' in ');
+            expect(sql).not.toContain('not in');
+        });
     });
 
     // ---------------------------------------------------------------

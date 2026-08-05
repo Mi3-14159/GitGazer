@@ -5,13 +5,19 @@ import {BadRequestError, HttpStatusCodes, NotFoundError, Router} from '@aws-lamb
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,
+    FILTER_MODES,
     type EventLogCategory,
     type EventLogCursor,
     type EventLogFilters,
     type EventLogType,
+    type FilterMode,
 } from '@gitgazer/db/types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Parses a filter mode query param, defaulting to `'include'` when absent or invalid. */
+const parseMode = (value: string | undefined): FilterMode =>
+    value && (FILTER_MODES as readonly string[]).includes(value) ? (value as FilterMode) : 'include';
 
 const router = new Router();
 
@@ -23,12 +29,18 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
 
     if (params.type) {
         const types = params.type.split(',').filter((t): t is EventLogType => EVENT_LOG_TYPES.includes(t as EventLogType));
-        if (types.length > 0) filters.type = types;
+        if (types.length > 0) {
+            filters.type = types;
+            filters.typeMode = parseMode(params.typeMode);
+        }
     }
 
     if (params.category) {
         const categories = params.category.split(',').filter((c): c is EventLogCategory => EVENT_LOG_CATEGORIES.includes(c as EventLogCategory));
-        if (categories.length > 0) filters.category = categories;
+        if (categories.length > 0) {
+            filters.category = categories;
+            filters.categoryMode = parseMode(params.categoryMode);
+        }
     }
 
     if (params.read === 'true') filters.read = true;
@@ -41,18 +53,27 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
             .split(',')
             .map(Number)
             .filter((n) => !isNaN(n));
-        if (ids.length > 0) filters.repositoryIds = ids;
+        if (ids.length > 0) {
+            filters.repositoryIds = ids;
+            filters.repositoryIdsMode = parseMode(params.repositoryIdsMode);
+        }
     }
 
     if (params.topics) {
         const parsed = params.topics.split(',').filter(Boolean);
-        if (parsed.length > 0) filters.topics = parsed;
+        if (parsed.length > 0) {
+            filters.topics = parsed;
+            filters.topicsMode = parseMode(params.topicsMode);
+        }
     }
 
     if (params.integrationIds) {
         const authorized = new Set(integrationIds);
         const parsed = params.integrationIds.split(',').filter((id) => UUID_RE.test(id) && authorized.has(id));
-        if (parsed.length > 0) filters.integrationIds = parsed;
+        if (parsed.length > 0) {
+            filters.integrationIds = parsed;
+            filters.integrationIdsMode = parseMode(params.integrationIdsMode);
+        }
     }
 
     if (params.limit) {

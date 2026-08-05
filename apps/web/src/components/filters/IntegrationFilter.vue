@@ -1,11 +1,14 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {useIntegration} from '@/composables/useIntegration';
-    import type {Integration} from '@common/types';
+    import type {FilterMode, Integration} from '@common/types';
     import {Blocks} from 'lucide-vue-next';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedIds = defineModel<string[]>({required: true});
+    const mode = defineModel<FilterMode>('mode', {default: 'include'});
+
+    defineProps<{excludable?: boolean}>();
 
     const {getIntegrations} = useIntegration();
     const integrations = ref<Integration[]>([]);
@@ -24,9 +27,11 @@
 <template>
     <FilterDropdown
         v-model="selectedIds"
+        v-model:mode="mode"
         :options="options"
         :icon="Blocks"
         multiple
+        :excludable="excludable"
         placeholder="Integrations"
         search-placeholder="Search integrations..."
         label="Integrations"

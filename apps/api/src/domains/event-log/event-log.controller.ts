@@ -10,8 +10,16 @@ import type {
     EventLogResponse,
     EventLogStats,
     EventLogType,
+    FilterMode,
 } from '@gitgazer/db/types';
-import {and, count, desc, eq, ilike, inArray, lt, or, sql} from 'drizzle-orm';
+import {and, count, desc, eq, ilike, inArray, lt, notInArray, or, sql, type SQLWrapper} from 'drizzle-orm';
+
+/**
+ * Builds an `IN` (include) or `NOT IN` (exclude) condition for a multi-select
+ * filter. A filter is always one direction or the other, never both.
+ */
+const setCondition = <T>(column: SQLWrapper, values: T[], mode?: FilterMode) =>
+    mode === 'exclude' ? notInArray(column, values) : inArray(column, values);
 
 export const getEventLogEntries = async (params: {
     integrationIds: string[];
@@ -42,10 +50,10 @@ export const getEventLogEntries = async (params: {
             }
 
             if (filters?.type?.length) {
-                conditions.push(inArray(eventLogEntries.type, filters.type));
+                conditions.push(setCondition(eventLogEntries.type, filters.type, filters.typeMode));
             }
             if (filters?.category?.length) {
-                conditions.push(inArray(eventLogEntries.category, filters.category));
+                conditions.push(setCondition(eventLogEntries.category, filters.category, filters.categoryMode));
             }
             if (filters?.read !== undefined) {
                 conditions.push(eq(eventLogEntries.read, filters.read));
@@ -56,7 +64,7 @@ export const getEventLogEntries = async (params: {
                 conditions.push(or(ilike(eventLogEntries.title, term), ilike(eventLogEntries.message, term))!);
             }
             if (filters?.repositoryIds?.length) {
-                conditions.push(inArray(sql`(metadata->>'repositoryId')::BIGINT`, filters.repositoryIds));
+                conditions.push(setCondition(sql`(metadata->>'repositoryId')::BIGINT`, filters.repositoryIds, filters.repositoryIdsMode));
             }
             if (filters?.topics?.length) {
                 const topicParams = sql.join(
@@ -68,14 +76,15 @@ export const getEventLogEntries = async (params: {
                     .from(repositories)
                     .where(sql`${repositories.topics} ?| array[${topicParams}]`);
                 conditions.push(
-                    inArray(
+                    setCondition(
                         sql`(${eventLogEntries.metadata}->>'repositoryId')::BIGINT`,
                         repoRows.map((r) => r.id),
+                        filters.topicsMode,
                     ),
                 );
             }
             if (filters?.integrationIds?.length) {
-                conditions.push(inArray(eventLogEntries.integrationId, filters.integrationIds));
+                conditions.push(setCondition(eventLogEntries.integrationId, filters.integrationIds, filters.integrationIdsMode));
             }
 
             const rows = await tx

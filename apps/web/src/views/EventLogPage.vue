@@ -109,7 +109,20 @@
         }
         return parseApiResponse<{updated: number}>(response);
     }
-    const {type, read, category, search, repositoryIds, topics, integrationIds} = useEventLogFilters();
+    const {
+        type,
+        typeMode,
+        read,
+        category,
+        categoryMode,
+        search,
+        repositoryIds,
+        repositoryIdsMode,
+        topics,
+        topicsMode,
+        integrationIds,
+        integrationIdsMode,
+    } = useEventLogFilters();
 
     const entries = ref<EventLogEntryRow[]>([]);
     const stats = ref<EventLogStats>({total: 0, unread: 0, read: 0});
@@ -119,14 +132,29 @@
 
     const apiFilters = computed(() => {
         const filters: EventLogApiFilters = {};
-        if (type.value.length) filters.type = type.value as EventLogType[];
+        if (type.value.length) {
+            filters.type = type.value as EventLogType[];
+            if (typeMode.value === 'exclude') filters.typeMode = 'exclude';
+        }
         // read: single selection → boolean; both selected (length 2) or none (length 0) → no filter (show all)
         if (read.value.length === 1) filters.read = read.value[0] === 'read';
-        if (category.value.length) filters.category = category.value as EventLogCategory[];
+        if (category.value.length) {
+            filters.category = category.value as EventLogCategory[];
+            if (categoryMode.value === 'exclude') filters.categoryMode = 'exclude';
+        }
         if (search.value.trim()) filters.search = search.value.trim();
-        if (repositoryIds.value.length) filters.repositoryIds = repositoryIds.value;
-        if (topics.value.length) filters.topics = topics.value;
-        if (integrationIds.value.length) filters.integrationIds = integrationIds.value;
+        if (repositoryIds.value.length) {
+            filters.repositoryIds = repositoryIds.value;
+            if (repositoryIdsMode.value === 'exclude') filters.repositoryIdsMode = 'exclude';
+        }
+        if (topics.value.length) {
+            filters.topics = topics.value;
+            if (topicsMode.value === 'exclude') filters.topicsMode = 'exclude';
+        }
+        if (integrationIds.value.length) {
+            filters.integrationIds = integrationIds.value;
+            if (integrationIdsMode.value === 'exclude') filters.integrationIdsMode = 'exclude';
+        }
         return filters;
     });
 
@@ -171,7 +199,10 @@
         clearTimeout(searchDebounce);
         searchDebounce = globalThis.setTimeout(loadEntries, 300);
     });
-    watch([type, read, category, repositoryIds, topics, integrationIds], loadEntries);
+    watch(
+        [type, typeMode, read, category, categoryMode, repositoryIds, repositoryIdsMode, topics, topicsMode, integrationIds, integrationIdsMode],
+        loadEntries,
+    );
 
     onBeforeUnmount(() => entriesAbortController?.abort());
 
@@ -270,12 +301,17 @@
                 <CardContent class="pt-4 space-y-4">
                     <EventLogFilters
                         v-model:type="type"
+                        v-model:typeMode="typeMode"
                         v-model:read="read"
                         v-model:category="category"
+                        v-model:categoryMode="categoryMode"
                         v-model:search="search"
                         v-model:repositoryIds="repositoryIds"
+                        v-model:repositoryIdsMode="repositoryIdsMode"
                         v-model:topics="topics"
+                        v-model:topicsMode="topicsMode"
                         v-model:integrationIds="integrationIds"
+                        v-model:integrationIdsMode="integrationIdsMode"
                     >
                         <Button
                             variant="outline"

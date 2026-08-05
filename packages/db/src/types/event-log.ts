@@ -9,6 +9,13 @@ export type EventLogCategory = (typeof EVENT_LOG_CATEGORIES)[number];
 
 export const EVENT_LOG_READ_VALUES = ['unread', 'read'] as const;
 
+/**
+ * Direction of a multi-select filter: either include only the listed values or
+ * exclude them. A single filter is always one or the other, never both.
+ */
+export const FILTER_MODES = ['include', 'exclude'] as const;
+export type FilterMode = (typeof FILTER_MODES)[number];
+
 export type EventLogEntryMetadata = {
     repositoryId?: number;
     repository?: string;
@@ -69,12 +76,17 @@ export const isEventLogStats = (value: unknown): value is EventLogStats => {
 
 export type EventLogFilters = {
     type?: EventLogType[];
+    typeMode?: FilterMode;
     category?: EventLogCategory[];
+    categoryMode?: FilterMode;
     read?: boolean;
     search?: string;
     repositoryIds?: number[];
+    repositoryIdsMode?: FilterMode;
     topics?: string[];
+    topicsMode?: FilterMode;
     integrationIds?: string[];
+    integrationIdsMode?: FilterMode;
     limit?: number;
 };
 
