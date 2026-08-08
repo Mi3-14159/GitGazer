@@ -1,12 +1,7 @@
-name: Deploy Docs
+name: app-docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/docs/**"
-      - ".github/workflows/ci_cd_docs.yml"
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   deploy:
