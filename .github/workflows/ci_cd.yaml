@@ -60,7 +60,6 @@ jobs:
                   } >> "$GITHUB_OUTPUT"
 
     api:
-        name: api
         needs: affected
         if: ${{ needs.affected.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
         permissions:
