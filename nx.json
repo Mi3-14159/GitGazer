@@ -2,11 +2,6 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "analytics": false,
   "defaultBase": "main",
-  "pluginsConfig": {
-    "@nx/js": {
-      "projectsAffectedByDependencyUpdates": "auto"
-    }
-  },
   "namedInputs": {
     "default": [
       "{projectRoot}/**/*",
@@ -52,6 +47,11 @@
       "plugin": "@nx/vite/plugin"
     }
   ],
+  "pluginsConfig": {
+    "@nx/js": {
+      "projectsAffectedByDependencyUpdates": "auto"
+    }
+  },
   "targetDefaults": {
     "build": {
       "cache": true,
