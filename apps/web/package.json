@@ -1,48 +1,53 @@
 {
   "dependencies": {
-    "@codemirror/lang-sql": "^6.10.0",
-    "@codemirror/state": "^6.7.1",
-    "@codemirror/theme-one-dark": "^6.1.3",
-    "@codemirror/view": "^6.43.6",
-    "@smithy/protocol-http": "^5.5.14",
-    "@smithy/signature-v4": "^5.6.10",
-    "@tailwindcss/vite": "^4.3.3",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "codemirror": "^6.0.2",
-    "date-fns": "^4.4.0",
-    "echarts": "^6.1.0",
-    "grid-layout-plus": "^1.1.1",
-    "lucide-vue-next": "^0.577.0",
-    "papaparse": "^5.5.4",
-    "pinia": "^3.0.4",
-    "radix-vue": "^1.9.17",
-    "sql-formatter": "^15.8.2",
-    "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.3",
-    "vue": "^3.5.40",
-    "vue-echarts": "^8.0.1",
-    "vue-router": "^5.2.0"
+    "@codemirror/lang-sql": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@codemirror/theme-one-dark": "catalog:",
+    "@codemirror/view": "catalog:",
+    "@smithy/protocol-http": "catalog:",
+    "@smithy/signature-v4": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "codemirror": "catalog:",
+    "date-fns": "catalog:",
+    "echarts": "catalog:",
+    "grid-layout-plus": "catalog:",
+    "lucide-vue-next": "catalog:",
+    "papaparse": "catalog:",
+    "pinia": "catalog:",
+    "radix-vue": "catalog:",
+    "sql-formatter": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "vue": "catalog:",
+    "vue-echarts": "catalog:",
+    "vue-router": "catalog:"
   },
   "devDependencies": {
-    "@babel/types": "^7.29.7",
-    "@types/papaparse": "^5.5.2",
-    "@vitejs/plugin-basic-ssl": "^2.2.0",
-    "@vitejs/plugin-vue": "^6.0.8",
-    "@vitest/coverage-v8": "^4.1.10",
-    "@vue/test-utils": "^2.4.11",
-    "eslint-plugin-vue": "^10.10.0",
-    "happy-dom": "^20.11.1",
-    "unplugin-vue-components": "^32.1.0",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.8"
+    "@babel/types": "catalog:",
+    "@types/papaparse": "catalog:",
+    "@vitejs/plugin-basic-ssl": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@vue/test-utils": "catalog:",
+    "eslint-plugin-vue": "catalog:",
+    "happy-dom": "catalog:",
+    "unplugin-vue-components": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
   },
   "engineStrict": true,
   "engines": {
     "node": "^24"
   },
   "name": "@gitgazer/web",
+  "nx": {
+    "implicitDependencies": [
+      "@gitgazer/db"
+    ]
+  },
   "scripts": {
     "build": "vue-tsc --noEmit && nx vite:build",
     "dev": "nx serve",
@@ -54,11 +59,6 @@
     "pretty:check": "prettier --check src",
     "test": "nx vitest:test",
     "test:run": "nx vitest:test --run"
-  },
-  "nx": {
-    "implicitDependencies": [
-      "@gitgazer/db"
-    ]
   },
   "type": "module",
   "version": "0.0.0"

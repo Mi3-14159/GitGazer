@@ -1,9 +1,9 @@
 {
   "description": "Backfill GitHub Actions workflow data into GitGazer via API",
   "devDependencies": {
-    "@octokit/webhooks-types": "^7.6.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0"
+    "@octokit/webhooks-types": "catalog:",
+    "ts-node": "catalog:",
+    "tsconfig-paths": "catalog:"
   },
   "name": "@gitgazer/import",
   "packageManager": "pnpm@10.33.0",

@@ -4,41 +4,41 @@
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
   "dependencies": {
-    "convict": "^6.2.5"
+    "convict": "catalog:"
   },
   "description": "lambda as API",
   "devDependencies": {
-    "@aws-lambda-powertools/event-handler": "^2.34.0",
-    "@aws-lambda-powertools/jmespath": "^2.34.0",
-    "@aws-lambda-powertools/logger": "^2.34.0",
-    "@aws-lambda-powertools/metrics": "^2.34.0",
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.1095.0",
-    "@aws-sdk/client-bedrock-runtime": "^3.1095.0",
-    "@aws-sdk/client-lambda": "^3.1095.0",
-    "@aws-sdk/client-s3": "^3.1095.0",
-    "@aws-sdk/client-secrets-manager": "^3.1095.0",
-    "@aws-sdk/client-sesv2": "^3.1095.0",
-    "@aws-sdk/client-sqs": "^3.1095.0",
-    "@aws-sdk/rds-signer": "^3.1095.0",
-    "@aws-sdk/s3-request-presigner": "^3.1095.0",
-    "@octokit/auth-app": "^8.2.0",
-    "@octokit/rest": "^22.0.1",
-    "@octokit/webhooks": "^14.2.0",
-    "@octokit/webhooks-schemas": "^7.6.1",
-    "@octokit/webhooks-types": "^7.6.1",
-    "@types/aws-lambda": "^8.10.162",
-    "@types/convict": "^6.1.6",
-    "@types/pg": "^8.20.0",
-    "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1",
-    "aws-jwt-verify": "^5.2.1",
-    "drizzle-kit": "1.0.0-rc.4",
-    "drizzle-orm": "1.0.0-rc.4",
-    "pg": "^8.22.0",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "tsup": "^8.5.1",
-    "vite": "^8.1.5"
+    "@aws-lambda-powertools/event-handler": "catalog:",
+    "@aws-lambda-powertools/jmespath": "catalog:",
+    "@aws-lambda-powertools/logger": "catalog:",
+    "@aws-lambda-powertools/metrics": "catalog:",
+    "@aws-sdk/client-apigatewaymanagementapi": "catalog:",
+    "@aws-sdk/client-bedrock-runtime": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sesv2": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/rds-signer": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:",
+    "@octokit/auth-app": "catalog:",
+    "@octokit/rest": "catalog:",
+    "@octokit/webhooks": "catalog:",
+    "@octokit/webhooks-schemas": "catalog:",
+    "@octokit/webhooks-types": "catalog:",
+    "@types/aws-lambda": "catalog:",
+    "@types/convict": "catalog:",
+    "@types/pg": "catalog:",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:",
+    "aws-jwt-verify": "catalog:",
+    "drizzle-kit": "catalog:",
+    "drizzle-orm": "catalog:",
+    "pg": "catalog:",
+    "ts-node": "catalog:",
+    "tsconfig-paths": "catalog:",
+    "tsup": "catalog:",
+    "vite": "catalog:"
   },
   "engines": {
     "node": "^24"
@@ -46,26 +46,6 @@
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
   "name": "@gitgazer/lambdas",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Mi3-14159/GitGazer.git"
-  },
-  "scripts": {
-    "build": "pnpm run clean && tsup",
-    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler && pnpm run zip -- backfill-worker && pnpm run zip -- http-proxy",
-    "clean": "rimraf dist tmp",
-    "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
-    "dev:backfill": "node --env-file=.env -r ts-node/register src/scripts/run-backfill-task.ts",
-    "dev:worker": "node --env-file=.env -r ts-node/register src/scripts/run-worker-task.ts",
-    "db:migrate:manual": "node --env-file=.env -r ts-node/register src/scripts/run-drizzle-migrations.ts",
-    "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "pretty": "prettier --write src",
-    "pretty:check": "prettier --check src",
-    "test:unit": "nx vitest:test -- --project unit --run",
-    "zip": "f() { [ \"$1\" = \"--\" ] && shift; cd dist/$1 && zip gitgazer-$1.zip -qr * && mkdir -p ../../tmp && mv gitgazer-$1.zip ../../tmp/; }; f"
-  },
   "nx": {
     "implicitDependencies": [
       "@gitgazer/db"
@@ -83,6 +63,26 @@
         ]
       }
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mi3-14159/GitGazer.git"
+  },
+  "scripts": {
+    "build": "pnpm run clean && tsup",
+    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler && pnpm run zip -- backfill-worker && pnpm run zip -- http-proxy",
+    "clean": "rimraf dist tmp",
+    "db:migrate:manual": "node --env-file=.env -r ts-node/register src/scripts/run-drizzle-migrations.ts",
+    "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
+    "dev:backfill": "node --env-file=.env -r ts-node/register src/scripts/run-backfill-task.ts",
+    "dev:worker": "node --env-file=.env -r ts-node/register src/scripts/run-worker-task.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write src",
+    "pretty:check": "prettier --check src",
+    "test:unit": "nx vitest:test -- --project unit --run",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0",
+    "zip": "f() { [ \"$1\" = \"--\" ] && shift; cd dist/$1 && zip gitgazer-$1.zip -qr * && mkdir -p ../../tmp && mv gitgazer-$1.zip ../../tmp/; }; f"
   },
   "version": "1.0.0"
 }

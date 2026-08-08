@@ -1,0 +1,117 @@
+name: CI/CD
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+    workflow_dispatch:
+        inputs:
+            deploy:
+                description: Deploy to AWS
+                required: false
+                type: boolean
+                default: false
+
+jobs:
+    affected:
+        name: Affected check
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+        outputs:
+            api: ${{ steps.affected.outputs.api }}
+            web: ${{ steps.affected.outputs.web }}
+            docs: ${{ steps.affected.outputs.docs }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7.0.1
+              with:
+                  fetch-depth: 0
+                  filter: tree:0
+
+            - uses: pnpm/action-setup@v6.0.9
+              with:
+                  run_install: false
+
+            - uses: actions/setup-node@v7.0.0
+              with:
+                  node-version-file: ./apps/api/package.json
+                  cache: "pnpm"
+                  cache-dependency-path: pnpm-lock.yaml
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Derive affected SHAs
+              uses: nrwl/nx-set-shas@v4
+
+            - name: Compute affected projects
+              id: affected
+              run: |
+                  affected="$(pnpm exec nx show projects --affected)"
+                  echo "Affected projects:"
+                  echo "${affected}"
+                  is_affected() { echo "${affected}" | grep -qx "$1" && echo true || echo false; }
+                  {
+                      echo "api=$(is_affected '@gitgazer/lambdas')"
+                      echo "web=$(is_affected '@gitgazer/web')"
+                      echo "docs=$(is_affected '@gitgazer/docs')"
+                  } >> "$GITHUB_OUTPUT"
+
+    api:
+        needs: affected
+        if: ${{ needs.affected.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
+        permissions:
+            contents: read
+            id-token: write
+        uses: ./.github/workflows/app-api.yaml
+        with:
+            deploy: ${{ github.event.inputs.deploy == 'true' }}
+        secrets: inherit
+
+    web:
+        name: web
+        needs: affected
+        if: ${{ needs.affected.outputs.web == 'true' || github.event_name == 'workflow_dispatch' }}
+        permissions:
+            contents: read
+            id-token: write
+        uses: ./.github/workflows/app-web.yaml
+        with:
+            deploy: ${{ github.event.inputs.deploy == 'true' }}
+        secrets: inherit
+
+    docs:
+        name: docs
+        needs: affected
+        if: ${{ needs.affected.outputs.docs == 'true' || github.event_name == 'workflow_dispatch' }}
+        permissions:
+            contents: read
+            id-token: write
+        uses: ./.github/workflows/app-docs.yaml
+        with:
+            deploy: ${{ github.event.inputs.deploy == 'true' }}
+        secrets: inherit
+
+    ci-success:
+        name: CI success
+        needs:
+            - affected
+            - api
+            - web
+            - docs
+        if: ${{ !cancelled() }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify no required job failed
+              run: |
+                  results='${{ join(needs.*.result, ',') }}'
+                  echo "Job results: ${results}"
+                  case "${results}" in
+                      *failure*|*cancelled*)
+                          echo "::error::A required job failed or was cancelled"
+                          exit 1
+                          ;;
+                  esac
+                  echo "All required jobs passed or were skipped."
