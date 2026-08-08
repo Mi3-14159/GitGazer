@@ -2,6 +2,7 @@ name: app-docs
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -46,6 +47,7 @@ jobs:
           mask-aws-account-id: true
 
       - name: Deploy to S3
+        if: github.ref == 'refs/heads/main'
         run: |
           aws s3 sync apps/docs/build/ s3://${{ vars.DOCS_S3_BUCKET }}/ \
             --delete \
@@ -63,6 +65,7 @@ jobs:
             --include "robots.txt"
 
       - name: Invalidate CloudFront cache
+        if: github.ref == 'refs/heads/main'
         run: |
           DISTRIBUTION_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Aliases.Items[?contains(@, 'docs.gitgazer.com')]].Id | [0]" \
