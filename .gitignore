@@ -20,3 +20,10 @@ todo
 
 #
 .vscode/launch.json
+
+
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
+vitest.config.*.timestamp*
+vite.config.*.timestamp*

@@ -44,16 +44,21 @@
   },
   "name": "@gitgazer/web",
   "scripts": {
-    "build": "vue-tsc --noEmit && vite build",
-    "dev": "vite",
-    "dev:local": "vite",
-    "dev:prod": "vite --mode production",
+    "build": "vue-tsc --noEmit && nx vite:build",
+    "dev": "nx serve",
+    "dev:local": "nx serve",
+    "dev:prod": "nx serve --mode production",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "pretty": "prettier --write src",
     "pretty:check": "prettier --check src",
-    "test": "vitest",
-    "test:run": "vitest --run"
+    "test": "nx vitest:test",
+    "test:run": "nx vitest:test --run"
+  },
+  "nx": {
+    "implicitDependencies": [
+      "@gitgazer/db"
+    ]
   },
   "type": "module",
   "version": "0.0.0"
