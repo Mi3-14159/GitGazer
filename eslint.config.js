@@ -19,4 +19,7 @@ export default [
             'prefer-const': 'error',
         },
     },
+    {
+        ignores: ['**/vitest.config.*.timestamp*', '**/vite.config.*.timestamp*'],
+    },
 ];
