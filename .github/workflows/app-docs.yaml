@@ -2,7 +2,19 @@ name: app-docs
 
 on:
   workflow_call:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -38,7 +50,7 @@ jobs:
         run: pnpm --filter @gitgazer/docs build
 
       - name: Configure AWS credentials
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
         uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -47,7 +59,7 @@ jobs:
           mask-aws-account-id: true
 
       - name: Deploy to S3
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
           aws s3 sync apps/docs/build/ s3://${{ vars.DOCS_S3_BUCKET }}/ \
             --delete \
@@ -65,7 +77,7 @@ jobs:
             --include "robots.txt"
 
       - name: Invalidate CloudFront cache
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || inputs.deploy == true
         run: |
           DISTRIBUTION_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Aliases.Items[?contains(@, 'docs.gitgazer.com')]].Id | [0]" \
