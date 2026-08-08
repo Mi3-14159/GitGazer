@@ -44,7 +44,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Derive affected SHAs
-              uses: nrwl/nx-set-shas@v4
+              uses: nrwl/nx-set-shas@v5.0.1
 
             - name: Compute affected projects
               id: affected
