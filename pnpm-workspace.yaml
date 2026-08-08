@@ -1,3 +1,29 @@
 packages:
     - 'apps/*'
     - 'packages/*'
+
+overrides:
+    'fast-xml-parser': '>=5.3.8'
+
+catalog:
+    '@aws-sdk/client-apigatewaymanagementapi': '^3.1095.0'
+    '@aws-sdk/client-bedrock-runtime': '^3.1095.0'
+    '@aws-sdk/client-lambda': '^3.1095.0'
+    '@aws-sdk/client-rds-data': '^3.1095.0'
+    '@aws-sdk/client-s3': '^3.1095.0'
+    '@aws-sdk/client-secrets-manager': '^3.1095.0'
+    '@aws-sdk/client-sesv2': '^3.1095.0'
+    '@aws-sdk/client-sqs': '^3.1095.0'
+    '@aws-sdk/rds-signer': '^3.1095.0'
+    '@aws-sdk/s3-request-presigner': '^3.1095.0'
+    '@octokit/webhooks': '^14.2.0'
+    '@octokit/webhooks-schemas': '^7.6.1'
+    '@octokit/webhooks-types': '^7.6.1'
+    'drizzle-kit': '1.0.0-rc.4'
+    'drizzle-orm': '1.0.0-rc.4'
+    'pg': '^8.22.0'
+    'ts-node': '^10.9.2'
+    'tsconfig-paths': '^4.2.0'
+    'vite': '^8.1.5'
+    'vitest': '^4.1.10'
+    '@vitest/coverage-v8': '^4.1.10'

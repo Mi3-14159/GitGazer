@@ -1,18 +1,18 @@
 {
   "dependencies": {
-    "@octokit/webhooks": "^14.2.0",
-    "@octokit/webhooks-schemas": "^7.6.1",
-    "@octokit/webhooks-types": "^7.6.1",
-    "pg": "^8.22.0"
+    "@octokit/webhooks": "catalog:",
+    "@octokit/webhooks-schemas": "catalog:",
+    "@octokit/webhooks-types": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-rds-data": "^3.1095.0",
-    "@aws-sdk/rds-signer": "^3.1095.0",
+    "@aws-sdk/client-rds-data": "catalog:",
+    "@aws-sdk/rds-signer": "catalog:",
     "@types/pg": "^8.11.0"
   },
   "name": "@gitgazer/db",
   "peerDependencies": {
-    "drizzle-orm": "1.0.0-rc.4"
+    "drizzle-orm": "catalog:"
   },
   "private": true,
   "scripts": {

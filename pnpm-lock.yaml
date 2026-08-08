@@ -4,6 +4,72 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@aws-sdk/client-apigatewaymanagementapi':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-bedrock-runtime':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-lambda':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-rds-data':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-s3':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-secrets-manager':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-sesv2':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/client-sqs':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/rds-signer':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@aws-sdk/s3-request-presigner':
+      specifier: ^3.1095.0
+      version: 3.1095.0
+    '@octokit/webhooks':
+      specifier: ^14.2.0
+      version: 14.2.0
+    '@octokit/webhooks-schemas':
+      specifier: ^7.6.1
+      version: 7.6.1
+    '@octokit/webhooks-types':
+      specifier: ^7.6.1
+      version: 7.6.1
+    '@vitest/coverage-v8':
+      specifier: ^4.1.10
+      version: 4.1.10
+    drizzle-kit:
+      specifier: 1.0.0-rc.4
+      version: 1.0.0-rc.4
+    drizzle-orm:
+      specifier: 1.0.0-rc.4
+      version: 1.0.0-rc.4
+    pg:
+      specifier: ^8.22.0
+      version: 8.22.0
+    ts-node:
+      specifier: ^10.9.2
+      version: 10.9.2
+    tsconfig-paths:
+      specifier: ^4.2.0
+      version: 4.2.0
+    vite:
+      specifier: ^8.1.5
+      version: 8.1.5
+    vitest:
+      specifier: ^4.1.10
+      version: 4.1.10
+
 overrides:
   fast-xml-parser: '>=5.3.8'
 
@@ -54,10 +120,10 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: ^8.0.0
+        specifier: 'catalog:'
         version: 8.1.5(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.4.2)(terser@5.49.0)(tsx@4.21.0)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.10
+        specifier: 'catalog:'
         version: 4.1.10(@types/node@25.9.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(vite@8.1.5(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.4.2)(terser@5.49.0)(tsx@4.21.0)(yaml@2.9.0))
 
   apps/api:
@@ -79,31 +145,31 @@ importers:
         specifier: ^2.34.0
         version: 2.34.0
       '@aws-sdk/client-apigatewaymanagementapi':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/client-bedrock-runtime':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/client-lambda':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/client-s3':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/client-secrets-manager':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/client-sesv2':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/client-sqs':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/rds-signer':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/s3-request-presigner':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@octokit/auth-app':
         specifier: ^8.2.0
@@ -112,13 +178,13 @@ importers:
         specifier: ^22.0.1
         version: 22.0.1
       '@octokit/webhooks':
-        specifier: ^14.2.0
+        specifier: 'catalog:'
         version: 14.2.0
       '@octokit/webhooks-schemas':
-        specifier: ^7.6.1
+        specifier: 'catalog:'
         version: 7.6.1
       '@octokit/webhooks-types':
-        specifier: ^7.6.1
+        specifier: 'catalog:'
         version: 7.6.1
       '@types/aws-lambda':
         specifier: ^8.10.162
@@ -139,25 +205,25 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       drizzle-kit:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1095.0)(@types/pg@8.20.0)(pg@8.22.0)
       pg:
-        specifier: ^8.22.0
+        specifier: 'catalog:'
         version: 8.22.0
       ts-node:
-        specifier: ^10.9.2
+        specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.46(@swc/helpers@0.5.21))(@types/node@26.1.2)(typescript@6.0.3)
       tsconfig-paths:
-        specifier: ^4.2.0
+        specifier: 'catalog:'
         version: 4.2.0
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.46(@swc/helpers@0.5.21))(jiti@2.7.0)(postcss@8.5.23)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)
       vite:
-        specifier: ^8.1.5
+        specifier: 'catalog:'
         version: 8.1.5(@types/node@26.1.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.9.0)
 
   apps/docs:
@@ -294,7 +360,7 @@ importers:
         specifier: ^6.0.8
         version: 6.0.8(vite@8.1.5(@types/node@26.1.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
       '@vitest/coverage-v8':
-        specifier: ^4.1.10
+        specifier: 'catalog:'
         version: 4.1.10(vitest@4.1.10)
       '@vue/test-utils':
         specifier: ^2.4.11
@@ -309,10 +375,10 @@ importers:
         specifier: ^32.1.0
         version: 32.1.0(vue@3.5.40(typescript@6.0.3))
       vite:
-        specifier: ^8.1.5
+        specifier: 'catalog:'
         version: 8.1.5(@types/node@26.1.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.10
+        specifier: 'catalog:'
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(happy-dom@20.11.1)(vite@8.1.5(@types/node@26.1.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)(yaml@2.9.0))
       vue-tsc:
         specifier: ^3.3.8
@@ -321,26 +387,26 @@ importers:
   packages/db:
     dependencies:
       '@octokit/webhooks':
-        specifier: ^14.2.0
+        specifier: 'catalog:'
         version: 14.2.0
       '@octokit/webhooks-schemas':
-        specifier: ^7.6.1
+        specifier: 'catalog:'
         version: 7.6.1
       '@octokit/webhooks-types':
-        specifier: ^7.6.1
+        specifier: 'catalog:'
         version: 7.6.1
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1095.0)(@types/pg@8.20.0)(pg@8.22.0)
       pg:
-        specifier: ^8.22.0
+        specifier: 'catalog:'
         version: 8.22.0
     devDependencies:
       '@aws-sdk/client-rds-data':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@aws-sdk/rds-signer':
-        specifier: ^3.1095.0
+        specifier: 'catalog:'
         version: 3.1095.0
       '@types/pg':
         specifier: ^8.11.0
@@ -349,13 +415,13 @@ importers:
   packages/import:
     devDependencies:
       '@octokit/webhooks-types':
-        specifier: ^7.6.1
+        specifier: 'catalog:'
         version: 7.6.1
       ts-node:
-        specifier: ^10.9.2
+        specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.46(@swc/helpers@0.5.21))(@types/node@26.1.2)(typescript@6.0.3)
       tsconfig-paths:
-        specifier: ^4.2.0
+        specifier: 'catalog:'
         version: 4.2.0
 
 packages:
@@ -530,6 +596,9 @@ packages:
   '@aws-sdk/core@3.977.5':
     resolution: {integrity: sha512-O5otOc1c6UZh5HsHAaPdYBcUUR9HL6mtnKqvc8nxN/CKDGUBUpsdh0q8K04Uz/dd1i0TaGyIQuQNqoO7+ad2TQ==}
     engines: {node: '>=20.0.0'}
+    deprecated: |-
+      Deprecated due to Document number parsing bug in JSON, see
+        https://github.com/aws/aws-sdk-js-v3/issues/8246. Newer version available.
 
   '@aws-sdk/credential-provider-cognito-identity@3.972.65':
     resolution: {integrity: sha512-1DfK/WvYHlalaejpsmG+oQESu5QC06ylhIgSH8YUt+ZHJdh7/bJsQDVUpbN+tE9GkJG7id+m3+nop+oEw2m9Rw==}
@@ -4265,11 +4334,6 @@ packages:
     resolution: {integrity: sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw==}
     engines: {node: '>=0.4.0'}
 
-  acorn@8.16.0:
-    resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
-    engines: {node: '>=0.4.0'}
-    hasBin: true
-
   acorn@8.17.0:
     resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
     engines: {node: '>=0.4.0'}
@@ -6011,9 +6075,6 @@ packages:
   get-stream@6.0.1:
     resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
     engines: {node: '>=10'}
-
-  get-tsconfig@4.13.7:
-    resolution: {integrity: sha512-7tN6rFgBlMgpBML5j8typ92BKFi2sFQvIdpAqLA2beia5avZDrMs0FLZiM5etShWq5irVyGcGMEA1jcDaK7A/Q==}
 
   get-tsconfig@4.14.1:
     resolution: {integrity: sha512-Dz/6HxkrxgNehhxLVeyv8sad9UzF2xBVeaKBQNDfJ5XiSXmp2gTR0eO0RWiT2NCKS5aGP9jjkOMggTN90qU50A==}
@@ -15185,9 +15246,7 @@ snapshots:
 
   acorn-walk@8.3.5:
     dependencies:
-      acorn: 8.16.0
-
-  acorn@8.16.0: {}
+      acorn: 8.18.0
 
   acorn@8.17.0: {}
 
@@ -16404,7 +16463,7 @@ snapshots:
       '@drizzle-team/brocli': 0.12.0
       '@js-temporal/polyfill': 0.5.1
       esbuild: 0.25.12
-      get-tsconfig: 4.13.7
+      get-tsconfig: 4.14.1
       jiti: 2.7.0
 
   drizzle-orm@1.0.0-rc.4(@aws-sdk/client-rds-data@3.1095.0)(@types/pg@8.20.0)(pg@8.22.0):
@@ -16516,7 +16575,7 @@ snapshots:
   esast-util-from-js@2.0.1:
     dependencies:
       '@types/estree-jsx': 1.0.5
-      acorn: 8.17.0
+      acorn: 8.18.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
 
@@ -16999,14 +17058,9 @@ snapshots:
 
   get-stream@6.0.1: {}
 
-  get-tsconfig@4.13.7:
-    dependencies:
-      resolve-pkg-maps: 1.0.0
-
   get-tsconfig@4.14.1:
     dependencies:
       resolve-pkg-maps: 1.0.0
-    optional: true
 
   github-slugger@1.5.0: {}
 
@@ -18283,8 +18337,8 @@ snapshots:
 
   micromark-extension-mdxjs@3.0.0:
     dependencies:
-      acorn: 8.17.0
-      acorn-jsx: 5.3.2(acorn@8.17.0)
+      acorn: 8.18.0
+      acorn-jsx: 5.3.2(acorn@8.18.0)
       micromark-extension-mdx-expression: 3.0.1
       micromark-extension-mdx-jsx: 3.0.2
       micromark-extension-mdx-md: 2.0.0
@@ -20410,7 +20464,7 @@ snapshots:
   terser@5.49.0:
     dependencies:
       '@jridgewell/source-map': 0.3.11
-      acorn: 8.17.0
+      acorn: 8.18.0
       commander: 2.20.3
       source-map-support: 0.5.21
 
@@ -20490,7 +20544,7 @@ snapshots:
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
       '@types/node': 26.1.2
-      acorn: 8.16.0
+      acorn: 8.18.0
       acorn-walk: 8.3.5
       arg: 4.1.3
       create-require: 1.1.1
