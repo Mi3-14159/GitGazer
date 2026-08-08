@@ -12,22 +12,22 @@
     ]
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.2",
-    "@docusaurus/faster": "3.10.2",
-    "@docusaurus/preset-classic": "3.10.2",
-    "@docusaurus/theme-mermaid": "3.10.2",
-    "@easyops-cn/docusaurus-search-local": "^0.55.2",
-    "@mdx-js/react": "^3.0.0",
+    "@docusaurus/core": "catalog:",
+    "@docusaurus/faster": "catalog:",
+    "@docusaurus/preset-classic": "catalog:",
+    "@docusaurus/theme-mermaid": "catalog:",
+    "@easyops-cn/docusaurus-search-local": "catalog:",
+    "@mdx-js/react": "catalog:",
     "clsx": "catalog:",
-    "prism-react-renderer": "^2.3.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "prism-react-renderer": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "3.10.2",
-    "@docusaurus/tsconfig": "3.10.2",
-    "@docusaurus/types": "3.10.2",
-    "@types/react": "^19.2.17",
+    "@docusaurus/module-type-aliases": "catalog:",
+    "@docusaurus/tsconfig": "catalog:",
+    "@docusaurus/types": "catalog:",
+    "@types/react": "catalog:",
     "typescript": "catalog:"
   },
   "engines": {
