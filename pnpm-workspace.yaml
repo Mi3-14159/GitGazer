@@ -20,7 +20,7 @@ catalog:
   '@aws-sdk/client-sqs': '^3.1095.0'
   '@aws-sdk/rds-signer': '^3.1095.0'
   '@aws-sdk/s3-request-presigner': '^3.1095.0'
-  '@babel/types': '^7.29.7'
+  '@babel/types': '^8.0.4'
   '@codemirror/lang-sql': '^6.10.0'
   '@codemirror/state': '^6.7.1'
   '@codemirror/theme-one-dark': '^6.1.3'
