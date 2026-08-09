@@ -49,8 +49,8 @@ catalogs:
       specifier: ^3.1095.0
       version: 3.1106.0
     '@babel/types':
-      specifier: ^7.29.7
-      version: 7.29.8
+      specifier: ^8.0.4
+      version: 8.0.4
     '@codemirror/lang-sql':
       specifier: ^6.10.0
       version: 6.10.0
@@ -568,7 +568,7 @@ importers:
     devDependencies:
       '@babel/types':
         specifier: 'catalog:'
-        version: 7.29.8
+        version: 8.0.4
       '@types/papaparse':
         specifier: 'catalog:'
         version: 5.5.2
