@@ -6,7 +6,6 @@
     "tsconfig-paths": "catalog:"
   },
   "name": "@gitgazer/import",
-  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "backfill": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register src/index.ts",
     "lint:fix": "eslint src --ext .ts --fix",
