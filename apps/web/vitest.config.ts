@@ -11,8 +11,8 @@ export default defineConfig({
     resolve: {
         // MIRROR apps/web/vite.config.ts resolve.alias exactly.
         alias: {
-            '@': resolve(__dirname, 'src'),
-            '@common': resolve(__dirname, '../../packages/db/src'),
+            '@': resolve(import.meta.dirname, 'src'),
+            '@common': resolve(import.meta.dirname, '../../packages/db/src'),
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
     },

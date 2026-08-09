@@ -10,7 +10,7 @@
     "production": [
       "default",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
-      "!{projectRoot}/vitest.config.[jt]s",
+      "!{projectRoot}/vitest.config.*",
       "!{projectRoot}/tsconfig.spec.json"
     ],
     "sharedGlobals": [

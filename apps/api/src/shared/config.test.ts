@@ -82,7 +82,7 @@ describe('config', () => {
         const {default: config, loadConfig} = await import('./config');
         await loadConfig();
 
-        // Values come from .env.test via vitest.config.ts loadEnv
+        // Values come from .env.test via vitest.config.mts loadEnv
         expect(config.get('cognito.userPoolId')).toBe(process.env.COGNITO_USER_POOL_ID ?? '');
         expect(config.get('cognito.clientId')).toBe(process.env.COGNITO_CLIENT_ID ?? '');
     });

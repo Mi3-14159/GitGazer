@@ -2,7 +2,7 @@ import {resolve} from 'path';
 import {loadEnv} from 'vite';
 import {defineConfig} from 'vitest/config';
 
-import tsconfig from './tsconfig.json';
+import tsconfig from './tsconfig.json' with {type: 'json'};
 
 export default defineConfig(({mode}) => ({
     test: {
@@ -14,7 +14,7 @@ export default defineConfig(({mode}) => ({
         alias: Object.fromEntries(
             Object.entries(tsconfig.compilerOptions.paths).map(([key, value]) => [
                 key.replace('/*', ''),
-                resolve(__dirname, value[0].replace('/*', '')),
+                resolve(import.meta.dirname, value[0].replace('/*', '')),
             ]),
         ),
         projects: [

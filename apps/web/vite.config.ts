@@ -28,14 +28,14 @@ export default defineConfig({
         basicSsl({
             name: 'app.gitgazer.localhost',
             domains: ['app.gitgazer.localhost'],
-            certDir: resolve(__dirname, 'certs'),
+            certDir: resolve(import.meta.dirname, 'certs'),
         }),
     ],
     define: {'process.env': {}},
     resolve: {
         alias: {
-            '@': resolve(__dirname, 'src'),
-            '@common': resolve(__dirname, '../../packages/db/src'),
+            '@': resolve(import.meta.dirname, 'src'),
+            '@common': resolve(import.meta.dirname, '../../packages/db/src'),
         },
         extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
     },

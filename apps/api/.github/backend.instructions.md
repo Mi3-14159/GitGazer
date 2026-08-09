@@ -36,7 +36,7 @@ pnpm run pretty
 - Always use `@/` prefix for imports (maps to `src/`)
 - Example: `import { router } from '@/router'`
 - Use `@gitgazer/db/*` for imports from the shared `packages/db` package
-- Configured in `tsconfig.json` and `vitest.config.ts`
+- Configured in `tsconfig.json` and `vitest.config.mts`
 - Never use relative imports like `../../../` - always use path aliases
 
 ### Router Pattern
