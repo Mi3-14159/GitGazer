@@ -11,7 +11,7 @@ function makeReqCtx(event: any) {
     return {event} as any;
 }
 
-function signatureFor(payload: crypto.BinaryLike, secret: string) {
+function signatureFor(payload: string | NodeJS.ArrayBufferView, secret: string) {
     const hmac = crypto.createHmac('sha256', secret);
     return 'sha256=' + hmac.update(payload).digest('hex');
 }
