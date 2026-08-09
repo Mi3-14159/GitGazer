@@ -214,8 +214,8 @@ catalogs:
       specifier: 2.4.2
       version: 2.4.2
     lucide-vue-next:
-      specifier: ^0.577.0
-      version: 0.577.0
+      specifier: ^1.0.0
+      version: 1.0.0
     nx:
       specifier: 23.1.1
       version: 23.1.1
@@ -271,13 +271,13 @@ catalogs:
       specifier: ^32.1.0
       version: 32.1.0
     vite:
-      specifier: ^8.1.5
+      specifier: ^8.2.1
       version: 8.2.1
     vitest:
       specifier: ^4.1.10
       version: 4.1.10
     vue:
-      specifier: ^3.5.40
+      specifier: ^3.5.41
       version: 3.5.41
     vue-echarts:
       specifier: ^8.0.1
@@ -537,7 +537,7 @@ importers:
         version: 1.1.1(vue@3.5.41(typescript@6.0.3))
       lucide-vue-next:
         specifier: 'catalog:'
-        version: 0.577.0(vue@3.5.41(typescript@6.0.3))
+        version: 1.0.0(vue@3.5.41(typescript@6.0.3))
       papaparse:
         specifier: 'catalog:'
         version: 5.5.4
@@ -6993,8 +6993,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-vue-next@0.577.0:
-    resolution: {integrity: sha512-py05bAfv9SHVJqscbiOnjcnLlEmOffA58a+7XhZuFxrs6txe1E8VoR1ngWGTYO+9aVKABAz8l3ee3PqiQN9QPA==}
+  lucide-vue-next@1.0.0:
+    resolution: {integrity: sha512-V6SPvx1IHTj/UY+FrIYWV5faISsPSb8BnWSFDxAtezWKvWc9ZZ40PDrdu1/Qb5vg4lHWr1hs1BAMGVGm6V1Xdg==}
     deprecated: Package deprecated. Please use @lucide/vue instead.
     peerDependencies:
       vue: '>=3.0.1'
@@ -18094,7 +18094,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-vue-next@0.577.0(vue@3.5.41(typescript@6.0.3)):
+  lucide-vue-next@1.0.0(vue@3.5.41(typescript@6.0.3)):
     dependencies:
       vue: 3.5.41(typescript@6.0.3)
 
