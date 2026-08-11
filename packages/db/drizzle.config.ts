@@ -14,7 +14,7 @@ const password = execSync(`aws rds generate-db-auth-token --hostname ${hostname}
 
 export default defineConfig({
     out: './drizzle',
-    schema: '../../packages/db/src/schema/index.ts',
+    schema: './src/schema/index.ts',
     schemaFilter: ['gitgazer', 'github'],
     dialect: 'postgresql',
     breakpoints: true,

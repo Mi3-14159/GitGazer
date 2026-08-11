@@ -2,7 +2,7 @@ import {drizzle} from 'drizzle-orm/node-postgres';
 import {migrate} from 'drizzle-orm/node-postgres/migrator';
 import path from 'node:path';
 import pg from 'pg';
-import drizzleConfig from '../../drizzle.config';
+import drizzleConfig from '../drizzle.config';
 
 type PgCredentials = {
     host: string;
@@ -37,7 +37,7 @@ async function run(): Promise<void> {
     });
 
     const db = drizzle({client: pool});
-    const migrationsFolder = path.resolve(__dirname, '../../', config.out ?? './drizzle');
+    const migrationsFolder = path.resolve(__dirname, '../', config.out ?? './drizzle');
 
     try {
         console.info(`Running Drizzle migrations from: ${migrationsFolder}`);

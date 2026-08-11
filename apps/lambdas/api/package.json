@@ -7,10 +7,9 @@
     "@gitgazer/backend-core": "workspace:*",
     "@gitgazer/backend-services": "workspace:*",
     "@gitgazer/db": "workspace:*",
-    "@gitgazer/github-import": "workspace:*",
-    "convict": "catalog:"
+    "@gitgazer/github-import": "workspace:*"
   },
-  "description": "lambda as API",
+  "description": "REST API lambda",
   "devDependencies": {
     "@aws-lambda-powertools/event-handler": "catalog:",
     "@aws-lambda-powertools/jmespath": "catalog:",
@@ -23,7 +22,6 @@
     "@aws-sdk/client-secrets-manager": "catalog:",
     "@aws-sdk/client-sesv2": "catalog:",
     "@aws-sdk/client-sqs": "catalog:",
-    "@aws-sdk/rds-signer": "catalog:",
     "@aws-sdk/s3-request-presigner": "catalog:",
     "@octokit/auth-app": "catalog:",
     "@octokit/rest": "catalog:",
@@ -32,49 +30,38 @@
     "@octokit/webhooks-types": "catalog:",
     "@types/aws-lambda": "catalog:",
     "@types/convict": "catalog:",
-    "@types/pg": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
     "aws-jwt-verify": "catalog:",
-    "drizzle-kit": "catalog:",
+    "convict": "catalog:",
     "drizzle-orm": "catalog:",
-    "pg": "catalog:",
     "ts-node": "catalog:",
-    "tsconfig-paths": "catalog:",
-    "tsup": "catalog:",
-    "vite": "catalog:"
+    "tsconfig-paths": "catalog:"
   },
   "engines": {
     "node": "^24"
   },
   "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
   "keywords": [],
-  "name": "@gitgazer/lambdas",
+  "name": "@gitgazer/lambda-api",
   "nx": {
     "targets": {
       "build": {
-        "outputs": [
-          "{projectRoot}/dist"
-        ]
+        "outputs": ["{projectRoot}/dist"]
       },
-      "deploy": {
+      "upload": {
         "executor": "nx:run-commands",
         "metadata": {
-          "description": "Lambdas resolve code from versioned S3 objects, so uploaded zips only go live after the apply."
+          "description": "Lambdas resolve code from versioned S3 objects, so uploaded zips only go live after terraform apply."
         },
         "options": {
-          "cwd": "{projectRoot}",
-          "parallel": false,
-          "commands": [
-            "aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\"",
-            "terraform -chdir=../../infra init -input=false",
-            "terraform -chdir=../../infra plan -input=false -out=tfplan",
-            "terraform -chdir=../../infra apply -input=false tfplan"
-          ]
+          "commands": ["aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\""],
+          "cwd": "{projectRoot}"
         }
       }
     }
   },
+  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
@@ -82,17 +69,14 @@
   "scripts": {
     "build": "pnpm run clean && tsup && pnpm run zip",
     "clean": "rimraf dist tmp",
-    "db:migrate:manual": "node --env-file=.env -r ts-node/register src/scripts/run-drizzle-migrations.ts",
-    "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
-    "dev:backfill": "node --env-file=.env -r ts-node/register src/scripts/run-backfill-task.ts",
-    "dev:worker": "node --env-file=.env -r ts-node/register src/scripts/run-worker-task.ts",
+    "dev:api": "node --env-file=../../../.env --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "pretty": "prettier --write src",
     "pretty:check": "prettier --check src",
     "test:unit": "nx vitest:test -- --project unit --run",
-    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0",
-    "zip": "mkdir -p dist && for d in tmp/*/; do n=$(basename \"$d\"); (cd \"$d\" && zip -qr \"../../dist/gitgazer-$n.zip\" *) || exit 1; done"
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../../.. --ignoreDeprecations 6.0",
+    "zip": "mkdir -p dist && cd tmp && zip -qr ../dist/gitgazer-api.zip *"
   },
   "version": "1.0.0"
 }

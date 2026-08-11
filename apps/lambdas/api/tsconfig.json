@@ -3,7 +3,6 @@
     "baseUrl": "./",
     "downlevelIteration": true,
     "esModuleInterop": true,
-    "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["es2021", "dom"],
     "module": "commonjs",
@@ -13,12 +12,12 @@
     "outDir": "dist",
     "paths": {
       "@/*": ["src/*"],
-      "@gitgazer/backend-core/*": ["../../packages/backend-core/src/*"],
-      "@gitgazer/backend-services/*": ["../../packages/backend-services/src/*"],
-      "@gitgazer/github-import/*": ["../../packages/github-import/src/*"],
-      "@gitgazer/github-import": ["../../packages/github-import/src"],
-      "@gitgazer/db/*": ["../../packages/db/src/*"],
-      "@gitgazer/db": ["../../packages/db/src"]
+      "@gitgazer/backend-core/*": ["../../../packages/backend-core/src/*"],
+      "@gitgazer/backend-services/*": ["../../../packages/backend-services/src/*"],
+      "@gitgazer/github-import/*": ["../../../packages/github-import/src/*"],
+      "@gitgazer/github-import": ["../../../packages/github-import/src"],
+      "@gitgazer/db/*": ["../../../packages/db/src/*"],
+      "@gitgazer/db": ["../../../packages/db/src"]
     },
     "preserveConstEnums": true,
     "pretty": true,
@@ -31,9 +30,8 @@
     "target": "es2020",
     "types": ["node", "vitest"]
   },
-  "exclude": ["node_modules/**/*", "dist/**/*", "vitest.config.mts", "tsup.config.ts", "drizzle.config.ts"],
+  "exclude": ["node_modules/**/*", "dist/**/*", "tmp/**/*", "vitest.config.mts", "tsup.config.ts"],
   "ts-node": {
     "require": ["tsconfig-paths/register"]
-  },
-  "types": ["vitest", "node", "@types/vitest"]
+  }
 }
