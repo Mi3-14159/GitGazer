@@ -33,13 +33,13 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     },
 }));
 
-let handler: typeof import('./org-sync-scheduler');
+let handler: typeof import('./index');
 
 describe('org-sync-scheduler handler', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
         mockSendOrgMemberSyncTask.mockResolvedValue(undefined);
-        handler = await import('./org-sync-scheduler');
+        handler = await import('./index');
     });
 
     it('dispatches SQS tasks for all Organization installations', async () => {

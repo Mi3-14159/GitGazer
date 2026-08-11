@@ -13,6 +13,7 @@
     "nx": "catalog:",
     "prettier": "catalog:",
     "rimraf": "catalog:",
+    "tsup": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
@@ -24,7 +25,7 @@
     "db:tunnel": "./scripts/db-tunnel.sh",
     "pretty": "prettier --write .",
     "build": "nx run-many -t build",
-    "deploy": "nx run-many -t deploy"
+    "deploy": "nx run-many -t upload deploy"
   },
   "type": "module"
 }

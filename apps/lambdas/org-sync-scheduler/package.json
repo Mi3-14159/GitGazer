@@ -1,0 +1,43 @@
+{
+  "dependencies": {
+    "@gitgazer/backend-core": "workspace:*",
+    "@gitgazer/db": "workspace:*"
+  },
+  "devDependencies": {
+    "drizzle-orm": "catalog:"
+  },
+  "engines": {
+    "node": "^24"
+  },
+  "name": "@gitgazer/lambda-org-sync-scheduler",
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": ["{projectRoot}/dist"]
+      },
+      "upload": {
+        "executor": "nx:run-commands",
+        "metadata": {
+          "description": "Lambdas resolve code from versioned S3 objects, so uploaded zips only go live after terraform apply."
+        },
+        "options": {
+          "commands": ["aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\""],
+          "cwd": "{projectRoot}"
+        }
+      }
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "pnpm run clean && tsup && pnpm run zip",
+    "clean": "rimraf dist tmp",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write src",
+    "pretty:check": "prettier --check src",
+    "test:unit": "nx vitest:test -- --project unit --run",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../../.. --ignoreDeprecations 6.0",
+    "zip": "mkdir -p dist && cd tmp && zip -qr ../dist/gitgazer-org-sync-scheduler.zip *"
+  },
+  "version": "1.0.0"
+}

@@ -8,7 +8,7 @@ vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: vi.fn()}));
 vi.mock('@gitgazer/db/schema/gitgazer', () => ({wsConnections: {}}));
 vi.mock('@gitgazer/db/types', () => ({WEBSOCKET_CHANNELS: ['workflow_run', 'workflow_job']}));
 
-let mod: typeof import('./websocket');
+let mod: typeof import('./index');
 
 const sign = (payloadEncoded: string) => createHmac('sha256', 'test-secret').update(payloadEncoded).digest('base64url');
 const encode = (payload: object) => Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -27,7 +27,7 @@ const validPayload = () => ({
 });
 
 beforeEach(async () => {
-    mod = await import('./websocket');
+    mod = await import('./index');
 });
 
 describe('validateWebSocketToken', () => {

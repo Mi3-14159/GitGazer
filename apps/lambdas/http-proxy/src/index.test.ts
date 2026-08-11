@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {handler} from './http-proxy';
+import {handler} from './index';
 
 describe('http-proxy handler', () => {
     beforeEach(() => {

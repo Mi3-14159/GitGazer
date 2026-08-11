@@ -76,6 +76,10 @@
     "typecheck": {
       "cache": true,
       "inputs": ["production", "^production"]
+    },
+    "upload": {
+      "cache": false,
+      "dependsOn": ["build"]
     }
   }
 }
