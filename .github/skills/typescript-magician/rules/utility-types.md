@@ -2,7 +2,7 @@
 name: utility-types
 description: Built-in TypeScript utility types for type manipulation
 metadata:
-  tags: utility-types, parameters, returntype, awaited, omit, partial, record
+    tags: utility-types, parameters, returntype, awaited, omit, partial, record
 ---
 
 # TypeScript Utility Types
@@ -16,19 +16,17 @@ TypeScript provides built-in utility types that transform types in common ways. 
 Extracts the parameter types of a function type as a tuple:
 
 ```typescript
-function fetchUser(id: string, opts?: { timeout?: number }): Promise<User> {
-  // ...
+function fetchUser(id: string, opts?: {timeout?: number}): Promise<User> {
+    // ...
 }
 
 type FetchUserParams = Parameters<typeof fetchUser>;
 // Type: [id: string, opts?: { timeout?: number } | undefined]
 
 // Use in wrapper functions
-const fetchUserWithLogging = async (
-  ...args: Parameters<typeof fetchUser>
-): Promise<User> => {
-  console.log("Fetching user:", args[0]);
-  return fetchUser(...args);
+const fetchUserWithLogging = async (...args: Parameters<typeof fetchUser>): Promise<User> => {
+    console.log('Fetching user:', args[0]);
+    return fetchUser(...args);
 };
 ```
 
@@ -38,12 +36,12 @@ Extracts the return type of a function type:
 
 ```typescript
 function createUser(name: string, email: string) {
-  return {
-    id: crypto.randomUUID(),
-    name,
-    email,
-    createdAt: new Date(),
-  };
+    return {
+        id: crypto.randomUUID(),
+        name,
+        email,
+        createdAt: new Date(),
+    };
 }
 
 type User = ReturnType<typeof createUser>;
@@ -63,7 +61,7 @@ type Unwrapped2 = Awaited<NestedPromise>; // number
 
 // Combine with ReturnType for async functions
 async function fetchUser(id: string): Promise<User> {
-  // ...
+    // ...
 }
 
 type FetchUserResult = Awaited<ReturnType<typeof fetchUser>>;
@@ -75,19 +73,17 @@ type FetchUserResult = Awaited<ReturnType<typeof fetchUser>>;
 When extending functions from external libraries that don't export their types:
 
 ```typescript
-import { fetchUser } from "external-lib";
+import {fetchUser} from 'external-lib';
 
 // Extract and extend the return type
 type FetchUserReturn = Awaited<ReturnType<typeof fetchUser>>;
 
-export const fetchUserWithFullName = async (
-  ...args: Parameters<typeof fetchUser>
-): Promise<FetchUserReturn & { fullName: string }> => {
-  const user = await fetchUser(...args);
-  return {
-    ...user,
-    fullName: `${user.firstName} ${user.lastName}`,
-  };
+export const fetchUserWithFullName = async (...args: Parameters<typeof fetchUser>): Promise<FetchUserReturn & {fullName: string}> => {
+    const user = await fetchUser(...args);
+    return {
+        ...user,
+        fullName: `${user.firstName} ${user.lastName}`,
+    };
 };
 ```
 
@@ -96,25 +92,22 @@ export const fetchUserWithFullName = async (
 Creates an object type with specified keys and value type:
 
 ```typescript
-type Role = "admin" | "user" | "guest";
+type Role = 'admin' | 'user' | 'guest';
 type Permissions = Record<Role, string[]>;
 
 const rolePermissions: Permissions = {
-  admin: ["read", "write", "delete"],
-  user: ["read", "write"],
-  guest: ["read"],
+    admin: ['read', 'write', 'delete'],
+    user: ['read', 'write'],
+    guest: ['read'],
 };
 
 // Dynamic keys with constraint
-function createLookup<K extends string, V>(
-  keys: K[],
-  getValue: (key: K) => V
-): Record<K, V> {
-  const result = {} as Record<K, V>;
-  for (const key of keys) {
-    result[key] = getValue(key);
-  }
-  return result;
+function createLookup<K extends string, V>(keys: K[], getValue: (key: K) => V): Record<K, V> {
+    const result = {} as Record<K, V>;
+    for (const key of keys) {
+        result[key] = getValue(key);
+    }
+    return result;
 }
 ```
 
@@ -124,19 +117,19 @@ Makes all properties optional:
 
 ```typescript
 interface User {
-  id: string;
-  name: string;
-  email: string;
+    id: string;
+    name: string;
+    email: string;
 }
 
 type UpdateUserInput = Partial<User>;
 // Type: { id?: string; name?: string; email?: string }
 
 function updateUser(id: string, updates: Partial<User>): User {
-  // ...
+    // ...
 }
 
-updateUser("123", { name: "New Name" }); // OK - only updating name
+updateUser('123', {name: 'New Name'}); // OK - only updating name
 ```
 
 ## Required<T>
@@ -145,9 +138,9 @@ Makes all properties required (opposite of Partial):
 
 ```typescript
 interface Config {
-  host?: string;
-  port?: number;
-  debug?: boolean;
+    host?: string;
+    port?: number;
+    debug?: boolean;
 }
 
 type RequiredConfig = Required<Config>;
@@ -160,16 +153,16 @@ Creates a type by omitting specified properties:
 
 ```typescript
 interface User {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
+    id: string;
+    name: string;
+    email: string;
+    password: string;
 }
 
-type PublicUser = Omit<User, "password">;
+type PublicUser = Omit<User, 'password'>;
 // Type: { id: string; name: string; email: string }
 
-type CreateUserInput = Omit<User, "id">;
+type CreateUserInput = Omit<User, 'id'>;
 // Type: { name: string; email: string; password: string }
 ```
 
@@ -179,14 +172,14 @@ Creates a type by picking specified properties (opposite of Omit):
 
 ```typescript
 interface User {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-  createdAt: Date;
+    id: string;
+    name: string;
+    email: string;
+    password: string;
+    createdAt: Date;
 }
 
-type UserCredentials = Pick<User, "email" | "password">;
+type UserCredentials = Pick<User, 'email' | 'password'>;
 // Type: { email: string; password: string }
 ```
 
@@ -195,12 +188,12 @@ type UserCredentials = Pick<User, "email" | "password">;
 Work with union types:
 
 ```typescript
-type AllColors = "red" | "green" | "blue" | "yellow";
+type AllColors = 'red' | 'green' | 'blue' | 'yellow';
 
-type PrimaryColors = Extract<AllColors, "red" | "blue">;
+type PrimaryColors = Extract<AllColors, 'red' | 'blue'>;
 // Type: "red" | "blue"
 
-type NonPrimaryColors = Exclude<AllColors, "red" | "blue">;
+type NonPrimaryColors = Exclude<AllColors, 'red' | 'blue'>;
 // Type: "green" | "yellow"
 ```
 
@@ -220,43 +213,37 @@ Combine utilities to create reusable type helpers:
 
 ```typescript
 // A type that wraps any async function, extending its return type
-type WrapFunction<
-  TFunc extends (...args: any) => any,
-  TAdditional = {}
-> = (
-  ...args: Parameters<TFunc>
+type WrapFunction<TFunc extends (...args: any) => any, TAdditional = {}> = (
+    ...args: Parameters<TFunc>
 ) => Promise<Awaited<ReturnType<TFunc>> & TAdditional>;
 
 // Usage
-import { fetchUser, fetchPost } from "external-lib";
+import {fetchUser, fetchPost} from 'external-lib';
 
-const fetchUserWithMeta: WrapFunction<
-  typeof fetchUser,
-  { meta: { fetchedAt: Date } }
-> = async (...args) => {
-  const user = await fetchUser(...args);
-  return {
-    ...user,
-    meta: { fetchedAt: new Date() },
-  };
+const fetchUserWithMeta: WrapFunction<typeof fetchUser, {meta: {fetchedAt: Date}}> = async (...args) => {
+    const user = await fetchUser(...args);
+    return {
+        ...user,
+        meta: {fetchedAt: new Date()},
+    };
 };
 ```
 
 ## When to Use Each Utility
 
-| Utility | Use Case |
-|---------|----------|
-| `Parameters<T>` | Wrapping functions, creating function variants |
-| `ReturnType<T>` | Extracting return types when not explicitly exported |
-| `Awaited<T>` | Unwrapping Promise types |
-| `Record<K, V>` | Creating object types with dynamic keys |
-| `Partial<T>` | Update/patch operations |
-| `Required<T>` | Ensuring all config options are provided |
-| `Omit<T, K>` | Removing sensitive or internal fields |
-| `Pick<T, K>` | Creating focused subsets of types |
-| `Exclude<T, U>` | Filtering union types |
-| `Extract<T, U>` | Selecting from union types |
-| `NonNullable<T>` | Removing null/undefined after validation |
+| Utility          | Use Case                                             |
+| ---------------- | ---------------------------------------------------- |
+| `Parameters<T>`  | Wrapping functions, creating function variants       |
+| `ReturnType<T>`  | Extracting return types when not explicitly exported |
+| `Awaited<T>`     | Unwrapping Promise types                             |
+| `Record<K, V>`   | Creating object types with dynamic keys              |
+| `Partial<T>`     | Update/patch operations                              |
+| `Required<T>`    | Ensuring all config options are provided             |
+| `Omit<T, K>`     | Removing sensitive or internal fields                |
+| `Pick<T, K>`     | Creating focused subsets of types                    |
+| `Exclude<T, U>`  | Filtering union types                                |
+| `Extract<T, U>`  | Selecting from union types                           |
+| `NonNullable<T>` | Removing null/undefined after validation             |
 
 ## Common Pitfalls
 
@@ -264,7 +251,7 @@ const fetchUserWithMeta: WrapFunction<
 
 ```typescript
 async function getData(): Promise<string[]> {
-  return ["data"];
+    return ['data'];
 }
 
 // This gives Promise<string[]>, not string[]
@@ -278,7 +265,7 @@ type Right = Awaited<ReturnType<typeof getData>>; // string[]
 
 ```typescript
 function myFunc(x: number): string {
-  return String(x);
+    return String(x);
 }
 
 // Wrong - myFunc is a value, not a type

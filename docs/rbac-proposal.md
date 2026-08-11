@@ -139,7 +139,7 @@ export const hasRole = (userRole: MemberRole, requiredRole: MemberRole): boolean
 A single reusable middleware that resolves the caller's role for the target integration and rejects if insufficient:
 
 ```typescript
-// apps/api/src/shared/middleware/requireRole.ts
+// apps/lambdas/api/src/shared/middleware/requireRole.ts
 
 import {ROLE_RANK, type MemberRole} from '@gitgazer/db/types';
 
@@ -174,7 +174,7 @@ export const requireRole = (minimumRole: MemberRole) => {
 Apply middleware declaratively at route registration:
 
 ```typescript
-// Example: apps/api/src/domains/integrations/integrations.routes.ts
+// Example: apps/lambdas/api/src/domains/integrations/integrations.routes.ts
 
 router.delete(
     '/api/integrations/:integrationId',

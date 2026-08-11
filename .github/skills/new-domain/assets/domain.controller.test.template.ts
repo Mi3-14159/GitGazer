@@ -1,8 +1,8 @@
-// Template: apps/api/src/domains/<domain>/<domain>.controller.test.ts
+// Template: apps/lambdas/api/src/domains/<domain>/<domain>.controller.test.ts
 // Mock @gitgazer/db/client and all AWS clients — never call real services.
 // The withRlsTransaction mock simply executes the callback with a synthetic tx.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: vi.fn(async ({callback}: {callback: (tx: unknown) => Promise<unknown>}) => callback(mockTx)),
@@ -23,7 +23,7 @@ const mockTx = {
     })),
 };
 
-import { createThing, getThings } from './things.controller';
+import {createThing, getThings} from './things.controller';
 
 describe('things.controller', () => {
     beforeEach(() => vi.clearAllMocks());

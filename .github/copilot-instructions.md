@@ -5,7 +5,7 @@
 GitGazer is a GitHub workflow monitoring and notification system on AWS serverless (a pnpm monorepo). For the tech stack, path aliases (`@/`, `@gitgazer/db/*`), auth model, database (Drizzle + row-level security), and per-module patterns, see:
 
 - [AGENTS.md](../AGENTS.md) — project overview, cross-cutting conventions, agents & skills
-- [apps/api/.github/backend.instructions.md](../apps/api/.github/backend.instructions.md) — backend (Lambda, Drizzle, router, middleware)
+- [.github/instructions/backend.instructions.md](instructions/backend.instructions.md) — backend (Lambda apps, Drizzle, router, middleware)
 - [apps/web/.github/frontend.instructions.md](../apps/web/.github/frontend.instructions.md) — frontend (Vue 3, Radix Vue, Tailwind, Pinia)
 - [infra/.github/infrastructure.instructions.md](../infra/.github/infrastructure.instructions.md) — Terraform / AWS
 

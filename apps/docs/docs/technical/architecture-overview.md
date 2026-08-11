@@ -81,14 +81,14 @@ graph TB
 
 GitGazer is a **pnpm monorepo** with the following workspaces:
 
-| Workspace          | Purpose                                                            | Tech Stack                                    |
-| ------------------ | ------------------------------------------------------------------ | --------------------------------------------- |
-| `apps/api/`        | AWS Lambda backend — REST API, WebSocket handler, worker, alerting | TypeScript, Node.js 24, Drizzle ORM           |
-| `apps/web/`        | Single-page application frontend                                   | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite |
-| `apps/docs/`       | Documentation site (this site)                                     | Docusaurus                                    |
-| `packages/db/`     | Shared database schema, types, and client                          | Drizzle ORM, TypeScript                       |
-| `packages/import/` | Historical GitHub Actions data backfill utility                    | TypeScript                                    |
-| `infra/`           | Infrastructure as code                                             | Terraform, AWS                                |
+| Workspace           | Purpose                                                            | Tech Stack                                    |
+| ------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| `apps/lambdas/api/` | AWS Lambda backend — REST API, WebSocket handler, worker, alerting | TypeScript, Node.js 24, Drizzle ORM           |
+| `apps/web/`         | Single-page application frontend                                   | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite |
+| `apps/docs/`        | Documentation site (this site)                                     | Docusaurus                                    |
+| `packages/db/`      | Shared database schema, types, and client                          | Drizzle ORM, TypeScript                       |
+| `packages/import/`  | Historical GitHub Actions data backfill utility                    | TypeScript                                    |
+| `infra/`            | Infrastructure as code                                             | Terraform, AWS                                |
 
 ## Key Technology Choices
 

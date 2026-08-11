@@ -1,15 +1,17 @@
 ---
-applyTo: 'apps/api/**/*.{ts,json}'
+applyTo: '{apps/lambdas,packages/backend-core,packages/backend-services,packages/github-import}/**/*.{ts,json}'
 ---
 
 # Backend Development Instructions
 
-This module contains the AWS Lambda backend for GitGazer, serving as both API and GitHub webhook processor.
+The backend is one Nx app per Lambda under `apps/lambdas/<name>/`, sharing code through
+`packages/backend-core` (config, logger, AWS/GitHub clients), `packages/backend-services`
+(event log, alerting, org member sync) and `packages/github-import` (webhook importers).
 
 ## Build and Test Commands
 
 ```bash
-cd apps/api
+cd apps/lambdas/api   # or worker, backfill-worker, websocket, org-sync-scheduler, http-proxy
 
 # Install dependencies
 pnpm install
@@ -17,8 +19,8 @@ pnpm install
 # Run unit tests
 pnpm run test:unit
 
-# Build and package all Lambda functions
-pnpm run build  # tsup bundles into tmp/, zips land in dist/
+# Build and package this Lambda
+pnpm run build  # tsup bundles into tmp/, the zip lands in dist/
 
 # Local development (requires AWS credentials)
 pnpm run dev:api
@@ -33,23 +35,23 @@ pnpm run pretty
 
 ### Path Aliases
 
-- Always use `@/` prefix for imports (maps to `src/`)
-- Example: `import { router } from '@/router'`
+- Always use `@/` prefix for imports within an app (maps to that app's `src/`)
+- Use `@gitgazer/backend-core/*`, `@gitgazer/backend-services/*` and `@gitgazer/github-import` for shared backend code
 - Use `@gitgazer/db/*` for imports from the shared `packages/db` package
-- Configured in `tsconfig.json` and `vitest.config.mts`
-- Never use relative imports like `../../../` - always use path aliases
+- Inside a shared package, import its own modules relatively — never through its own alias
+- Configured in `tsconfig.json`, `tsup.config.ts` and `vitest.config.mts`
+- Never use relative imports like `../../../` across project boundaries - always use path aliases
 
 ### Router Pattern
 
-- Custom router (`@aws-lambda-powertools/event-handler/http`) in `src/shared/router/index.ts` handles API Gateway Lambda events
-- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts`
+- Custom router (`@aws-lambda-powertools/event-handler/http`) in `apps/lambdas/api/src/shared/router/index.ts` handles API Gateway Lambda events
+- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` inside the api app
 - Middleware chain: `compress` → `cors` → `authenticate` → `originCheck` → route handlers
 - Each route handler receives typed API Gateway event and context
 
 ### AWS Service Clients
 
-- Centralized AWS clients in `src/shared/clients/`
-- Available clients: `s3`, `websocket`, `secrets-manager`, `github-app`
+- Shared AWS clients live in `packages/backend-core/src/clients/`; api-only clients (`s3`, `ses`) stay in the api app
 - Never instantiate AWS clients directly in controllers or routes
 - Clients are pre-configured with region and credentials
 
@@ -86,7 +88,7 @@ pnpm run pretty
 ### Adding a New Controller
 
 1. Create controller in `src/domains/<domain>/`
-2. Import and use AWS clients from `src/shared/clients/`
+2. Import AWS clients from `@gitgazer/backend-core/clients/`
 3. Implement business logic with proper error handling
 4. Add unit tests with mocked AWS services
 
@@ -99,8 +101,8 @@ pnpm run pretty
 
 ### GitHub Webhook Handling
 
-- Webhook validation via `verifyGithubSign` middleware in `src/domains/webhooks/webhooks.middleware.ts`
-- GitHub events processed by controllers in `src/domains/webhooks/`
+- Webhook validation via `verifyGithubSign` middleware in `apps/lambdas/api/src/domains/webhooks/webhooks.middleware.ts`
+- GitHub events are enqueued by the api app and imported by `apps/lambdas/worker` via `@gitgazer/github-import`
 - Store job data in RDS Aurora PostgreSQL
 - Trigger notifications via Step Functions
 
@@ -110,8 +112,8 @@ pnpm run pretty
 
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
-- Copy `.env` file and configure environment variables
-- Start local server: `pnpm run dev:api` (runs on port 8080)
+- Create a repo-root `.env`; every app's dev script reads it
+- Start local server: `pnpm run dev:api` from `apps/lambdas/api` (runs on port 8080)
 
 ### Environment Variables
 
@@ -119,22 +121,27 @@ pnpm run pretty
 - `RDS_*`: RDS connection configuration
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
-- See `.env` for full list
+- See the repo-root `.env` for the full list
 
 ## Deployment
 
 ### Lambda Packaging
 
-- `pnpm run build` bundles each handler into `tmp/<handler>/` and zips it to `dist/gitgazer-<handler>.zip`
+- `pnpm run build` bundles the app's entrypoint into `tmp/` and zips it to `dist/gitgazer-<name>.zip`
 - tsup bundles all dependencies into a single file (except `@aws-sdk/*`, provided by Lambda runtime)
-- The `deploy` target (defined in `package.json` under `nx.targets`) syncs `dist/` to `S3_BUCKET_LAMBDA_STORE`, then runs `terraform apply`
+- Runtime npm packages belong in `devDependencies`: tsup externalizes `dependencies`, and nothing is installed next to the bundle
+- The `upload` target (in `package.json` under `nx.targets`) only syncs `dist/` to `S3_BUCKET_LAMBDA_STORE`; the zip goes live when the infra workflow runs `terraform apply`
 
 ### Lambda Functions
 
-- **API**: Handles REST API and webhook endpoints (`src/handlers/api.ts`)
-- **WebSocket**: Manages WebSocket connections (`src/handlers/websocket.ts`)
-- **Worker**: Background job processing (`src/handlers/worker.ts`)
-- **Org Sync Scheduler**: Scheduled organization membership sync (`src/handlers/org-sync-scheduler.ts`)
+One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint:
+
+- **api**: REST API and webhook endpoints
+- **websocket**: WebSocket connection management
+- **worker**: webhook queue processing
+- **backfill-worker**: historical GitHub data backfill
+- **org-sync-scheduler**: scheduled organization membership sync
+- **http-proxy**: egress proxy for IPv4-only targets
 
 ## Code Quality
 

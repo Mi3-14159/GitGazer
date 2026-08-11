@@ -2,7 +2,7 @@
 name: error-diagnosis
 description: Strategies for diagnosing and understanding TypeScript type errors
 metadata:
-  tags: errors, debugging, diagnosis, troubleshooting
+    tags: errors, debugging, diagnosis, troubleshooting
 ---
 
 # Diagnosing TypeScript Errors
@@ -39,7 +39,7 @@ const result = someFunction(arg);
 Navigate to type definitions to understand what's expected:
 
 ```typescript
-document.querySelector("body");
+document.querySelector('body');
 //       ^ Go-to-definition to see overloads
 ```
 
@@ -62,18 +62,19 @@ type Step3 = Step2[number];
 ### "Type 'X' is not assignable to type 'Y'"
 
 The most common error. Check:
+
 1. Are you missing properties?
 2. Are property types incompatible?
 3. Is there a literal vs widened type mismatch?
 
 ```typescript
 // Example: Literal type mismatch
-const status = "active"; // Type: string (widened)
-function setStatus(s: "active" | "inactive") {}
+const status = 'active'; // Type: string (widened)
+function setStatus(s: 'active' | 'inactive') {}
 setStatus(status); // Error!
 
 // Fix: Use as const
-const status = "active" as const; // Type: "active"
+const status = 'active' as const; // Type: "active"
 setStatus(status); // OK
 ```
 
@@ -84,14 +85,14 @@ The type doesn't have the expected property:
 ```typescript
 // Check 1: Is the type correct?
 function process(data: unknown) {
-  data.name; // Error: 'name' doesn't exist on 'unknown'
+    data.name; // Error: 'name' doesn't exist on 'unknown'
 }
 
 // Fix: Add type guard
 function process(data: unknown) {
-  if (typeof data === "object" && data !== null && "name" in data) {
-    data.name; // OK
-  }
+    if (typeof data === 'object' && data !== null && 'name' in data) {
+        data.name; // OK
+    }
 }
 ```
 
@@ -101,12 +102,12 @@ You're trying to access a property that might not exist:
 
 ```typescript
 function getValue<T>(obj: T, key: string) {
-  return obj[key]; // Error: string can't index T
+    return obj[key]; // Error: string can't index T
 }
 
 // Fix: Constrain the key
 function getValue<T, K extends keyof T>(obj: T, key: K) {
-  return obj[key]; // OK
+    return obj[key]; // OK
 }
 ```
 
@@ -116,7 +117,7 @@ Function argument type mismatch:
 
 ```typescript
 // Often happens with narrower function signatures
-const items = ["a", "b", "c"] as const;
+const items = ['a', 'b', 'c'] as const;
 items.includes(someString);
 // Error: 'string' not assignable to '"a" | "b" | "c"'
 
@@ -155,10 +156,7 @@ Remove complexity until the error is clear:
 
 ```typescript
 // Complex chain causing error
-const result = complexFunction()
-  .map(transform)
-  .filter(predicate)
-  .reduce(accumulator);
+const result = complexFunction().map(transform).filter(predicate).reduce(accumulator);
 
 // Simplify to isolate
 const step1 = complexFunction();
@@ -187,7 +185,7 @@ const result: ExpectedResultType = data.process(); // Error if process returns w
 ```typescript
 // If you think this should error:
 // @ts-expect-error - string is not assignable to number
-const x: number = "hello";
+const x: number = 'hello';
 
 // If the @ts-expect-error is unused, TypeScript will tell you
 // meaning the code is actually valid
@@ -200,10 +198,8 @@ For library types, check the actual definitions:
 ```typescript
 // In lib.dom.d.ts
 interface Document {
-  querySelector<K extends keyof HTMLElementTagNameMap>(
-    selectors: K
-  ): HTMLElementTagNameMap[K] | null;
-  querySelector(selectors: string): Element | null;
+    querySelector<K extends keyof HTMLElementTagNameMap>(selectors: K): HTMLElementTagNameMap[K] | null;
+    querySelector(selectors: string): Element | null;
 }
 ```
 
@@ -249,7 +245,7 @@ type Expected = ExpectedType;
 Look for `(+N overload)` in tooltips:
 
 ```typescript
-document.addEventListener("click", handler);
+document.addEventListener('click', handler);
 //       ^ Shows (+1 overload)
 
 // Go-to-definition to see all overloads
@@ -264,17 +260,17 @@ Sometimes library types are wrong or incomplete:
 
 ```typescript
 // When you know better than TypeScript
-const element = document.getElementById("root") as HTMLDivElement;
+const element = document.getElementById('root') as HTMLDivElement;
 ```
 
 ### Solution 2: Declaration Merging
 
 ```typescript
 // Extend existing types
-declare module "some-library" {
-  interface SomeType {
-    missingProperty: string;
-  }
+declare module 'some-library' {
+    interface SomeType {
+        missingProperty: string;
+    }
 }
 ```
 
@@ -290,9 +286,9 @@ declare module "some-library" {
 
 ```json
 {
-  "compilerOptions": {
-    "strict": true
-  }
+    "compilerOptions": {
+        "strict": true
+    }
 }
 ```
 
@@ -324,9 +320,9 @@ function wrap<T extends object>(value: T) {}
 ```typescript
 // Think about what could be passed
 function process(input: string | string[]) {
-  // What if input is empty string?
-  // What if input is empty array?
-  // What if input has special characters?
+    // What if input is empty string?
+    // What if input is empty array?
+    // What if input has special characters?
 }
 ```
 

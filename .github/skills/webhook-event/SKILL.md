@@ -6,7 +6,7 @@ license: MIT
 
 # GitHub Webhook Events — GitGazer
 
-Add or debug a GitHub webhook event type. Ingestion is **asynchronous**: the API Lambda validates and enqueues; a worker Lambda persists and fans out. The whole pipeline lives in [apps/api/src/domains/webhooks/](../../../apps/api/src/domains/webhooks/).
+Add or debug a GitHub webhook event type. Ingestion is **asynchronous**: the API Lambda validates and enqueues; a worker Lambda persists and fans out. The whole pipeline lives in [apps/lambdas/api/src/domains/webhooks/](../../../apps/lambdas/api/src/domains/webhooks/).
 
 ## When to Use
 
@@ -40,28 +40,28 @@ GitHub ──POST /api/import/:integrationId──▶ API Gateway ──▶ API 
 
 Key files:
 
-- Route + signature: [webhooks.routes.ts](../../../apps/api/src/domains/webhooks/webhooks.routes.ts), [webhooks.middleware.ts](../../../apps/api/src/domains/webhooks/webhooks.middleware.ts)
-- Allow-list: `isValidImportEvent` / `IMPORT_EVENT_NAMES` in [apps/api/src/shared/helpers/validation.ts](../../../apps/api/src/shared/helpers/validation.ts)
-- Enqueue: [webhooks.controller.ts](../../../apps/api/src/domains/webhooks/webhooks.controller.ts)
-- Worker: [handlers/worker.ts](../../../apps/api/src/handlers/worker.ts), [worker/batch-processor.ts](../../../apps/api/src/domains/webhooks/worker/batch-processor.ts)
-- Dispatch + persistence: [importers/index.ts](../../../apps/api/src/domains/webhooks/importers/index.ts), upserts in [importers/shared.ts](../../../apps/api/src/domains/webhooks/importers/shared.ts)
-- Alerting: [alerting/alerting.controller.ts](../../../apps/api/src/domains/alerting/alerting.controller.ts)
+- Route + signature: [webhooks.routes.ts](../../../apps/lambdas/api/src/domains/webhooks/webhooks.routes.ts), [webhooks.middleware.ts](../../../apps/lambdas/api/src/domains/webhooks/webhooks.middleware.ts)
+- Allow-list: `isValidImportEvent` / `IMPORT_EVENT_NAMES` in [apps/lambdas/api/src/shared/helpers/validation.ts](../../../apps/lambdas/api/src/shared/helpers/validation.ts)
+- Enqueue: [webhooks.controller.ts](../../../apps/lambdas/api/src/domains/webhooks/webhooks.controller.ts)
+- Worker: [worker/src/index.ts](../../../apps/lambdas/worker/src/index.ts), [batch-processor.ts](../../../apps/lambdas/worker/src/batch-processor.ts)
+- Dispatch + persistence: [github-import/index.ts](../../../packages/github-import/src/index.ts), upserts in [github-import/shared.ts](../../../packages/github-import/src/shared.ts)
+- Alerting: [alerting.controller.ts](../../../packages/backend-services/src/alerting.controller.ts)
 
 ## Procedure: support a new event type
 
-1. **Allow-list the event** — add its name to `IMPORT_EVENT_NAMES` in [validation.ts](../../../apps/api/src/shared/helpers/validation.ts). Events not listed are rejected before enqueue.
+1. **Allow-list the event** — add its name to `IMPORT_EVENT_NAMES` in [validation.ts](../../../apps/lambdas/api/src/shared/helpers/validation.ts). Events not listed are rejected before enqueue.
 
 2. **Add new tables if the event introduces new entities** — follow the `db-migration` skill (tenant table: `integrationId` FK, composite PK, RLS policies, `.enableRLS()`). Reuse existing tables where possible.
 
 3. **Write the importer** — create `importers/<event>.importer.ts` from [importer.template.ts](./assets/importer.template.ts). It receives the shared `tx` (already inside the writer RLS transaction) — never open its own transaction. Use `onConflictDoUpdate` with a `setWhere` guard so duplicate deliveries don't churn rows.
 
-4. **Wire up dispatch** — add a `case '<event>':` to the `switch (eventType)` in [importers/index.ts](../../../apps/api/src/domains/webhooks/importers/index.ts), calling your importer.
+4. **Wire up dispatch** — add a `case '<event>':` to the `switch (eventType)` in [github-import/index.ts](../../../packages/github-import/src/index.ts), calling your importer.
 
-5. **Type the payload** — event payload types are re-exported from `@octokit/webhooks-types` (e.g. `WorkflowJobEvent`). For structural runtime checks, add an `is<Type>` guard in [packages/db/src/types/index.ts](../../../packages/db/src/types/index.ts) or `importers/types.ts`, following the existing `isEnterprise` / `isNotificationRule` pattern.
+5. **Type the payload** — event payload types are re-exported from `@octokit/webhooks-types` (e.g. `WorkflowJobEvent`). For structural runtime checks, add an `is<Type>` guard in [packages/db/src/types/index.ts](../../../packages/db/src/types/index.ts) or `packages/github-import/src/types.ts`, following the existing `isEnterprise` / `isNotificationRule` pattern.
 
-6. **(Optional) Post-commit side effects** — if the new event should push to the UI or trigger alerts, add it in [batch-processor.ts](../../../apps/api/src/domains/webhooks/worker/batch-processor.ts). Keep these in the existing `try/catch`: a side-effect failure must NOT cause an SQS retry (the data is already committed).
+6. **(Optional) Post-commit side effects** — if the new event should push to the UI or trigger alerts, add it in [batch-processor.ts](../../../apps/lambdas/worker/src/batch-processor.ts). Keep these in the existing `try/catch`: a side-effect failure must NOT cause an SQS retry (the data is already committed).
 
-7. **Test** — colocate `<event>.importer.test.ts`. Mock `@gitgazer/db/client` (fake `withRlsTransaction`) and mock schema tables; assert the upsert chain. Mirror [pull-request.importer.test.ts](../../../apps/api/src/domains/webhooks/importers/pull-request.importer.test.ts). Never call real AWS/DB.
+7. **Test** — colocate `<event>.importer.test.ts`. Mock `@gitgazer/db/client` (fake `withRlsTransaction`) and mock schema tables; assert the upsert chain. Mirror [pull-request.importer.test.ts](../../../packages/github-import/src/pull-request.importer.test.ts). Never call real AWS/DB.
 
 ## Gotchas (verified)
 

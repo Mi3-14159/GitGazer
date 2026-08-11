@@ -1,11 +1,11 @@
-// Template: apps/api/src/domains/<domain>/<domain>.controller.ts
+// Template: apps/lambdas/api/src/domains/<domain>/<domain>.controller.ts
 // Business logic + RLS-scoped DB access. Every tenant-scoped query goes through withRlsTransaction.
 // Default DB role is reader; pass userName: gitgazerWriter.name for writes.
 
-import { getLogger } from '@/shared/logger';
-import { BadRequestError } from '@aws-lambda-powertools/event-handler/http';
-import { RdsTransaction, withRlsTransaction } from '@gitgazer/db/client';
-import { gitgazerWriter } from '@gitgazer/db/schema/app';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
+import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {gitgazerWriter} from '@gitgazer/db/schema/app';
 // import {things} from '@gitgazer/db/schema/github/<file>'; // your table
 // import {eq} from 'drizzle-orm';
 

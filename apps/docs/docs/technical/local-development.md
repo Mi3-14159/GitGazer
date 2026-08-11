@@ -60,7 +60,7 @@ The key setting is `VITE_REST_API_ENDPOINT` pointing to `localhost:5173/api` —
 #### 2. Start the Backend
 
 ```bash
-cd apps/api
+cd apps/lambdas/api
 pnpm install
 
 # Copy and edit environment config
@@ -159,7 +159,7 @@ No backend setup needed. All API calls go directly to production.
 
 ### Backend Variables
 
-Backend variables are configured in `apps/api/.env`. Copy from `.env.dev.example` and fill in your AWS configuration. Key variables:
+Backend variables are configured in `apps/lambdas/api/.env`. Copy from `.env.dev.example` and fill in your AWS configuration. Key variables:
 
 | Variable                   | Description                         |
 | -------------------------- | ----------------------------------- |
@@ -275,7 +275,7 @@ aws-vault exec <profile> --no-session -- pnpm run db:tunnel --workspace default 
 With the tunnel running, the database is available at `localhost:5432` (or your chosen port). Open Drizzle Studio in a separate terminal:
 
 ```bash
-cd apps/api
+cd apps/lambdas/api
 npx drizzle-kit studio
 ```
 
@@ -293,7 +293,7 @@ aws-vault exec <profile> -- terraform output bastion_ssm_port_forward_command
 ## Running Tests
 
 ```bash
-cd apps/api
+cd apps/lambdas/api
 pnpm run test:unit
 ```
 

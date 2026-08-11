@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: 'Surgical code refactoring for the GitGazer pnpm monorepo (Vue 3 + AWS Lambda + Drizzle ORM). Covers extracting functions, improving type safety, breaking down oversized controllers and components, fixing import conventions, enforcing RLS transaction boundaries, and applying project-specific patterns. Use when the user asks to clean up, refactor, or improve code in apps/api, apps/web, or packages/db.'
+description: 'Surgical code refactoring for the GitGazer pnpm monorepo (Vue 3 + AWS Lambda + Drizzle ORM). Covers extracting functions, improving type safety, breaking down oversized controllers and components, fixing import conventions, enforcing RLS transaction boundaries, and applying project-specific patterns. Use when the user asks to clean up, refactor, or improve code in apps/lambdas/api, apps/web, or packages/db.'
 license: MIT
 ---
 
@@ -29,11 +29,11 @@ Improve code structure and readability without changing external behavior. Refac
 
 ## Project Architecture at a Glance
 
-| Area           | Stack                                          | Key Convention                                                       |
-| -------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
-| `apps/api/`    | TypeScript, Lambda, Powertools Router, Drizzle | Controller-centric domains, `withRlsTransaction`, `@/` alias imports |
-| `apps/web/`    | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite  | `<script setup>`, composables for API logic, `@/` alias imports      |
-| `packages/db/` | Drizzle ORM, Aurora PostgreSQL                 | Shared schema, types, runtime guards, RLS helpers                    |
+| Area                | Stack                                          | Key Convention                                                       |
+| ------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
+| `apps/lambdas/api/` | TypeScript, Lambda, Powertools Router, Drizzle | Controller-centric domains, `withRlsTransaction`, `@/` alias imports |
+| `apps/web/`         | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite  | `<script setup>`, composables for API logic, `@/` alias imports      |
+| `packages/db/`      | Drizzle ORM, Aurora PostgreSQL                 | Shared schema, types, runtime guards, RLS helpers                    |
 
 ### Import Rules (applies everywhere)
 
@@ -57,7 +57,7 @@ The most common convention violation. Deep relative imports make code fragile an
 
 # GOOD
 + import { withRlsTransaction } from '@gitgazer/db/client';
-+ import { logger } from '@/shared/logger';
++ import { logger } from '@gitgazer/backend-core/logger';
 + import type { WorkflowRun } from '@gitgazer/db/types';
 ```
 
@@ -224,9 +224,7 @@ Choose the correct role for the operation:
 ```typescript
 // Read
 return withRlsTransaction(integrationIds, async (tx) => {
-    return tx.query.workflowRuns.findMany({
-        /* ... */
-    });
+    return tx.query.workflowRuns.findMany({/* ... */});
 });
 
 // Write — specify writer role
@@ -343,7 +341,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 ### Safe Process
 
 1. **Prepare** — ensure colocated `*.test.ts` files cover the code; if missing, write tests first
-2. **Identify** — pinpoint the smell; read the module instruction file for the area (`apps/api/.github/backend.instructions.md` or `apps/web/.github/frontend.instructions.md`)
+2. **Identify** — pinpoint the smell; read the module instruction file for the area (`.github/instructions/backend.instructions.md` or `apps/web/.github/frontend.instructions.md`)
 3. **Refactor** — small steps; run `pnpm run test:unit` (backend) or `vue-tsc --noEmit` (frontend) after each change
 4. **Verify** — all tests pass, no new type errors, import aliases correct
 
@@ -351,7 +349,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 
 ## Refactoring Checklist
 
-### Backend (`apps/api/`)
+### Backend (`apps/lambdas/api/`)
 
 - [ ] All imports use `@/` or `@gitgazer/db/*` — no relative `../` paths
 - [ ] Controllers < 150 lines; large ones decomposed into domain helpers
