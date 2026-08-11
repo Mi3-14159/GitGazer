@@ -66,10 +66,10 @@ jobs:
               uses: nrwl/nx-set-shas@v5.0.1
 
             - name: Checks
-              run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run
+              run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run --no-tui
 
             - name: Build
-              run: pnpm nx affected --nxBail -t build
+              run: pnpm nx affected --nxBail -t build --no-tui
 
             - name: Get Terraform version from .tool-versions
               if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
@@ -100,4 +100,4 @@ jobs:
 
             - name: Deploy
               if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              run: pnpm nx affected --nxBail -t deploy
+              run: pnpm nx affected --nxBail -t deploy --no-tui
