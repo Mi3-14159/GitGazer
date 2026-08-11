@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2021", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "dist",
+    "paths": {
+      "@/*": ["src/*"],
+      "@gitgazer/backend-core/*": ["../../packages/backend-core/src/*"],
+      "@gitgazer/backend-services/*": ["../../packages/backend-services/src/*"],
+      "@gitgazer/github-import/*": ["../../packages/github-import/src/*"],
+      "@gitgazer/github-import": ["../../packages/github-import/src"],
+      "@gitgazer/db/*": ["../../packages/db/src/*"],
+      "@gitgazer/db": ["../../packages/db/src"]
+    },
+    "preserveConstEnums": true,
+    "pretty": true,
+    "removeComments": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "target": "es2020",
+    "types": ["node", "vitest"]
+  },
+  "exclude": ["node_modules/**/*", "dist/**/*", "vitest.config.mts", "tsup.config.ts", "drizzle.config.ts"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
+  "types": ["vitest", "node", "@types/vitest"]
+}
