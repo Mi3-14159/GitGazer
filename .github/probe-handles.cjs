@@ -4,7 +4,16 @@ const path = require('path');
 const started = Date.now();
 const tag = `${process.pid} ${path.basename(process.argv[1] ?? 'node')}`;
 
-const names = (list) => JSON.stringify((list ?? []).map((h) => h?.constructor?.name ?? typeof h));
+const names = (list) => JSON.stringify((list ?? []).map(describe));
+
+function describe(handle) {
+    const name = handle?.constructor?.name ?? typeof handle;
+    if (name === 'ChildProcess') {
+        const argv = [handle.spawnfile, ...(handle.spawnargs ?? []).slice(1)].join(' ');
+        return `ChildProcess(pid=${handle.pid} connected=${handle.connected} ${argv}`.slice(0, 220) + ')';
+    }
+    return name;
+}
 
 setInterval(() => {
     const seconds = Math.round((Date.now() - started) / 1000);
