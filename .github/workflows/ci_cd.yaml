@@ -51,18 +51,15 @@ jobs:
                   fetch-depth: 0
                   filter: blob:none
 
-            - uses: pnpm/action-setup@v6.0.9
-              with:
-                  run_install: false
+            - name: Get Node version from .tool-versions
+              id: node-version
+              run: echo "version=$(grep '^nodejs ' .tool-versions | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
-            - uses: actions/setup-node@v7.0.0
+            # Installs pnpm (version from packageManager), Node and the dependencies in one step.
+            - uses: pnpm/setup@v2.0.2
               with:
-                  node-version-file: .tool-versions
-                  cache: "pnpm"
-                  cache-dependency-path: pnpm-lock.yaml
-
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+                  runtime: node@${{ steps.node-version.outputs.version }}
+                  cache: true
 
             - name: Derive affected SHAs
               uses: nrwl/nx-set-shas@v5.0.1
