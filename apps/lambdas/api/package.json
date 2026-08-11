@@ -1,0 +1,80 @@
+{
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/Mi3-14159/GitGazer/issues"
+  },
+  "dependencies": {
+    "@gitgazer/backend-core": "workspace:*",
+    "@gitgazer/backend-services": "workspace:*",
+    "@gitgazer/db": "workspace:*"
+  },
+  "description": "REST API lambda",
+  "devDependencies": {
+    "@aws-lambda-powertools/event-handler": "catalog:",
+    "@aws-lambda-powertools/jmespath": "catalog:",
+    "@aws-lambda-powertools/logger": "catalog:",
+    "@aws-lambda-powertools/metrics": "catalog:",
+    "@aws-sdk/client-apigatewaymanagementapi": "catalog:",
+    "@aws-sdk/client-bedrock-runtime": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sesv2": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:",
+    "@octokit/auth-app": "catalog:",
+    "@octokit/rest": "catalog:",
+    "@octokit/webhooks": "catalog:",
+    "@octokit/webhooks-schemas": "catalog:",
+    "@octokit/webhooks-types": "catalog:",
+    "@types/aws-lambda": "catalog:",
+    "@types/convict": "catalog:",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:",
+    "aws-jwt-verify": "catalog:",
+    "convict": "catalog:",
+    "drizzle-orm": "catalog:",
+    "ts-node": "catalog:",
+    "tsconfig-paths": "catalog:"
+  },
+  "engines": {
+    "node": "^24"
+  },
+  "homepage": "https://github.com/Mi3-14159/GitGazer#readme",
+  "keywords": [],
+  "name": "@gitgazer/lambda-api",
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "upload": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\"",
+          "cwd": "{projectRoot}"
+        }
+      }
+    }
+  },
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mi3-14159/GitGazer.git"
+  },
+  "scripts": {
+    "build": "pnpm run clean && tsup && pnpm run zip",
+    "clean": "rimraf dist tmp",
+    "dev:api": "node --env-file=../../../.env --watch -r ts-node/register src/develop.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write src",
+    "pretty:check": "prettier --check src",
+    "test:unit": "nx vitest:test -- --project unit --run",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../../.. --ignoreDeprecations 6.0",
+    "zip": "mkdir -p dist && cd tmp && zip -qr ../dist/gitgazer-api.zip *"
+  },
+  "version": "1.0.0"
+}

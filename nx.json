@@ -10,7 +10,7 @@
       "!{projectRoot}/vitest.config.*",
       "!{projectRoot}/tsconfig.spec.json"
     ],
-    "sharedGlobals": ["{workspaceRoot}/eslint.config.js", "{workspaceRoot}/tsconfig.json"]
+    "sharedGlobals": ["{workspaceRoot}/eslint.config.js", "{workspaceRoot}/tsconfig.json", "{workspaceRoot}/tools/**/*"]
   },
   "plugins": [
     {
@@ -53,10 +53,6 @@
       "inputs": ["production", "^production"],
       "outputs": ["{projectRoot}/dist"]
     },
-    "deploy": {
-      "cache": false,
-      "dependsOn": ["build"]
-    },
     "lint": {
       "cache": true,
       "inputs": ["default"]
@@ -76,6 +72,10 @@
     "typecheck": {
       "cache": true,
       "inputs": ["production", "^production"]
+    },
+    "upload": {
+      "cache": false,
+      "dependsOn": ["build"]
     }
   }
 }

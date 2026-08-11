@@ -1,0 +1,35 @@
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {Middleware} from '@aws-lambda-powertools/event-handler/types';
+import {APIGatewayProxyEventV2} from 'aws-lambda';
+import * as crypto from 'crypto';
+
+export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
+    const logger = getLogger();
+    logger.debug('running verifyGithubAppSignature middleware');
+
+    const {webhookSecret} = config.get('githubApp');
+    if (!webhookSecret) {
+        throw new InternalServerError('GH_APP_WEBHOOK_SECRET is not configured');
+    }
+
+    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const signature = event.headers['x-hub-signature-256'];
+    const payload = event.body;
+
+    if (!signature || !payload) {
+        throw new BadRequestError('Missing signature or payload');
+    }
+
+    const rawBody = event.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload, 'utf-8');
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    const digestBuf = Buffer.from('sha256=' + hmac.update(rawBody).digest('hex'));
+    const signatureBuf = Buffer.from(signature);
+
+    if (digestBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(digestBuf, signatureBuf)) {
+        throw new UnauthorizedError('Invalid signature');
+    }
+
+    await next();
+};

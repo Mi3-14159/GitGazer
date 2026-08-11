@@ -16,8 +16,8 @@ Add or change database schema safely. GitGazer uses Drizzle ORM against Aurora P
 
 ## Key Facts (verified against the codebase)
 
-- **Two schemas**: `gitgazer` (app data — [packages/db/src/schema/gitgazer.ts](../../../packages/db/src/schema/gitgazer.ts)) and `github` (mirrored GitHub entities — [packages/db/src/schema/github/](../../../packages/db/src/schema/github/)). Both are filtered in [apps/api/drizzle.config.ts](../../../apps/api/drizzle.config.ts) (`schemaFilter: ['gitgazer', 'github']`).
-- **Migrations are generated from the schema**, never hand-written for ordinary DDL. Output goes to [apps/api/drizzle/](../../../apps/api/drizzle/).
+- **Two schemas**: `gitgazer` (app data — [packages/db/src/schema/gitgazer.ts](../../../packages/db/src/schema/gitgazer.ts)) and `github` (mirrored GitHub entities — [packages/db/src/schema/github/](../../../packages/db/src/schema/github/)). Both are filtered in [packages/db/drizzle.config.ts](../../../packages/db/drizzle.config.ts) (`schemaFilter: ['gitgazer', 'github']`).
+- **Migrations are generated from the schema**, never hand-written for ordinary DDL. Output goes to [packages/db/drizzle/](../../../packages/db/drizzle/).
 - **RLS is defined in the Drizzle schema**, not in raw SQL. drizzle-kit generates the `ENABLE ROW LEVEL SECURITY` + `CREATE POLICY` statements from the schema helpers. See the policy helpers in [packages/db/src/schema/github/misc.ts](../../../packages/db/src/schema/github/misc.ts).
 - **Grants auto-apply.** `ALTER DEFAULT PRIVILEGES` was set once (migrations `0002`, `0024`, `0026`), so a new table in an existing schema **inherits grants automatically** — do NOT add manual GRANT statements for new tables.
 - **Roles**: `gitgazer_writer` (read/write), `gitgazer_reader` (read-only, the default), `gitgazer_mcp` (read-only, the MCP server's SQL surface). The RLS transaction sets the role per request — see `withRlsTransaction` in [packages/db/src/client.ts](../../../packages/db/src/client.ts).
@@ -42,7 +42,7 @@ Non-tenant global tables (rare — e.g. `users`) omit `integrationId` and the po
 ## Procedure: add / alter a table
 
 ```bash
-cd apps/api   # drizzle-kit always runs from here
+cd packages/db   # drizzle-kit always runs from here (drizzle.config.ts + the drizzle-kit dep live here)
 
 # 1. Edit the schema in packages/db/src/schema/ (use the tenant-table template).
 #    - github entity  → packages/db/src/schema/github/*.ts
@@ -50,7 +50,7 @@ cd apps/api   # drizzle-kit always runs from here
 #    Add an entry to packages/db/src/schema/relations.ts (ONE central defineRelations()
 #    call) if the table is queried with `.with`, + export the type if other code consumes it.
 
-# 2. Generate the migration (diffs schema → SQL in apps/api/drizzle/)
+# 2. Generate the migration (diffs schema → SQL in packages/db/drizzle/)
 npx drizzle-kit generate
 
 # 3. REVIEW the generated SQL before applying. Confirm it contains, for a tenant table:
@@ -72,11 +72,11 @@ npx drizzle-kit studio
 drizzle-kit cannot express new roles or one-off grants. Generate an **empty custom migration** and write the SQL by hand (see `0024_grant_permissions_to_new_users.sql`, `0044_iam.sql`):
 
 ```bash
-cd apps/api
+cd packages/db
 npx drizzle-kit generate --custom --name=<descriptive_name>
 ```
 
-Then edit the new file under `apps/api/drizzle/`. Separate statements with `--> statement-breakpoint` (the repo uses `breakpoints: true`). Template: [assets/custom-migration.template.sql](./assets/custom-migration.template.sql).
+Then edit the new file under `packages/db/drizzle/`. Separate statements with `--> statement-breakpoint` (the repo uses `breakpoints: true`). Template: [assets/custom-migration.template.sql](./assets/custom-migration.template.sql).
 
 ## Checklist
 

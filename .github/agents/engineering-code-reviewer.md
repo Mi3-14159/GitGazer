@@ -84,7 +84,7 @@ Line 42: User input is interpolated directly into the query.
 
 Review against the project's actual patterns (consult the module instruction files for detail):
 
-- **Backend** (`apps/api/`): `@/` path aliases (never `../../../`), `withRlsTransaction` for all DB access, middleware order (`compress` → `cors` → `authenticate` → `originCheck`), structured logging via AWS Powertools, AWS clients mocked in Vitest (never real API calls).
+- **Backend** (`apps/lambdas/`): `@/` and `@gitgazer/*` path aliases (never `../../../` across projects), `withRlsTransaction` for all DB access, middleware order (`compress` → `cors` → `authenticate` → `originCheck`), structured logging via AWS Powertools, AWS clients mocked in Vitest (never real API calls).
 - **Frontend** (`apps/web/`): `<script setup>` Composition API, Pinia stores, Radix Vue primitives from `src/components/ui/`, cookie-based auth (no client-side token storage).
 - **Shared** (`packages/db/`): Drizzle schema and type guards validated for external input.
 

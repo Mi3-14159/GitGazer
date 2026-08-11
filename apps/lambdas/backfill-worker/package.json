@@ -1,0 +1,49 @@
+{
+  "dependencies": {
+    "@gitgazer/backend-core": "workspace:*",
+    "@gitgazer/db": "workspace:*",
+    "@gitgazer/github-import": "workspace:*"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-sqs": "catalog:",
+    "@octokit/webhooks-types": "catalog:",
+    "@types/aws-lambda": "catalog:",
+    "drizzle-orm": "catalog:",
+    "ts-node": "catalog:",
+    "tsconfig-paths": "catalog:"
+  },
+  "engines": {
+    "node": "^24"
+  },
+  "name": "@gitgazer/lambda-backfill-worker",
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "upload": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\"",
+          "cwd": "{projectRoot}"
+        }
+      }
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "pnpm run clean && tsup && pnpm run zip",
+    "clean": "rimraf dist tmp",
+    "dev:backfill": "node --env-file=../../../.env -r ts-node/register src/scripts/run-backfill-task.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write src",
+    "pretty:check": "prettier --check src",
+    "test:unit": "nx vitest:test -- --project unit --run",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../../.. --ignoreDeprecations 6.0",
+    "zip": "mkdir -p dist && cd tmp && zip -qr ../dist/gitgazer-backfill-worker.zip *"
+  },
+  "version": "1.0.0"
+}

@@ -2,7 +2,7 @@
 name: deep-inference
 description: Achieving deep type inference with F.Narrow and as const
 metadata:
-  tags: inference, narrow, deep-inference, ts-toolbelt
+    tags: inference, narrow, deep-inference, ts-toolbelt
 ---
 
 # Deep Type Inference
@@ -15,14 +15,14 @@ By default, TypeScript widens types when inferring objects and arrays. For advan
 
 ```typescript
 const makeRouter = <TConfig>(config: TConfig) => {
-  return { config };
+    return {config};
 };
 
 const router = makeRouter({
-  "/": {},
-  "/search": {
-    search: ["query", "page"],
-  },
+    '/': {},
+    '/search': {
+        search: ['query', 'page'],
+    },
 });
 
 // TConfig is inferred as:
@@ -42,10 +42,10 @@ Require users to add `as const`:
 
 ```typescript
 const router = makeRouter({
-  "/": {},
-  "/search": {
-    search: ["query", "page"],
-  },
+    '/': {},
+    '/search': {
+        search: ['query', 'page'],
+    },
 } as const);
 
 // Now TConfig preserves literals:
@@ -58,6 +58,7 @@ const router = makeRouter({
 ```
 
 ### Drawbacks
+
 - Users must remember to add `as const`
 - Types become readonly (may require type adjustments)
 - Easy to forget, leading to subtle bugs
@@ -67,19 +68,17 @@ const router = makeRouter({
 The `ts-toolbelt` library provides `F.Narrow` for automatic deep narrowing:
 
 ```typescript
-import { F } from "ts-toolbelt";
+import {F} from 'ts-toolbelt';
 
-const makeRouter = <TConfig extends BaseRouterConfig>(
-  config: F.Narrow<TConfig>
-) => {
-  return { config };
+const makeRouter = <TConfig extends BaseRouterConfig>(config: F.Narrow<TConfig>) => {
+    return {config};
 };
 
 const router = makeRouter({
-  "/": {},
-  "/search": {
-    search: ["query", "page"],
-  },
+    '/': {},
+    '/search': {
+        search: ['query', 'page'],
+    },
 });
 
 // TConfig is now:
@@ -94,6 +93,7 @@ const router = makeRouter({
 ### How F.Narrow Works
 
 `F.Narrow` recursively narrows types to their literal forms:
+
 - Strings become literal string types
 - Numbers become literal number types
 - Arrays become tuples
@@ -105,14 +105,14 @@ If you can't use ts-toolbelt, implement a simpler version:
 
 ```typescript
 type Narrow<T> = T extends Function
-  ? T
-  : T extends []
-  ? []
-  : T extends readonly [infer First, ...infer Rest]
-  ? [Narrow<First>, ...Narrow<Rest>]
-  : T extends object
-  ? { [K in keyof T]: Narrow<T[K]> }
-  : T;
+    ? T
+    : T extends []
+      ? []
+      : T extends readonly [infer First, ...infer Rest]
+        ? [Narrow<First>, ...Narrow<Rest>]
+        : T extends object
+          ? {[K in keyof T]: Narrow<T[K]>}
+          : T;
 
 // Note: This is simplified and may not cover all edge cases
 ```
@@ -120,46 +120,42 @@ type Narrow<T> = T extends Function
 ## Practical Example: Type-Safe Router
 
 ```typescript
-import { F } from "ts-toolbelt";
+import {F} from 'ts-toolbelt';
 
-type BaseRouterConfig = Record<string, { search?: string[] }>;
+type BaseRouterConfig = Record<string, {search?: string[]}>;
 
 type TupleToSearchParams<T extends string[]> = {
-  [K in T[number]]?: string;
+    [K in T[number]]?: string;
 };
 
-const makeRouter = <TConfig extends BaseRouterConfig>(
-  config: F.Narrow<TConfig>
-) => {
-  return {
-    config,
-    goTo: <TRoute extends keyof TConfig>(
-      route: TRoute,
-      search?: TConfig[TRoute]["search"] extends string[]
-        ? TupleToSearchParams<TConfig[TRoute]["search"]>
-        : never
-    ) => {
-      // Implementation
-    },
-  };
+const makeRouter = <TConfig extends BaseRouterConfig>(config: F.Narrow<TConfig>) => {
+    return {
+        config,
+        goTo: <TRoute extends keyof TConfig>(
+            route: TRoute,
+            search?: TConfig[TRoute]['search'] extends string[] ? TupleToSearchParams<TConfig[TRoute]['search']> : never,
+        ) => {
+            // Implementation
+        },
+    };
 };
 
 const router = makeRouter({
-  "/": {},
-  "/dashboard": {
-    search: ["page", "perPage", "sort"],
-  },
+    '/': {},
+    '/dashboard': {
+        search: ['page', 'perPage', 'sort'],
+    },
 });
 
 // Fully type-safe!
-router.goTo("/dashboard", {
-  page: "1",
-  perPage: "10",
-  sort: "name", // Must be one of the defined search params
+router.goTo('/dashboard', {
+    page: '1',
+    perPage: '10',
+    sort: 'name', // Must be one of the defined search params
 });
 
 // Error: "invalid" is not a valid search param
-router.goTo("/dashboard", { invalid: "value" });
+router.goTo('/dashboard', {invalid: 'value'});
 ```
 
 ## Solution 4: Const Type Parameter (TypeScript 5.0+)
@@ -167,22 +163,21 @@ router.goTo("/dashboard", { invalid: "value" });
 TypeScript 5.0 introduced `const` type parameters:
 
 ```typescript
-const makeRouter = <const TConfig extends BaseRouterConfig>(
-  config: TConfig
-) => {
-  return { config };
+const makeRouter = <const TConfig extends BaseRouterConfig>(config: TConfig) => {
+    return {config};
 };
 
 // TConfig is automatically narrowed like as const
 const router = makeRouter({
-  "/": {},
-  "/search": {
-    search: ["query", "page"],
-  },
+    '/': {},
+    '/search': {
+        search: ['query', 'page'],
+    },
 });
 ```
 
 ### Benefits of `const` Type Parameters
+
 - No external library needed
 - Built into TypeScript
 - Clean syntax
@@ -193,13 +188,11 @@ const router = makeRouter({
 ### Configuration Objects
 
 ```typescript
-const createTheme = <const TTheme extends Record<string, string>>(
-  theme: TTheme
-): TTheme => theme;
+const createTheme = <const TTheme extends Record<string, string>>(theme: TTheme): TTheme => theme;
 
 const theme = createTheme({
-  primary: "#0066cc",
-  secondary: "#666666",
+    primary: '#0066cc',
+    secondary: '#666666',
 });
 
 // theme.primary is "#0066cc", not string
@@ -209,9 +202,9 @@ const theme = createTheme({
 
 ```typescript
 const routes = defineRoutes({
-  home: { path: "/" },
-  user: { path: "/users/:id" },
-  post: { path: "/posts/:postId" },
+    home: {path: '/'},
+    user: {path: '/users/:id'},
+    post: {path: '/posts/:postId'},
 });
 
 // Route names and paths are literal types
@@ -221,8 +214,8 @@ const routes = defineRoutes({
 
 ```typescript
 const events = createEventMap({
-  click: (x: number, y: number) => {},
-  keydown: (key: string) => {},
+    click: (x: number, y: number) => {},
+    keydown: (key: string) => {},
 });
 
 // Event names are literal unions, handlers are properly typed
@@ -230,40 +223,36 @@ const events = createEventMap({
 
 ## Comparison of Techniques
 
-| Technique | Pros | Cons |
-|-----------|------|------|
-| `as const` | No dependencies | Manual, readonly types |
-| `F.Narrow` | Automatic, flexible | External dependency |
-| Custom Narrow | No dependencies, customizable | Complex, may miss edge cases |
-| `const` type param | Built-in, clean | TypeScript 5.0+ only |
+| Technique          | Pros                          | Cons                         |
+| ------------------ | ----------------------------- | ---------------------------- |
+| `as const`         | No dependencies               | Manual, readonly types       |
+| `F.Narrow`         | Automatic, flexible           | External dependency          |
+| Custom Narrow      | No dependencies, customizable | Complex, may miss edge cases |
+| `const` type param | Built-in, clean               | TypeScript 5.0+ only         |
 
 ## Combining with Conditional Types
 
 Deep inference enables powerful conditional type logic:
 
 ```typescript
-import { F } from "ts-toolbelt";
+import {F} from 'ts-toolbelt';
 
-const makeApi = <const TConfig extends Record<string, { returns: string }>>(
-  config: TConfig
-) => {
-  return {
-    call: <TMethod extends keyof TConfig>(
-      method: TMethod
-    ): TConfig[TMethod]["returns"] => {
-      // Implementation
-      return "" as any;
-    },
-  };
+const makeApi = <const TConfig extends Record<string, {returns: string}>>(config: TConfig) => {
+    return {
+        call: <TMethod extends keyof TConfig>(method: TMethod): TConfig[TMethod]['returns'] => {
+            // Implementation
+            return '' as any;
+        },
+    };
 };
 
 const api = makeApi({
-  getUser: { returns: "User" },
-  getPost: { returns: "Post" },
+    getUser: {returns: 'User'},
+    getPost: {returns: 'Post'},
 });
 
-const user = api.call("getUser"); // Type: "User"
-const post = api.call("getPost"); // Type: "Post"
+const user = api.call('getUser'); // Type: "User"
+const post = api.call('getPost'); // Type: "Post"
 ```
 
 ## Common Pitfalls
@@ -275,9 +264,7 @@ const post = api.call("getPost"); // Type: "Post"
 const bad = <TConfig>(config: F.Narrow<TConfig>) => config;
 
 // With constraint, inference works properly
-const good = <TConfig extends Record<string, unknown>>(
-  config: F.Narrow<TConfig>
-) => config;
+const good = <TConfig extends Record<string, unknown>>(config: F.Narrow<TConfig>) => config;
 ```
 
 ### Readonly Arrays
@@ -286,7 +273,7 @@ With `as const`, arrays become `readonly`:
 
 ```typescript
 const config = {
-  values: [1, 2, 3],
+    values: [1, 2, 3],
 } as const;
 
 // config.values is readonly [1, 2, 3]
@@ -300,13 +287,13 @@ Very deeply nested types can slow down the compiler:
 ```typescript
 // May cause performance issues with extremely deep nesting
 type DeepConfig = {
-  level1: {
-    level2: {
-      level3: {
-        // ... many more levels
-      };
+    level1: {
+        level2: {
+            level3: {
+                // ... many more levels
+            };
+        };
     };
-  };
 };
 ```
 

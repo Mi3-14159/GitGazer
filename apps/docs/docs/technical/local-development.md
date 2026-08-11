@@ -60,14 +60,13 @@ The key setting is `VITE_REST_API_ENDPOINT` pointing to `localhost:5173/api` —
 #### 2. Start the Backend
 
 ```bash
-cd apps/api
 pnpm install
 
-# Copy and edit environment config
-cp .env.dev.example .env
-# Edit .env with your AWS configuration
+# Create a .env in the repository root with your AWS configuration.
+# Every backend app's dev script reads this one file (see Backend Variables below).
 
 # Start local backend (port 8080)
+cd apps/lambdas/api
 aws-vault exec <profile> --no-session -- pnpm run dev:api
 ```
 
@@ -159,7 +158,7 @@ No backend setup needed. All API calls go directly to production.
 
 ### Backend Variables
 
-Backend variables are configured in `apps/api/.env`. Copy from `.env.dev.example` and fill in your AWS configuration. Key variables:
+Backend variables are configured in a single `.env` at the **repository root**. Every backend app's dev script loads it (`node --env-file=../../../.env ...`), so the API, worker and backfill worker all share one file. Key variables:
 
 | Variable                   | Description                         |
 | -------------------------- | ----------------------------------- |
@@ -275,7 +274,7 @@ aws-vault exec <profile> --no-session -- pnpm run db:tunnel --workspace default 
 With the tunnel running, the database is available at `localhost:5432` (or your chosen port). Open Drizzle Studio in a separate terminal:
 
 ```bash
-cd apps/api
+cd packages/db
 npx drizzle-kit studio
 ```
 
@@ -293,9 +292,17 @@ aws-vault exec <profile> -- terraform output bastion_ssm_port_forward_command
 ## Running Tests
 
 ```bash
-cd apps/api
+# Every project, from the repository root
+pnpm nx run-many -t test:unit
+
+# Or a single backend project
+cd apps/lambdas/api   # or worker, backfill-worker, websocket, org-sync-scheduler, http-proxy
 pnpm run test:unit
 ```
+
+The backend suite is split across the Lambda apps under `apps/lambdas/` and the shared packages
+(`packages/backend-core`, `packages/backend-services`, `packages/github-import`), so running one
+project only covers that project.
 
 Tests use Vitest and mock all AWS services — they never call real APIs.
 

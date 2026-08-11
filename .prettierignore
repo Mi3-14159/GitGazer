@@ -1,0 +1,12 @@
+# Generated artifacts - never hand-formatted, and rewritten by their generators.
+pnpm-lock.yaml
+
+# drizzle-kit generates these migrations and snapshots; it rewrites them on every
+# `drizzle-kit generate`, so formatting them only produces churn.
+packages/db/drizzle/
+
+# Build output
+dist/
+tmp/
+apps/docs/build/
+apps/docs/.docusaurus/

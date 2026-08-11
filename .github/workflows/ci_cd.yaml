@@ -1,102 +1,114 @@
 name: CI/CD
 on:
-    push:
-        branches:
-            - main
-    pull_request:
-    workflow_dispatch:
-        inputs:
-            deploy:
-                description: Deploy to AWS
-                required: false
-                type: boolean
-                default: false
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
 
-# Shared with ci_cd_infra so two terraform applies can never race for the state lock.
+# Terraform applies are serialized by the terraform job in ci_cd_infra, not here.
 concurrency:
-    group: gitgazer-${{ github.ref }}
-    cancel-in-progress: false
+  group: gitgazer-ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-    ci-cd:
-        name: Build & deploy
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-            actions: read
-            id-token: write
-        environment:
-            name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'app.gitgazer.com' || null }}
-            url: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'https://app.gitgazer.com/' || null }}
-        env:
-            VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
-            VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
-            VITE_COGNITO_USER_POOL_CLIENT_ID: ${{ vars.VITE_COGNITO_USER_POOL_CLIENT_ID }}
-            VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
-            VITE_COGNITO_IDENTITY_POOL_ID: ${{ vars.VITE_COGNITO_IDENTITY_POOL_ID }}
-            VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
-            VITE_REST_API_REGION: ${{ vars.REST_API_REGION }}
-            VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
-            VITE_WEBSOCKET_API_ENDPOINT: ${{ vars.VITE_WEBSOCKET_API_ENDPOINT }}
-            VITE_WEBSOCKET_API_REGION: ${{ vars.VITE_WEBSOCKET_API_REGION }}
-            S3_BUCKET_LAMBDA_STORE: ${{ secrets.S3_BUCKET_LAMBDA_STORE }}
-            FRONTEND_S3_BUCKET_NAME: ${{ vars.FRONTEND_S3_BUCKET_NAME }}
-            DOCS_S3_BUCKET: ${{ vars.DOCS_S3_BUCKET }}
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v7.0.1
-              with:
-                  # Full history for nx affected. Not tree:0 - Docusaurus reads git history with
-                  # `log --name-status`, which lazily refetches every tree from the remote.
-                  fetch-depth: 0
-                  filter: blob:none
+  ci-cd:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    outputs:
+      lambdas-uploaded: ${{ steps.affected-lambdas.outputs.any }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    environment:
+      name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'app.gitgazer.com' || null }}
+      url: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'https://app.gitgazer.com/' || null }}
+    env:
+      VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
+      VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
+      VITE_COGNITO_USER_POOL_CLIENT_ID: ${{ vars.VITE_COGNITO_USER_POOL_CLIENT_ID }}
+      VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
+      VITE_COGNITO_IDENTITY_POOL_ID: ${{ vars.VITE_COGNITO_IDENTITY_POOL_ID }}
+      VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
+      VITE_REST_API_REGION: ${{ vars.REST_API_REGION }}
+      VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
+      VITE_WEBSOCKET_API_ENDPOINT: ${{ vars.VITE_WEBSOCKET_API_ENDPOINT }}
+      VITE_WEBSOCKET_API_REGION: ${{ vars.VITE_WEBSOCKET_API_REGION }}
+      S3_BUCKET_LAMBDA_STORE: ${{ secrets.S3_BUCKET_LAMBDA_STORE }}
+      FRONTEND_S3_BUCKET_NAME: ${{ vars.FRONTEND_S3_BUCKET_NAME }}
+      DOCS_S3_BUCKET: ${{ vars.DOCS_S3_BUCKET }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          # Full history for nx affected. Not tree:0 - Docusaurus reads git history with
+          # `log --name-status`, which lazily refetches every tree from the remote.
+          fetch-depth: 0
+          filter: blob:none
 
-            - name: Get Node version from .tool-versions
-              id: node-version
-              run: echo "version=$(grep '^nodejs ' .tool-versions | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Get Node version from .tool-versions
+        id: node-version
+        run: echo "version=$(grep '^nodejs ' .tool-versions | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
-            # Installs pnpm (version from packageManager), Node and the dependencies in one step.
-            - uses: pnpm/setup@v2.0.2
-              with:
-                  runtime: node@${{ steps.node-version.outputs.version }}
-                  cache: true
+      # Installs pnpm (version from packageManager), Node and the dependencies in one step.
+      - uses: pnpm/setup@v2.0.2
+        with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
 
-            - name: Derive affected SHAs
-              uses: nrwl/nx-set-shas@v5.0.1
+      - name: Derive affected SHAs
+        uses: nrwl/nx-set-shas@v5.0.1
 
-            - name: Checks
-              run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run --no-tui
+      - name: Checks
+        run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run --no-tui
 
-            - name: Build
-              run: pnpm nx affected --nxBail -t build --no-tui
+      - name: Build
+        run: pnpm nx affected --nxBail -t build --no-tui
 
-            - name: Get Terraform version from .tool-versions
-              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              id: terraform-version
-              run: echo "version=$(grep '^terraform ' .tool-versions | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
+          role-duration-seconds: 3600
 
-            - uses: hashicorp/setup-terraform@v4
-              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              with:
-                  terraform_wrapper: false
-                  terraform_version: ${{ steps.terraform-version.outputs.version }}
+      - name: Upload artifacts
+        if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+        run: pnpm nx affected --nxBail -t upload --no-tui
 
-            - name: Configure AWS credentials
-              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              uses: aws-actions/configure-aws-credentials@v6.2.3
-              with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-                  role-session-name: gitgazer-deployment
-                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-                  mask-aws-account-id: true
-                  role-duration-seconds: 3600
+      # Lambdas resolve code from a pinned S3 object version, so an upload only goes live once terraform applies.
+      # `nx show projects` prints a JSON array when stdout is not a TTY - an empty result is `[]`, not
+      # an empty string, so count the entries instead of testing the output for emptiness.
+      - name: Check for uploaded lambdas
+        id: affected-lambdas
+        if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+        run: |
+          affected=$(pnpm nx show projects --affected --projects='@gitgazer/lambda-*' --json)
+          echo "affected lambdas: $affected"
+          if [ "$(jq 'length' <<<"$affected")" -gt 0 ]; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
 
-            - name: Create Terraform config files
-              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              run: |
-                  echo '${{ secrets.TERRAFORM_BACKEND }}' > infra/backend.tf
-                  echo '${{ secrets.TERRAFORM_TF_VARS }}' > infra/terraform.tfvars
-
-            - name: Deploy
-              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              run: pnpm nx affected --nxBail -t deploy --no-tui
+  terraform:
+    name: Apply infrastructure
+    needs: ci-cd
+    if: needs.ci-cd.outputs.lambdas-uploaded == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
+    uses: ./.github/workflows/ci_cd_infra.yaml
+    with:
+      apply: true

@@ -1,12 +1,12 @@
 ---
 name: new-domain
-description: 'Scaffold a new backend domain (feature module) in the GitGazer AWS Lambda API under apps/api/src/domains/. Use when adding a new REST resource, feature area, or set of API endpoints. Covers the routes/controller/middleware/test file layout, registering the router in the app, the AWS Powertools Router + middleware chain, role-based access with requireRole, RLS-scoped data access via withRlsTransaction, and the @/ and @gitgazer/db/* import conventions.'
+description: 'Scaffold a new backend domain (feature module) in the GitGazer AWS Lambda API under apps/lambdas/api/src/domains/. Use when adding a new REST resource, feature area, or set of API endpoints. Covers the routes/controller/middleware/test file layout, registering the router in the app, the AWS Powertools Router + middleware chain, role-based access with requireRole, RLS-scoped data access via withRlsTransaction, and the @/ and @gitgazer/db/* import conventions.'
 license: MIT
 ---
 
 # New Backend Domain — GitGazer
 
-Scaffold a new feature module in the Lambda API following the project's controller-centric domain layout. Each domain is a self-contained folder under [apps/api/src/domains/](../../../apps/api/src/domains/).
+Scaffold a new feature module in the Lambda API following the project's controller-centric domain layout. Each domain is a self-contained folder under [apps/lambdas/api/src/domains/](../../../apps/lambdas/api/src/domains/).
 
 ## When to Use
 
@@ -17,22 +17,22 @@ Not for: a single extra route on an existing resource (just add it to that domai
 
 ## File Layout
 
-Create `apps/api/src/domains/<domain>/` with:
+Create `apps/lambdas/api/src/domains/<domain>/` with:
 
-| File                          | Purpose                                                          | Template                                                                                                |
-| ----------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `<domain>.routes.ts`          | HTTP endpoints on an AWS Powertools `Router`                     | [assets/domain.routes.template.ts](./assets/domain.routes.template.ts)                                  |
-| `<domain>.controller.ts`      | Business logic + RLS-scoped DB access                            | [assets/domain.controller.template.ts](./assets/domain.controller.template.ts)                          |
-| `<domain>.controller.test.ts` | Vitest unit tests (AWS + DB mocked)                              | [assets/domain.controller.test.template.ts](./assets/domain.controller.test.template.ts)                |
-| `<domain>.middleware.ts`      | _Optional_ — only if the domain needs request-context middleware | see [integrations.middleware.ts](../../../apps/api/src/domains/integrations/integrations.middleware.ts) |
+| File                          | Purpose                                                          | Template                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `<domain>.routes.ts`          | HTTP endpoints on an AWS Powertools `Router`                     | [assets/domain.routes.template.ts](./assets/domain.routes.template.ts)                                          |
+| `<domain>.controller.ts`      | Business logic + RLS-scoped DB access                            | [assets/domain.controller.template.ts](./assets/domain.controller.template.ts)                                  |
+| `<domain>.controller.test.ts` | Vitest unit tests (AWS + DB mocked)                              | [assets/domain.controller.test.template.ts](./assets/domain.controller.test.template.ts)                        |
+| `<domain>.middleware.ts`      | _Optional_ — only if the domain needs request-context middleware | see [integrations.middleware.ts](../../../apps/lambdas/api/src/domains/integrations/integrations.middleware.ts) |
 
-Reference implementation to copy patterns from: [apps/api/src/domains/integrations/](../../../apps/api/src/domains/integrations/).
+Reference implementation to copy patterns from: [apps/lambdas/api/src/domains/integrations/](../../../apps/lambdas/api/src/domains/integrations/).
 
 ## Procedure
 
 1. **Create the folder and files** from the templates above. Rename `things` / `Thing` to your resource.
 
-2. **Register the router** in [apps/api/src/shared/router/index.ts](../../../apps/api/src/shared/router/index.ts):
+2. **Register the router** in [apps/lambdas/api/src/shared/router/index.ts](../../../apps/lambdas/api/src/shared/router/index.ts):
 
     ```ts
     import thingsRoutes from '@/domains/things/things.routes';
@@ -46,15 +46,15 @@ Reference implementation to copy patterns from: [apps/api/src/domains/integratio
 
 4. **Add tests** colocated as `*.test.ts`. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
 
-5. **Verify**: `cd apps/api && pnpm run test:unit && pnpm run lint`.
+5. **Verify**: `cd apps/lambdas/api && pnpm run test:unit && pnpm run lint`.
 
-## Conventions (enforced — see [backend.instructions.md](../../../apps/api/.github/backend.instructions.md))
+## Conventions (enforced — see [backend.instructions.md](../../instructions/backend.instructions.md))
 
-- **Imports**: `@/` for `apps/api/src`, `@gitgazer/db/*` for the shared package. **Never** `../../../`.
+- **Imports**: `@/` for `apps/lambdas/api/src`, `@gitgazer/db/*` for the shared package. **Never** `../../../`.
 - **Auth context**: handlers receive `AppRequestContext`; use the `addUserIntegrationsToCtx` middleware to populate `reqCtx.appContext.integrations` / `integrationRoles`.
-- **Authorization**: gate state-changing routes with `requireRole('admin' | 'owner' | ...)` from [@/shared/middleware/require-role](../../../apps/api/src/shared/middleware/require-role.ts).
+- **Authorization**: gate state-changing routes with `requireRole('admin' | 'owner' | ...)` from [@/shared/middleware/require-role](../../../apps/lambdas/api/src/shared/middleware/require-role.ts).
 - **Responses**: return a `Response` with `JSON.stringify(...)` and an `HttpStatusCodes` status; throw `BadRequestError` / `UnauthorizedError` / etc. from `@aws-lambda-powertools/event-handler/http` for errors.
-- **Logging**: `getLogger()` from `@/shared/logger` (AWS Powertools structured logging).
+- **Logging**: `getLogger()` from `@gitgazer/backend-core/logger` (AWS Powertools structured logging).
 - **AWS clients**: import pre-configured clients from `@/shared/clients/` — never instantiate SDK clients in a controller.
 
 ## Checklist

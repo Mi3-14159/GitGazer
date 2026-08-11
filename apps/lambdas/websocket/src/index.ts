@@ -1,0 +1,148 @@
+import '@gitgazer/backend-core/bootstrap';
+import config, {loadConfig} from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {db, initDb} from '@gitgazer/db/client';
+import {wsConnections} from '@gitgazer/db/schema/gitgazer';
+import {WEBSOCKET_CHANNELS, WSToken, type WebSocketChannel} from '@gitgazer/db/types';
+import {APIGatewayProxyResultV2, APIGatewayProxyWebsocketEventV2, Context} from 'aws-lambda';
+import {createHmac, timingSafeEqual} from 'crypto';
+import {eq} from 'drizzle-orm';
+
+const logger = getLogger();
+
+let initPromise: Promise<void> | null = null;
+
+const init = async (): Promise<void> => {
+    await initDb();
+    await loadConfig();
+};
+
+type WebsocketEvent = APIGatewayProxyWebsocketEventV2 & {
+    queryStringParameters?: Record<string, string | undefined> | null;
+};
+
+export const validateWebSocketToken = (token: string): WSToken => {
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+        throw new Error('Invalid token format');
+    }
+
+    const [payloadEncoded, signatureEncoded] = parts;
+
+    // Verify signature using the dedicated WS token secret
+    const wsTokenSecret = config.get('wsTokenSecret');
+    const expectedSignature = createHmac('sha256', wsTokenSecret).update(payloadEncoded).digest('base64url');
+
+    const providedBuf = Buffer.from(signatureEncoded, 'utf-8');
+    const expectedBuf = Buffer.from(expectedSignature, 'utf-8');
+    if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
+        throw new Error('Invalid token signature');
+    }
+
+    // Decode payload
+    const payloadJson = Buffer.from(payloadEncoded, 'base64url').toString('utf-8');
+    const payload = JSON.parse(payloadJson) as WSToken;
+
+    // Verify expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) {
+        throw new Error('Token expired');
+    }
+
+    // Basic validation
+    if (!payload.userId || !payload.integrations || !Array.isArray(payload.integrations)) {
+        throw new Error('Invalid token payload');
+    }
+
+    return payload;
+};
+
+export const handler = async (event: WebsocketEvent, context: Context): Promise<APIGatewayProxyResultV2<string>> => {
+    if (!initPromise) {
+        initPromise = init();
+    }
+    await initPromise;
+
+    logger.resetKeys();
+    logger.addContext(context);
+    logger.logEventIfEnabled(event);
+
+    let result = {};
+    switch (event.requestContext.eventType) {
+        case 'DISCONNECT':
+            result = await onDisconnect(event);
+            break;
+        case 'CONNECT':
+            result = await onConnect(event);
+            break;
+        default:
+            result = {statusCode: 400, body: 'Invalid event type'};
+    }
+
+    return result;
+};
+
+const onDisconnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2<string>> => {
+    const connectionId = event.requestContext.connectionId;
+
+    try {
+        const deletedRecords = await db.delete(wsConnections).where(eq(wsConnections.connectionId, connectionId)).returning();
+
+        const count = deletedRecords.length;
+        logger.info(`Successfully deleted ${count} connection records for connectionId: ${connectionId}`);
+
+        return {statusCode: 200, body: `Disconnected. Removed ${count} records.`};
+    } catch (error) {
+        logger.error('Error during disconnect', error as Error);
+        return {statusCode: 500, body: 'Internal server error'};
+    }
+};
+
+const onConnect = async (event: WebsocketEvent): Promise<APIGatewayProxyResultV2<string>> => {
+    const token = event.queryStringParameters?.token;
+    if (!token) {
+        logger.info('Connection denied: No token provided');
+        return {statusCode: 401, body: 'Unauthorized: No authentication token provided'};
+    }
+
+    let tokenPayload: WSToken;
+    try {
+        tokenPayload = validateWebSocketToken(token);
+        logger.info('WebSocket token validation successful', {userId: tokenPayload.userId});
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.info('Connection denied: Invalid token', {message});
+        return {statusCode: 401, body: 'Unauthorized: Invalid authentication token'};
+    }
+
+    const channel = event.queryStringParameters?.channel;
+    if (!channel || !(WEBSOCKET_CHANNELS as readonly string[]).includes(channel)) {
+        logger.info('Connection denied: Invalid or missing channel', {channel});
+        return {statusCode: 400, body: 'Bad request: Invalid or missing channel parameter'};
+    }
+
+    const integrations = tokenPayload.integrations;
+    const userId = tokenPayload.userId;
+    if (integrations.length === 0) {
+        logger.info('No integrations found for user', {userId});
+        return {statusCode: 401, body: 'Connection denied: No authorized integrations found'};
+    }
+
+    try {
+        const values = integrations.map((integrationId) => ({
+            integrationId,
+            connectionId: event.requestContext.connectionId,
+            userId,
+            channel: channel as WebSocketChannel,
+        }));
+
+        await db.insert(wsConnections).values(values);
+
+        logger.info('Connection stored for integrations', {integrations});
+    } catch (error) {
+        logger.error('Failed to store connections', error as Error);
+        return {statusCode: 500, body: 'Internal server error'};
+    }
+
+    return {statusCode: 200, body: 'Connected.'};
+};

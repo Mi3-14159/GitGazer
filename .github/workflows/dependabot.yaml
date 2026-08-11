@@ -1,75 +1,75 @@
 name: Dependabot auto-merge
 
 on:
-    pull_request_target:
+  pull_request_target:
 
 permissions:
-    contents: read
-    pull-requests: read
+  contents: read
+  pull-requests: read
 
 jobs:
-    dependabot:
-        runs-on: ubuntu-latest
-        if: github.event.pull_request.user.login == 'dependabot[bot]'
-        steps:
-            # Outputs are only populated while the PR holds nothing but Dependabot commits, so this
-            # step fails on the re-run that the lockfile commit below triggers. Skipping the rest of
-            # the job is the wanted behaviour there, so don't let it fail the run.
-            - name: Dependabot metadata
-              id: dependabot-metadata
-              uses: dependabot/fetch-metadata@v3
-              continue-on-error: true
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      # Outputs are only populated while the PR holds nothing but Dependabot commits, so this
+      # step fails on the re-run that the lockfile commit below triggers. Skipping the rest of
+      # the job is the wanted behaviour there, so don't let it fail the run.
+      - name: Dependabot metadata
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@v3
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-            # Enabled before the lockfile repair: auto-merge waits for required checks either way,
-            # and the metadata it depends on is gone once the repair commit lands.
-            - name: Enable auto-merge for Dependabot PRs
-              if: ${{ steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor' }}
-              run: gh pr merge --auto --squash "$PR_URL"
-              env:
-                  PR_URL: ${{ github.event.pull_request.html_url }}
-                  GH_TOKEN: ${{ secrets.DEPENDABOT_GITHUB_TOKEN }}
+      # Enabled before the lockfile repair: auto-merge waits for required checks either way,
+      # and the metadata it depends on is gone once the repair commit lands.
+      - name: Enable auto-merge for Dependabot PRs
+        if: ${{ steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor' }}
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_GITHUB_TOKEN }}
 
-            - name: Checkout PR branch
-              if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
-              uses: actions/checkout@v7.0.1
-              with:
-                  ref: ${{ github.event.pull_request.head.ref }}
-                  # Keep credentials out of .git/config while PR-authored code is resolved below.
-                  persist-credentials: false
+      - name: Checkout PR branch
+        if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Keep credentials out of .git/config while PR-authored code is resolved below.
+          persist-credentials: false
 
-            - uses: pnpm/action-setup@v6.0.9
-              if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
-              with:
-                  run_install: false
+      - uses: pnpm/action-setup@v6.0.9
+        if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
+        with:
+          run_install: false
 
-            - uses: actions/setup-node@v7.0.0
-              if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
-              with:
-                  node-version-file: .tool-versions
+      - uses: actions/setup-node@v7.0.0
+        if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
+        with:
+          node-version-file: .tool-versions
 
-            # dependabot-core#12244: a catalog bump lands in pnpm-workspace.yaml, but the lockfile
-            # keeps a literal specifier where it should read `catalog:`, breaking --frozen-lockfile.
-            - name: Repair pnpm catalog lockfile entries
-              id: repair
-              if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
-              run: |
-                  pnpm install --lockfile-only --ignore-scripts
-                  if git diff --quiet -- pnpm-lock.yaml; then
-                      echo "lockfile is consistent with pnpm-workspace.yaml"
-                  else
-                      echo "changed=true" >> "$GITHUB_OUTPUT"
-                  fi
+      # dependabot-core#12244: a catalog bump lands in pnpm-workspace.yaml, but the lockfile
+      # keeps a literal specifier where it should read `catalog:`, breaking --frozen-lockfile.
+      - name: Repair pnpm catalog lockfile entries
+        id: repair
+        if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
+        run: |
+          pnpm install --lockfile-only --ignore-scripts
+          if git diff --quiet -- pnpm-lock.yaml; then
+              echo "lockfile is consistent with pnpm-workspace.yaml"
+          else
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
-            # Pushed with a PAT rather than GITHUB_TOKEN, otherwise CI/CD would not re-run.
-            - name: Push lockfile fix
-              if: steps.repair.outputs.changed == 'true'
-              env:
-                  TOKEN: ${{ secrets.DEPENDABOT_GITHUB_TOKEN }}
-                  BRANCH: ${{ github.event.pull_request.head.ref }}
-              run: |
-                  git config user.name 'dependabot[bot]'
-                  git config user.email '49699333+dependabot[bot]@users.noreply.github.com'
-                  git commit -m 'chore(deps): restore pnpm catalog specifiers in lockfile' -- pnpm-lock.yaml
-                  git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}" "HEAD:${BRANCH}"
+      # Pushed with a PAT rather than GITHUB_TOKEN, otherwise CI/CD would not re-run.
+      - name: Push lockfile fix
+        if: steps.repair.outputs.changed == 'true'
+        env:
+          TOKEN: ${{ secrets.DEPENDABOT_GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name 'dependabot[bot]'
+          git config user.email '49699333+dependabot[bot]@users.noreply.github.com'
+          git commit -m 'chore(deps): restore pnpm catalog specifiers in lockfile' -- pnpm-lock.yaml
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}" "HEAD:${BRANCH}"

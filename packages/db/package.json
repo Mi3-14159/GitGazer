@@ -8,7 +8,11 @@
   "devDependencies": {
     "@aws-sdk/client-rds-data": "catalog:",
     "@aws-sdk/rds-signer": "catalog:",
-    "@types/pg": "catalog:"
+    "@types/pg": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-kit": "catalog:",
+    "ts-node": "catalog:",
+    "tsconfig-paths": "catalog:"
   },
   "name": "@gitgazer/db",
   "peerDependencies": {
@@ -16,7 +20,11 @@
   },
   "private": true,
   "scripts": {
-    "lint:fix": "eslint src --ext .ts --fix",
-    "pretty": "prettier --write ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "migrate": "node --env-file=../../.env -r ts-node/register scripts/run-drizzle-migrations.ts",
+    "pretty": "prettier --ignore-path ../../.prettierignore --write .",
+    "pretty:check": "prettier --ignore-path ../../.prettierignore --check .",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0"
   }
 }

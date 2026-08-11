@@ -1,95 +1,101 @@
 name: CI/CD Infra
 on:
-    push:
-        branches:
-            - main
-        paths:
-            - "infra/**"
-            - ".github/workflows/ci_cd_infra.yaml"
-    pull_request:
-        paths:
-            - "infra/**"
-            - ".github/workflows/ci_cd_infra.yaml"
-    workflow_dispatch:
-        inputs:
-            deploy:
-                description: Deploy to AWS
-                required: false
-                type: boolean
-                default: false
-
-# Shared with ci_cd so two terraform applies can never race for the state lock.
-concurrency:
-    group: gitgazer-${{ github.ref }}
-    cancel-in-progress: false
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/ci_cd_infra.yaml'
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/ci_cd_infra.yaml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to AWS
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      apply:
+        description: Apply the plan (used by ci_cd after uploading lambda zips)
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-    terraform:
-        name: Terraform
-        runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: ./infra
-        environment:
-            name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'app.gitgazer.com' || null }}
-            url: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'https://app.gitgazer.com/' || null }}
-        permissions:
-            contents: read
-            id-token: write
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v7.0.1
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    # Job-level so a caller workflow cannot hold the same group and deadlock this job.
+    concurrency:
+      group: gitgazer-terraform-${{ github.ref }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: ./infra
+    environment:
+      name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'app.gitgazer.com' || null }}
+      url: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'https://app.gitgazer.com/' || null }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
 
-            - name: Configure AWS credentials
-              uses: aws-actions/configure-aws-credentials@v6.2.3
-              with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-                  role-session-name: gitgazer-deployment
-                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-                  mask-aws-account-id: true
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: gitgazer-deployment
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          mask-aws-account-id: true
 
-            - name: Get Terraform version from .tool-versions
-              id: terraform-version
-              run: echo "version=$(grep '^terraform ' ../.tool-versions | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+      - name: Get Terraform version from .tool-versions
+        id: terraform-version
+        run: echo "version=$(grep '^terraform ' ../.tool-versions | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
-            - name: Configure Terraform plugin cache
-              run: |
-                  mkdir -p ~/.terraform.d/plugin-cache
+      - name: Configure Terraform plugin cache
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
 
-            - name: Cache Terraform plugins
-              uses: actions/cache@v6.1.0
-              with:
-                  path: ~/.terraform.d/plugin-cache
-                  key: ${{ runner.os }}-terraform-${{ hashFiles('./infra/.terraform.lock.hcl') }}
-                  restore-keys: ${{ runner.os }}-terraform-
+      - name: Cache Terraform plugins
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('./infra/.terraform.lock.hcl') }}
+          restore-keys: ${{ runner.os }}-terraform-
 
-            - uses: hashicorp/setup-terraform@v4
-              with:
-                  terraform_wrapper: false
-                  terraform_version: ${{ steps.terraform-version.outputs.version }}
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
 
-            - name: Terraform fmt
-              run: terraform fmt -check -diff
+      - name: Terraform fmt
+        run: terraform fmt -check -diff
 
-            - name: Create terraform backend file
-              run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
+      - name: Create terraform backend file
+        run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
 
-            - name: Terraform init
-              run: |
-                  export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
-                  terraform init
+      - name: Terraform init
+        run: |
+          export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
+          terraform init
 
-            - name: Create tfvars file
-              run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
+      - name: Create tfvars file
+        run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
 
-            - name: Terraform validate
-              run: terraform validate
+      - name: Terraform validate
+        run: terraform validate
 
-            - name: Terraform plan
-              run: terraform plan -lock=false
+      - name: Terraform plan
+        run: terraform plan -lock=false
 
-            - name: Terraform apply
-              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-              run: |
-                  terraform plan -input=false -out=tfplan
-                  terraform apply -input=false tfplan
+      - name: Terraform apply
+        if: inputs.apply || github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+        run: |
+          terraform plan -input=false -out=tfplan
+          terraform apply -input=false tfplan

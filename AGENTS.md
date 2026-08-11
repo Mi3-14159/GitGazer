@@ -6,18 +6,25 @@ GitGazer is a GitHub workflow monitoring and notification system built on AWS se
 
 ### Architecture
 
-| Module             | Purpose                                  | Tech Stack                                              |
-| ------------------ | ---------------------------------------- | ------------------------------------------------------- |
-| `apps/api/`        | AWS Lambda backend (REST API + webhooks) | TypeScript, Node.js 24, AWS Lambda, Drizzle ORM         |
-| `apps/web/`        | SPA frontend                             | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite           |
-| `packages/db/`     | Shared database schema and types         | Drizzle ORM, TypeScript                                 |
-| `packages/import/` | Historical GitHub Actions data backfill  | TypeScript                                              |
-| `infra/`           | Infrastructure as code                   | Terraform, AWS (Lambda, API GW, RDS Aurora PG, Cognito) |
+| Module                       | Purpose                                       | Tech Stack                                              |
+| ---------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| `apps/lambdas/*/`            | One deployable AWS Lambda per app             | TypeScript, Node.js 24, AWS Lambda, tsup                |
+| `apps/web/`                  | SPA frontend                                  | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite           |
+| `packages/backend-core/`     | Config, logger, AWS/GitHub clients            | TypeScript                                              |
+| `packages/backend-services/` | Event log, alerting, org member sync          | TypeScript, Drizzle ORM                                 |
+| `packages/github-import/`    | GitHub webhook payload importers              | TypeScript, Drizzle ORM                                 |
+| `packages/db/`               | Shared database schema, types and migrations  | Drizzle ORM, TypeScript                                 |
+| `packages/import/`           | Historical GitHub Actions data backfill (CLI) | TypeScript                                              |
+| `infra/`                     | Infrastructure as code                        | Terraform, AWS (Lambda, API GW, RDS Aurora PG, Cognito) |
+
+The lambda apps are `api`, `websocket`, `worker`, `backfill-worker`, `org-sync-scheduler` and
+`http-proxy`. Each has a single `src/index.ts` entrypoint and builds exactly one
+`dist/gitgazer-<name>.zip`, which is the S3 key Terraform reads.
 
 ### Key Conventions
 
 - **Package manager**: pnpm (monorepo with `pnpm-workspace.yaml`)
-- **Path aliases**: Use `@/` for `src/` in both `apps/api` and `apps/web`. Use `@gitgazer/db/*` for shared DB package. **Never** use relative `../../../` imports.
+- **Path aliases**: Use `@/` for `src/` within an app. Use `@gitgazer/backend-core/*`, `@gitgazer/backend-services/*`, `@gitgazer/github-import` and `@gitgazer/db/*` for shared packages. **Never** use relative `../../../` imports across projects.
 - **Database**: Drizzle ORM with Aurora PostgreSQL Serverless. Row-level security via `withRlsTransaction`.
 - **Auth**: AWS Cognito with OAuth, httpOnly cookies — no client-side token storage.
 - **Logging**: AWS Powertools Logger (structured logging) in the backend.
@@ -70,14 +77,14 @@ Application security engineer for the AWS serverless stack: threat modeling, sec
 
 ## Skills
 
-| Skill                  | File                                           | Use When                                                           |
-| ---------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
-| `refactor`             | `.github/skills/refactor/SKILL.md`             | Improving code structure without changing behavior                 |
-| `typescript-magician`  | `.github/skills/typescript-magician/SKILL.md`  | Complex generics, type guards, removing `any`, resolving TS errors |
-| `documentation-writer` | `.github/skills/documentation-writer/SKILL.md` | Writing documentation following the Diátaxis framework             |
-| `db-migration`         | `.github/skills/db-migration/SKILL.md`         | Adding/altering tables, RLS tenant policies, Drizzle migrations    |
-| `new-domain`           | `.github/skills/new-domain/SKILL.md`           | Scaffolding a new backend domain under `apps/api/src/domains/`     |
-| `webhook-event`        | `.github/skills/webhook-event/SKILL.md`        | Supporting/debugging a GitHub webhook event in the ingest pipeline |
+| Skill                  | File                                           | Use When                                                               |
+| ---------------------- | ---------------------------------------------- | ---------------------------------------------------------------------- |
+| `refactor`             | `.github/skills/refactor/SKILL.md`             | Improving code structure without changing behavior                     |
+| `typescript-magician`  | `.github/skills/typescript-magician/SKILL.md`  | Complex generics, type guards, removing `any`, resolving TS errors     |
+| `documentation-writer` | `.github/skills/documentation-writer/SKILL.md` | Writing documentation following the Diátaxis framework                 |
+| `db-migration`         | `.github/skills/db-migration/SKILL.md`         | Adding/altering tables, RLS tenant policies, Drizzle migrations        |
+| `new-domain`           | `.github/skills/new-domain/SKILL.md`           | Scaffolding a new backend domain under `apps/lambdas/api/src/domains/` |
+| `webhook-event`        | `.github/skills/webhook-event/SKILL.md`        | Supporting/debugging a GitHub webhook event in the ingest pipeline     |
 
 ---
 
@@ -85,11 +92,11 @@ Application security engineer for the AWS serverless stack: threat modeling, sec
 
 Detailed, context-specific instructions are scoped to each module:
 
-| Module   | Instructions File                              | Applies To                    |
-| -------- | ---------------------------------------------- | ----------------------------- |
-| Backend  | `apps/api/.github/backend.instructions.md`     | `apps/api/**/*.{ts,json}`     |
-| Frontend | `apps/web/.github/frontend.instructions.md`    | `apps/web/**/*.{vue,ts,json}` |
-| Infra    | `infra/.github/infrastructure.instructions.md` | `infra/**/*.{tf,tfvars}`      |
+| Module   | Instructions File                              | Applies To                                                        |
+| -------- | ---------------------------------------------- | ----------------------------------------------------------------- |
+| Backend  | `.github/instructions/backend.instructions.md` | `apps/lambdas/**`, `packages/backend-*`, `packages/github-import` |
+| Frontend | `apps/web/.github/frontend.instructions.md`    | `apps/web/**/*.{vue,ts,json}`                                     |
+| Infra    | `infra/.github/infrastructure.instructions.md` | `infra/**/*.{tf,tfvars}`                                          |
 
 **Always consult the relevant module instructions before making changes in that area.**
 
@@ -99,29 +106,31 @@ If module-specific instructions conflict with this file, module instructions tak
 
 ## Common Commands
 
-### Build & deploy (all apps)
+### Build & upload (all apps)
 
-Every app (`apps/api`, `apps/web`, `apps/docs`) exposes the same two Nx targets: `build` writes an
-uploadable artifact to `apps/<app>/dist`, and `deploy` ships it to AWS. Each project owns its own
-`deploy` definition in the `nx.targets` block of its `package.json` — there is no shared deploy script.
-[.github/workflows/ci_cd.yaml](.github/workflows/ci_cd.yaml) is a single job that runs exactly this for
-the affected projects.
+Every app exposes `build`, which writes an uploadable artifact to `<projectRoot>/dist`, and `upload`,
+which syncs that artifact to its S3 bucket. Each project owns its own `upload` definition in the
+`nx.targets` block of its `package.json` — there is no shared deploy script.
+[.github/workflows/ci_cd.yaml](.github/workflows/ci_cd.yaml) runs exactly this for the affected
+projects, then calls [.github/workflows/ci_cd_infra.yaml](.github/workflows/ci_cd_infra.yaml) to
+`terraform apply` — a lambda zip only goes live once that apply repoints the pinned
+`s3_object_version`. The static sites are live as soon as they are uploaded.
 
 ```bash
-pnpm nx affected -t build deploy   # what CI runs
+pnpm nx affected -t build upload   # what CI runs
 pnpm run build                     # nx run-many -t build
-pnpm run deploy                    # nx run-many -t deploy (requires AWS creds + bucket env vars)
+pnpm run upload                    # nx run-many -t upload (requires AWS creds + bucket env vars)
 ```
 
-The bucket names come from the environment: `S3_BUCKET_LAMBDA_STORE` (api), `FRONTEND_S3_BUCKET_NAME`
+The bucket names come from the environment: `S3_BUCKET_LAMBDA_STORE` (lambdas), `FRONTEND_S3_BUCKET_NAME`
 (web), `DOCS_S3_BUCKET` (docs). A missing one fails the target immediately.
 
-### Backend (`apps/api/`)
+### Backend (`apps/lambdas/<name>/`)
 
 ```bash
-pnpm run dev:api          # Local dev server (port 8080, requires AWS creds)
+pnpm run dev:api          # api app only: local dev server (port 8080, requires AWS creds)
 pnpm run test:unit        # Run Vitest unit tests
-pnpm run build            # Bundle handlers + package Lambda zips into dist/
+pnpm run build            # Bundle the handler + package dist/gitgazer-<name>.zip
 pnpm run lint             # ESLint check
 ```
 
@@ -145,8 +154,9 @@ terraform fmt             # Format HCL files
 ### Database (`packages/db/`)
 
 ```bash
-cd apps/api
+cd packages/db
 npx drizzle-kit generate  # Generate migration from schema changes
 npx drizzle-kit migrate   # Run pending migrations
 npx drizzle-kit studio    # Open Drizzle Studio GUI
+pnpm run migrate          # Apply migrations with the checked runner
 ```
