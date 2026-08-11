@@ -1,5 +1,5 @@
-import {ProxyResponse} from '@/handlers/http-proxy';
 import config from '@/shared/config';
+import {ProxyResponse} from '@/shared/clients/proxy.types';
 import {FetchRetryOptions, fetchWithRetry} from '@/shared/helpers/fetch';
 import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
 

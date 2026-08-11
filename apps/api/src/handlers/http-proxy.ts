@@ -1,3 +1,5 @@
+import {ProxyRequest, ProxyResponse} from '@/shared/clients/proxy.types';
+
 const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com', 'slack.com', 'api.slack.com']);
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -21,19 +23,6 @@ const FORWARDED_RESPONSE_HEADERS = [
     'x-ratelimit-used',
     'x-ratelimit-resource',
 ];
-
-export type ProxyRequest = {
-    url: string;
-    method: string;
-    headers?: Record<string, string>;
-    body?: string;
-};
-
-export type ProxyResponse = {
-    statusCode: number;
-    headers: Record<string, string>;
-    body: string;
-};
 
 export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
     if (!event.url || !event.method) {
