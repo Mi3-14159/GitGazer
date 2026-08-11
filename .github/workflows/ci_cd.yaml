@@ -87,11 +87,15 @@ jobs:
         run: pnpm nx affected --nxBail -t upload --no-tui
 
       # Lambdas resolve code from a pinned S3 object version, so an upload only goes live once terraform applies.
+      # `nx show projects` prints a JSON array when stdout is not a TTY - an empty result is `[]`, not
+      # an empty string, so count the entries instead of testing the output for emptiness.
       - name: Check for uploaded lambdas
         id: affected-lambdas
         if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
         run: |
-          if pnpm nx show projects --affected --projects='@gitgazer/lambda-*' | grep -q .; then
+          affected=$(pnpm nx show projects --affected --projects='@gitgazer/lambda-*' --json)
+          echo "affected lambdas: $affected"
+          if [ "$(jq 'length' <<<"$affected")" -gt 0 ]; then
             echo "any=true" >> "$GITHUB_OUTPUT"
           else
             echo "any=false" >> "$GITHUB_OUTPUT"

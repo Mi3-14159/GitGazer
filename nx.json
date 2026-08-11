@@ -10,7 +10,7 @@
       "!{projectRoot}/vitest.config.*",
       "!{projectRoot}/tsconfig.spec.json"
     ],
-    "sharedGlobals": ["{workspaceRoot}/eslint.config.js", "{workspaceRoot}/tsconfig.json"]
+    "sharedGlobals": ["{workspaceRoot}/eslint.config.js", "{workspaceRoot}/tsconfig.json", "{workspaceRoot}/tools/**/*"]
   },
   "plugins": [
     {

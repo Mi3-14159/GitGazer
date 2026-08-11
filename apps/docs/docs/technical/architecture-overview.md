@@ -81,14 +81,31 @@ graph TB
 
 GitGazer is a **pnpm monorepo** with the following workspaces:
 
-| Workspace           | Purpose                                                            | Tech Stack                                    |
-| ------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
-| `apps/lambdas/api/` | AWS Lambda backend — REST API, WebSocket handler, worker, alerting | TypeScript, Node.js 24, Drizzle ORM           |
-| `apps/web/`         | Single-page application frontend                                   | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite |
-| `apps/docs/`        | Documentation site (this site)                                     | Docusaurus                                    |
-| `packages/db/`      | Shared database schema, types, and client                          | Drizzle ORM, TypeScript                       |
-| `packages/import/`  | Historical GitHub Actions data backfill utility                    | TypeScript                                    |
-| `infra/`            | Infrastructure as code                                             | Terraform, AWS                                |
+| Workspace                    | Purpose                                           | Tech Stack                                    |
+| ---------------------------- | ------------------------------------------------- | --------------------------------------------- |
+| `apps/lambdas/*/`            | One deployable AWS Lambda per app (see below)     | TypeScript, Node.js 24, tsup                  |
+| `apps/web/`                  | Single-page application frontend                  | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite |
+| `apps/docs/`                 | Documentation site (this site)                    | Docusaurus                                    |
+| `packages/backend-core/`     | Config, logger, AWS and GitHub clients            | TypeScript                                    |
+| `packages/backend-services/` | Event log, alerting, org member sync              | TypeScript, Drizzle ORM                       |
+| `packages/github-import/`    | GitHub webhook payload importers                  | TypeScript, Drizzle ORM                       |
+| `packages/db/`               | Shared database schema, types, client, migrations | Drizzle ORM, TypeScript                       |
+| `packages/import/`           | Historical GitHub Actions data backfill utility   | TypeScript                                    |
+| `infra/`                     | Infrastructure as code                            | Terraform, AWS                                |
+
+### Lambda Apps
+
+Each app under `apps/lambdas/` has a single `src/index.ts` entrypoint and builds exactly one
+`dist/gitgazer-<name>.zip`, which is the S3 key Terraform reads.
+
+| App                  | Purpose                                                    |
+| -------------------- | ---------------------------------------------------------- |
+| `api`                | REST API endpoints and the GitHub webhook intake endpoint  |
+| `websocket`          | WebSocket connect/disconnect and connection management     |
+| `worker`             | Consumes the SQS queue, persists events, triggers alerting |
+| `backfill-worker`    | Imports historical GitHub Actions data for a repository    |
+| `org-sync-scheduler` | Scheduled fan-out of GitHub org member sync jobs           |
+| `http-proxy`         | Egress proxy for IPv4-only hosts unreachable from the VPC  |
 
 ## Key Technology Choices
 

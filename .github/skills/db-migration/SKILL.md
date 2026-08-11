@@ -42,7 +42,7 @@ Non-tenant global tables (rare — e.g. `users`) omit `integrationId` and the po
 ## Procedure: add / alter a table
 
 ```bash
-cd apps/lambdas/api   # drizzle-kit always runs from here
+cd packages/db   # drizzle-kit always runs from here (drizzle.config.ts + the drizzle-kit dep live here)
 
 # 1. Edit the schema in packages/db/src/schema/ (use the tenant-table template).
 #    - github entity  → packages/db/src/schema/github/*.ts
@@ -72,7 +72,7 @@ npx drizzle-kit studio
 drizzle-kit cannot express new roles or one-off grants. Generate an **empty custom migration** and write the SQL by hand (see `0024_grant_permissions_to_new_users.sql`, `0044_iam.sql`):
 
 ```bash
-cd apps/lambdas/api
+cd packages/db
 npx drizzle-kit generate --custom --name=<descriptive_name>
 ```
 
