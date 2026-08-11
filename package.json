@@ -25,7 +25,7 @@
     "db:tunnel": "./scripts/db-tunnel.sh",
     "pretty": "prettier --write .",
     "build": "nx run-many -t build",
-    "deploy": "nx run-many -t upload deploy"
+    "upload": "nx run-many -t upload"
   },
   "type": "module"
 }

@@ -82,9 +82,9 @@ jobs:
           mask-aws-account-id: true
           role-duration-seconds: 3600
 
-      - name: Deploy
+      - name: Upload artifacts
         if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
-        run: pnpm nx affected --nxBail -t upload deploy --no-tui
+        run: pnpm nx affected --nxBail -t upload --no-tui
 
       # Lambdas resolve code from a pinned S3 object version, so an upload only goes live once terraform applies.
       - name: Check for uploaded lambdas

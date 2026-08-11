@@ -36,7 +36,7 @@
   "name": "@gitgazer/docs",
   "nx": {
     "targets": {
-      "deploy": {
+      "upload": {
         "executor": "nx:run-commands",
         "options": {
           "cwd": "{projectRoot}",

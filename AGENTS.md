@@ -106,20 +106,20 @@ If module-specific instructions conflict with this file, module instructions tak
 
 ## Common Commands
 
-### Build & deploy (all apps)
+### Build & upload (all apps)
 
-Every app exposes `build`, which writes an uploadable artifact to `<projectRoot>/dist`. Lambda apps
-then expose `upload` (sync the zip to S3) and the static apps expose `deploy` (sync + invalidate).
-Each project owns its own definition in the `nx.targets` block of its `package.json` — there is no
-shared deploy script. [.github/workflows/ci_cd.yaml](.github/workflows/ci_cd.yaml) runs exactly this
-for the affected projects, then calls
-[.github/workflows/ci_cd_infra.yaml](.github/workflows/ci_cd_infra.yaml) to `terraform apply` — a
-lambda zip only goes live once that apply repoints the pinned `s3_object_version`.
+Every app exposes `build`, which writes an uploadable artifact to `<projectRoot>/dist`, and `upload`,
+which syncs that artifact to its S3 bucket. Each project owns its own `upload` definition in the
+`nx.targets` block of its `package.json` — there is no shared deploy script.
+[.github/workflows/ci_cd.yaml](.github/workflows/ci_cd.yaml) runs exactly this for the affected
+projects, then calls [.github/workflows/ci_cd_infra.yaml](.github/workflows/ci_cd_infra.yaml) to
+`terraform apply` — a lambda zip only goes live once that apply repoints the pinned
+`s3_object_version`. The static sites are live as soon as they are uploaded.
 
 ```bash
-pnpm nx affected -t build upload deploy   # what CI runs
-pnpm run build                            # nx run-many -t build
-pnpm run deploy                           # nx run-many -t upload deploy (requires AWS creds + bucket env vars)
+pnpm nx affected -t build upload   # what CI runs
+pnpm run build                     # nx run-many -t build
+pnpm run upload                    # nx run-many -t upload (requires AWS creds + bucket env vars)
 ```
 
 The bucket names come from the environment: `S3_BUCKET_LAMBDA_STORE` (lambdas), `FRONTEND_S3_BUCKET_NAME`

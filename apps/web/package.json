@@ -48,7 +48,7 @@
       "@gitgazer/db"
     ],
     "targets": {
-      "deploy": {
+      "upload": {
         "executor": "nx:run-commands",
         "options": {
           "cwd": "{projectRoot}",

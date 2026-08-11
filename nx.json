@@ -53,10 +53,6 @@
       "inputs": ["production", "^production"],
       "outputs": ["{projectRoot}/dist"]
     },
-    "deploy": {
-      "cache": false,
-      "dependsOn": ["build"]
-    },
     "lint": {
       "cache": true,
       "inputs": ["default"]

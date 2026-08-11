@@ -52,13 +52,8 @@
       },
       "upload": {
         "executor": "nx:run-commands",
-        "metadata": {
-          "description": "Lambdas resolve code from versioned S3 objects, so uploaded zips only go live after terraform apply."
-        },
         "options": {
-          "commands": [
-            "aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\""
-          ],
+          "command": "aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\"",
           "cwd": "{projectRoot}"
         }
       }
