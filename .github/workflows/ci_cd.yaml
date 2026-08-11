@@ -68,9 +68,12 @@ jobs:
             - name: Checks
               run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run --no-tui
 
-            # TEMPORARY diagnostic: times the docs build outside Nx, then wipes the caches it warmed
-            # so the Build step below still starts cold. Remove once the 10-minute build is explained.
+            # TEMPORARY diagnostic: the docs build finishes in ~6s but the process then sits for ~11min.
+            # The preload reports what still holds the event loop. Wipes the caches it warmed so the
+            # Build step below still starts cold. Remove once the hang is explained.
             - name: Probe docs build outside Nx
+              env:
+                  NODE_OPTIONS: --require ${{ github.workspace }}/.github/probe-handles.cjs
               run: |
                   start=$(date +%s)
                   pnpm --filter @gitgazer/docs exec docusaurus build --out-dir "$RUNNER_TEMP/docs-probe"
