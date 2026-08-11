@@ -48,8 +48,6 @@ jobs:
               if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
               with:
                   node-version-file: .tool-versions
-                  cache: "pnpm"
-                  cache-dependency-path: pnpm-lock.yaml
 
             # dependabot-core#12244: a catalog bump lands in pnpm-workspace.yaml, but the lockfile
             # keeps a literal specifier where it should read `catalog:`, breaking --frozen-lockfile.
