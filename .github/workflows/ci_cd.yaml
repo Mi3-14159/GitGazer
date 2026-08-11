@@ -46,8 +46,10 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v7.0.1
               with:
+                  # Full history for nx affected. Not tree:0 - Docusaurus reads git history with
+                  # `log --name-status`, which lazily refetches every tree from the remote.
                   fetch-depth: 0
-                  filter: tree:0
+                  filter: blob:none
 
             - uses: pnpm/action-setup@v6.0.9
               with:
@@ -67,18 +69,6 @@ jobs:
 
             - name: Checks
               run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run --no-tui
-
-            # TEMPORARY diagnostic: the docs build finishes in ~6s but the process then sits for ~11min.
-            # The preload reports what still holds the event loop. Wipes the caches it warmed so the
-            # Build step below still starts cold. Remove once the hang is explained.
-            - name: Probe docs build outside Nx
-              env:
-                  NODE_OPTIONS: --require ${{ github.workspace }}/.github/probe-handles.cjs
-              run: |
-                  start=$(date +%s)
-                  pnpm --filter @gitgazer/docs exec docusaurus build --out-dir "$RUNNER_TEMP/docs-probe"
-                  echo "::notice title=Docs probe::docs build outside nx took $(($(date +%s) - start))s"
-                  rm -rf apps/docs/node_modules/.cache apps/docs/.docusaurus
 
             - name: Build
               run: pnpm nx affected --nxBail -t build --no-tui
