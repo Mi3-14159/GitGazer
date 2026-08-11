@@ -1,5 +1,5 @@
-import {getLogger} from '@/shared/logger';
-import {AppRequestContext} from '@/shared/types';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {hasRole, type MemberRole} from '@gitgazer/db/types';

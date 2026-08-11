@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 // Mock the secrets manager client
-vi.mock('@/shared/clients/secrets-manager.client', () => ({
+vi.mock('./clients/secrets-manager.client', () => ({
     getSecretValue: vi.fn(),
 }));
 
@@ -25,7 +25,7 @@ describe('config', () => {
     });
 
     it('loads values from secrets manager when CONFIG_SECRET_ARN is set', async () => {
-        const {getSecretValue} = await import('@/shared/clients/secrets-manager.client');
+        const {getSecretValue} = await import('./clients/secrets-manager.client');
         // Use a key not set in .env.test so SM value is not overridden by an env var
         (getSecretValue as ReturnType<typeof vi.fn>).mockResolvedValue({
             importUrlBase: 'https://sm.example.com/import',
@@ -45,7 +45,7 @@ describe('config', () => {
     });
 
     it('environment variable overrides secrets manager value', async () => {
-        const {getSecretValue} = await import('@/shared/clients/secrets-manager.client');
+        const {getSecretValue} = await import('./clients/secrets-manager.client');
         // SM provides a value for uiBucketName
         (getSecretValue as ReturnType<typeof vi.fn>).mockResolvedValue({
             uiBucketName: 'sm-bucket',
@@ -70,7 +70,7 @@ describe('config', () => {
     });
 
     it('skips secrets manager fetch when CONFIG_SECRET_ARN is not set', async () => {
-        const {getSecretValue} = await import('@/shared/clients/secrets-manager.client');
+        const {getSecretValue} = await import('./clients/secrets-manager.client');
 
         const {loadConfig} = await import('./config');
         await loadConfig();

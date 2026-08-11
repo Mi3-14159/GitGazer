@@ -7,7 +7,7 @@ vi.mock('@/shared/middleware/token-verifier', () => ({
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
 vi.mock('@gitgazer/db/client', () => ({db: {select: vi.fn()}}));
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: vi.fn((key: string) => (key === 'mcpServerUrl' ? 'https://app.gitgazer.com/api/mcp' : {userPoolId: 'eu-central-1_ABC123'}))},
 }));
 

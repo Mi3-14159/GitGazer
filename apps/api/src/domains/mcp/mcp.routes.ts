@@ -1,8 +1,8 @@
 import {buildAuthServerMetadata, handleAuthorize, handleCallback, handleRegister, handleToken} from '@/domains/mcp/mcp-oauth.controller';
 import {buildProtectedResourceMetadata, McpAuthError, protectedResourceMetadataUrl, resolveMcpCaller} from '@/domains/mcp/mcp.controller';
 import {handleMcpRequest, type JsonRpcRequest} from '@/domains/mcp/mcp.protocol';
-import {getLogger} from '@/shared/logger';
-import {AppRequestContext} from '@/shared/types';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 

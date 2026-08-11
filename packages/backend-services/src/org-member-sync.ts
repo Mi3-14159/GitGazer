@@ -1,6 +1,6 @@
-import {resolveAndAssignOrgMembers} from '@/domains/members/org-member-resolver';
-import {listOrgMembers} from '@/shared/clients/github-app.client';
-import {getLogger} from '@/shared/logger';
+import {resolveAndAssignOrgMembers} from './org-member-resolver';
+import {listOrgMembers} from '@gitgazer/backend-core/clients/github-app.client';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';

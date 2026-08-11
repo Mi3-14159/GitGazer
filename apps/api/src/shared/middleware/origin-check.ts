@@ -1,5 +1,5 @@
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
 import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';

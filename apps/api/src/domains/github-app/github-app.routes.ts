@@ -2,7 +2,7 @@ import {handleGithubAppEvent} from '@/domains/github-app/github-app.controller';
 import {verifyGithubAppSignature} from '@/domains/github-app/github-app.middleware';
 import {ensureHttpError} from '@/shared/errors';
 import {isValidGithubAppEvent} from '@/shared/helpers/validation';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, Router} from '@aws-lambda-powertools/event-handler/http';
 
 const router = new Router();

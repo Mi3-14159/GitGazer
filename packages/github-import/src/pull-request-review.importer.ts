@@ -1,5 +1,5 @@
-import {upsertPullRequestReviews, upsertUsers} from '@/domains/webhooks/importers/shared';
-import {getLogger} from '@/shared/logger';
+import {upsertPullRequestReviews, upsertUsers} from './shared';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction} from '@gitgazer/db/client';
 import {PullRequestReview, PullRequestReviewEvent, UserSelect} from '@gitgazer/db/types';
 

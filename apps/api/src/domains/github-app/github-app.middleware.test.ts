@@ -8,7 +8,7 @@ const {configGetMock} = vi.hoisted(() => ({
     }),
 }));
 
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: configGetMock},
 }));
 

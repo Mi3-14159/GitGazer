@@ -1,7 +1,7 @@
-import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
+import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {deprovisionAllWebhooks, updateAllWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
 import {ensureHttpError} from '@/shared/errors';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';

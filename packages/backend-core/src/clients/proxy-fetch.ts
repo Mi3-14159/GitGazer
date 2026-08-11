@@ -1,6 +1,6 @@
-import config from '@/shared/config';
-import {ProxyResponse} from '@/shared/clients/proxy.types';
-import {FetchRetryOptions, fetchWithRetry} from '@/shared/helpers/fetch';
+import config from '../config';
+import {ProxyResponse} from './proxy.types';
+import {FetchRetryOptions, fetchWithRetry} from '../helpers/fetch';
 import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
 
 const client = new LambdaClient({useDualstackEndpoint: true}); // Enable IPv6 for Lambda invocation

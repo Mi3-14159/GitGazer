@@ -4,6 +4,10 @@
     "url": "https://github.com/Mi3-14159/GitGazer/issues"
   },
   "dependencies": {
+    "@gitgazer/backend-core": "workspace:*",
+    "@gitgazer/backend-services": "workspace:*",
+    "@gitgazer/db": "workspace:*",
+    "@gitgazer/github-import": "workspace:*",
     "convict": "catalog:"
   },
   "description": "lambda as API",
@@ -47,9 +51,6 @@
   "keywords": [],
   "name": "@gitgazer/lambdas",
   "nx": {
-    "implicitDependencies": [
-      "@gitgazer/db"
-    ],
     "targets": {
       "build": {
         "outputs": [

@@ -6,13 +6,13 @@ const {mockConfigGet, mockFetchWithRetry, mockSend} = vi.hoisted(() => ({
     mockSend: vi.fn(),
 }));
 
-vi.mock('@/shared/config', () => ({
+vi.mock('../config', () => ({
     default: {
         get: mockConfigGet,
     },
 }));
 
-vi.mock('@/shared/helpers/fetch', () => ({
+vi.mock('../helpers/fetch', () => ({
     fetchWithRetry: mockFetchWithRetry,
 }));
 

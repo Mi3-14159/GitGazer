@@ -2,7 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockGetSecretString = vi.fn();
 
-vi.mock('@/shared/clients/secrets-manager.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/secrets-manager.client', () => ({
     getSecretString: (...args: any[]) => mockGetSecretString(...args),
 }));
 

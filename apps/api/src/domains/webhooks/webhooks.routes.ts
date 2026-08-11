@@ -1,6 +1,6 @@
-import {handleEvent} from '@/domains/webhooks/webhooks.controller';
+import {handleEvent} from '@gitgazer/backend-services/webhooks.controller';
 import {isValidImportEvent} from '@/shared/helpers/validation';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
 import {EventPayloadMap} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';

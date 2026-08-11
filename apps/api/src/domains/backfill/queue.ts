@@ -1,5 +1,5 @@
-import {sendMessageBatch} from '@/shared/clients/sqs.client';
-import config from '@/shared/config';
+import {sendMessageBatch} from '@gitgazer/backend-core/clients/sqs.client';
+import config from '@gitgazer/backend-core/config';
 
 import type {BackfillTask} from './tasks';
 

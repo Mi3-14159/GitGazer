@@ -12,8 +12,8 @@ const client = {
     deleteRepoWebhook: vi.fn(),
     listInstallationRepos: vi.fn(),
 };
-vi.mock('@/shared/clients/github-app.client', () => client);
-vi.mock('@/shared/config', () => ({default: {get: () => 'https://example.test/webhooks'}}));
+vi.mock('@gitgazer/backend-core/clients/github-app.client', () => client);
+vi.mock('@gitgazer/backend-core/config', () => ({default: {get: () => 'https://example.test/webhooks'}}));
 vi.mock('@gitgazer/db/schema/app', () => ({gitgazerWriter: {name: 'gitgazer_writer'}}));
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubAppInstallations: {

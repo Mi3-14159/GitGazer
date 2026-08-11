@@ -1,4 +1,4 @@
-import config from '@/shared/config';
+import config from '@gitgazer/backend-core/config';
 import {GetObjectCommand, GetObjectCommandOutput, S3Client} from '@aws-sdk/client-s3';
 import {getSignedUrl as S3getSignedUrl} from '@aws-sdk/s3-request-presigner';
 

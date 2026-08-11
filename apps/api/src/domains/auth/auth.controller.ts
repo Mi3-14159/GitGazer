@@ -1,7 +1,7 @@
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
-import config from '@/shared/config';
+import config from '@gitgazer/backend-core/config';
 import {buildAuthCookies, buildClearCookies, buildStateCookie} from '@/shared/helpers/cookies';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, ForbiddenError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
 import {WSToken} from '@gitgazer/db/types';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';

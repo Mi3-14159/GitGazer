@@ -1,5 +1,5 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
-import config from '@/shared/config';
+import config from '@gitgazer/backend-core/config';
 import {getMcpAccessVerifier} from '@/shared/middleware/token-verifier';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';

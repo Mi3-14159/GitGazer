@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {
         get: vi.fn((key: string) => {
             switch (key) {

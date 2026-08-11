@@ -11,11 +11,11 @@ vi.mock('@gitgazer/db/schema', () => ({
 }));
 
 const mockCreateEventLogEntry = vi.fn();
-vi.mock('@/domains/event-log/event-log.controller', () => ({
+vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
 }));
 
-vi.mock('@/shared/logger', () => ({
+vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: vi.fn(), info: vi.fn(), warn: vi.fn()}),
 }));
 

@@ -52,11 +52,11 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     },
 }));
 
-vi.mock('@/shared/clients/sqs.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/sqs.client', () => ({
     sendOrgMemberSyncTask: vi.fn(),
 }));
 
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {
         get: vi.fn().mockReturnValue('https://sqs.queue.url'),
     },
@@ -67,7 +67,7 @@ vi.mock('./webhook-provisioning', () => ({
 }));
 
 const mockCreateEventLogEntry = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/domains/event-log/event-log.controller', () => ({
+vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
 }));
 

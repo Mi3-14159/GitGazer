@@ -4,11 +4,11 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockSendOrgMemberSyncTask = vi.fn();
 
-vi.mock('@/shared/clients/sqs.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/sqs.client', () => ({
     sendOrgMemberSyncTask: (...args: any[]) => mockSendOrgMemberSyncTask(...args),
 }));
 
-vi.mock('@/shared/config', () => {
+vi.mock('@gitgazer/backend-core/config', () => {
     const mockGet = vi.fn().mockReturnValue('https://sqs.queue.url');
     return {
         loadConfig: vi.fn(),

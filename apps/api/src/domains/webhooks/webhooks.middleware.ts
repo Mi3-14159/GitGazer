@@ -1,4 +1,4 @@
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';

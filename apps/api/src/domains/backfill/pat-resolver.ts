@@ -1,4 +1,4 @@
-import {getSecretString} from '@/shared/clients/secrets-manager.client';
+import {getSecretString} from '@gitgazer/backend-core/clients/secrets-manager.client';
 
 /**
  * Resolves a per-integration GitHub personal access token (PAT) from AWS

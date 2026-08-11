@@ -1,9 +1,9 @@
-import {sendWorkflowJobAlerts} from '@/domains/alerting/alerting.controller';
-import {syncOrgMembers} from '@/domains/github-app/org-member-sync';
-import {insertEvent} from '@/domains/webhooks/importers/index';
-import {postToConnections} from '@/domains/webhooks/webhooks.controller';
-import {type OrgMemberSyncTask} from '@/shared/clients/sqs.client';
-import {getLogger} from '@/shared/logger';
+import {sendWorkflowJobAlerts} from '@gitgazer/backend-services/alerting.controller';
+import {syncOrgMembers} from '@gitgazer/backend-services/org-member-sync';
+import {insertEvent} from '@gitgazer/github-import/index';
+import {postToConnections} from '@gitgazer/backend-services/webhooks.controller';
+import {type OrgMemberSyncTask} from '@gitgazer/backend-core/clients/sqs.client';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {EventPayloadMap, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 import type {SQSRecord} from 'aws-lambda';

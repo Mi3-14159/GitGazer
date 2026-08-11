@@ -1,5 +1,5 @@
-import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
-import {getLogger} from '@/shared/logger';
+import {createEventLogEntry} from './event-log.controller';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';

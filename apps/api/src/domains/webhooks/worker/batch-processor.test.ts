@@ -6,16 +6,16 @@ const mockInsertEvent = vi.fn();
 const mockPostToConnections = vi.fn();
 const mockSendWorkflowJobAlerts = vi.fn();
 
-vi.mock('@/domains/github-app/org-member-sync', () => ({
+vi.mock('@gitgazer/backend-services/org-member-sync', () => ({
     syncOrgMembers: (...args: any[]) => mockSyncOrgMembers(...args),
 }));
-vi.mock('@/domains/webhooks/importers/index', () => ({
+vi.mock('@gitgazer/github-import/index', () => ({
     insertEvent: (...args: any[]) => mockInsertEvent(...args),
 }));
-vi.mock('@/domains/webhooks/webhooks.controller', () => ({
+vi.mock('@gitgazer/backend-services/webhooks.controller', () => ({
     postToConnections: (...args: any[]) => mockPostToConnections(...args),
 }));
-vi.mock('@/domains/alerting/alerting.controller', () => ({
+vi.mock('@gitgazer/backend-services/alerting.controller', () => ({
     sendWorkflowJobAlerts: (...args: any[]) => mockSendWorkflowJobAlerts(...args),
 }));
 

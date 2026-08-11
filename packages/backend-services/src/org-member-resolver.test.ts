@@ -34,7 +34,7 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
 }));
 
 const mockCreateEventLogEntry = vi.fn();
-vi.mock('@/domains/event-log/event-log.controller', () => ({
+vi.mock('./event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
 }));
 

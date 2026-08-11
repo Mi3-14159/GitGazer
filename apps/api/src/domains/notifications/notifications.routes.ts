@@ -1,7 +1,7 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/domains/notifications/notifications.controller';
 import {requireRole} from '@/shared/middleware/require-role';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isNotificationRuleUpdate} from '@gitgazer/db/types';
 

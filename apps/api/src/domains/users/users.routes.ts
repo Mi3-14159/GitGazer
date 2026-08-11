@@ -1,5 +1,5 @@
 import {assertCognitoCaller, exchangeGitHubOAuthToken, fetchGitHubUser, parseOAuthTokenBody} from '@/domains/users/users.controller';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, ForbiddenError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {UserAttributes} from '@gitgazer/db/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';

@@ -1,7 +1,7 @@
 import {type McpCaller} from '@/domains/mcp/mcp.controller';
 import {validateMcpHeaders} from '@/domains/mcp/mcp.headers';
 import {MCP_TOOLS, McpToolError, runToolCall} from '@/domains/mcp/mcp.tools';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {HttpStatusCodes} from '@aws-lambda-powertools/event-handler/http';
 import {ReadOnlyQueryError} from '@gitgazer/db/queries';
 

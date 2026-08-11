@@ -47,12 +47,12 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
 }));
 
 const mockListOrgMembers = vi.fn();
-vi.mock('@/shared/clients/github-app.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/github-app.client', () => ({
     listOrgMembers: (...args: any[]) => mockListOrgMembers(...args),
 }));
 
 const mockResolveAndAssignOrgMembers = vi.fn();
-vi.mock('@/domains/members/org-member-resolver', () => ({
+vi.mock('./org-member-resolver', () => ({
     resolveAndAssignOrgMembers: (...args: any[]) => mockResolveAndAssignOrgMembers(...args),
 }));
 

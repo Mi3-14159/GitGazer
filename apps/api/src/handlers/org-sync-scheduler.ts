@@ -1,7 +1,7 @@
-import '@/shared/bootstrap';
-import {sendOrgMemberSyncTask} from '@/shared/clients/sqs.client';
-import config, {loadConfig} from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import '@gitgazer/backend-core/bootstrap';
+import {sendOrgMemberSyncTask} from '@gitgazer/backend-core/clients/sqs.client';
+import config, {loadConfig} from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, initDb} from '@gitgazer/db/client';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {eq} from 'drizzle-orm';

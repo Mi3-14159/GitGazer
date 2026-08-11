@@ -1,4 +1,4 @@
-import config from '@/shared/config';
+import config from '@gitgazer/backend-core/config';
 
 /**
  * Validate a redirect URL against the configured allowlist of frontend origins.

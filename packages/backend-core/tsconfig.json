@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2021", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "dist",
+    "paths": {
+      "@gitgazer/backend-core/*": ["src/*"],
+      "@gitgazer/db/*": ["../db/src/*"],
+      "@gitgazer/db": ["../db/src"]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "target": "es2020",
+    "types": ["node", "vitest"]
+  },
+  "exclude": ["node_modules/**/*", "dist/**/*", "vitest.config.mts"],
+  "include": ["src/**/*.ts", "testing/**/*.ts"]
+}

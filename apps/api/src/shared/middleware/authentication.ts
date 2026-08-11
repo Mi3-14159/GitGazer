@@ -1,8 +1,8 @@
 import {extractTokenFromCookies} from '@/shared/helpers/cookies';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
 import {getVerifiers} from '@/shared/middleware/token-verifier';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {db, withRlsTransaction} from '@gitgazer/db/client';

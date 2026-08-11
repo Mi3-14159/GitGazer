@@ -1,7 +1,7 @@
-import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
-import {sendOrgMemberSyncTask} from '@/shared/clients/sqs.client';
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
+import {sendOrgMemberSyncTask} from '@gitgazer/backend-core/clients/sqs.client';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';

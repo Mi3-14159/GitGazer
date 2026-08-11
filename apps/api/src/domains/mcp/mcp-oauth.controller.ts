@@ -1,6 +1,6 @@
 import {mcpOrigin} from '@/domains/mcp/mcp.controller';
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';

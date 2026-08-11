@@ -1,7 +1,7 @@
 import {beforeEach, vi} from 'vitest';
 
 // Mock the logger globally
-vi.mock('@/shared/logger', () => ({
+vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: vi.fn(() => ({
         debug: vi.fn(),
         info: vi.fn(),

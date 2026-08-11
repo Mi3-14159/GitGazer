@@ -5,7 +5,7 @@ vi.mock('@/domains/mcp/mcp.tools', () => ({
     runToolCall: vi.fn(),
     McpToolError: class McpToolError extends Error {},
 }));
-vi.mock('@/shared/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
 const CALLER = {userId: 1, integrationIds: ['i1']};
 const MODERN_VERSION = '2026-07-28';

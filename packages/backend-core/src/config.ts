@@ -1,6 +1,6 @@
 import convict from 'convict';
 
-import {getSecretValue} from '@/shared/clients/secrets-manager.client';
+import {getSecretValue} from './clients/secrets-manager.client';
 
 /**
  * Application configuration schema managed by convict.

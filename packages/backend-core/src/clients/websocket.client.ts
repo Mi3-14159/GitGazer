@@ -1,5 +1,5 @@
-import {getLogger} from '@/shared/logger';
-import {WebsocketConnection} from '@/shared/types';
+import {getLogger} from '../logger';
+import {WebsocketConnection} from '../types';
 import {db} from '@gitgazer/db/client';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
 import {type WebSocketChannel} from '@gitgazer/db/types';

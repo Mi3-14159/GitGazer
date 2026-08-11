@@ -3,8 +3,8 @@ import {gitgazerWriter, notificationRules} from '@gitgazer/db/schema';
 import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
 import {and, eq} from 'drizzle-orm';
 
-import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
-import {getLogger} from '@/shared/logger';
+import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
+import {getLogger} from '@gitgazer/backend-core/logger';
 
 const toNotificationRule = (row: typeof notificationRules.$inferSelect): NotificationRule => ({
     integrationId: row.integrationId,

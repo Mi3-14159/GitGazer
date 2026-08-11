@@ -1,6 +1,6 @@
-import {upsertEnterprises, upsertOrganizations, upsertPullRequests, upsertRepositories, upsertUsers} from '@/domains/webhooks/importers/shared';
-import {isEnterprise} from '@/domains/webhooks/importers/types';
-import {getLogger} from '@/shared/logger';
+import {upsertEnterprises, upsertOrganizations, upsertPullRequests, upsertRepositories, upsertUsers} from './shared';
+import {isEnterprise} from './types';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction} from '@gitgazer/db/client';
 import {EnterpriseSelect, OrganizationSelect, PullRequest, PullRequestEvent, UserSelect} from '@gitgazer/db/types';
 

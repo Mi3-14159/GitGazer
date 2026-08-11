@@ -1,5 +1,5 @@
-import {insertEvent} from '@/domains/webhooks/importers/index';
-import {getLogger} from '@/shared/logger';
+import {insertEvent} from '@gitgazer/github-import/index';
+import {getLogger} from '@gitgazer/backend-core/logger';
 
 import {
     fetchPullRequest,

@@ -11,7 +11,7 @@ import {
     revokeInvitation,
 } from '@/domains/members/members.controller';
 import {requireRole} from '@/shared/middleware/require-role';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {hasRole, isMemberRole} from '@gitgazer/db/types';
 

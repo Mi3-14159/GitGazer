@@ -1,7 +1,7 @@
-import {sendWebhookEvent} from '@/shared/clients/sqs.client';
-import {deleteConnection, getConnections} from '@/shared/clients/websocket.client';
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import {sendWebhookEvent} from '@gitgazer/backend-core/clients/sqs.client';
+import {deleteConnection, getConnections} from '@gitgazer/backend-core/clients/websocket.client';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {
     ApiGatewayManagementApiClient,
     ApiGatewayManagementApiServiceException,

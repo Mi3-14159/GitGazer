@@ -1,7 +1,7 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import type {MetricName} from '@/domains/metrics/metrics.controller';
 import {getWidgetMetric, VALID_METRIC_NAMES} from '@/domains/metrics/metrics.controller';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {listRepositories, listTopics} from '@gitgazer/db/queries/metrics';
 import type {GroupByOption} from '@gitgazer/db/types/metrics';

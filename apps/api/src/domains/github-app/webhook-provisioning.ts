@@ -10,9 +10,9 @@ import {
     updateOrgWebhookSecret,
     updateRepoWebhookEvents,
     updateRepoWebhookSecret,
-} from '@/shared/clients/github-app.client';
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+} from '@gitgazer/backend-core/clients/github-app.client';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppInstallations, githubAppWebhooks, integrations} from '@gitgazer/db/schema/github/workflows';

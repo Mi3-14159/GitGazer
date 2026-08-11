@@ -18,7 +18,7 @@ vi.mock('./pat-resolver', () => ({
     resolvePat: (...args: any[]) => mockResolvePat(...args),
 }));
 
-vi.mock('@/domains/webhooks/importers/index', () => ({
+vi.mock('@gitgazer/github-import/index', () => ({
     insertEvent: (...args: any[]) => mockInsertEvent(...args),
 }));
 

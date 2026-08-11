@@ -15,7 +15,7 @@ vi.mock('@aws-sdk/client-sesv2', () => {
     };
 });
 
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {
         get: vi.fn((key: string) => {
             if (key === 'sesConfig')

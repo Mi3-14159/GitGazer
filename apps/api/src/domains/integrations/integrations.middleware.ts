@@ -1,6 +1,6 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
-import {getLogger} from '@/shared/logger';
-import {AppRequestContext} from '@/shared/types';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';
 

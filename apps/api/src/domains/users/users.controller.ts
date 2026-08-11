@@ -1,6 +1,6 @@
-import {proxyFetch} from '@/shared/clients/proxy-fetch';
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {createHash, timingSafeEqual} from 'crypto';
 

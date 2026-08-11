@@ -1,6 +1,6 @@
-import {getEventLogEntries, getEventLogStats, markAllEventLogRead, toggleEventLogRead} from '@/domains/event-log/event-log.controller';
+import {getEventLogEntries, getEventLogStats, markAllEventLogRead, toggleEventLogRead} from '@gitgazer/backend-services/event-log.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, NotFoundError, Router} from '@aws-lambda-powertools/event-handler/http';
 import {
     EVENT_LOG_CATEGORIES,

@@ -1,9 +1,9 @@
 import {createHmac} from 'crypto';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/shared/bootstrap', () => ({}));
-vi.mock('@/shared/config', () => ({default: {get: () => 'test-secret'}, loadConfig: vi.fn()}));
-vi.mock('@/shared/logger', () => ({getLogger: () => ({info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn()})}));
+vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
+vi.mock('@gitgazer/backend-core/config', () => ({default: {get: () => 'test-secret'}, loadConfig: vi.fn()}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn()})}));
 vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: vi.fn()}));
 vi.mock('@gitgazer/db/schema/gitgazer', () => ({wsConnections: {}}));
 vi.mock('@gitgazer/db/types', () => ({WEBSOCKET_CHANNELS: ['workflow_run', 'workflow_job']}));

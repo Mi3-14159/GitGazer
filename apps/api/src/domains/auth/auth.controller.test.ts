@@ -21,7 +21,7 @@ const defaultConfigGet = (key: string): unknown => {
 };
 const mockConfigGet = vi.fn(defaultConfigGet);
 
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {
         get: (key: string): unknown => mockConfigGet(key),
     },

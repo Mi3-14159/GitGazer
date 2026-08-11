@@ -1,4 +1,4 @@
-import config from '@/shared/config';
+import config from '@gitgazer/backend-core/config';
 import {CognitoJwtVerifier} from 'aws-jwt-verify';
 
 type TokenVerifiers = {

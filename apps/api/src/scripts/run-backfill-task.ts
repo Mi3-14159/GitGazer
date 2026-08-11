@@ -32,8 +32,8 @@
 import {sendBackfillTasks} from '@/domains/backfill/queue';
 import {routeTask} from '@/domains/backfill/router';
 import {parseTask} from '@/domains/backfill/tasks';
-import '@/shared/bootstrap';
-import {loadConfig} from '@/shared/config';
+import '@gitgazer/backend-core/bootstrap';
+import {loadConfig} from '@gitgazer/backend-core/config';
 import {ReceiveMessageCommand, SQSClient} from '@aws-sdk/client-sqs';
 import {initDb} from '@gitgazer/db/client';
 import {readFileSync} from 'node:fs';

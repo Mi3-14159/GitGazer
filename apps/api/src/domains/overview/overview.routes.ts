@@ -1,7 +1,7 @@
 import {getOverview} from '@/domains/overview/overview.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {parseDateFilters} from '@/shared/helpers/filters';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 

@@ -1,4 +1,4 @@
-import {upsertWorkflowRunPullRequestAssociations, upsertWorkflowRuns} from '@/domains/webhooks/importers/shared';
+import {upsertWorkflowRunPullRequestAssociations, upsertWorkflowRuns} from './shared';
 import {RdsTransaction} from '@gitgazer/db/client';
 import {WorkflowRun, WorkflowRunEvent} from '@gitgazer/db/types';
 

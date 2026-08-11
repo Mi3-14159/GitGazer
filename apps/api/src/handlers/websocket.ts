@@ -1,6 +1,6 @@
-import '@/shared/bootstrap';
-import config, {loadConfig} from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import '@gitgazer/backend-core/bootstrap';
+import config, {loadConfig} from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, initDb} from '@gitgazer/db/client';
 import {wsConnections} from '@gitgazer/db/schema/gitgazer';
 import {WEBSOCKET_CHANNELS, WSToken, type WebSocketChannel} from '@gitgazer/db/types';

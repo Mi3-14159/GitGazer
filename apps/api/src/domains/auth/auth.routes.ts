@@ -2,8 +2,8 @@ import {buildLoginRedirect, generateWsToken, handleOAuthCallback, refreshTokens}
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {buildClearCookies, buildClearStateCookie, extractTokenFromCookies, OAUTH_STATE_COOKIE_NAME} from '@/shared/helpers/cookies';
-import {getLogger} from '@/shared/logger';
-import {AppRequestContext} from '@/shared/types';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, ForbiddenError, HttpStatusCodes, Router, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 

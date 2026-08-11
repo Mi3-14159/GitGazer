@@ -3,7 +3,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 const mockUpsertWorkflowRuns = vi.fn();
 const mockUpsertAssociations = vi.fn();
 
-vi.mock('@/domains/webhooks/importers/shared', () => ({
+vi.mock('./shared', () => ({
     upsertWorkflowRuns: (...args: any[]) => mockUpsertWorkflowRuns(...args),
     upsertWorkflowRunPullRequestAssociations: (...args: any[]) => mockUpsertAssociations(...args),
 }));

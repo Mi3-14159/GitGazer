@@ -1,5 +1,5 @@
-import config from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {SESv2Client, SendEmailCommand} from '@aws-sdk/client-sesv2';
 
 const client = new SESv2Client({useDualstackEndpoint: true});

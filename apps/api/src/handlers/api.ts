@@ -1,6 +1,6 @@
-import '@/shared/bootstrap';
-import {loadConfig} from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import '@gitgazer/backend-core/bootstrap';
+import {loadConfig} from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {createApp} from '@/shared/router';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {initDb} from '@gitgazer/db/client';

@@ -13,6 +13,10 @@
     "outDir": "dist",
     "paths": {
       "@/*": ["src/*"],
+      "@gitgazer/backend-core/*": ["../../packages/backend-core/src/*"],
+      "@gitgazer/backend-services/*": ["../../packages/backend-services/src/*"],
+      "@gitgazer/github-import/*": ["../../packages/github-import/src/*"],
+      "@gitgazer/github-import": ["../../packages/github-import/src"],
       "@gitgazer/db/*": ["../../packages/db/src/*"],
       "@gitgazer/db": ["../../packages/db/src"]
     },

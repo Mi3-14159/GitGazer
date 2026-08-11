@@ -1,4 +1,4 @@
-import config from '@/shared/config';
+import config from '@gitgazer/backend-core/config';
 import {addMcpBudgetCostMs, getMcpBudgetUsedMs} from '@gitgazer/db/queries';
 
 export class QuotaExceededError extends Error {

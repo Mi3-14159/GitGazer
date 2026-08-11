@@ -1,7 +1,7 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {getWorkflowFilterValues, getWorkflows} from '@/domains/workflows/workflows.controller';
 import {parseDateFilters, parseWorkflowColumnFilters} from '@/shared/helpers/filters';
-import {AppRequestContext} from '@/shared/types';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {isWorkflowsRequestParameters, WORKFLOW_FILTER_COLUMNS, WorkflowFilterColumn} from '@gitgazer/db/types';
 import {APIGatewayProxyEventV2} from 'aws-lambda';

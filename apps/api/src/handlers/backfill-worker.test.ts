@@ -22,11 +22,11 @@ vi.mock('@/domains/backfill/tasks', () => ({
     parseInitialTask: (...args: any[]) => mockParseInitialTask(...args),
 }));
 
-vi.mock('@/shared/clients/sqs.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/sqs.client', () => ({
     changeMessageVisibility: (...args: any[]) => mockChangeMessageVisibility(...args),
 }));
 
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: vi.fn(() => 'https://sqs.test/backfill-queue')},
     loadConfig: vi.fn(),
 }));

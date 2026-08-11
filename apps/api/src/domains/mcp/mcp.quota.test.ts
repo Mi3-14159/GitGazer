@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/db/queries', () => ({getMcpBudgetUsedMs: vi.fn(), addMcpBudgetCostMs: vi.fn()}));
-vi.mock('@/shared/config', () => ({default: {get: vi.fn(() => ({budgetSeconds: 600, windowSeconds: 3600, maxQuerySeconds: 60}))}}));
+vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => ({budgetSeconds: 600, windowSeconds: 3600, maxQuerySeconds: 60}))}}));
 
 let db: typeof import('@gitgazer/db/queries');
 let mod: typeof import('@/domains/mcp/mcp.quota');

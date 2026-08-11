@@ -1,7 +1,7 @@
 import * as http from 'http';
 
 import {handler} from '@/handlers/api';
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {APIGatewayProxyEventV2, Context} from 'aws-lambda';
 
 const logger = getLogger();

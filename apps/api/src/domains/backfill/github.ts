@@ -1,4 +1,4 @@
-import {proxyFetch} from '@/shared/clients/proxy-fetch';
+import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 
 /**
  * Single-page GitHub REST fetchers for the serverless backfill worker.

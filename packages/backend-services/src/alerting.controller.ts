@@ -1,6 +1,6 @@
-import {createEventLogEntry} from '@/domains/event-log/event-log.controller';
-import {proxyFetch} from '@/shared/clients/proxy-fetch';
-import {getLogger} from '@/shared/logger';
+import {createEventLogEntry} from './event-log.controller';
+import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRules} from '@gitgazer/db/schema';
 import {NotificationRuleChannelType, WorkflowJobWithRelations} from '@gitgazer/db/types';

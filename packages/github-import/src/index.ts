@@ -1,9 +1,9 @@
-import {importPullRequestReview} from '@/domains/webhooks/importers/pull-request-review.importer';
-import {importPullRequest} from '@/domains/webhooks/importers/pull-request.importer';
-import {importWorkflowJob} from '@/domains/webhooks/importers/workflow-job.importer';
-import {importWorkflowRun} from '@/domains/webhooks/importers/workflow-run.importer';
-import {importWorkflow} from '@/domains/webhooks/importers/workflow.importer';
-import {getLogger} from '@/shared/logger';
+import {importPullRequestReview} from './pull-request-review.importer';
+import {importPullRequest} from './pull-request.importer';
+import {importWorkflowJob} from './workflow-job.importer';
+import {importWorkflowRun} from './workflow-run.importer';
+import {importWorkflow} from './workflow.importer';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {events, gitgazerWriter} from '@gitgazer/db/schema';
 import {

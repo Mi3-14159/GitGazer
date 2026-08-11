@@ -1,7 +1,7 @@
 import {processRecord} from '@/domains/webhooks/worker/batch-processor';
-import '@/shared/bootstrap';
-import {loadConfig} from '@/shared/config';
-import {getLogger} from '@/shared/logger';
+import '@gitgazer/backend-core/bootstrap';
+import {loadConfig} from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {initDb} from '@gitgazer/db/client';
 import type {SQSBatchResponse, SQSEvent} from 'aws-lambda';
 

@@ -35,7 +35,7 @@
  *   pnpm run dev:worker -- --file ./tmp/failed-message.json
  */
 import {handler} from '@/handlers/worker';
-import '@/shared/bootstrap';
+import '@gitgazer/backend-core/bootstrap';
 import {ReceiveMessageCommand, SQSClient} from '@aws-sdk/client-sqs';
 import type {SQSEvent, SQSRecord} from 'aws-lambda';
 import {randomUUID} from 'node:crypto';

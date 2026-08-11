@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockProxyFetch = vi.fn();
 
-vi.mock('@/shared/clients/proxy-fetch', () => ({
+vi.mock('@gitgazer/backend-core/clients/proxy-fetch', () => ({
     proxyFetch: (...args: any[]) => mockProxyFetch(...args),
 }));
 

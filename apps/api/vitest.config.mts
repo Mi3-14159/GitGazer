@@ -7,7 +7,7 @@ import tsconfig from './tsconfig.json' with {type: 'json'};
 export default defineConfig(({mode}) => ({
     test: {
         environment: 'node',
-        setupFiles: ['./vitest.setup.ts'],
+        setupFiles: ['../../packages/backend-core/testing/vitest.setup.ts'],
         clearMocks: true,
         globals: true,
         env: loadEnv(mode, process.cwd(), ''),

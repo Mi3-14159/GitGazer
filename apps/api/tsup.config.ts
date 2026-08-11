@@ -9,10 +9,13 @@ const shared: Options = {
     treeshake: true,
     // Bundle all dependencies except @aws-sdk (provided by Lambda runtime)
     external: [/^@aws-sdk/],
-    // Explicitly bundle these packages to avoid runtime import errors
-    noExternal: ['convict'],
+    // tsup externalizes package.json dependencies by default; these must be inlined into the bundle
+    noExternal: ['convict', /^@gitgazer\//],
     esbuildOptions(options) {
         options.alias = {
+            '@gitgazer/backend-core': '../../packages/backend-core/src',
+            '@gitgazer/backend-services': '../../packages/backend-services/src',
+            '@gitgazer/github-import': '../../packages/github-import/src',
             '@gitgazer/db': '../../packages/db/src',
             '@': './src',
         };

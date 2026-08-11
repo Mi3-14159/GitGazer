@@ -1,0 +1,31 @@
+{
+  "dependencies": {
+    "@aws-lambda-powertools/event-handler": "catalog:",
+    "@aws-lambda-powertools/logger": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@gitgazer/db": "workspace:*",
+    "@octokit/auth-app": "catalog:",
+    "@octokit/rest": "catalog:",
+    "convict": "catalog:"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "catalog:",
+    "@types/convict": "catalog:"
+  },
+  "name": "@gitgazer/backend-core",
+  "peerDependencies": {
+    "drizzle-orm": "catalog:"
+  },
+  "private": true,
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write .",
+    "pretty:check": "prettier --check .",
+    "test:unit": "nx vitest:test -- --project unit --run",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0"
+  },
+  "version": "1.0.0"
+}

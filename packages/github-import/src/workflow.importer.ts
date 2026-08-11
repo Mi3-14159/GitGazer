@@ -1,4 +1,4 @@
-import {upsertEnterprises, upsertOrganizations, upsertRepositories, upsertUsers} from '@/domains/webhooks/importers/shared';
+import {upsertEnterprises, upsertOrganizations, upsertRepositories, upsertUsers} from './shared';
 import {RdsTransaction} from '@gitgazer/db/client';
 import {EnterpriseSelect, OrganizationSelect, RepositorySelect, UserSelect, WorkflowJobEvent, WorkflowRunEvent} from '@gitgazer/db/types';
 import {isEnterprise} from './types';

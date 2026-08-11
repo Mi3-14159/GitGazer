@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "@gitgazer/backend-core": "workspace:*",
+    "@gitgazer/db": "workspace:*",
+    "@octokit/webhooks": "catalog:",
+    "@octokit/webhooks-types": "catalog:"
+  },
+  "name": "@gitgazer/github-import",
+  "peerDependencies": {
+    "drizzle-orm": "catalog:"
+  },
+  "private": true,
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "pretty": "prettier --write .",
+    "pretty:check": "prettier --check .",
+    "test:unit": "nx vitest:test -- --project unit --run",
+    "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0"
+  },
+  "version": "1.0.0"
+}

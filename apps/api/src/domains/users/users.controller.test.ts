@@ -2,7 +2,7 @@ import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lamb
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockProxyFetch = vi.fn();
-vi.mock('@/shared/clients/proxy-fetch', () => ({
+vi.mock('@gitgazer/backend-core/clients/proxy-fetch', () => ({
     proxyFetch: (...args: any[]) => mockProxyFetch(...args),
 }));
 
@@ -18,13 +18,13 @@ const defaultConfigGet = (key: string): string => {
     }
 };
 const mockConfigGet = vi.fn(defaultConfigGet);
-vi.mock('@/shared/config', () => ({
+vi.mock('@gitgazer/backend-core/config', () => ({
     default: {
         get: (key: string): string => mockConfigGet(key),
     },
 }));
 
-vi.mock('@/shared/logger', () => ({
+vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: vi.fn(), info: vi.fn(), warn: vi.fn()}),
 }));
 

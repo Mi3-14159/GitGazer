@@ -13,7 +13,7 @@
  * each lookup only sees rows belonging to the task's integration.
  */
 
-import {getLogger} from '@/shared/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {organizations, repositories, user} from '@gitgazer/db/schema';
 import {and, eq} from 'drizzle-orm';

@@ -1,4 +1,4 @@
-import {ProxyRequest, ProxyResponse} from '@/shared/clients/proxy.types';
+import {ProxyRequest, ProxyResponse} from '@gitgazer/backend-core/clients/proxy.types';
 
 const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com', 'slack.com', 'api.slack.com']);
 
