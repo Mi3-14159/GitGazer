@@ -49,7 +49,7 @@ jobs:
                   fetch-depth: 0
                   filter: tree:0
 
-            - uses: pnpm/action-setup@v6.0.9
+            - uses: pnpm/action-setup@v2
               with:
                   run_install: false
 
