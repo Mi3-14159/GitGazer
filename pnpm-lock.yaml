@@ -408,9 +408,6 @@ importers:
       '@gitgazer/db':
         specifier: workspace:*
         version: link:../../../packages/db
-      '@gitgazer/github-import':
-        specifier: workspace:*
-        version: link:../../../packages/github-import
     devDependencies:
       '@aws-lambda-powertools/event-handler':
         specifier: 'catalog:'

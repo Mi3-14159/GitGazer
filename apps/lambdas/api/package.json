@@ -6,8 +6,7 @@
   "dependencies": {
     "@gitgazer/backend-core": "workspace:*",
     "@gitgazer/backend-services": "workspace:*",
-    "@gitgazer/db": "workspace:*",
-    "@gitgazer/github-import": "workspace:*"
+    "@gitgazer/db": "workspace:*"
   },
   "description": "REST API lambda",
   "devDependencies": {
