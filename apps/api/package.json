@@ -51,16 +51,26 @@
       "@gitgazer/db"
     ],
     "targets": {
-      "buildZip": {
-        "cache": true,
-        "inputs": [
-          "production",
-          "^production"
-        ],
+      "build": {
         "outputs": [
-          "{projectRoot}/dist",
-          "{projectRoot}/tmp"
+          "{projectRoot}/dist"
         ]
+      },
+      "deploy": {
+        "executor": "nx:run-commands",
+        "metadata": {
+          "description": "Lambdas resolve code from versioned S3 objects, so uploaded zips only go live after the apply."
+        },
+        "options": {
+          "cwd": "{projectRoot}",
+          "parallel": false,
+          "commands": [
+            "aws s3 sync dist/ \"s3://${S3_BUCKET_LAMBDA_STORE:?required}/\"",
+            "terraform -chdir=../../infra init -input=false",
+            "terraform -chdir=../../infra plan -input=false -out=tfplan",
+            "terraform -chdir=../../infra apply -input=false tfplan"
+          ]
+        }
       }
     }
   },
@@ -69,8 +79,7 @@
     "url": "git+https://github.com/Mi3-14159/GitGazer.git"
   },
   "scripts": {
-    "build": "pnpm run clean && tsup",
-    "buildZip": "pnpm run build && pnpm run zip -- api && pnpm run zip -- websocket && pnpm run zip -- worker && pnpm run zip -- org-sync-scheduler && pnpm run zip -- backfill-worker && pnpm run zip -- http-proxy",
+    "build": "pnpm run clean && tsup && pnpm run zip",
     "clean": "rimraf dist tmp",
     "db:migrate:manual": "node --env-file=.env -r ts-node/register src/scripts/run-drizzle-migrations.ts",
     "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
@@ -82,7 +91,7 @@
     "pretty:check": "prettier --check src",
     "test:unit": "nx vitest:test -- --project unit --run",
     "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0",
-    "zip": "f() { [ \"$1\" = \"--\" ] && shift; cd dist/$1 && zip gitgazer-$1.zip -qr * && mkdir -p ../../tmp && mv gitgazer-$1.zip ../../tmp/; }; f"
+    "zip": "mkdir -p dist && for d in tmp/*/; do n=$(basename \"$d\"); (cd \"$d\" && zip -qr \"../../dist/gitgazer-$n.zip\" *) || exit 1; done"
   },
   "version": "1.0.0"
 }

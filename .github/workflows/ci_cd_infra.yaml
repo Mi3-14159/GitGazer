@@ -17,21 +17,22 @@ on:
                 required: false
                 type: boolean
                 default: false
-    workflow_call:
-        inputs:
-            deploy:
-                description: Deploy to AWS
-                required: false
-                type: boolean
-                default: false
+
+# Shared with ci_cd so two terraform applies can never race for the state lock.
+concurrency:
+    group: gitgazer-${{ github.ref }}
+    cancel-in-progress: false
 
 jobs:
-    build:
-        name: Build
+    terraform:
+        name: Terraform
         runs-on: ubuntu-latest
         defaults:
             run:
                 working-directory: ./infra
+        environment:
+            name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'app.gitgazer.com' || null }}
+            url: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'https://app.gitgazer.com/' || null }}
         permissions:
             contents: read
             id-token: write
@@ -68,37 +69,27 @@ jobs:
                   terraform_version: ${{ steps.terraform-version.outputs.version }}
 
             - name: Terraform fmt
-              working-directory: infra
               run: terraform fmt -check -diff
 
             - name: Create terraform backend file
-              working-directory: infra
               run: echo '${{ secrets.TERRAFORM_BACKEND }}' > backend.tf
 
             - name: Terraform init
-              working-directory: infra
               run: |
                   export TF_PLUGIN_CACHE_DIR="${HOME}/.terraform.d/plugin-cache"
                   terraform init
 
             - name: Create tfvars file
-              working-directory: infra
               run: echo '${{ secrets.TERRAFORM_TF_VARS }}' > terraform.tfvars
 
             - name: Terraform validate
-              working-directory: infra
               run: terraform validate
 
             - name: Terraform plan
-              working-directory: infra
               run: terraform plan -lock=false
 
-    deploy:
-        name: Deploy to AWS
-        needs: build
-        if: github.ref == 'refs/heads/main' || inputs.deploy == true
-        uses: ./.github/workflows/deploy_infra.yaml
-        permissions:
-            contents: read
-            id-token: write
-        secrets: inherit
+            - name: Terraform apply
+              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+              run: |
+                  terraform plan -input=false -out=tfplan
+                  terraform apply -input=false tfplan

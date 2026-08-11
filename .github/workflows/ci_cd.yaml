@@ -12,17 +12,36 @@ on:
                 type: boolean
                 default: false
 
+# Shared with ci_cd_infra so two terraform applies can never race for the state lock.
+concurrency:
+    group: gitgazer-${{ github.ref }}
+    cancel-in-progress: false
+
 jobs:
-    affected:
-        name: Affected check
+    ci-cd:
+        name: Build & deploy
         runs-on: ubuntu-latest
         permissions:
             contents: read
             actions: read
-        outputs:
-            api: ${{ steps.affected.outputs.api }}
-            web: ${{ steps.affected.outputs.web }}
-            docs: ${{ steps.affected.outputs.docs }}
+            id-token: write
+        environment:
+            name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'app.gitgazer.com' || null }}
+            url: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true') && 'https://app.gitgazer.com/' || null }}
+        env:
+            VITE_HOST_URL: ${{ vars.VITE_HOST_URL }}
+            VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
+            VITE_COGNITO_USER_POOL_CLIENT_ID: ${{ vars.VITE_COGNITO_USER_POOL_CLIENT_ID }}
+            VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
+            VITE_COGNITO_IDENTITY_POOL_ID: ${{ vars.VITE_COGNITO_IDENTITY_POOL_ID }}
+            VITE_IMPORT_URL_BASE: ${{ vars.VITE_IMPORT_URL_BASE }}
+            VITE_REST_API_REGION: ${{ vars.REST_API_REGION }}
+            VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
+            VITE_WEBSOCKET_API_ENDPOINT: ${{ vars.VITE_WEBSOCKET_API_ENDPOINT }}
+            VITE_WEBSOCKET_API_REGION: ${{ vars.VITE_WEBSOCKET_API_REGION }}
+            S3_BUCKET_LAMBDA_STORE: ${{ secrets.S3_BUCKET_LAMBDA_STORE }}
+            FRONTEND_S3_BUCKET_NAME: ${{ vars.FRONTEND_S3_BUCKET_NAME }}
+            DOCS_S3_BUCKET: ${{ vars.DOCS_S3_BUCKET }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v7.0.1
@@ -36,7 +55,7 @@ jobs:
 
             - uses: actions/setup-node@v7.0.0
               with:
-                  node-version-file: ./apps/api/package.json
+                  node-version-file: .tool-versions
                   cache: "pnpm"
                   cache-dependency-path: pnpm-lock.yaml
 
@@ -46,72 +65,39 @@ jobs:
             - name: Derive affected SHAs
               uses: nrwl/nx-set-shas@v5.0.1
 
-            - name: Compute affected projects
-              id: affected
+            - name: Checks
+              run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run
+
+            - name: Build
+              run: pnpm nx affected --nxBail -t build
+
+            - name: Get Terraform version from .tool-versions
+              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+              id: terraform-version
+              run: echo "version=$(grep '^terraform ' .tool-versions | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+            - uses: hashicorp/setup-terraform@v4
+              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+              with:
+                  terraform_wrapper: false
+                  terraform_version: ${{ steps.terraform-version.outputs.version }}
+
+            - name: Configure AWS credentials
+              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+              uses: aws-actions/configure-aws-credentials@v6.2.3
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+                  role-session-name: gitgazer-deployment
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+                  mask-aws-account-id: true
+                  role-duration-seconds: 3600
+
+            - name: Create Terraform config files
+              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
               run: |
-                  affected="$(pnpm exec nx show projects --affected)"
-                  echo "Affected projects:"
-                  echo "${affected}"
-                  is_affected() { echo "${affected}" | grep -qx "$1" && echo true || echo false; }
-                  {
-                      echo "api=$(is_affected '@gitgazer/lambdas')"
-                      echo "web=$(is_affected '@gitgazer/web')"
-                      echo "docs=$(is_affected '@gitgazer/docs')"
-                  } >> "$GITHUB_OUTPUT"
+                  echo '${{ secrets.TERRAFORM_BACKEND }}' > infra/backend.tf
+                  echo '${{ secrets.TERRAFORM_TF_VARS }}' > infra/terraform.tfvars
 
-    api:
-        needs: affected
-        if: ${{ needs.affected.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
-        permissions:
-            contents: read
-            id-token: write
-        uses: ./.github/workflows/app-api.yaml
-        with:
-            deploy: ${{ github.event.inputs.deploy == 'true' }}
-        secrets: inherit
-
-    web:
-        name: web
-        needs: affected
-        if: ${{ needs.affected.outputs.web == 'true' || github.event_name == 'workflow_dispatch' }}
-        permissions:
-            contents: read
-            id-token: write
-        uses: ./.github/workflows/app-web.yaml
-        with:
-            deploy: ${{ github.event.inputs.deploy == 'true' }}
-        secrets: inherit
-
-    docs:
-        name: docs
-        needs: affected
-        if: ${{ needs.affected.outputs.docs == 'true' || github.event_name == 'workflow_dispatch' }}
-        permissions:
-            contents: read
-            id-token: write
-        uses: ./.github/workflows/app-docs.yaml
-        with:
-            deploy: ${{ github.event.inputs.deploy == 'true' }}
-        secrets: inherit
-
-    ci-success:
-        name: CI success
-        needs:
-            - affected
-            - api
-            - web
-            - docs
-        if: ${{ !cancelled() }}
-        runs-on: ubuntu-latest
-        steps:
-            - name: Verify no required job failed
-              run: |
-                  results='${{ join(needs.*.result, ',') }}'
-                  echo "Job results: ${results}"
-                  case "${results}" in
-                      *failure*|*cancelled*)
-                          echo "::error::A required job failed or was cancelled"
-                          exit 1
-                          ;;
-                  esac
-                  echo "All required jobs passed or were skipped."
+            - name: Deploy
+              if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+              run: pnpm nx affected --nxBail -t deploy

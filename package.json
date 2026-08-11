@@ -23,7 +23,8 @@
   "scripts": {
     "db:tunnel": "./scripts/db-tunnel.sh",
     "pretty": "prettier --write .",
-    "affected": "nx affected --target=build"
+    "build": "nx run-many -t build",
+    "deploy": "nx run-many -t deploy"
   },
   "type": "module"
 }

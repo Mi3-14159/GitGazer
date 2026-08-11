@@ -99,12 +99,29 @@ If module-specific instructions conflict with this file, module instructions tak
 
 ## Common Commands
 
+### Build & deploy (all apps)
+
+Every app (`apps/api`, `apps/web`, `apps/docs`) exposes the same two Nx targets: `build` writes an
+uploadable artifact to `apps/<app>/dist`, and `deploy` ships it to AWS. Each project owns its own
+`deploy` definition in the `nx.targets` block of its `package.json` — there is no shared deploy script.
+[.github/workflows/ci_cd.yaml](.github/workflows/ci_cd.yaml) is a single job that runs exactly this for
+the affected projects.
+
+```bash
+pnpm nx affected -t build deploy   # what CI runs
+pnpm run build                     # nx run-many -t build
+pnpm run deploy                    # nx run-many -t deploy (requires AWS creds + bucket env vars)
+```
+
+The bucket names come from the environment: `S3_BUCKET_LAMBDA_STORE` (api), `FRONTEND_S3_BUCKET_NAME`
+(web), `DOCS_S3_BUCKET` (docs). A missing one fails the target immediately.
+
 ### Backend (`apps/api/`)
 
 ```bash
 pnpm run dev:api          # Local dev server (port 8080, requires AWS creds)
 pnpm run test:unit        # Run Vitest unit tests
-pnpm run buildZip         # Build + package Lambda zips to tmp/
+pnpm run build            # Bundle handlers + package Lambda zips into dist/
 pnpm run lint             # ESLint check
 ```
 

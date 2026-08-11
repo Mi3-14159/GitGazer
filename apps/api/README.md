@@ -34,7 +34,8 @@ npm run test:unit
 
 ```bash
 # Build and package Lambda functions for deployment
-npm run buildZip         # Creates tmp/gitgazer-api.zip and tmp/gitgazer-websocket.zip
+npm run build            # Creates dist/gitgazer-<handler>.zip for every handler
+nx run @gitgazer/lambdas:deploy   # Syncs dist/ to $S3_BUCKET_LAMBDA_STORE, then terraform apply
 
 # Local development
 npm run dev:api              # Runs on port 8080 with hot reload

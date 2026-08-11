@@ -127,9 +127,7 @@ GitGazer uses AWS serverless architecture with the following components:
     ```bash
     cd ../apps/api
     pnpm install
-    pnpm run buildZip
-    aws s3 cp ./tmp/gitgazer-api.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-api.zip
-    aws s3 cp ./tmp/gitgazer-websocket.zip s3://<S3_BUCKET_LAMBDA_STORE>/gitgazer-websocket.zip
+    S3_BUCKET_LAMBDA_STORE=<S3_BUCKET_LAMBDA_STORE> pnpm nx run @gitgazer/lambdas:deploy
     ```
 
 3. Apply remaining infrastructure:

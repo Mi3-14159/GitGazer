@@ -18,7 +18,7 @@ pnpm install
 pnpm run test:unit
 
 # Build and package all Lambda functions
-pnpm run buildZip  # Builds API + WebSocket Lambdas, outputs to tmp/
+pnpm run build  # tsup bundles into tmp/, zips land in dist/
 
 # Local development (requires AWS credentials)
 pnpm run dev:api
@@ -125,10 +125,9 @@ pnpm run pretty
 
 ### Lambda Packaging
 
-- Build artifacts go to `dist/` directory
+- `pnpm run build` bundles each handler into `tmp/<handler>/` and zips it to `dist/gitgazer-<handler>.zip`
 - tsup bundles all dependencies into a single file (except `@aws-sdk/*`, provided by Lambda runtime)
-- Zip files created in `tmp/` directory via `pnpm run buildZip`
-- Upload to S3 bucket specified in infrastructure
+- The `deploy` target (defined in `package.json` under `nx.targets`) syncs `dist/` to `S3_BUCKET_LAMBDA_STORE`, then runs `terraform apply`
 
 ### Lambda Functions
 

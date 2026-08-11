@@ -19,41 +19,42 @@ const shared: Options = {
     },
 };
 
+// Bundles land in tmp/<handler>; the zip step packages them into dist/, which is the uploadable artifact.
 export default defineConfig([
     {
         name: 'api',
         ...shared,
         entry: {index: 'src/handlers/api.ts'},
-        outDir: 'dist/api',
+        outDir: 'tmp/api',
     },
     {
         name: 'websocket',
         ...shared,
         entry: {index: 'src/handlers/websocket.ts'},
-        outDir: 'dist/websocket',
+        outDir: 'tmp/websocket',
     },
     {
         name: 'worker',
         ...shared,
         entry: {index: 'src/handlers/worker.ts'},
-        outDir: 'dist/worker',
+        outDir: 'tmp/worker',
     },
     {
         name: 'org-sync-scheduler',
         ...shared,
         entry: {index: 'src/handlers/org-sync-scheduler.ts'},
-        outDir: 'dist/org-sync-scheduler',
+        outDir: 'tmp/org-sync-scheduler',
     },
     {
         name: 'backfill-worker',
         ...shared,
         entry: {index: 'src/handlers/backfill-worker.ts'},
-        outDir: 'dist/backfill-worker',
+        outDir: 'tmp/backfill-worker',
     },
     {
         name: 'http-proxy',
         ...shared,
         entry: {index: 'src/handlers/http-proxy.ts'},
-        outDir: 'dist/http-proxy',
+        outDir: 'tmp/http-proxy',
     },
 ]);

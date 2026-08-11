@@ -46,7 +46,20 @@
   "nx": {
     "implicitDependencies": [
       "@gitgazer/db"
-    ]
+    ],
+    "targets": {
+      "deploy": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "{projectRoot}",
+          "parallel": false,
+          "commands": [
+            "aws s3 sync dist/ \"s3://${FRONTEND_S3_BUCKET_NAME:?required}/\" --cache-control max-age=604800 --exclude '*.html'",
+            "aws s3 sync dist/ \"s3://${FRONTEND_S3_BUCKET_NAME:?required}/\" --cache-control max-age=60 --exclude '*' --include '*.html'"
+          ]
+        }
+      }
+    }
   },
   "scripts": {
     "build": "vue-tsc --noEmit && nx vite:build",

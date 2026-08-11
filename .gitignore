@@ -4,6 +4,7 @@ backend.tf
 terraform.tfvars
 .terraform.lock.hcl
 tmp.tf
+tfplan
 
 # NodeJS
 node_modules/
