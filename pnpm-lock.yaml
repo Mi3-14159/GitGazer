@@ -509,6 +509,37 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  apps/lambdas/backfill-worker:
+    dependencies:
+      '@gitgazer/backend-core':
+        specifier: workspace:*
+        version: link:../../../packages/backend-core
+      '@gitgazer/db':
+        specifier: workspace:*
+        version: link:../../../packages/db
+      '@gitgazer/github-import':
+        specifier: workspace:*
+        version: link:../../../packages/github-import
+    devDependencies:
+      '@aws-sdk/client-sqs':
+        specifier: 'catalog:'
+        version: 3.1106.0
+      '@octokit/webhooks-types':
+        specifier: 'catalog:'
+        version: 7.6.1
+      '@types/aws-lambda':
+        specifier: 'catalog:'
+        version: 8.10.162
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1106.0)(@types/pg@8.21.0)(pg@8.22.0)
+      ts-node:
+        specifier: 'catalog:'
+        version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.2.0)(typescript@6.0.3)
+      tsconfig-paths:
+        specifier: 'catalog:'
+        version: 4.2.0
+
   apps/lambdas/http-proxy:
     dependencies:
       '@gitgazer/backend-core':
@@ -543,6 +574,37 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1106.0)(@types/pg@8.21.0)(pg@8.22.0)
+
+  apps/lambdas/worker:
+    dependencies:
+      '@gitgazer/backend-core':
+        specifier: workspace:*
+        version: link:../../../packages/backend-core
+      '@gitgazer/backend-services':
+        specifier: workspace:*
+        version: link:../../../packages/backend-services
+      '@gitgazer/db':
+        specifier: workspace:*
+        version: link:../../../packages/db
+      '@gitgazer/github-import':
+        specifier: workspace:*
+        version: link:../../../packages/github-import
+    devDependencies:
+      '@aws-sdk/client-sqs':
+        specifier: 'catalog:'
+        version: 3.1106.0
+      '@octokit/webhooks':
+        specifier: 'catalog:'
+        version: 14.2.0
+      '@types/aws-lambda':
+        specifier: 'catalog:'
+        version: 8.10.162
+      ts-node:
+        specifier: 'catalog:'
+        version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.2.0)(typescript@6.0.3)
+      tsconfig-paths:
+        specifier: 'catalog:'
+        version: 4.2.0
 
   apps/web:
     dependencies:

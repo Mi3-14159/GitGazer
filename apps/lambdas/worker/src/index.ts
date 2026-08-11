@@ -1,4 +1,4 @@
-import {processRecord} from '@/domains/webhooks/worker/batch-processor';
+import {processRecord} from './batch-processor';
 import '@gitgazer/backend-core/bootstrap';
 import {loadConfig} from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';

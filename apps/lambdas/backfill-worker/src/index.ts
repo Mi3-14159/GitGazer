@@ -1,7 +1,7 @@
-import {GitHubApiError} from '@/domains/backfill/github';
-import {sendBackfillTasks} from '@/domains/backfill/queue';
-import {routeTask} from '@/domains/backfill/router';
-import {parseInitialTask, parseTask} from '@/domains/backfill/tasks';
+import {GitHubApiError} from './github';
+import {sendBackfillTasks} from './queue';
+import {routeTask} from './router';
+import {parseInitialTask, parseTask} from './tasks';
 import '@gitgazer/backend-core/bootstrap';
 import {changeMessageVisibility} from '@gitgazer/backend-core/clients/sqs.client';
 import config, {loadConfig} from '@gitgazer/backend-core/config';

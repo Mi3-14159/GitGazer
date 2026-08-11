@@ -1,7 +1,7 @@
 import type {SQSEvent} from 'aws-lambda';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {GitHubApiError} from '@/domains/backfill/github';
+import {GitHubApiError} from './github';
 
 const mockRouteTask = vi.fn();
 const mockSendBackfillTasks = vi.fn();
@@ -9,15 +9,15 @@ const mockParseTask = vi.fn();
 const mockParseInitialTask = vi.fn();
 const mockChangeMessageVisibility = vi.fn();
 
-vi.mock('@/domains/backfill/router', () => ({
+vi.mock('./router', () => ({
     routeTask: (...args: any[]) => mockRouteTask(...args),
 }));
 
-vi.mock('@/domains/backfill/queue', () => ({
+vi.mock('./queue', () => ({
     sendBackfillTasks: (...args: any[]) => mockSendBackfillTasks(...args),
 }));
 
-vi.mock('@/domains/backfill/tasks', () => ({
+vi.mock('./tasks', () => ({
     parseTask: (...args: any[]) => mockParseTask(...args),
     parseInitialTask: (...args: any[]) => mockParseInitialTask(...args),
 }));
@@ -35,7 +35,7 @@ vi.mock('@gitgazer/db/client', () => ({
     initDb: vi.fn(),
 }));
 
-let handlerModule: typeof import('./backfill-worker');
+let handlerModule: typeof import('./index');
 
 const sqsEvent = (bodies: {body: string; messageId: string}[]): SQSEvent =>
     ({Records: bodies.map((b) => ({body: b.body, messageId: b.messageId}))}) as unknown as SQSEvent;
@@ -44,7 +44,7 @@ describe('backfill-worker handler', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockSendBackfillTasks.mockResolvedValue(undefined);
-        handlerModule = await import('./backfill-worker');
+        handlerModule = await import('./index');
     });
 
     it('seeds the queue on direct invoke', async () => {

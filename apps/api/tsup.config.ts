@@ -30,16 +30,4 @@ export default defineConfig([
         entry: {index: 'src/handlers/api.ts'},
         outDir: 'tmp/api',
     },
-    {
-        name: 'worker',
-        ...shared,
-        entry: {index: 'src/handlers/worker.ts'},
-        outDir: 'tmp/worker',
-    },
-    {
-        name: 'backfill-worker',
-        ...shared,
-        entry: {index: 'src/handlers/backfill-worker.ts'},
-        outDir: 'tmp/backfill-worker',
-    },
 ]);

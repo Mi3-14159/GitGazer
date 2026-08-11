@@ -34,7 +34,7 @@
  *   # Replay a message body from a file (e.g. one dumped from CloudWatch)
  *   pnpm run dev:worker -- --file ./tmp/failed-message.json
  */
-import {handler} from '@/handlers/worker';
+import {handler} from '../index';
 import '@gitgazer/backend-core/bootstrap';
 import {ReceiveMessageCommand, SQSClient} from '@aws-sdk/client-sqs';
 import type {SQSEvent, SQSRecord} from 'aws-lambda';
