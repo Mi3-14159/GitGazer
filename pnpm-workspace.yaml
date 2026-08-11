@@ -74,7 +74,7 @@ catalog:
   'eslint-plugin-vue': '^10.10.0'
   'grid-layout-plus': '^1.1.1'
   'happy-dom': '^20.11.1'
-  'jiti': '2.4.2'
+  'jiti': '2.7.0'
   'lucide-vue-next': '^1.0.0'
   'nx': '23.1.1'
   'papaparse': '^5.5.4'
