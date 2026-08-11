@@ -45,8 +45,10 @@ updates:
           prefix: 'chore'
           include: 'scope'
       groups:
-          npm-dependencies:
-              patterns: ['*']
+          prod-dependencies:
+              dependency-type: 'production'
               update-types: ['minor', 'patch']
+          dev-dependencies:
+              dependency-type: 'development'
       cooldown:
           default-days: 10
