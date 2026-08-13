@@ -39,7 +39,7 @@ jobs:
           # Keep credentials out of .git/config while PR-authored code is resolved below.
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v6.0.9
+      - uses: pnpm/action-setup@v6.0.10
         if: steps.dependabot-metadata.outputs.package-ecosystem == 'npm_and_yarn'
         with:
           run_install: false
