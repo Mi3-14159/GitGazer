@@ -3,9 +3,6 @@ packages:
   - 'apps/lambdas/*'
   - 'packages/*'
 
-overrides:
-  'fast-xml-parser': '>=5.3.8'
-
 catalog:
   '@aws-lambda-powertools/event-handler': '^2.34.0'
   '@aws-lambda-powertools/jmespath': '^2.34.0'
