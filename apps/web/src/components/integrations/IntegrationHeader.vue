@@ -3,7 +3,7 @@
     import Input from '@/components/ui/Input.vue';
     import {formatTimeSince} from '@/utils/formatDate';
     import type {IntegrationWithRole} from '@common/types';
-    import {Activity, LogOut, Trash2, Users} from 'lucide-vue-next';
+    import {Activity, LogOut, Trash2, Users} from '@lucide/vue';
     import {nextTick, ref} from 'vue';
     import {useRouter} from 'vue-router';
 

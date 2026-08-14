@@ -12,7 +12,7 @@
     import {useMembers} from '@/composables/useMembers';
     import type {Invitation, TeamMember, UserInviteFormData, UserRole} from '@/types/user';
     import {hasRole, type MemberRole} from '@common/types';
-    import {ArrowLeft, Clock, Loader2, Search, UserPlus, Users} from 'lucide-vue-next';
+    import {ArrowLeft, Clock, Loader2, Search, UserPlus, Users} from '@lucide/vue';
     import {computed, onMounted, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 

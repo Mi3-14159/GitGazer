@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import type {TourStep} from '@/components/tour/tourSteps';
     import Button from '@/components/ui/Button.vue';
-    import {Lightbulb} from 'lucide-vue-next';
+    import {Lightbulb} from '@lucide/vue';
     import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 
     const props = defineProps<{

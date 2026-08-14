@@ -1,4 +1,4 @@
-import {Activity, BellRing, Bot, Compass, LayoutDashboard, PartyPopper, PlayCircle, Sparkles, Webhook} from 'lucide-vue-next';
+import {Activity, BellRing, Bot, Compass, LayoutDashboard, PartyPopper, PlayCircle, Sparkles, Webhook} from '@lucide/vue';
 import type {Component} from 'vue';
 
 export interface TourStep {

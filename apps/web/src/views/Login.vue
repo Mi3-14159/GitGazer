@@ -4,7 +4,7 @@
     import Button from '@/components/ui/Button.vue';
     import Card from '@/components/ui/Card.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {BarChart3, BellRing, LayoutDashboard, Webhook} from 'lucide-vue-next';
+    import {BarChart3, BellRing, LayoutDashboard, Webhook} from '@lucide/vue';
     import {onMounted} from 'vue';
     import {useRouter} from 'vue-router';
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import FilterBoolean from '@/components/ui/FilterBoolean.vue';
-    import {GitBranch} from 'lucide-vue-next';
+    import {GitBranch} from '@lucide/vue';
 
     const model = defineModel<boolean>({required: true});
 </script>

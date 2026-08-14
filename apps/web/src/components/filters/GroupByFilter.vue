@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import type {GroupByOption} from '@common/types';
-    import {Layers} from 'lucide-vue-next';
+    import {Layers} from '@lucide/vue';
     import {computed} from 'vue';
 
     const groupBy = defineModel<GroupByOption>({required: true});

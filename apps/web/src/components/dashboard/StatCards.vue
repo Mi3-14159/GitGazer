@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import Card from '@/components/ui/Card.vue';
     import type {OverviewResponse} from '@common/types';
-    import {Activity, CheckCircle2, Clock, XCircle} from 'lucide-vue-next';
+    import {Activity, CheckCircle2, Clock, XCircle} from '@lucide/vue';
     import {computed} from 'vue';
 
     const props = defineProps<{

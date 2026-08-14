@@ -5,7 +5,7 @@
     import Card from '@/components/ui/Card.vue';
     import {useAuth} from '@/composables/useAuth';
     import {useMembers} from '@/composables/useMembers';
-    import {AlertCircle, CheckCircle2, Loader2, LogIn} from 'lucide-vue-next';
+    import {AlertCircle, CheckCircle2, Loader2, LogIn} from '@lucide/vue';
     import {onMounted, ref} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 

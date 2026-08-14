@@ -6,7 +6,7 @@
     import {useMcp} from '@/composables/useMcp';
     import {useTour} from '@/composables/useTour';
     import type {UserAttributes} from '@common/types';
-    import {BookOpen, CircleHelp, Keyboard, LogOut, Play, RotateCcw, Sparkles} from 'lucide-vue-next';
+    import {BookOpen, CircleHelp, Keyboard, LogOut, Play, RotateCcw, Sparkles} from '@lucide/vue';
     import {DropdownMenuItem} from 'radix-vue';
     import {onMounted, ref} from 'vue';
 

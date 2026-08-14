@@ -66,7 +66,7 @@ pnpm run pretty
 - Always use TypeScript for better type safety
 - Use UI primitives from `src/components/ui/` (Button, Input, Card, Dialog, etc.)
 - Use Tailwind CSS utility classes for styling
-- Use Lucide Vue Next icons: `import { HomeIcon } from 'lucide-vue-next'`
+- Use Lucide icons: `import { HomeIcon } from '@lucide/vue'`
 
 Example:
 
@@ -175,8 +175,9 @@ Get these values from Terraform outputs after infrastructure deployment.
 
 ### Icons
 
-- Lucide Vue Next for icons
-- Import icons as individual components: `import { HomeIcon, BellIcon } from 'lucide-vue-next'`
+- Lucide for icons
+- Import icons as individual components: `import { HomeIcon, BellIcon } from '@lucide/vue'`
+- Brand marks (e.g. GitHub) are not in Lucide — use the local components in `src/components/icons/`
 - Example: `<HomeIcon class="size-4" />`
 
 ## Development Workflow

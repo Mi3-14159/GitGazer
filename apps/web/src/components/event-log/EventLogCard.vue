@@ -5,7 +5,7 @@
     import Checkbox from '@/components/ui/Checkbox.vue';
     import {formatTimeSince} from '@/utils/formatDate';
     import type {EventLogEntryRow, EventLogType} from '@common/types';
-    import {AlertTriangle, Bell, CheckCircle2, ExternalLink, XCircle} from 'lucide-vue-next';
+    import {AlertTriangle, Bell, CheckCircle2, ExternalLink, XCircle} from '@lucide/vue';
     import {computed} from 'vue';
 
     const props = defineProps<{

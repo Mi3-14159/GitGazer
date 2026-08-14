@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
     import {useMcp} from '@/composables/useMcp';
-    import {Sparkles, X} from 'lucide-vue-next';
+    import {Sparkles, X} from '@lucide/vue';
     import {onMounted} from 'vue';
 
     const props = withDefaults(

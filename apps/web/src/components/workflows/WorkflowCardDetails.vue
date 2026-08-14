@@ -9,8 +9,8 @@
     import StatusBadge from '@/components/ui/StatusBadge.vue';
     import {formatDuration} from '@/utils/status';
     import {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
+    import {ExternalLink, GitBranch, GitCommit, Server, User} from '@lucide/vue';
     import {formatDistanceToNow} from 'date-fns';
-    import {ExternalLink, GitBranch, GitCommit, Server, User} from 'lucide-vue-next';
     import {computed} from 'vue';
 
     const props = defineProps<{

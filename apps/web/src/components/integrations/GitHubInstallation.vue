@@ -1,7 +1,8 @@
 <script setup lang="ts">
+    import GitHubIcon from '@/components/icons/GitHubIcon.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
-    import {Github, Unlink} from 'lucide-vue-next';
+    import {Unlink} from '@lucide/vue';
 
     defineProps<{
         installation: any;
@@ -36,7 +37,7 @@
     <div class="space-y-2">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Github class="h-3 w-3" />
+                <GitHubIcon class="h-3 w-3" />
                 GitHub App: {{ installation.accountLogin }}
             </div>
             <Button

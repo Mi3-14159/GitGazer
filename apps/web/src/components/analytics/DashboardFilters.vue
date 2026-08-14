@@ -6,7 +6,7 @@
     import TopicFilter from '@/components/filters/TopicFilter.vue';
     import UsersOnlyFilter from '@/components/filters/UsersOnlyFilter.vue';
     import type {GroupByOption} from '@common/types';
-    import {ChevronDown, SlidersHorizontal} from 'lucide-vue-next';
+    import {ChevronDown, SlidersHorizontal} from '@lucide/vue';
     import {computed, ref} from 'vue';
 
     const integrationIds = defineModel<string[]>('integrationIds', {required: true});

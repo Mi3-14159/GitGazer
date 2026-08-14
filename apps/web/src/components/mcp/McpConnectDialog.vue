@@ -8,7 +8,7 @@
     import TabsTrigger from '@/components/ui/TabsTrigger.vue';
     import {useMcp} from '@/composables/useMcp';
     import {copyToClipboard} from '@/utils/clipboard';
-    import {BookOpen, Check, Copy, ShieldCheck, Sparkles} from 'lucide-vue-next';
+    import {BookOpen, Check, Copy, ShieldCheck, Sparkles} from '@lucide/vue';
     import {onUnmounted, ref} from 'vue';
 
     const {mcpUrl, mcpClients, mcpExampleQuestions, docsUrl, isConnectDialogOpen} = useMcp();

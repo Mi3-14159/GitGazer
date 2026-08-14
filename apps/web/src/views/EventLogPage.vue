@@ -21,7 +21,7 @@
         EventLogType,
     } from '@common/types';
     import {isEventLogEntry, isEventLogStats} from '@common/types';
-    import {Bell, CheckCheck, Loader2, ScrollText} from 'lucide-vue-next';
+    import {Bell, CheckCheck, Loader2, ScrollText} from '@lucide/vue';
     import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 
     const PAGE_SIZE = 50;

@@ -9,7 +9,7 @@
     import {formatDate} from '@/utils/formatDate';
     import type {IntegrationWithRole, MemberRole, OrgSyncDefaultRole} from '@common/types';
     import {hasRole} from '@common/types';
-    import {Calendar} from 'lucide-vue-next';
+    import {Calendar} from '@lucide/vue';
 
     const props = defineProps<{
         integration: IntegrationWithRole;

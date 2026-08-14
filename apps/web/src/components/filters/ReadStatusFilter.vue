@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {EVENT_LOG_READ_VALUES} from '@common/types';
-    import {Eye} from 'lucide-vue-next';
+    import {Eye} from '@lucide/vue';
 
     const selectedStatuses = defineModel<string[]>({required: true});
 

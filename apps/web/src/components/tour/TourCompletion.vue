@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
-    import {PartyPopper} from 'lucide-vue-next';
+    import {PartyPopper} from '@lucide/vue';
     import {onMounted, ref} from 'vue';
 
     const emit = defineEmits<{

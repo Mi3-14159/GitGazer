@@ -4,7 +4,7 @@
     import Popover from '@/components/ui/Popover.vue';
     import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
     import {useFilterValues} from '@/composables/useFilterValues';
-    import {Filter} from 'lucide-vue-next';
+    import {Filter} from '@lucide/vue';
     import {computed, onUnmounted, ref, toRef} from 'vue';
 
     const props = defineProps<{

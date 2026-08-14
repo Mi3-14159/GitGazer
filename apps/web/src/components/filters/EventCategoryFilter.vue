@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {EVENT_LOG_CATEGORIES} from '@common/types';
-    import {Layers} from 'lucide-vue-next';
+    import {Layers} from '@lucide/vue';
 
     const selectedCategories = defineModel<string[]>({required: true});
 

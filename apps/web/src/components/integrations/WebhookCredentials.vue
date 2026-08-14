@@ -2,7 +2,7 @@
     import Button from '@/components/ui/Button.vue';
     import Input from '@/components/ui/Input.vue';
     import {copyToClipboard} from '@/utils/clipboard';
-    import {Copy, Eye, EyeOff, Key, RefreshCw, Webhook} from 'lucide-vue-next';
+    import {Copy, Eye, EyeOff, Key, RefreshCw, Webhook} from '@lucide/vue';
     import {ref} from 'vue';
 
     defineProps<{

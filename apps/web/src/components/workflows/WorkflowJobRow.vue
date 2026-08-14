@@ -3,8 +3,8 @@
     import type {ColumnConfig} from '@/types/table';
     import {formatDuration} from '@/utils/status';
     import type {WorkflowJob} from '@common/types';
+    import {Server} from '@lucide/vue';
     import {formatDistanceToNow} from 'date-fns';
-    import {Server} from 'lucide-vue-next';
 
     defineProps<{
         job: WorkflowJob;

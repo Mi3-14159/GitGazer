@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import type {EventLogStats} from '@common/types';
-    import {Bell, BookCheck, BookOpen} from 'lucide-vue-next';
+    import {Bell, BookCheck, BookOpen} from '@lucide/vue';
 
     defineProps<{
         stats: EventLogStats;

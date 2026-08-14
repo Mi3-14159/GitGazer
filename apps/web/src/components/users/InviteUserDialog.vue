@@ -9,7 +9,7 @@
     import Label from '@/components/ui/Label.vue';
     import type {UserInviteFormData, UserRole} from '@/types/user';
     import {ROLE_DESCRIPTIONS} from '@/types/user';
-    import {Link as LinkIcon, Mail} from 'lucide-vue-next';
+    import {Link as LinkIcon, Mail} from '@lucide/vue';
     import {computed, ref, watch} from 'vue';
 
     const props = defineProps<{

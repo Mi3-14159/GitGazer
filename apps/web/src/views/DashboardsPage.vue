@@ -9,7 +9,7 @@
     import Button from '@/components/ui/Button.vue';
     import {useDashboardFilters} from '@/composables/useDashboardFilters';
     import {type Dashboard, defaultDashboards} from '@/types/analytics';
-    import {ArrowLeft} from 'lucide-vue-next';
+    import {ArrowLeft} from '@lucide/vue';
     import {computed, ref, watch} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 

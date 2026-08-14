@@ -6,7 +6,7 @@
     import RepositoryFilter from '@/components/filters/RepositoryFilter.vue';
     import TopicFilter from '@/components/filters/TopicFilter.vue';
     import Input from '@/components/ui/Input.vue';
-    import {Search} from 'lucide-vue-next';
+    import {Search} from '@lucide/vue';
 
     const type = defineModel<string[]>('type', {required: true});
     const read = defineModel<string[]>('read', {required: true});

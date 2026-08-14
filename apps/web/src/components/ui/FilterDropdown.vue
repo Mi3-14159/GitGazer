@@ -1,13 +1,13 @@
 <script setup lang="ts" generic="T extends string | string[]">
     import Popover from '@/components/ui/Popover.vue';
     import SearchableCheckboxList from '@/components/ui/SearchableCheckboxList.vue';
-    import {ChevronDown} from 'lucide-vue-next';
+    import {ChevronDown} from '@lucide/vue';
     import {computed, ref, type Component} from 'vue';
 
     const props = defineProps<{
         /** Selectable options. */
         options: {value: string; label: string}[];
-        /** Optional leading icon component (e.g. from lucide-vue-next). */
+        /** Optional leading icon component (e.g. from @lucide/vue). */
         icon?: Component;
         /** Optional width class (e.g. `'sm:w-[150px]'`). Applied alongside the base classes. */
         widthClass?: string;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import {cn} from '@/lib/utils';
+    import {Loader2} from '@lucide/vue';
     import {cva, type VariantProps} from 'class-variance-authority';
-    import {Loader2} from 'lucide-vue-next';
     import {computed, type HTMLAttributes} from 'vue';
 
     const buttonVariants = cva(

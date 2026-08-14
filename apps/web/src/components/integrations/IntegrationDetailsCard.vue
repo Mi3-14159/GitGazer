@@ -2,7 +2,7 @@
     import Button from '@/components/ui/Button.vue';
     import Input from '@/components/ui/Input.vue';
     import Label from '@/components/ui/Label.vue';
-    import {X} from 'lucide-vue-next';
+    import {X} from '@lucide/vue';
     import {ref} from 'vue';
 
     const props = defineProps<{

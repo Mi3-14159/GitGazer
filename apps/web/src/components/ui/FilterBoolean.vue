@@ -6,7 +6,7 @@
     defineProps<{
         /** Human-readable label displayed next to the toggle. */
         label: string;
-        /** Optional leading icon component (e.g. from lucide-vue-next). */
+        /** Optional leading icon component (e.g. from @lucide/vue). */
         icon?: Component;
         /** Visual variant: `'switch'` (default) renders a toggle switch, `'checkbox'` renders a checkbox. */
         variant?: 'switch' | 'checkbox';

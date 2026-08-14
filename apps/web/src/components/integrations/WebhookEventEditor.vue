@@ -3,7 +3,7 @@
     import Button from '@/components/ui/Button.vue';
     import {formatEventName} from '@/utils/formatDate';
     import {GITHUB_APP_WEBHOOK_EVENTS} from '@common/types';
-    import {CheckCircle2, XCircle, Zap} from 'lucide-vue-next';
+    import {CheckCircle2, XCircle, Zap} from '@lucide/vue';
     import {reactive} from 'vue';
 
     const props = defineProps<{

@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {useMetrics} from '@/composables/useMetric';
-    import {Tag} from 'lucide-vue-next';
+    import {Tag} from '@lucide/vue';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedTopics = defineModel<string[]>({required: true});

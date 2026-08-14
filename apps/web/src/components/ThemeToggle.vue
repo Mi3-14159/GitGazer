@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {useSettingsStore, type ThemePreference} from '@/stores/settings';
-    import {Monitor, Moon, Sun} from 'lucide-vue-next';
+    import {Monitor, Moon, Sun} from '@lucide/vue';
     import {computed} from 'vue';
 
     const settingsStore = useSettingsStore();

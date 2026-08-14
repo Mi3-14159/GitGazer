@@ -6,7 +6,7 @@
     import CardHeader from '@/components/ui/CardHeader.vue';
     import CardTitle from '@/components/ui/CardTitle.vue';
     import type {Dashboard} from '@/types/analytics';
-    import {ArrowRight, Grid3X3, LayoutDashboard, Lock} from 'lucide-vue-next';
+    import {ArrowRight, Grid3X3, LayoutDashboard, Lock} from '@lucide/vue';
     import {computed} from 'vue';
 
     const props = defineProps<{

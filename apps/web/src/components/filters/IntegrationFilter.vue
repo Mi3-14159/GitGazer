@@ -2,7 +2,7 @@
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {useIntegration} from '@/composables/useIntegration';
     import type {Integration} from '@common/types';
-    import {Blocks} from 'lucide-vue-next';
+    import {Blocks} from '@lucide/vue';
     import {computed, onMounted, ref} from 'vue';
 
     const selectedIds = defineModel<string[]>({required: true});

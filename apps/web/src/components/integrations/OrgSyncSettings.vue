@@ -2,7 +2,7 @@
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
     import {ORG_SYNC_DEFAULT_ROLES, type OrgSyncDefaultRole} from '@common/types';
-    import {Shield, Users} from 'lucide-vue-next';
+    import {Shield, Users} from '@lucide/vue';
     import {ref, watch} from 'vue';
 
     const props = defineProps<{

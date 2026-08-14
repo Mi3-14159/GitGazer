@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import AppLogo from '@/components/icons/AppLogo.vue';
     import Button from '@/components/ui/Button.vue';
-    import {Sparkles} from 'lucide-vue-next';
+    import {Sparkles} from '@lucide/vue';
 
     const emit = defineEmits<{
         start: [];

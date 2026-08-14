@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import FilterDropdown from '@/components/ui/FilterDropdown.vue';
     import {EVENT_LOG_TYPES} from '@common/types';
-    import {Filter} from 'lucide-vue-next';
+    import {Filter} from '@lucide/vue';
 
     const selectedTypes = defineModel<string[]>({required: true});
 

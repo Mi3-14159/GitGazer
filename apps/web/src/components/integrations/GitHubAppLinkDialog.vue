@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import GitHubIcon from '@/components/icons/GitHubIcon.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
     import Card from '@/components/ui/Card.vue';
@@ -7,7 +8,7 @@
     import Input from '@/components/ui/Input.vue';
     import {formatDate} from '@/utils/formatDate';
     import type {Integration} from '@common/types';
-    import {Calendar, Github, Webhook} from 'lucide-vue-next';
+    import {Calendar, Webhook} from '@lucide/vue';
     import {computed, ref, watch} from 'vue';
 
     const props = defineProps<{
@@ -69,7 +70,7 @@
             <!-- Header -->
             <div class="space-y-1.5 mb-4">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Github class="h-5 w-5" />
+                    <GitHubIcon class="h-5 w-5" />
                     GitHub App Installed Successfully
                 </h3>
                 <p class="text-sm text-muted-foreground">Link your GitHub App installation to an integration to start receiving webhook events.</p>
@@ -84,7 +85,7 @@
                     <CardContent class="p-4 !pt-4">
                         <div class="space-y-2">
                             <div class="flex items-center gap-2 font-medium">
-                                <Github class="h-4 w-4" />
+                                <GitHubIcon class="h-4 w-4" />
                                 GitHub App Installation
                             </div>
                             <div class="text-sm">

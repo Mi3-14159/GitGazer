@@ -2,7 +2,7 @@
     import Button from '@/components/ui/Button.vue';
     import Popover from '@/components/ui/Popover.vue';
     import {type ColumnConfig} from '@/types/table';
-    import {Check, Columns3} from 'lucide-vue-next';
+    import {Check, Columns3} from '@lucide/vue';
     import {computed, ref} from 'vue';
 
     const props = defineProps<{

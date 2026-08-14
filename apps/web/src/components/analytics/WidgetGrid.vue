@@ -9,7 +9,7 @@
     import type {Dashboard, WidgetType} from '@/types/analytics';
     import {widgetCalculationInfo} from '@/types/analytics';
     import type {MetricResult, MetricsFilter} from '@common/types';
-    import {Lock} from 'lucide-vue-next';
+    import {Lock} from '@lucide/vue';
     import {defineAsyncComponent, onBeforeUnmount, reactive, toRef, watch} from 'vue';
 
     const MetricWidget = defineAsyncComponent(() => import('@/components/analytics/widgets/MetricWidget.vue'));

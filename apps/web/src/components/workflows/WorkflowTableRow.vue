@@ -4,8 +4,8 @@
     import type {ColumnConfig} from '@/types/table';
     import {formatDuration} from '@/utils/status';
     import type {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
+    import {ChevronDown, ChevronRight, GitBranch, GitCommit, User} from '@lucide/vue';
     import {formatDistanceToNow} from 'date-fns';
-    import {ChevronDown, ChevronRight, GitBranch, GitCommit, User} from 'lucide-vue-next';
 
     defineProps<{
         run: WorkflowRunWithRelations;

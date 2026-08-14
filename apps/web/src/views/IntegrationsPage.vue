@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import GitHubIcon from '@/components/icons/GitHubIcon.vue';
     import DeleteIntegrationDialog from '@/components/integrations/DeleteIntegrationDialog.vue';
     import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
     import IntegrationCard from '@/components/integrations/IntegrationCard.vue';
@@ -13,7 +14,7 @@
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
     import {hasRole} from '@common/types';
-    import {ExternalLink, Github, Plug, Plus} from 'lucide-vue-next';
+    import {ExternalLink, Plug, Plus} from '@lucide/vue';
     import {onMounted} from 'vue';
     import {useRoute, useRouter} from 'vue-router';
 
@@ -82,7 +83,7 @@
                 rel="noopener noreferrer"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-xs font-medium h-8 border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
             >
-                <Github class="h-4 w-4" />
+                <GitHubIcon class="h-4 w-4" />
                 Install GitHub App
                 <ExternalLink class="h-3 w-3" />
             </a>

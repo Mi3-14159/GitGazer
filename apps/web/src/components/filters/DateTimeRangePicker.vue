@@ -3,8 +3,8 @@
     import Label from '@/components/ui/Label.vue';
     import Popover from '@/components/ui/Popover.vue';
     import {cn} from '@/lib/utils';
+    import {Calendar as CalendarIcon} from '@lucide/vue';
     import {format, subDays, subHours} from 'date-fns';
-    import {Calendar as CalendarIcon} from 'lucide-vue-next';
     import {computed, ref, watch} from 'vue';
 
     export interface DateRange {

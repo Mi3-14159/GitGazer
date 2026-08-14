@@ -7,7 +7,7 @@
     import type {TeamMember, UserRole} from '@/types/user';
     import {formatCalendarDate, formatTimeSince} from '@/utils/formatDate';
     import {MEMBER_ROLES, ROLE_RANK} from '@common/types';
-    import {Crown, Eye, MoreHorizontal, Shield, Trash2, UserCog} from 'lucide-vue-next';
+    import {Crown, Eye, MoreHorizontal, Shield, Trash2, UserCog} from '@lucide/vue';
     import {DropdownMenuItem, DropdownMenuSeparator} from 'radix-vue';
     import {computed, ref} from 'vue';
 

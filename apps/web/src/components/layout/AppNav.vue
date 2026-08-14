@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import {useTour} from '@/composables/useTour';
-    import {Activity, Bell, LayoutDashboard, PlayCircle, ScrollText, Webhook} from 'lucide-vue-next';
+    import {Activity, Bell, LayoutDashboard, PlayCircle, ScrollText, Webhook} from '@lucide/vue';
     import {computed} from 'vue';
     import {RouterLink, useRoute} from 'vue-router';
 

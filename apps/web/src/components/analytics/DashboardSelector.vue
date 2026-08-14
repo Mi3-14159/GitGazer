@@ -7,7 +7,7 @@
     import CardHeader from '@/components/ui/CardHeader.vue';
     import CardTitle from '@/components/ui/CardTitle.vue';
     import type {Dashboard} from '@/types/analytics';
-    import {LayoutDashboard, Lock} from 'lucide-vue-next';
+    import {LayoutDashboard, Lock} from '@lucide/vue';
 
     defineProps<{
         dashboards: Dashboard[];

@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import Tooltip from '@/components/ui/Tooltip.vue';
     import type {WidgetChartType} from '@/types/analytics';
-    import {ChartArea, ChartBar, ChartBarStacked, ChartLine} from 'lucide-vue-next';
+    import {ChartArea, ChartBar, ChartBarStacked, ChartLine} from '@lucide/vue';
     import {computed, type Component} from 'vue';
 
     const props = defineProps<{

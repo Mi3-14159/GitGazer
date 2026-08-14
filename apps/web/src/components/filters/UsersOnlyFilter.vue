@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import FilterBoolean from '@/components/ui/FilterBoolean.vue';
-    import {User} from 'lucide-vue-next';
+    import {User} from '@lucide/vue';
 
     const model = defineModel<boolean>({required: true});
 </script>

@@ -9,7 +9,7 @@
     import {copyToClipboard} from '@/utils/clipboard';
     import {formatDate} from '@/utils/formatDate';
     import type {NotificationRule} from '@common/types';
-    import {Calendar, CheckCircle2, Copy, Eye, EyeOff, Filter, Pencil, Trash2, XCircle} from 'lucide-vue-next';
+    import {Calendar, CheckCircle2, Copy, Eye, EyeOff, Filter, Pencil, Trash2, XCircle} from '@lucide/vue';
     import {ref} from 'vue';
 
     const props = defineProps<{

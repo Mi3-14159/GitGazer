@@ -2,7 +2,7 @@
     import Button from '@/components/ui/Button.vue';
     import Checkbox from '@/components/ui/Checkbox.vue';
     import Input from '@/components/ui/Input.vue';
-    import {Loader2, Search} from 'lucide-vue-next';
+    import {Loader2, Search} from '@lucide/vue';
     import {computed, ref} from 'vue';
 
     export interface CheckboxOption {

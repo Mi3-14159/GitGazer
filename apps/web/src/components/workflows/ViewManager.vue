@@ -8,7 +8,7 @@
     import Input from '@/components/ui/Input.vue';
     import Popover from '@/components/ui/Popover.vue';
     import {type TableView} from '@/types/table';
-    import {Check, Eye, Plus, Save, Trash2} from 'lucide-vue-next';
+    import {Check, Eye, Plus, Save, Trash2} from '@lucide/vue';
     import {ref} from 'vue';
 
     const props = defineProps<{

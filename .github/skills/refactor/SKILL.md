@@ -366,7 +366,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
 - [ ] API logic in composables (`useX.ts`), not in component scripts
 - [ ] Pinia stores use Composition API style
 - [ ] UI primitives from `@/components/ui/` — not custom one-off implementations
-- [ ] Icons from `lucide-vue-next` — no inline SVGs
+- [ ] Icons from `@lucide/vue` (brand marks from `@/components/icons/`) — no inline SVGs
 - [ ] No business logic in templates — use computed properties
 
 ### Shared (`packages/db/`)

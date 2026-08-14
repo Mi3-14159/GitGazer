@@ -11,7 +11,7 @@
     import {useNotification} from '@/composables/useNotification';
     import type {IntegrationWithRole, NotificationRule} from '@common/types';
     import {hasRole} from '@common/types';
-    import {Bell, Plus} from 'lucide-vue-next';
+    import {Bell, Plus} from '@lucide/vue';
     import {computed, onMounted, ref} from 'vue';
 
     const {getNotifications, isLoadingNotifications, upsertNotification, deleteNotification} = useNotification();

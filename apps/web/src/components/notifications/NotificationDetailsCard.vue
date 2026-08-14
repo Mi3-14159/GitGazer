@@ -5,7 +5,7 @@
     import Label from '@/components/ui/Label.vue';
     import Switch from '@/components/ui/Switch.vue';
     import {Integration, NotificationRule, NotificationRuleChannelType} from '@common/types';
-    import {ChevronDown, X} from 'lucide-vue-next';
+    import {ChevronDown, X} from '@lucide/vue';
     import {computed, ref, watch} from 'vue';
 
     const props = defineProps<{

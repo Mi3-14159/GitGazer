@@ -1,11 +1,11 @@
 {
   "dependencies": {
+    "@lucide/vue": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "date-fns": "catalog:",
     "echarts": "catalog:",
-    "lucide-vue-next": "catalog:",
     "pinia": "catalog:",
     "radix-vue": "catalog:",
     "tailwind-merge": "catalog:",
@@ -38,12 +38,12 @@
       "upload": {
         "executor": "nx:run-commands",
         "options": {
-          "cwd": "{projectRoot}",
-          "parallel": false,
           "commands": [
             "aws s3 sync dist/ \"s3://${FRONTEND_S3_BUCKET_NAME:?required}/\" --cache-control max-age=604800 --exclude '*.html'",
             "aws s3 sync dist/ \"s3://${FRONTEND_S3_BUCKET_NAME:?required}/\" --cache-control max-age=60 --exclude '*' --include '*.html'"
-          ]
+          ],
+          "cwd": "{projectRoot}",
+          "parallel": false
         }
       }
     }

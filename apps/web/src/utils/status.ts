@@ -1,4 +1,4 @@
-import {AlertCircle, CheckCircle2, Clock, XCircle} from 'lucide-vue-next';
+import {AlertCircle, CheckCircle2, Clock, XCircle} from '@lucide/vue';
 import type {Component} from 'vue';
 
 export function statusBadgeVariant(status: string): 'success' | 'destructive' | 'warning' | 'default' | 'secondary' {

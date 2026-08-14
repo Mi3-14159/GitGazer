@@ -7,8 +7,8 @@
     import CardTitle from '@/components/ui/CardTitle.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import type {WorkflowRunWithRelations} from '@common/types';
+    import {Ban, CheckCircle2, Clock, GitBranch, GitCommitHorizontal, Timer, User, Workflow, XCircle} from '@lucide/vue';
     import {formatDistanceToNow} from 'date-fns';
-    import {Ban, CheckCircle2, Clock, GitBranch, GitCommitHorizontal, Timer, User, Workflow, XCircle} from 'lucide-vue-next';
     import {computed, type Component} from 'vue';
 
     const props = defineProps<{

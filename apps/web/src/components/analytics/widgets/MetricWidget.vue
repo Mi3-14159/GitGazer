@@ -4,12 +4,12 @@
     import Tooltip from '@/components/ui/Tooltip.vue';
     import type {WidgetChartType, WidgetSize} from '@/types/analytics';
     import type {Granularity, MetricResult} from '@common/types';
+    import {Info} from '@lucide/vue';
     import {format, parseISO} from 'date-fns';
     import {BarChart, LineChart} from 'echarts/charts';
     import {GridComponent, TitleComponent, TooltipComponent} from 'echarts/components';
     import {use} from 'echarts/core';
     import {CanvasRenderer} from 'echarts/renderers';
-    import {Info} from 'lucide-vue-next';
     import {computed, ref, watch} from 'vue';
     import VChart from 'vue-echarts';
 

@@ -6,7 +6,7 @@
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import type {Invitation} from '@/types/user';
     import {formatCalendarDate} from '@/utils/formatDate';
-    import {Eye, Link as LinkIcon, Mail, MoreHorizontal, RefreshCw, Shield, Trash2, UserCog} from 'lucide-vue-next';
+    import {Eye, Link as LinkIcon, Mail, MoreHorizontal, RefreshCw, Shield, Trash2, UserCog} from '@lucide/vue';
     import {DropdownMenuItem, DropdownMenuSeparator} from 'radix-vue';
     import {computed, ref} from 'vue';
 
