@@ -18,7 +18,6 @@
     "@docusaurus/theme-mermaid": "catalog:",
     "@easyops-cn/docusaurus-search-local": "catalog:",
     "@mdx-js/react": "catalog:",
-    "clsx": "catalog:",
     "prism-react-renderer": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

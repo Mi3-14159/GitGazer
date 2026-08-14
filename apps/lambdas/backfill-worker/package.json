@@ -6,7 +6,6 @@
   },
   "devDependencies": {
     "@aws-sdk/client-sqs": "catalog:",
-    "@octokit/webhooks-types": "catalog:",
     "@types/aws-lambda": "catalog:",
     "drizzle-orm": "catalog:",
     "ts-node": "catalog:",

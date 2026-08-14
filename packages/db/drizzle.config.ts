@@ -1,8 +1,13 @@
-import {config} from 'dotenv';
 import {defineConfig} from 'drizzle-kit';
 import {execSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
 
-config({path: process.env.ENV_FILE});
+// Loaded here rather than via `node --env-file` because the drizzle-kit CLI evaluates this config itself.
+// Absent files are ignored: the migrate script already gets its env from `node --env-file`.
+const envFile = process.env.ENV_FILE ?? '.env';
+if (existsSync(envFile)) {
+    process.loadEnvFile(envFile);
+}
 
 const host = process.env['RDS_HOST']!;
 const hostname = process.env['RDS_HOSTNAME'] || host;

@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@aws-lambda-powertools/event-handler": "catalog:",
+    "@aws-lambda-powertools/jmespath": "catalog:",
     "@aws-lambda-powertools/logger": "catalog:",
     "@aws-sdk/client-lambda": "catalog:",
     "@aws-sdk/client-secrets-manager": "catalog:",
@@ -11,7 +12,6 @@
     "convict": "catalog:"
   },
   "devDependencies": {
-    "@types/aws-lambda": "catalog:",
     "@types/convict": "catalog:"
   },
   "name": "@gitgazer/backend-core",

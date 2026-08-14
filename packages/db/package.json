@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "@octokit/webhooks": "catalog:",
-    "@octokit/webhooks-schemas": "catalog:",
     "@octokit/webhooks-types": "catalog:",
     "pg": "catalog:"
   },
@@ -9,10 +8,8 @@
     "@aws-sdk/client-rds-data": "catalog:",
     "@aws-sdk/rds-signer": "catalog:",
     "@types/pg": "catalog:",
-    "dotenv": "catalog:",
     "drizzle-kit": "catalog:",
-    "ts-node": "catalog:",
-    "tsconfig-paths": "catalog:"
+    "ts-node": "catalog:"
   },
   "name": "@gitgazer/db",
   "peerDependencies": {
