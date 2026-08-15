@@ -142,7 +142,7 @@ export const handleMcpRequest = async (
                 const safe =
                     error instanceof McpToolError ||
                     error instanceof ReadOnlyQueryError ||
-                    (error instanceof DrizzleQueryError && error.cause != null && 'code' in error.cause && error.cause.code === '42501');
+                    (error instanceof DrizzleQueryError && error.cause != null && 'code' in error.cause && error.cause.code === '42501'); // permission denied
                 if (!safe) {
                     getLogger().error('MCP tool call failed', {tool: name, error});
                 }
