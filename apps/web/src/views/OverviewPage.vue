@@ -71,7 +71,7 @@
             />
         </div>
 
-        <div class="grid items-start gap-4 xl:grid-cols-3">
+        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
             <RecentWorkflowRuns
                 class="xl:col-span-2"
                 :workflows="recentWorkflows"
