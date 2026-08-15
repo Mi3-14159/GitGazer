@@ -1,9 +1,10 @@
 import {type McpCaller} from '@/domains/mcp/mcp.controller';
 import {validateMcpHeaders} from '@/domains/mcp/mcp.headers';
 import {MCP_TOOLS, McpToolError, runToolCall} from '@/domains/mcp/mcp.tools';
-import {getLogger} from '@gitgazer/backend-core/logger';
 import {HttpStatusCodes} from '@aws-lambda-powertools/event-handler/http';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {ReadOnlyQueryError} from '@gitgazer/db/queries';
+import {DrizzleQueryError} from 'drizzle-orm/errors';
 
 const MODERN_VERSION = '2026-07-28';
 const LEGACY_VERSION = '2025-11-25';
@@ -138,7 +139,10 @@ export const handleMcpRequest = async (
                 // Only echo messages from trusted error types; anything else (raw DB/Postgres
                 // errors) is logged server-side and returned generically so schema/role internals
                 // don't leak to the client.
-                const safe = error instanceof McpToolError || error instanceof ReadOnlyQueryError;
+                const safe =
+                    error instanceof McpToolError ||
+                    error instanceof ReadOnlyQueryError ||
+                    (error instanceof DrizzleQueryError && error.cause != null && 'code' in error.cause && error.cause.code === '42501');
                 if (!safe) {
                     getLogger().error('MCP tool call failed', {tool: name, error});
                 }
