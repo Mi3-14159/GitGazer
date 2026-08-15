@@ -81,6 +81,16 @@ catalog:
   'vue-router': '^5.2.0'
   'vue-tsc': '^3.3.8'
 
+# sitemap@7 (via @docusaurus/plugin-sitemap) depends on @types/node ^17.0.5, which kept a second,
+# much older copy of it in the lockfile. Two @types/node versions means conflicting globals, and it
+# also tripped a dependabot-core bug: it read the stale copy as the current version of our catalog
+# entry, tried to re-apply a bump that was already in place, changed no files and failed the update
+# job with NoChangeError on every run. Collapsing to one version fixes both. Safe because
+# @types/node is types-only - nothing ships at runtime. 'catalog:' keeps this in step with the
+# catalog entry above, so a Dependabot bump there needs no change here.
+overrides:
+  '@types/node': 'catalog:'
+
 allowBuilds:
   '@swc/core': true
   core-js: true
