@@ -53,7 +53,7 @@
   "scripts": {
     "build": "pnpm run clean && tsup && pnpm run zip",
     "clean": "rimraf dist tmp",
-    "dev:api": "node --env-file=../../../.env --watch -r ts-node/register src/develop.ts",
+    "dev:api": "node --env-file=.env --watch -r ts-node/register src/develop.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "pretty": "prettier --write src",
