@@ -19,32 +19,32 @@ catalogs:
       specifier: ^2.34.0
       version: 2.34.0
     '@aws-sdk/client-apigatewaymanagementapi':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/client-lambda':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/client-rds-data':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/client-s3':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/client-secrets-manager':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/client-sesv2':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/client-sqs':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/rds-signer':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@aws-sdk/s3-request-presigner':
-      specifier: ^3.1095.0
-      version: 3.1109.0
+      specifier: ^3.1110.0
+      version: 3.1110.0
     '@docusaurus/core':
       specifier: 3.10.2
       version: 3.10.2
@@ -342,13 +342,13 @@ importers:
         version: 2.34.0
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@aws-sdk/client-sesv2':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@aws-sdk/s3-request-presigner':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@octokit/webhooks':
         specifier: 'catalog:'
         version: 14.2.0
@@ -363,7 +363,7 @@ importers:
         version: 5.2.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.2.0)(typescript@6.0.3)
@@ -385,13 +385,13 @@ importers:
     devDependencies:
       '@aws-sdk/client-sqs':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@types/aws-lambda':
         specifier: 'catalog:'
         version: 8.10.162
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.2.0)(typescript@6.0.3)
@@ -416,7 +416,7 @@ importers:
     devDependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   apps/lambdas/websocket:
     dependencies:
@@ -432,7 +432,7 @@ importers:
         version: 8.10.162
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   apps/lambdas/worker:
     dependencies:
@@ -451,7 +451,7 @@ importers:
     devDependencies:
       '@aws-sdk/client-sqs':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@octokit/webhooks':
         specifier: 'catalog:'
         version: 14.2.0
@@ -548,13 +548,13 @@ importers:
         version: 2.34.0(@aws-lambda-powertools/jmespath@2.34.0)
       '@aws-sdk/client-lambda':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@aws-sdk/client-secrets-manager':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@aws-sdk/client-sqs':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@gitgazer/db':
         specifier: workspace:*
         version: link:../db
@@ -569,7 +569,7 @@ importers:
         version: 6.2.5
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
     devDependencies:
       '@types/convict':
         specifier: 'catalog:'
@@ -579,7 +579,7 @@ importers:
     dependencies:
       '@aws-sdk/client-apigatewaymanagementapi':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@gitgazer/backend-core':
         specifier: workspace:*
         version: link:../backend-core
@@ -591,7 +591,7 @@ importers:
         version: 14.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   packages/db:
     dependencies:
@@ -603,17 +603,17 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
       pg:
         specifier: 'catalog:'
         version: 8.23.0
     devDependencies:
       '@aws-sdk/client-rds-data':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@aws-sdk/rds-signer':
         specifier: 'catalog:'
-        version: 3.1109.0
+        version: 3.1110.0
       '@types/pg':
         specifier: 'catalog:'
         version: 8.21.0
@@ -640,7 +640,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   packages/import:
     devDependencies:
@@ -791,32 +791,32 @@ packages:
     resolution: {integrity: sha512-insWOqKKNUrbN/dohEG7BJ0U5GkyqhjbMb/NHNaLUtq+7my2M8C4EnZZZoxMmXRqCC+P9dEr+KyJA2JGGzoKLg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-apigatewaymanagementapi@3.1109.0':
-    resolution: {integrity: sha512-JVhY1gPApCvfGFzGFzVS/hTy5Xg+yVX7JLBKTpek5H6ciS+fbBMLa5wdTSFEj9AIDcVY3apVfPHgyqr9Jm1/HA==}
+  '@aws-sdk/client-apigatewaymanagementapi@3.1110.0':
+    resolution: {integrity: sha512-36n42AtiN216GiAo88+CI30UqlL7NAXTI21l5+kFhm74JTRX4aW/UFKONnWQuAZA5qSYRxV+jq1yf0F8ZoByzA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-lambda@3.1109.0':
-    resolution: {integrity: sha512-zcVKl9lKMirUblvLGwiq1nR7BGANI7s4xJhFp0hP5u9lrhPRYOs/9OHQVa6X2TIEBJnkXeRSNqD5p6D33kpSyw==}
+  '@aws-sdk/client-lambda@3.1110.0':
+    resolution: {integrity: sha512-1YI5iNhtJmTV0KAXAsUylPS1958o04a7sBlryMqJsdJUyRL6viot3aKRUMNbRgLdRReSiD5Cl5uVlT8dnpJe7g==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-rds-data@3.1109.0':
-    resolution: {integrity: sha512-XkHmINOkfLJ7nQcfqJNonhJsk4Eh7uN0l1JYLvf4uVWUsx3KGZ9y+CaU78Ruef+xezXhDBlF5XEwSpNz9rAw7g==}
+  '@aws-sdk/client-rds-data@3.1110.0':
+    resolution: {integrity: sha512-dyguXhsX7Xjd1Y1r6dJGRtndZjvhfOiLgYF6i8pdiyh5kGuExTYRmaP2CLz0djDdskRTy8P1aPd/5kU6aUaTKA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-s3@3.1109.0':
-    resolution: {integrity: sha512-iPWzBeGkAe5H5+dBBGCOdIT4uMhpu12OK+nFnDzjvOChVnHIws4LeoG7Yl0kJHSRWZnNEkVcF4vQYTJny0e5xA==}
+  '@aws-sdk/client-s3@3.1110.0':
+    resolution: {integrity: sha512-40xbEcWjdaYKlZ4/NvndIJ3LotAEQAvHVQ7Z4NVy4Z4xGRN7xXJlHI9bMh/4aMJQ++6h5W5sv+wqjfk0rEKOBg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-secrets-manager@3.1109.0':
-    resolution: {integrity: sha512-Lm7m8VyyzFimSAoz7eLW9uWwF9VwEvbUeHkTuPEf3608rtnn8aYUigKvK+TLoei162sRx34IxDXqvKfpi7Wdbg==}
+  '@aws-sdk/client-secrets-manager@3.1110.0':
+    resolution: {integrity: sha512-MqiRAhiFa9Ywqb7RP1Mtd34iOGpSIbvnCyzsG3qDyvP+txrrtAaSW3P/R7Plm6a+n3oE0GYIYpKh1OrSyAnbEw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sesv2@3.1109.0':
-    resolution: {integrity: sha512-wBrUNKC/kCCUAsqZAYWM2q8gZYcICRp2LUhTWoc9WCff41ny/vahxUpp1kYn5y31oDLKjNMONU4f+Bdy2k7k0g==}
+  '@aws-sdk/client-sesv2@3.1110.0':
+    resolution: {integrity: sha512-HcxyzL+rBpaNpkYfr/Dv8MxUhbuT3J8q4htbaBDxdKlW6rbUrW66bhHGOEX9RpA0Mp93F5w6L+/uysnlFzM4Ew==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sqs@3.1109.0':
-    resolution: {integrity: sha512-+Ax4wZkgMGA7y8ZofnlMB3z/64sSFt4VjkeVZcjyRfFMugV7llkXA4qj7zHigxhYYr/kRYlYOQtFCsB0r4h41Q==}
+  '@aws-sdk/client-sqs@3.1110.0':
+    resolution: {integrity: sha512-puneZhHscvJbfN2ZFuhbC/RJnrhAknDAd4vHmjdAtmKwkNYSA1U3Ox8pysYp2KZCT1NJjuo8WzPNNctf6bJIgA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.977.7':
@@ -859,8 +859,8 @@ packages:
     resolution: {integrity: sha512-0YfczxGXF3RjGj8z7QG/Ho2HnLGKDHfPSHiTs47UU1U/+mmwISDN+rvGKt2zh+3FX8NdT4xd95LGBGyhQw2dgQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-providers@3.1109.0':
-    resolution: {integrity: sha512-F6s4maJt0q/g5v8Js3GQV1zt/vmccWW1ScpsrqKd61zIMMLc6iQa4ywHrRViPWgEbPazM9XhENk6zffr7sFaLQ==}
+  '@aws-sdk/credential-providers@3.1110.0':
+    resolution: {integrity: sha512-3OTthomq7fDGRAYW8wbidTAkkKUOk9WQaXi3b16Lawy/pOGC0Dlg+vha5S99SV/hP48MJzXxiIGrRcE/ShaFIA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/middleware-sdk-s3@3.972.73':
@@ -875,12 +875,12 @@ packages:
     resolution: {integrity: sha512-XWRyon2MTHXD/zMoo0Mbge6Vwf+iE0qQaM/RyGO6NfZ9WukCFiQL27nQVZjYy2JwSIg+iXZxKOX95OBXqlSM4w==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/rds-signer@3.1109.0':
-    resolution: {integrity: sha512-phKJWJxdxkzMZHcc+X6QjshoKJsfkEU2cFjGnA3WaaJhpayQMAJYZ7478QKsnIake1E36frJdvg640qGrheKGQ==}
+  '@aws-sdk/rds-signer@3.1110.0':
+    resolution: {integrity: sha512-1iuwpz4Gtq2SNbJcl8EQiXXB2kD3OaQm2wZzj2eHxhcz0d3lpXcKaWQVB4rW/SMUZBYSdlQDTPhVS0O9MzRSGw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/s3-request-presigner@3.1109.0':
-    resolution: {integrity: sha512-tVoeEJ1sERyMrzmFnE1blsKrwg40xzAPgrlk4dlqAUN317GeJAD1hUcY3kciqTH7T/QvxVr6PE5iQAaASnPWRg==}
+  '@aws-sdk/s3-request-presigner@3.1110.0':
+    resolution: {integrity: sha512-xr7vfMj3Mea1r1+GzdBT/9LpKN2l+xBMSzbGoj3Uia6ERPMjx55BeqVtVGBHWw5+IKSGCx5SVC7Jn+3FxntMLg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/signature-v4-multi-region@3.996.44':
@@ -9619,7 +9619,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-apigatewaymanagementapi@3.1109.0':
+  '@aws-sdk/client-apigatewaymanagementapi@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-node': 3.972.79
@@ -9630,7 +9630,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-lambda@3.1109.0':
+  '@aws-sdk/client-lambda@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-node': 3.972.79
@@ -9641,7 +9641,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-rds-data@3.1109.0':
+  '@aws-sdk/client-rds-data@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-node': 3.972.79
@@ -9652,7 +9652,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-s3@3.1109.0':
+  '@aws-sdk/client-s3@3.1110.0':
     dependencies:
       '@aws-sdk/checksums': 3.1000.27
       '@aws-sdk/core': 3.977.7
@@ -9666,7 +9666,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-secrets-manager@3.1109.0':
+  '@aws-sdk/client-secrets-manager@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-node': 3.972.79
@@ -9677,7 +9677,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sesv2@3.1109.0':
+  '@aws-sdk/client-sesv2@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-node': 3.972.79
@@ -9689,7 +9689,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sqs@3.1109.0':
+  '@aws-sdk/client-sqs@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-node': 3.972.79
@@ -9804,7 +9804,7 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/credential-providers@3.1109.0':
+  '@aws-sdk/credential-providers@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/credential-provider-cognito-identity': 3.972.67
@@ -9850,16 +9850,16 @@ snapshots:
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/rds-signer@3.1109.0':
+  '@aws-sdk/rds-signer@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
-      '@aws-sdk/credential-providers': 3.1109.0
+      '@aws-sdk/credential-providers': 3.1110.0
       '@smithy/core': 3.32.0
       '@smithy/signature-v4': 5.7.0
       '@smithy/types': 4.17.0
       tslib: 2.8.1
 
-  '@aws-sdk/s3-request-presigner@3.1109.0':
+  '@aws-sdk/s3-request-presigner@3.1110.0':
     dependencies:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/signature-v4-multi-region': 3.996.44
@@ -16197,9 +16197,9 @@ snapshots:
       get-tsconfig: 4.14.2
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-rc.4(@aws-sdk/client-rds-data@3.1109.0)(@types/pg@8.21.0)(pg@8.23.0):
+  drizzle-orm@1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0):
     optionalDependencies:
-      '@aws-sdk/client-rds-data': 3.1109.0
+      '@aws-sdk/client-rds-data': 3.1110.0
       '@types/pg': 8.21.0
       pg: 8.23.0
 
