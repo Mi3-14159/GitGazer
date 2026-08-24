@@ -148,8 +148,8 @@ catalogs:
       specifier: 1.0.0-rc.4
       version: 1.0.0-rc.4
     drizzle-orm:
-      specifier: 1.0.0-rc.4
-      version: 1.0.0-rc.4
+      specifier: 1.0.0-rc.5-169397b
+      version: 1.0.0-rc.5-169397b
     echarts:
       specifier: ^6.1.0
       version: 6.1.0
@@ -363,7 +363,7 @@ importers:
         version: 5.2.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.2.0)(typescript@6.0.3)
@@ -391,7 +391,7 @@ importers:
         version: 8.10.162
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.2.0)(typescript@6.0.3)
@@ -416,7 +416,7 @@ importers:
     devDependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   apps/lambdas/websocket:
     dependencies:
@@ -432,7 +432,7 @@ importers:
         version: 8.10.162
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   apps/lambdas/worker:
     dependencies:
@@ -569,7 +569,7 @@ importers:
         version: 6.2.5
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
     devDependencies:
       '@types/convict':
         specifier: 'catalog:'
@@ -591,7 +591,7 @@ importers:
         version: 14.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   packages/db:
     dependencies:
@@ -603,7 +603,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
       pg:
         specifier: 'catalog:'
         version: 8.23.0
@@ -640,7 +640,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
+        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0)
 
   packages/import:
     devDependencies:
@@ -5438,35 +5438,36 @@ packages:
     resolution: {integrity: sha512-KZCpjRyu+oYHLj/UJogfFlOkWhHVkaEI2EOT1U3NDVXUzLoTyPjqwFxwOrlQxsY6jzRyxcz4EacqboGfhEeYrA==}
     hasBin: true
 
-  drizzle-orm@1.0.0-rc.4:
-    resolution: {integrity: sha512-BT+pf+qoiYHqltoA88Jmf6ilGMXPlpfE0hEJKc2adRtMCAl25Swk/t5gXcWxZNAwdtf3F5gCd2FpeOyP/pT0Hw==}
+  drizzle-orm@1.0.0-rc.5-169397b:
+    resolution: {integrity: sha512-xf5TudQhFplMMzjwgmMY5f64Sqbv4iwXxdTHBHqvLMt+SHyY8rAYhzNLQchEkDxiqMclTS/txPEOg5pdQy0Tcw==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
-      '@effect/sql-d1': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-libsql': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-mysql2': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-pg': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-pglite': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-sqlite-bun': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-sqlite-do': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-sqlite-node': '>=4.0.0-beta.83 || >=4.0.0'
-      '@effect/sql-sqlite-wasm': '>=4.0.0-beta.83 || >=4.0.0'
+      '@drizzle-team/minipg': '>=0.3.2'
+      '@effect/sql-d1': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-libsql': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-mysql2': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-pg': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-pglite': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-sqlite-bun': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-sqlite-do': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-sqlite-node': '>=4.0.0-beta.105 || >=4.0.0'
+      '@effect/sql-sqlite-wasm': '>=4.0.0-beta.105 || >=4.0.0'
       '@electric-sql/pglite': '>=0.2.0'
       '@libsql/client': '>=0.10.0'
       '@libsql/client-wasm': '>=0.10.0'
       '@neondatabase/serverless': '>=0.10.0'
-      '@op-engineering/op-sqlite': '>=2'
+      '@op-engineering/op-sqlite': '>=17'
       '@opentelemetry/api': ^1.4.1
       '@planetscale/database': '>=1.13'
       '@sinclair/typebox': '>=0.34.8'
       '@sqlitecloud/drivers': '>=1.0.653'
       '@tidbcloud/serverless': '*'
-      '@tursodatabase/database': '>=0.6.0-pre.28 || >=0.6.0'
-      '@tursodatabase/database-common': '>=0.6.0-pre.28 || >=0.6.0'
-      '@tursodatabase/database-wasm': '>=0.6.0-pre.28 || >=0.6.0'
-      '@tursodatabase/serverless': '>=1.1.3'
-      '@tursodatabase/sync': '>=0.6.0-pre.28 || >=0.6.0'
+      '@tursodatabase/database': '>=0.7.1'
+      '@tursodatabase/database-common': '>=0.7.1'
+      '@tursodatabase/database-wasm': '>=0.7.1'
+      '@tursodatabase/serverless': '>=1.4.0'
+      '@tursodatabase/sync': '>=0.7.1'
       '@types/better-sqlite3': '*'
       '@types/mssql': ^9.1.4
       '@types/pg': '*'
@@ -5477,7 +5478,7 @@ packages:
       arktype: '>=2.0.0'
       better-sqlite3: '>=9.3.0'
       bun-types: '*'
-      effect: '>=4.0.0-beta.83 || >=4.0.0'
+      effect: '>=4.0.0-beta.105 || >=4.0.0'
       expo-sqlite: '>=14.0.0'
       mssql: ^11.0.1
       mysql2: '>=2'
@@ -5485,13 +5486,15 @@ packages:
       postgres: '>=3'
       sql.js: '>=1'
       sqlite3: '>=5'
-      typebox: '>=1.0.0'
+      typebox: '>=1.2.0'
       valibot: '>=1.0.0-beta.7'
       zod: ^3.25.0 || ^4.0.0
     peerDependenciesMeta:
       '@aws-sdk/client-rds-data':
         optional: true
       '@cloudflare/workers-types':
+        optional: true
+      '@drizzle-team/minipg':
         optional: true
       '@effect/sql-d1':
         optional: true
@@ -16197,7 +16200,7 @@ snapshots:
       get-tsconfig: 4.14.2
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-rc.4(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0):
+  drizzle-orm@1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1110.0)(@types/pg@8.21.0)(pg@8.23.0):
     optionalDependencies:
       '@aws-sdk/client-rds-data': 3.1110.0
       '@types/pg': 8.21.0

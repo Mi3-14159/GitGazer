@@ -54,7 +54,7 @@ catalog:
   'convict': '^6.2.5'
   'date-fns': '^4.4.0'
   'drizzle-kit': '1.0.0-rc.4'
-  'drizzle-orm': '1.0.0-rc.4'
+  'drizzle-orm': '1.0.0-rc.5-169397b'
   'echarts': '^6.1.0'
   'eslint': '^10.8.0'
   'happy-dom': '^20.11.1'
