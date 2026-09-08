@@ -58,7 +58,7 @@ jobs:
         run: echo "version=$(grep '^nodejs ' .tool-versions | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
       # Installs pnpm (version from packageManager), Node and the dependencies in one step.
-      - uses: pnpm/setup@v2.0.2
+      - uses: pnpm/setup@v2.1.0
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
