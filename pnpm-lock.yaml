@@ -75,6 +75,9 @@ catalogs:
     '@mdx-js/react':
       specifier: ^3.0.0
       version: 3.1.1
+    '@nx/eslint':
+      specifier: 23.2.0
+      version: 23.2.0
     '@nx/vite':
       specifier: 23.2.0
       version: 23.2.0
@@ -231,7 +234,7 @@ importers:
   .:
     devDependencies:
       '@nx/eslint':
-        specifier: 23.2.0
+        specifier: 'catalog:'
         version: 23.2.0(@babel/traverse@7.29.8(supports-color@7.2.0))(@swc/core@1.15.47(@swc/helpers@0.5.23))(@zkochan/js-yaml@0.0.7)(eslint@10.10.0(jiti@2.7.0)(supports-color@7.2.0))(nx@23.2.0(@swc/core@1.15.47(@swc/helpers@0.5.23)))(supports-color@7.2.0)
       '@nx/vite':
         specifier: 'catalog:'
