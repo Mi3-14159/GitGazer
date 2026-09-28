@@ -148,8 +148,8 @@ catalogs:
       specifier: 1.0.0-rc.5-ab785fc
       version: 1.0.0-rc.5-ab785fc
     drizzle-orm:
-      specifier: 1.0.0-rc.5-169397b
-      version: 1.0.0-rc.5-169397b
+      specifier: 1.0.0-rc.5-5935859
+      version: 1.0.0-rc.5-5935859
     echarts:
       specifier: ^6.1.0
       version: 6.1.0
@@ -363,7 +363,7 @@ importers:
         version: 5.2.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.1)(typescript@6.0.3)
@@ -391,7 +391,7 @@ importers:
         version: 8.10.163
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.1)(typescript@6.0.3)
@@ -416,7 +416,7 @@ importers:
     devDependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
 
   apps/lambdas/websocket:
     dependencies:
@@ -432,7 +432,7 @@ importers:
         version: 8.10.163
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
 
   apps/lambdas/worker:
     dependencies:
@@ -569,7 +569,7 @@ importers:
         version: 6.2.5
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
     devDependencies:
       '@types/convict':
         specifier: 'catalog:'
@@ -591,7 +591,7 @@ importers:
         version: 14.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
 
   packages/db:
     dependencies:
@@ -603,7 +603,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
       pg:
         specifier: 'catalog:'
         version: 8.23.0
@@ -640,7 +640,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0)
 
   packages/import:
     devDependencies:
@@ -5478,8 +5478,8 @@ packages:
     resolution: {integrity: sha512-TSg7sK1finOxdo48O9mDfyMY3lhi/aHCVIil5TFhthyq/H/89H/3nwX5V9Gdp7HYMUGFHyWJD5iowSn98l0elw==}
     hasBin: true
 
-  drizzle-orm@1.0.0-rc.5-169397b:
-    resolution: {integrity: sha512-xf5TudQhFplMMzjwgmMY5f64Sqbv4iwXxdTHBHqvLMt+SHyY8rAYhzNLQchEkDxiqMclTS/txPEOg5pdQy0Tcw==}
+  drizzle-orm@1.0.0-rc.5-5935859:
+    resolution: {integrity: sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -16362,7 +16362,7 @@ snapshots:
       get-tsconfig: 4.14.2
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-rc.5-169397b(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0):
+  drizzle-orm@1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1135.0)(@types/pg@8.23.1)(pg@8.23.0):
     optionalDependencies:
       '@aws-sdk/client-rds-data': 3.1135.0
       '@types/pg': 8.23.1
