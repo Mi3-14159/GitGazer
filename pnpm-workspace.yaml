@@ -53,7 +53,7 @@ catalog:
   'clsx': '^2.1.1'
   'convict': '^6.2.5'
   'date-fns': '^4.4.0'
-  'drizzle-kit': '1.0.0-rc.5-ab785fc'
+  'drizzle-kit': '1.0.0-rc.5-5935859'
   'drizzle-orm': '1.0.0-rc.5-5935859'
   'echarts': '^6.1.0'
   'eslint': '^10.10.0'
