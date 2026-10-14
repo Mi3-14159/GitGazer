@@ -27,7 +27,7 @@ catalog:
   '@docusaurus/tsconfig': '3.10.2'
   '@docusaurus/types': '3.10.2'
   '@easyops-cn/docusaurus-search-local': '^0.55.2'
-  '@lucide/vue': '^1.50.0'
+  '@lucide/vue': '^1.52.0'
   '@mdx-js/react': '^3.0.0'
   '@nx/eslint': '23.2.1'
   '@nx/vite': '23.2.1'
