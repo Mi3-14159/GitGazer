@@ -1,5 +1,9 @@
 import {Logger} from '@aws-lambda-powertools/logger';
 import {correlationPaths, search} from '@aws-lambda-powertools/logger/correlationId';
+import {redactForLog} from './helpers/redact';
+
+// `event` is the key logEventIfEnabled uses; `result` is the key handlers log responses under.
+const REDACTED_LOG_KEYS = new Set(['event', 'result']);
 
 export const newLogger = (): Logger => {
     const logger = new Logger({
@@ -10,6 +14,7 @@ export const newLogger = (): Logger => {
             flushOnErrorLog: true,
         },
         correlationIdSearchFn: search,
+        jsonReplacerFn: (key, value) => (REDACTED_LOG_KEYS.has(key) ? redactForLog(value) : value),
     });
     return logger;
 };
