@@ -61,7 +61,7 @@ catalog:
   'nx': '23.3.0'
   'pg': '^8.23.1'
   'pinia': '^4.0.2'
-  'prettier': '^3.9.9'
+  'prettier': '^3.9.10'
   'prism-react-renderer': '^2.3.0'
   'radix-vue': '^1.9.17'
   'react': '^19.3.0'
@@ -79,7 +79,7 @@ catalog:
   'vue': '^3.5.43'
   'vue-echarts': '^8.3.2'
   'vue-router': '^5.4.0'
-  'vue-tsc': '^3.3.12'
+  'vue-tsc': '^3.3.13'
 
 # sitemap@7 (via @docusaurus/plugin-sitemap) depends on @types/node ^17.0.5, which kept a second,
 # much older copy of it in the lockfile. Two @types/node versions means conflicting globals, and it
