@@ -22,6 +22,7 @@ todo
 #
 .vscode/launch.json
 .idea/
+.superpowers/
 
 
 .nx/cache
