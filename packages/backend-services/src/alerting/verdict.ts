@@ -1,7 +1,7 @@
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {withRlsTransaction} from '@gitgazer/db/client';
 import {workflowJobs} from '@gitgazer/db/schema';
-import type {VerdictKind, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import type {VerdictKind, WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, desc, eq, inArray, ne} from 'drizzle-orm';
 
 export const HISTORY_WINDOW = 30;
@@ -9,10 +9,15 @@ export const MIN_HISTORY = 5;
 export const FLAKY_MIN_RECOVERIES = 2;
 export const REAL_MIN_STREAK = 5;
 
+const HISTORY_CONCLUSIONS = ['success', 'failure'] as const satisfies readonly WorkflowConclusion[];
+type HistoryConclusion = (typeof HISTORY_CONCLUSIONS)[number];
+
+const isHistoryConclusion = (conclusion: string | null): conclusion is HistoryConclusion => HISTORY_CONCLUSIONS.some((value) => value === conclusion);
+
 export type JobHistoryEntry = {
     runId: number;
     runAttempt: number;
-    conclusion: string;
+    conclusion: HistoryConclusion;
     headBranch: string | null;
     completedAt: Date;
 };
@@ -82,7 +87,7 @@ export const loadJobHistory = async (job: WorkflowJobWithRelations): Promise<Job
                         eq(workflowJobs.repositoryId, job.repositoryId),
                         eq(workflowJobs.workflowName, job.workflowName),
                         eq(workflowJobs.name, job.name),
-                        inArray(workflowJobs.conclusion, ['success', 'failure']),
+                        inArray(workflowJobs.conclusion, [...HISTORY_CONCLUSIONS]),
                         ne(workflowJobs.id, job.id),
                     ),
                 )
@@ -90,7 +95,9 @@ export const loadJobHistory = async (job: WorkflowJobWithRelations): Promise<Job
                 .limit(HISTORY_WINDOW),
     });
 
-    return rows.flatMap((row) => (row.completedAt && row.conclusion ? [{...row, conclusion: row.conclusion, completedAt: row.completedAt}] : []));
+    return rows.flatMap(({conclusion, completedAt, ...row}) =>
+        completedAt && isHistoryConclusion(conclusion) ? [{...row, conclusion, completedAt}] : [],
+    );
 };
 
 export const computeVerdict = async (job: WorkflowJobWithRelations): Promise<Verdict> => {

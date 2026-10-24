@@ -30,7 +30,7 @@ import {classifyVerdict, computeVerdict, loadJobHistory, type JobHistoryEntry} f
 
 const current = {headBranch: 'feature', defaultBranch: 'main'};
 let seq = 0;
-const entry = (conclusion: string, over: Partial<JobHistoryEntry> = {}): JobHistoryEntry => ({
+const entry = (conclusion: JobHistoryEntry['conclusion'], over: Partial<JobHistoryEntry> = {}): JobHistoryEntry => ({
     runId: 1000 + seq++,
     runAttempt: 1,
     conclusion,
