@@ -145,6 +145,9 @@ The verdict is computed for every integration, including manual-webhook ones.
   `mcpQueryUsage` in `packages/db/src/schema/gitgazer.ts`). Over the cap, the alert ships without a summary.
 - Precedent in infra: `infra/analytics_bedrock.tf` (guardrail with EU guardrail profile),
   `infra/bedrock_logging.tf`, and Bedrock IAM statements in `infra/api_rest_lambda.tf`. Reuse the patterns.
+- **The worker reaches Bedrock through a Step Functions Express workflow** (synchronous `StartSyncExecution` over
+  the dual-stack endpoint): its subnets have IPv6-only egress and Bedrock Runtime has no IPv6 endpoint. The
+  workflow's logging excludes execution data, so prompts never reach CloudWatch through it.
 - **Bedrock invocation logging is on** (`enable_bedrock_invocation_logging = true`, 30-day CloudWatch retention), so
   prompts containing log text will be stored there. That stays inside the account, which matches the
   decision, but it means the redaction pass matters.
