@@ -143,6 +143,13 @@ describe('job-log', () => {
         expect(redactSecrets('see https://example.com/a@b?c=d@e')).toBe('see https://example.com/a@b?c=d@e');
     });
 
+    it('redacts a long line of repeated secret markers in linear time', () => {
+        const line = 'token'.repeat(40_000);
+        const start = performance.now();
+        redactSecrets(line);
+        expect(performance.now() - start).toBeLessThan(1000);
+    });
+
     it('strips ANSI color codes from the excerpt', () => {
         const log = stamp([
             '##[group]Run pnpm test',

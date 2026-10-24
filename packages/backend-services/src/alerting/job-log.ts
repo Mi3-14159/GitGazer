@@ -18,8 +18,9 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
     [/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, `Bearer ${REDACTED}`],
     // User info runs to the last @ in the authority: passwords may contain @, and a token can be the user name alone.
     [/:\/\/[^\s/?#]*@/g, `://${REDACTED}@`],
-    // An object or array value is redacted to the end of the line, since its nested keys need not look secret.
-    [/((?:password|secret|token|api[_-]?key)\w*["']?\s*[=:]\s*)(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[{[].*|\S+)/gi, `$1${REDACTED}`],
+    // The bounded key suffix keeps a long run like "tokentoken…" linear. An object or array value is redacted to the
+    // end of the line, since its nested keys need not look secret.
+    [/((?:password|secret|token|api[_-]?key)\w{0,64}["']?\s*[=:]\s*)(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[{[].*|\S+)/gi, `$1${REDACTED}`],
 ];
 
 export const redactSecrets = (text: string): string =>
