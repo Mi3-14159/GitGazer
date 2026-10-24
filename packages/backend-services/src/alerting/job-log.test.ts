@@ -94,6 +94,9 @@ describe('job-log', () => {
             ["{'api_key': 'k3y-v4lue'}", 'k3y-v4lue'],
             ['{"password":"prefix\\"SENSITIVE_SUFFIX"}', 'SENSITIVE_SUFFIX'],
             ["{'token': 'prefix\\'SENSITIVE_SUFFIX'}", 'SENSITIVE_SUFFIX'],
+            ['{"secrets": {"token": "SENSITIVE_VALUE"}}', 'SENSITIVE_VALUE'],
+            ['{"secrets": {"prod": {"db": "SENSITIVE_VALUE"}}}', 'SENSITIVE_VALUE'],
+            ['{"api_keys": ["SENSITIVE_A", "SENSITIVE_B"]}', 'SENSITIVE_'],
         ];
         for (const [input, secret] of cases) {
             const out = redactSecrets(input);
