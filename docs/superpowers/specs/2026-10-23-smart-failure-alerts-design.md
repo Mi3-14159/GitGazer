@@ -168,8 +168,9 @@ it simple): no new queue or lambda.
   that part.
 - **Ingest in order, alert in parallel.** The worker processes up to 10 records per invocation
   (`apps/lambdas/worker/src/index.ts`, `batch_size = 10` and 120 s timeout in `infra/`). Ingestion stays
-  sequential: the FIFO queue's ordering is what lets `insertEvent` detect stale events. Alerts are collected while
-  the records are ingested and sent after the loop, in parallel with a concurrency cap of about 5 (protects
+  sequential: the FIFO queue's ordering is what lets `insertEvent` detect stale events. Each alert starts as soon as
+  its job is saved (a replayed batch skips saved jobs as stale, so an alert waiting for the loop to end could be lost)
+  and alerts run in parallel with a concurrency cap of about 5 (protects
   Bedrock, the HTTP proxy Lambda and GitHub rate limits). A failing matrix build with 10 failed jobs then costs
   roughly 10–20 s instead of ~100 s. Slack messages within one batch may arrive in a different order than the
   jobs failed; that's acceptable. WebSocket pushes stay per record, in order.
