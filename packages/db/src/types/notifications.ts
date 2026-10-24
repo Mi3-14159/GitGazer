@@ -7,6 +7,7 @@ export type NotificationRule = {
     updatedAt: string;
     enabled: boolean;
     ignore_dependabot: boolean;
+    include_log_details: boolean;
     rule: NotificationRuleRule;
 };
 
@@ -22,6 +23,7 @@ export const isNotificationRule = (rule: any): rule is NotificationRule => {
         typeof rule.updatedAt === 'string' &&
         typeof rule.enabled === 'boolean' &&
         typeof rule.ignore_dependabot === 'boolean' &&
+        typeof rule.include_log_details === 'boolean' &&
         isNotificationRuleRule(rule.rule)
     );
 };
@@ -93,7 +95,9 @@ export const isNotificationRuleRule = (rule: any): rule is NotificationRuleRule 
     );
 };
 
-export type NotificationRuleUpdate = Omit<NotificationRule, 'createdAt' | 'updatedAt' | 'integrationId' | 'id'>;
+export type NotificationRuleUpdate = Omit<NotificationRule, 'createdAt' | 'updatedAt' | 'integrationId' | 'id' | 'include_log_details'> & {
+    include_log_details?: boolean;
+};
 
 export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpdate => {
     if (typeof rule !== 'object' || rule === null) return false;
@@ -105,6 +109,7 @@ export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpd
         rule.channels.every(isNotificationRuleChannel) &&
         typeof rule.enabled === 'boolean' &&
         typeof rule.ignore_dependabot === 'boolean' &&
+        (rule.include_log_details === undefined || typeof rule.include_log_details === 'boolean') &&
         isNotificationRuleRule(rule.rule)
     );
 };

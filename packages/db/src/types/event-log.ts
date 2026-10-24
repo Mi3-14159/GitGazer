@@ -1,3 +1,4 @@
+import type {VerdictKind} from './alerts';
 import type * as schema from '../schema';
 
 // Event Log types
@@ -36,6 +37,8 @@ export type EventLogEntryMetadata = {
     defaultRole?: string;
     newlyAssigned?: number;
     newlyPending?: number;
+    verdict?: VerdictKind;
+    aiSummary?: boolean;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;

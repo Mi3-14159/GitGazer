@@ -1,3 +1,4 @@
+import {isNotificationRule, isNotificationRuleUpdate} from '@gitgazer/db/types';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
@@ -239,6 +240,76 @@ describe('notifications controller', () => {
         expect(out.id).toBe('uuid-456');
     });
 
+    describe('include_log_details', () => {
+        const now = new Date();
+        const savedRow = {
+            id: 'uuid-1',
+            integrationId: 'integrationA',
+            label: 'CI alerts',
+            channels: [],
+            enabled: true,
+            ignore_dependabot: false,
+            include_log_details: true,
+            rule: {topics: []},
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        const captureUpsert = () => {
+            const captured: {values?: any; set?: any} = {};
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
+                const mockTx = {
+                    insert: () => ({
+                        values: (v: any) => {
+                            captured.values = v;
+                            return {
+                                onConflictDoUpdate: (c: any) => {
+                                    captured.set = c.set;
+                                    return {returning: () => Promise.resolve([savedRow])};
+                                },
+                            };
+                        },
+                    }),
+                };
+                return params.callback(mockTx);
+            });
+            return captured;
+        };
+
+        const baseRule = {label: 'CI alerts', enabled: true, channels: [], ignore_dependabot: false, rule: {topics: []}};
+
+        it('toNotificationRule maps include_log_details', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) =>
+                params.callback({select: () => ({from: () => Promise.resolve([{...savedRow, include_log_details: false}, savedRow])})}),
+            );
+
+            const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
+
+            expect(out.map((r) => r.include_log_details)).toEqual([false, true]);
+        });
+
+        it('upsert passes include_log_details to values and set when provided', async () => {
+            const captured = captureUpsert();
+
+            await notifications.upsertNotificationRule({
+                rule: {...baseRule, include_log_details: false} as any,
+                integrationId: 'integrationA',
+            });
+
+            expect(captured.values.include_log_details).toBe(false);
+            expect(captured.set.include_log_details).toBe(false);
+        });
+
+        it('upsert omits include_log_details from set when undefined', async () => {
+            const captured = captureUpsert();
+
+            await notifications.upsertNotificationRule({rule: baseRule as any, integrationId: 'integrationA'});
+
+            expect(captured.values).not.toHaveProperty('include_log_details');
+            expect(captured.set).not.toHaveProperty('include_log_details');
+        });
+    });
+
     it('deleteNotificationRule calls delete and creates event log entry', async () => {
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
@@ -279,4 +350,35 @@ describe('notifications controller', () => {
 
         await expect(notifications.deleteNotificationRule('rule-1', 'integrationA')).resolves.toBeUndefined();
     });
+});
+
+describe('isNotificationRuleUpdate include_log_details', () => {
+    const base = {
+        label: 'r',
+        channels: [{type: 'SLACK', webhook_url: 'https://hooks.slack.com/x'}],
+        enabled: true,
+        ignore_dependabot: false,
+        rule: {},
+    };
+
+    it('accepts a missing include_log_details', () => expect(isNotificationRuleUpdate(base)).toBe(true));
+    it('accepts a boolean include_log_details', () => expect(isNotificationRuleUpdate({...base, include_log_details: false})).toBe(true));
+    it('rejects a non-boolean include_log_details', () => expect(isNotificationRuleUpdate({...base, include_log_details: 'yes'})).toBe(false));
+});
+
+describe('isNotificationRule include_log_details', () => {
+    const base = {
+        integrationId: 'int-1',
+        label: 'r',
+        channels: [{type: 'SLACK', webhook_url: 'https://hooks.slack.com/x'}],
+        createdAt: '2026-10-24T00:00:00.000Z',
+        updatedAt: '2026-10-24T00:00:00.000Z',
+        enabled: true,
+        ignore_dependabot: false,
+        rule: {},
+    };
+
+    it('accepts a boolean include_log_details', () => expect(isNotificationRule({...base, include_log_details: true})).toBe(true));
+    it('rejects a missing include_log_details', () => expect(isNotificationRule(base)).toBe(false));
+    it('rejects a non-boolean include_log_details', () => expect(isNotificationRule({...base, include_log_details: 'yes'})).toBe(false));
 });
