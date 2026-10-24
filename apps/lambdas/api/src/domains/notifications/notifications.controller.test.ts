@@ -1,4 +1,4 @@
-import {isNotificationRuleUpdate} from '@gitgazer/db/types';
+import {isNotificationRule, isNotificationRuleUpdate} from '@gitgazer/db/types';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
@@ -364,4 +364,21 @@ describe('isNotificationRuleUpdate include_log_details', () => {
     it('accepts a missing include_log_details', () => expect(isNotificationRuleUpdate(base)).toBe(true));
     it('accepts a boolean include_log_details', () => expect(isNotificationRuleUpdate({...base, include_log_details: false})).toBe(true));
     it('rejects a non-boolean include_log_details', () => expect(isNotificationRuleUpdate({...base, include_log_details: 'yes'})).toBe(false));
+});
+
+describe('isNotificationRule include_log_details', () => {
+    const base = {
+        integrationId: 'int-1',
+        label: 'r',
+        channels: [{type: 'SLACK', webhook_url: 'https://hooks.slack.com/x'}],
+        createdAt: '2026-10-24T00:00:00.000Z',
+        updatedAt: '2026-10-24T00:00:00.000Z',
+        enabled: true,
+        ignore_dependabot: false,
+        rule: {},
+    };
+
+    it('accepts a boolean include_log_details', () => expect(isNotificationRule({...base, include_log_details: true})).toBe(true));
+    it('rejects a missing include_log_details', () => expect(isNotificationRule(base)).toBe(false));
+    it('rejects a non-boolean include_log_details', () => expect(isNotificationRule({...base, include_log_details: 'yes'})).toBe(false));
 });

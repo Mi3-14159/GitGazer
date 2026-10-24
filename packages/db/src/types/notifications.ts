@@ -23,6 +23,7 @@ export const isNotificationRule = (rule: any): rule is NotificationRule => {
         typeof rule.updatedAt === 'string' &&
         typeof rule.enabled === 'boolean' &&
         typeof rule.ignore_dependabot === 'boolean' &&
+        typeof rule.include_log_details === 'boolean' &&
         isNotificationRuleRule(rule.rule)
     );
 };
