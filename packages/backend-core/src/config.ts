@@ -121,6 +121,44 @@ const config = convict({
             sensitive: true,
         },
     },
+    alerts: {
+        bedrockModelId: {
+            doc: 'Bedrock model or inference profile ID used to summarize failed job logs',
+            format: String,
+            default: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+            env: 'ALERTS_BEDROCK_MODEL_ID',
+        },
+        summaryDailyCap: {
+            doc: 'Maximum AI failure summaries generated per day',
+            format: Number,
+            default: 200,
+            env: 'ALERTS_SUMMARY_DAILY_CAP',
+        },
+        logFetchTimeoutMs: {
+            doc: 'Timeout for downloading a job log from GitHub, in milliseconds',
+            format: Number,
+            default: 5000,
+            env: 'ALERTS_LOG_FETCH_TIMEOUT_MS',
+        },
+        bedrockTimeoutMs: {
+            doc: 'Timeout for a Bedrock summary call, in milliseconds',
+            format: Number,
+            default: 8000,
+            env: 'ALERTS_BEDROCK_TIMEOUT_MS',
+        },
+        minRemainingMsForEnrichment: {
+            doc: 'Skip log enrichment when less than this many milliseconds remain in the invocation',
+            format: Number,
+            default: 30000,
+            env: 'ALERTS_MIN_REMAINING_MS_FOR_ENRICHMENT',
+        },
+        concurrency: {
+            doc: 'Maximum alerts processed concurrently per batch',
+            format: Number,
+            default: 5,
+            env: 'ALERTS_CONCURRENCY',
+        },
+    },
     githubOAuthApp: {
         clientId: {
             doc: 'GitHub OAuth app client ID (matches the Cognito IdP)',
