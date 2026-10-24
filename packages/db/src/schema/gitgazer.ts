@@ -135,6 +135,7 @@ export const notificationRules = gitgazerSchema
             channels: jsonb('channels').notNull().$type<NotificationRuleChannel[]>(),
             enabled: boolean('enabled').notNull().default(true),
             ignore_dependabot: boolean('ignore_dependabot').notNull().default(false),
+            include_log_details: boolean('include_log_details').notNull().default(true),
             rule: jsonb('rule').notNull().$type<NotificationRuleRule>(),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
             updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),

@@ -36,6 +36,8 @@ export type EventLogEntryMetadata = {
     defaultRole?: string;
     newlyAssigned?: number;
     newlyPending?: number;
+    verdict?: 'flaky' | 'real' | 'unknown';
+    aiSummary?: boolean;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;

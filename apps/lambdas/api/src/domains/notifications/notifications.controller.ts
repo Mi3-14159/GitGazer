@@ -15,6 +15,7 @@ const toNotificationRule = (row: typeof notificationRules.$inferSelect): Notific
     updatedAt: row.updatedAt.toISOString(),
     enabled: row.enabled,
     ignore_dependabot: row.ignore_dependabot,
+    include_log_details: row.include_log_details,
     rule: row.rule,
 });
 

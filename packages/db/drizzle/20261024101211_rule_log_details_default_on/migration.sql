@@ -1,0 +1,1 @@
+ALTER TABLE "gitgazer"."notification_rules" ALTER COLUMN "include_log_details" SET DEFAULT true;

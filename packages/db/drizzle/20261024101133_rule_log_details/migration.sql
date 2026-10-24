@@ -1,0 +1,2 @@
+ALTER TABLE "gitgazer"."notification_rules" ADD COLUMN "include_log_details" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "workflow_jobs_history_lookup" ON "github"."workflow_jobs" ("integration_id","repository_id","workflow_name","name","completed_at");

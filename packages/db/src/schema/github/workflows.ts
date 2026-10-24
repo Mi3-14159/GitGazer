@@ -197,6 +197,7 @@ export const workflowJobs = githubSchema
             }),
             index('workflow_jobs_run_lookup').on(table.integrationId, table.workflowRunId),
             index('workflow_jobs_created_at').on(table.integrationId, table.createdAt),
+            index('workflow_jobs_history_lookup').on(table.integrationId, table.repositoryId, table.workflowName, table.name, table.completedAt),
         ],
     )
     .enableRLS();
