@@ -97,4 +97,13 @@ describe('slack-payload', () => {
         }
         expect(JSON.stringify(payload)).not.toMatch(/&l(?!t;)/);
     });
+
+    it('marks every mrkdwn text verbatim so bare @here in untrusted text is not a mention', () => {
+        const payload = buildSlackAlert({...base, jobName: '@here', details: {summary: '@channel', excerpt: '@everyone'}});
+        const texts = (payload.attachments[0].blocks as any[])
+            .flatMap((block) => [block.text, ...(block.elements ?? [])])
+            .filter((t) => t?.type === 'mrkdwn');
+        expect(texts.length).toBeGreaterThan(0);
+        for (const t of texts) expect(t.verbatim).toBe(true);
+    });
 });

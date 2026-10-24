@@ -17,7 +17,7 @@ export type SlackAlertInput = {
     details: {summary: string | null; excerpt: string | null} | null;
 };
 
-type SlackText = {type: 'mrkdwn'; text: string};
+type SlackText = {type: 'mrkdwn'; text: string; verbatim: true};
 type SlackButton = {type: 'button'; text: {type: 'plain_text'; text: string}; url: string};
 export type SlackBlock = {type: 'section'; text: SlackText} | {type: 'context'; elements: SlackText[]} | {type: 'actions'; elements: SlackButton[]};
 
@@ -32,7 +32,8 @@ export const escapeMrkdwn = (text: string): string => text.replace(/&/g, '&amp;'
 // Cutting after escaping must not leave half an entity such as "&l".
 const clip = (escaped: string, max: number): string => (escaped.length <= max ? escaped : escaped.slice(0, max - 1).replace(/&[a-z]*$/, '') + '…');
 
-const mrkdwn = (text: string): SlackText => ({type: 'mrkdwn', text: clip(text, MAX_MRKDWN_LENGTH)});
+// verbatim stops Slack from turning a bare @here or @channel in untrusted text into a mention.
+const mrkdwn = (text: string): SlackText => ({type: 'mrkdwn', text: clip(text, MAX_MRKDWN_LENGTH), verbatim: true});
 
 const button = (text: string, url: string): SlackButton => ({type: 'button', text: {type: 'plain_text', text}, url});
 
