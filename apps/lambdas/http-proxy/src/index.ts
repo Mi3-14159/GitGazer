@@ -4,8 +4,10 @@ const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com'
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
-// Lambda's synchronous payload limit is 6 MB; the tail is kept because the error is at the end of a job log
-const MAX_RESPONSE_BODY = 4 * 1024 * 1024;
+const TRUNCATE_TAIL_HEADER = 'x-gitgazer-truncate-tail';
+
+// Lambda's 6 MB response limit applies to the JSON-escaped payload, which can be several times the raw bytes
+const MAX_TAIL_BYTES = 1024 * 1024;
 
 /**
  * Response headers the proxy forwards back to the caller. Critically includes
@@ -26,6 +28,37 @@ const FORWARDED_RESPONSE_HEADERS = [
     'x-ratelimit-used',
     'x-ratelimit-resource',
 ];
+
+/** Streams the body, keeping only the last MAX_TAIL_BYTES in memory, because a job log's error is at its end. */
+const readTail = async (response: Response): Promise<{body: string; truncated: boolean}> => {
+    if (!response.body) {
+        return {body: await response.text(), truncated: false};
+    }
+
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    let truncated = false;
+
+    for (;;) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        size += value.byteLength;
+        while (chunks.length > 1 && size - chunks[0].byteLength >= MAX_TAIL_BYTES) {
+            size -= chunks.shift()!.byteLength;
+            truncated = true;
+        }
+    }
+
+    let tail = Buffer.concat(chunks);
+    if (tail.byteLength > MAX_TAIL_BYTES) {
+        tail = tail.subarray(tail.byteLength - MAX_TAIL_BYTES);
+        truncated = true;
+    }
+
+    return {body: new TextDecoder('utf-8').decode(tail), truncated};
+};
 
 export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
     if (!event.url || !event.method) {
@@ -52,9 +85,14 @@ export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
     }
 
     const headers: Record<string, string> = {};
+    let truncateTail = false;
     if (event.headers) {
         for (const [key, value] of Object.entries(event.headers)) {
             const lower = key.toLowerCase();
+            if (lower === TRUNCATE_TAIL_HEADER) {
+                truncateTail = value.toLowerCase() === 'true';
+                continue;
+            }
             if (lower === 'host' || lower === 'transfer-encoding') continue;
             headers[key] = value;
         }
@@ -67,9 +105,7 @@ export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
             body: event.method !== 'GET' && event.method !== 'HEAD' ? event.body : undefined,
         });
 
-        const fullBody = await response.text();
-        const truncated = fullBody.length > MAX_RESPONSE_BODY;
-        const responseBody = truncated ? fullBody.slice(-MAX_RESPONSE_BODY) : fullBody;
+        const {body: responseBody, truncated} = truncateTail ? await readTail(response) : {body: await response.text(), truncated: false};
 
         const responseHeaders: Record<string, string> = {'content-type': response.headers.get('content-type') ?? 'application/json'};
         for (const name of FORWARDED_RESPONSE_HEADERS) {
