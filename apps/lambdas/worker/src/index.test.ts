@@ -29,10 +29,11 @@ beforeEach(async () => {
 });
 
 describe('handler', () => {
-    it('ingests records in order before sending any alert', async () => {
+    it('ingests records in order and starts each alert as soon as its job is saved', async () => {
         const calls: string[] = [];
         mockProcessRecord.mockImplementation(async (record) => {
             calls.push(`ingest:${record.messageId}`);
+            await new Promise((resolve) => setTimeout(resolve, 1));
             return {id: record.messageId};
         });
         mockSendWorkflowJobAlerts.mockImplementation(async (job) => {
@@ -41,8 +42,20 @@ describe('handler', () => {
 
         await worker.handler(makeEvent(3), makeContext());
 
-        expect(calls.slice(0, 3)).toEqual(['ingest:m0', 'ingest:m1', 'ingest:m2']);
-        expect(calls.slice(3).sort()).toEqual(['alert:m0', 'alert:m1', 'alert:m2']);
+        expect(calls.filter((call) => call.startsWith('ingest'))).toEqual(['ingest:m0', 'ingest:m1', 'ingest:m2']);
+        expect(calls.indexOf('alert:m0')).toBeLessThan(calls.indexOf('ingest:m2'));
+    });
+
+    it('keeps alerts that already started when a later record fails ingestion', async () => {
+        mockProcessRecord.mockImplementation(async (record) => {
+            if (record.messageId === 'm2') throw new Error('db down');
+            return {id: record.messageId};
+        });
+
+        const result = await worker.handler(makeEvent(3), makeContext());
+
+        expect(result.batchItemFailures).toEqual([{itemIdentifier: 'm2'}]);
+        expect(mockSendWorkflowJobAlerts.mock.calls.map(([job]) => job.id)).toEqual(['m0', 'm1']);
     });
 
     it('sends alerts with at most 5 in flight', async () => {
