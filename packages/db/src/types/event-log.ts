@@ -1,3 +1,4 @@
+import type {VerdictKind} from './alerts';
 import type * as schema from '../schema';
 
 // Event Log types
@@ -36,7 +37,7 @@ export type EventLogEntryMetadata = {
     defaultRole?: string;
     newlyAssigned?: number;
     newlyPending?: number;
-    verdict?: 'flaky' | 'real' | 'unknown';
+    verdict?: VerdictKind;
     aiSummary?: boolean;
 };
 
