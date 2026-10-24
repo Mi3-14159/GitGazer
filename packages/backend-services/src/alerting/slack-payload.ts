@@ -29,6 +29,9 @@ const VERDICT_LABELS: Record<Exclude<VerdictKind, 'unknown'>, string> = {flaky: 
 
 export const escapeMrkdwn = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// The fallback text cannot be sent verbatim, so a zero-width space keeps a bare @here in a job name from notifying.
+const neutralizeMentions = (text: string): string => text.replace(/@(here|channel|everyone)\b/gi, '@\u200b$1');
+
 // Cutting after escaping must not leave half an entity such as "&l".
 const clip = (escaped: string, max: number): string => (escaped.length <= max ? escaped : escaped.slice(0, max - 1).replace(/&[a-z]*$/, '') + '…');
 
@@ -72,7 +75,7 @@ export const buildSlackAlert = (input: SlackAlertInput): SlackPayload => {
     blocks.push({type: 'actions', elements: buttons});
 
     return {
-        text: `${title} failed on ${escapeMrkdwn(repository)}`,
+        text: neutralizeMentions(`${title} failed on ${escapeMrkdwn(repository)}`),
         attachments: [{color: COLORS[verdict.kind], blocks}],
     };
 };

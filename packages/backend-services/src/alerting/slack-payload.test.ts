@@ -106,4 +106,10 @@ describe('slack-payload', () => {
         expect(texts.length).toBeGreaterThan(0);
         for (const t of texts) expect(t.verbatim).toBe(true);
     });
+
+    it('breaks bare mentions in the fallback text', () => {
+        const payload = buildSlackAlert({...base, workflowName: '@channel', jobName: '@here'});
+        expect(payload.text).not.toMatch(/@(here|channel)\b/);
+        expect(payload.text).toBe('@\u200bchannel / @\u200bhere failed on app');
+    });
 });
