@@ -1,7 +1,8 @@
 const REDACTED = '[REDACTED]';
 const LOG_PREFIX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z ?/;
 // CI tools force colors on, and a code inside `token\x1b[39m: value` would hide the assignment from redaction
-const ANSI_SEQUENCE = /\x1b\[[0-9;?]*[A-Za-z]/g;
+// Full ECMA-48 CSI shape: parameter bytes include ':' (as in 38:2:r:g:b truecolor), then intermediates and a final byte
+const ANSI_SEQUENCE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const ERROR_MARKER = '##[error]';
 const GROUP_MARKER = '##[group]';
 const CONTEXT_LINES = 3;

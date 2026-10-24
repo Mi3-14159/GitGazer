@@ -126,6 +126,12 @@ describe('job-log', () => {
         expect(failedStepTail(log, 1000)).not.toContain('s3cr3tvalue');
     });
 
+    it('redacts an assignment split by colon-form ANSI codes', () => {
+        const log = stamp(['##[group]Run deploy', 'token\x1b[38:2:255:0:0m: DEMO_SENSITIVE_VALUE', '##[error]deploy failed']);
+        expect(extractErrorExcerpt(log)).not.toContain('DEMO_SENSITIVE_VALUE');
+        expect(failedStepTail(log, 1000)).not.toMatch(/DEMO_SENSITIVE_VALUE|\x1b/);
+    });
+
     it('handles CRLF line endings', () => {
         const log = stamp(['##[group]Run pnpm test', 'AssertionError: expected 41 to be 42', '##[error]Process completed with exit code 1.']).replace(
             /\n/g,
