@@ -37,7 +37,7 @@
 import {handler} from '../index';
 import '@gitgazer/backend-core/bootstrap';
 import {ReceiveMessageCommand, SQSClient} from '@aws-sdk/client-sqs';
-import type {SQSEvent, SQSRecord} from 'aws-lambda';
+import type {Context, SQSEvent, SQSRecord} from 'aws-lambda';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {parseArgs} from 'node:util';
@@ -206,7 +206,7 @@ const main = async (): Promise<void> => {
     // `batchItemFailures` — so surface any failure here to keep this script's
     // non-zero exit / stack-trace behaviour.
     const event: SQSEvent = {Records: [toSqsRecord(effectiveBody)]};
-    const {batchItemFailures} = await handler(event);
+    const {batchItemFailures} = await handler(event, {getRemainingTimeInMillis: () => 300_000} as Context);
 
     if (batchItemFailures.length > 0) {
         throw new Error(
