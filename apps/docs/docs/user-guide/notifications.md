@@ -43,23 +43,14 @@ The new rule appears as a card on the Notifications page.
 
 All filter fields are optional. Leaving a field blank means "match any value" for that criterion. Only events matching **all** specified criteria trigger the alert.
 
-| Filter                  | Description                                                                 | Example                |
-| ----------------------- | --------------------------------------------------------------------------- | ---------------------- |
-| **Owner**               | GitHub owner (organization or user)                                         | `my-org`               |
-| **Repository name**     | Repository name (without owner prefix)                                      | `my-repo`              |
-| **Workflow name**       | The workflow's `name:` field from the YAML                                  | `CI Build`             |
-| **Head branch**         | The branch that triggered the workflow                                      | `main`                 |
-| **Topics**              | Repository topics (matches if the repo has **any** of the listed topics)    | `frontend`, `critical` |
-| **Ignore Dependabot**   | Skip alerts for Dependabot-triggered failures                               | Checked = ignore       |
-| **Include log details** | Add error lines from the failed job log and an AI summary to failure alerts | Checked = include      |
-
-### Log details
-
-When **Include log details** is checked, failure alerts for this rule also show the error lines from the failed job log and a short AI-generated summary. The verdict is always shown, whatever this setting is.
-
-- New rules have it checked. Existing rules keep it unchecked until you opt in.
-- Everyone in the Slack channel can read the error lines, so only enable it where that is acceptable.
-- It requires the GitGazer GitHub App. Integrations set up with a manual webhook never fetch logs, so their alerts carry no log details.
+| Filter                | Description                                                              | Example                |
+| --------------------- | ------------------------------------------------------------------------ | ---------------------- |
+| **Owner**             | GitHub owner (organization or user)                                      | `my-org`               |
+| **Repository name**   | Repository name (without owner prefix)                                   | `my-repo`              |
+| **Workflow name**     | The workflow's `name:` field from the YAML                               | `CI Build`             |
+| **Head branch**       | The branch that triggered the workflow                                   | `main`                 |
+| **Topics**            | Repository topics (matches if the repo has **any** of the listed topics) | `frontend`, `critical` |
+| **Ignore Dependabot** | Skip alerts for Dependabot-triggered failures                            | Checked = ignore       |
 
 ### Examples
 
@@ -74,6 +65,16 @@ When **Include log details** is checked, failure alerts for this rule also show 
 **Alert on failures in repos tagged `critical`, ignoring Dependabot:**
 
 - Add `critical` to **Topics**. Check **Ignore Dependabot**.
+
+## Log Details
+
+**Include log details** is a checkbox on the rule form. It is not a filter: it never stops a rule from firing. It only controls what a failure alert for this rule contains.
+
+When it is checked, failure alerts also show the error lines from the failed job log and a short AI-generated summary. The verdict is always shown, whatever this setting is.
+
+- New rules have it checked. Existing rules keep it unchecked until you opt in.
+- Everyone in the Slack channel can read the error lines, so only enable it where that is acceptable.
+- It requires the GitGazer GitHub App. Integrations set up with a manual webhook never fetch logs, so their alerts carry no log details.
 
 ## Manage Rules
 
