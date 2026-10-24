@@ -133,7 +133,8 @@ The verdict is computed for every integration, including manual-webhook ones.
 
 ## AI summary
 
-- Bedrock Converse API from the enrichment Lambda, `maxTokens` set explicitly (about 300).
+- Bedrock `InvokeModel` through the Step Functions Bedrock integration (Anthropic Messages body), `max_tokens` set
+  explicitly (about 300).
 - Model: Claude Haiku (fast and cheap enough per failure) via an **EU geographic inference profile** (`eu.` prefix)
   so data stays in the EU. GitGazer runs in `eu-central-1`. The exact model ID is the builder's call after
   checking `aws bedrock list-inference-profiles`.
@@ -174,8 +175,8 @@ it simple): no new queue or lambda.
   plain verdict alert) when it is below a safety margin (about 30 s). A Lambda timeout would fail the whole batch,
   delay ingestion of every event in it and replay it after the visibility timeout.
 - Alert failures still never fail an SQS record (same as today's post-commit side-effect handling).
-- The worker's IAM role needs `bedrock:InvokeModel` on the chosen inference profile (pattern in
-  `infra/api_rest_lambda.tf`).
+- The worker's IAM role needs `states:StartSyncExecution` on the summary workflow; the workflow's role holds
+  `bedrock:InvokeModel` on the chosen inference profile (pattern in `infra/api_rest_lambda.tf`).
 - **Idempotency:** SQS retries or webhook redeliveries must never double-post. The existing stale guard covers
   this: `upsertWorkflowJobs` only updates a job when `completed_at` is newer, so a replayed `completed` event is
   `stale` and doesn't alert. (Found while planning; no extra dedupe store needed.)
