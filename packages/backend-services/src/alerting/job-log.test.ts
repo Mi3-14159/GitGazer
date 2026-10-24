@@ -92,6 +92,8 @@ describe('job-log', () => {
             ['{"token": "abc123"}', 'abc123'],
             ['{"password":"x9y8z7"}', 'x9y8z7'],
             ["{'api_key': 'k3y-v4lue'}", 'k3y-v4lue'],
+            ['{"password":"prefix\\"SENSITIVE_SUFFIX"}', 'SENSITIVE_SUFFIX'],
+            ["{'token': 'prefix\\'SENSITIVE_SUFFIX'}", 'SENSITIVE_SUFFIX'],
         ];
         for (const [input, secret] of cases) {
             const out = redactSecrets(input);
