@@ -133,8 +133,7 @@ The verdict is computed for every integration, including manual-webhook ones.
 
 ## AI summary
 
-- Bedrock `InvokeModel` through the Step Functions Bedrock integration (Anthropic Messages body), `max_tokens` set
-  explicitly (about 300).
+- Bedrock Converse API, `maxTokens` set explicitly (about 300).
 - Model: Claude Haiku (fast and cheap enough per failure) via an **EU geographic inference profile** (`eu.` prefix)
   so data stays in the EU. GitGazer runs in `eu-central-1`. The exact model ID is the builder's call after
   checking `aws bedrock list-inference-profiles`.
@@ -146,9 +145,9 @@ The verdict is computed for every integration, including manual-webhook ones.
   `mcpQueryUsage` in `packages/db/src/schema/gitgazer.ts`). Over the cap, the alert ships without a summary.
 - Precedent in infra: `infra/analytics_bedrock.tf` (guardrail with EU guardrail profile),
   `infra/bedrock_logging.tf`, and Bedrock IAM statements in `infra/api_rest_lambda.tf`. Reuse the patterns.
-- **The worker reaches Bedrock through a Step Functions Express workflow** (synchronous `StartSyncExecution` over
-  the dual-stack endpoint): its subnets have IPv6-only egress and Bedrock Runtime has no IPv6 endpoint. The
-  workflow's logging excludes execution data, so prompts never reach CloudWatch through it.
+- **The worker relays Bedrock calls through the existing HTTP proxy Lambda:** it signs a Bedrock Converse request
+  with SigV4 using its own role and sends it through `apps/lambdas/http-proxy`, because its subnets have IPv6-only
+  egress and Bedrock Runtime has no IPv6 endpoint. The proxy holds no AWS permissions and does not log bodies.
 - **Bedrock invocation logging is on** (`enable_bedrock_invocation_logging = true`, 30-day CloudWatch retention), so
   prompts containing log text will be stored there. That stays inside the account, which matches the
   decision, but it means the redaction pass matters.
@@ -175,8 +174,8 @@ it simple): no new queue or lambda.
   plain verdict alert) when it is below a safety margin (about 30 s). A Lambda timeout would fail the whole batch,
   delay ingestion of every event in it and replay it after the visibility timeout.
 - Alert failures still never fail an SQS record (same as today's post-commit side-effect handling).
-- The worker's IAM role needs `states:StartSyncExecution` on the summary workflow; the workflow's role holds
-  `bedrock:InvokeModel` on the chosen inference profile (pattern in `infra/api_rest_lambda.tf`).
+- The worker's IAM role holds `bedrock:InvokeModel` on the Haiku EU inference profile (pattern in
+  `infra/api_rest_lambda.tf`) and relays the signed request through the HTTP proxy Lambda.
 - **Idempotency:** SQS retries or webhook redeliveries must never double-post. The existing stale guard covers
   this: `upsertWorkflowJobs` only updates a job when `completed_at` is newer, so a replayed `completed` event is
   `stale` and doesn't alert. (Found while planning; no extra dedupe store needed.)
