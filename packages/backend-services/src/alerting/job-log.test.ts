@@ -125,6 +125,7 @@ describe('job-log', () => {
             ['{"secrets": {"prod": {"db": "SENSITIVE_VALUE"}}}', 'SENSITIVE_VALUE'],
             ['{"api_keys": ["SENSITIVE_A", "SENSITIVE_B"]}', 'SENSITIVE_'],
             ['password: first DEMO_SENSITIVE_SUFFIX', 'DEMO_SENSITIVE_SUFFIX'],
+            ["+ export 'PASSWORD=prefix SENSITIVE_SUFFIX'", 'SENSITIVE_SUFFIX'],
         ];
         for (const [input, secret] of cases) {
             const out = redactSecrets(input);
