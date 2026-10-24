@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {mapWithConcurrency, TimeoutError, withTimeout} from './async';
+import {createLimiter, TimeoutError, withTimeout} from './async';
 
 describe('withTimeout', () => {
     beforeEach(() => {
@@ -25,39 +25,52 @@ describe('withTimeout', () => {
     });
 });
 
-describe('mapWithConcurrency', () => {
-    it('never runs more than limit at once', async () => {
+describe('createLimiter', () => {
+    const deferred = () => {
+        let resolve!: () => void;
+        const promise = new Promise<void>((r) => (resolve = r));
+        return {promise, resolve};
+    };
+
+    it('never runs more than limit at once, even when new tasks arrive while others finish', async () => {
+        const limit = createLimiter(2);
         let inFlight = 0;
         let maxInFlight = 0;
-        const resolvers: Array<() => void> = [];
+        const gates = Array.from({length: 5}, deferred);
+        const run = (i: number) =>
+            limit(async () => {
+                inFlight++;
+                maxInFlight = Math.max(maxInFlight, inFlight);
+                await gates[i].promise;
+                inFlight--;
+                return i;
+            });
 
-        const run = mapWithConcurrency([1, 2, 3, 4, 5], 2, async (n) => {
-            inFlight++;
-            maxInFlight = Math.max(maxInFlight, inFlight);
-            await new Promise<void>((resolve) => resolvers.push(resolve));
-            inFlight--;
-            return n;
-        });
+        const first = [run(0), run(1), run(2)];
+        gates[0].resolve();
+        const late = run(3);
+        gates.forEach((gate) => gate.resolve());
 
-        while (resolvers.length < 5) {
-            await new Promise((resolve) => setImmediate(resolve));
-            resolvers.splice(0).forEach((resolve) => resolve());
-            if (inFlight === 0 && maxInFlight >= 2 && resolvers.length === 0) break;
-        }
-        const results = await run;
-
+        expect(await Promise.all([...first, late, run(4)])).toEqual([0, 1, 2, 3, 4]);
         expect(maxInFlight).toBe(2);
-        expect(results).toHaveLength(5);
     });
 
-    it('keeps input order and captures rejections', async () => {
-        const results = await mapWithConcurrency([1, 2, 3], 2, async (n) => {
-            if (n === 2) throw new Error('boom');
-            return n * 10;
+    it('starts a task immediately when a slot is free', async () => {
+        const limit = createLimiter(1);
+        const started: number[] = [];
+
+        const a = limit(async () => {
+            started.push(1);
         });
 
-        expect(results[0]).toEqual({status: 'fulfilled', value: 10});
-        expect(results[1]).toMatchObject({status: 'rejected'});
-        expect(results[2]).toEqual({status: 'fulfilled', value: 30});
+        expect(started).toEqual([1]);
+        await a;
+    });
+
+    it('passes rejections through and frees the slot', async () => {
+        const limit = createLimiter(1);
+
+        await expect(limit(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+        await expect(limit(async () => 'ok')).resolves.toBe('ok');
     });
 });

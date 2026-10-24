@@ -20,21 +20,25 @@ export const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
         );
     });
 
-export const mapWithConcurrency = async <T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> => {
-    const results = new Array<PromiseSettledResult<R>>(items.length);
-    let next = 0;
+/** Runs tasks as they are submitted, at most `limit` at once; a finished task hands its slot to the next waiter. */
+export const createLimiter = (limit: number) => {
+    const maxActive = Math.max(limit, 1);
+    let active = 0;
+    const waiting: Array<() => void> = [];
 
-    const worker = async () => {
-        while (next < items.length) {
-            const index = next++;
-            try {
-                results[index] = {status: 'fulfilled', value: await fn(items[index])};
-            } catch (reason) {
-                results[index] = {status: 'rejected', reason};
-            }
-        }
+    const release = () => {
+        const next = waiting.shift();
+        if (next) next();
+        else active--;
     };
 
-    await Promise.all(Array.from({length: Math.min(Math.max(limit, 1), items.length)}, worker));
-    return results;
+    return async <T>(task: () => Promise<T>): Promise<T> => {
+        if (active < maxActive) active++;
+        else await new Promise<void>((resolve) => waiting.push(resolve));
+        try {
+            return await task();
+        } finally {
+            release();
+        }
+    };
 };
