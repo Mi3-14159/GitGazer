@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe('converse', () => {
-    it('starts a sync execution with model, system, prompt and maxTokens', async () => {
+    it('starts a sync execution with system, prompt and maxTokens', async () => {
         mockSend.mockResolvedValue({status: 'SUCCEEDED', output: JSON.stringify({text: 'summary'})});
 
         await bedrock.converse({system: 'sys', prompt: 'log', maxTokens: 300});
@@ -46,7 +46,6 @@ describe('converse', () => {
         const {input} = mockSend.mock.calls[0][0];
         expect(input.stateMachineArn).toBe(stateMachineArn);
         expect(JSON.parse(input.input)).toEqual({
-            modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
             system: 'sys',
             prompt: 'log',
             maxTokens: 300,

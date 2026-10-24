@@ -210,3 +210,14 @@ variable "enable_rds_proxy" {
   description = "Whether to create an RDS Proxy for connection pooling between Lambda and Aurora"
   default     = false
 }
+
+variable "alerts_bedrock_inference_profile_id" {
+  type        = string
+  description = "EU geographic Bedrock inference profile ID the alert summary workflow invokes"
+  default     = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+  validation {
+    condition     = startswith(var.alerts_bedrock_inference_profile_id, "eu.")
+    error_message = "The inference profile must be an EU geographic profile (eu. prefix)."
+  }
+}

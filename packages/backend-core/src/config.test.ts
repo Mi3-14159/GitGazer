@@ -28,7 +28,6 @@ describe('config', () => {
         const {default: config} = await import('./config');
 
         expect(config.get('alerts')).toEqual({
-            bedrockModelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
             bedrockStateMachineArn: '',
             summaryDailyCap: 1000,
             logFetchTimeoutMs: 5000,

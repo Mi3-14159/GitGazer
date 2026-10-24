@@ -122,12 +122,6 @@ const config = convict({
         },
     },
     alerts: {
-        bedrockModelId: {
-            doc: 'Bedrock model or inference profile ID used to summarize failed job logs',
-            format: String,
-            default: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
-            env: 'ALERTS_BEDROCK_MODEL_ID',
-        },
         bedrockStateMachineArn: {
             doc: 'ARN of the Step Functions Express workflow that calls Bedrock for failure summaries',
             format: String,

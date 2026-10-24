@@ -9,7 +9,7 @@ const getClient = (): SFNClient => {
 };
 
 export const converse = async (params: {system: string; prompt: string; maxTokens: number}): Promise<string> => {
-    const {bedrockStateMachineArn, bedrockModelId} = config.get('alerts');
+    const {bedrockStateMachineArn} = config.get('alerts');
     if (!bedrockStateMachineArn) {
         throw new Error('Bedrock state machine ARN is not configured');
     }
@@ -17,7 +17,7 @@ export const converse = async (params: {system: string; prompt: string; maxToken
     const response = await getClient().send(
         new StartSyncExecutionCommand({
             stateMachineArn: bedrockStateMachineArn,
-            input: JSON.stringify({modelId: bedrockModelId, system: params.system, prompt: params.prompt, maxTokens: params.maxTokens}),
+            input: JSON.stringify({system: params.system, prompt: params.prompt, maxTokens: params.maxTokens}),
         }),
     );
 

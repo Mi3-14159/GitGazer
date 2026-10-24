@@ -1,6 +1,13 @@
 # The worker's subnets have IPv6-only egress and Bedrock Runtime has no IPv6 endpoint, so the worker
 # calls this Express workflow over the dual-stack Step Functions endpoint and the workflow calls Bedrock.
 
+locals {
+  alert_summary_state_machine_name = "${var.name_prefix}-alert-summary-${terraform.workspace}"
+  # The Step Functions Bedrock integration is not documented to accept inference profile IDs, only full ARNs.
+  alerts_bedrock_inference_profile_arn = "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.alerts_bedrock_inference_profile_id}"
+  alerts_bedrock_foundation_model_arn  = "arn:aws:bedrock:eu-*::foundation-model/${trimprefix(var.alerts_bedrock_inference_profile_id, "eu.")}"
+}
+
 resource "aws_cloudwatch_log_group" "alert_summary" {
   name              = "/aws/vendedlogs/states/${var.name_prefix}-alert-summary-${terraform.workspace}"
   retention_in_days = 30
@@ -22,6 +29,13 @@ data "aws_iam_policy_document" "alert_summary_assume_role" {
       variable = "aws:SourceAccount"
       values   = [data.aws_caller_identity.current.account_id]
     }
+
+    # Built from the name rather than the resource's ARN to avoid a dependency cycle.
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:states:${var.aws_region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.alert_summary_state_machine_name}"]
+    }
   }
 }
 
@@ -35,8 +49,8 @@ data "aws_iam_policy_document" "alert_summary" {
     effect  = "Allow"
     actions = ["bedrock:InvokeModel"]
     resources = [
-      "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-haiku-*",
-      "arn:aws:bedrock:eu-*::foundation-model/anthropic.claude-haiku-*",
+      local.alerts_bedrock_inference_profile_arn,
+      local.alerts_bedrock_foundation_model_arn,
     ]
   }
 
@@ -64,7 +78,7 @@ resource "aws_iam_role_policy" "alert_summary" {
 }
 
 resource "aws_sfn_state_machine" "alert_summary" {
-  name     = "${var.name_prefix}-alert-summary-${terraform.workspace}"
+  name     = local.alert_summary_state_machine_name
   type     = "EXPRESS"
   role_arn = aws_iam_role.alert_summary.arn
 
@@ -78,7 +92,7 @@ resource "aws_sfn_state_machine" "alert_summary" {
         Resource       = "arn:aws:states:::bedrock:invokeModel"
         TimeoutSeconds = 10
         Arguments = {
-          ModelId = "{% $states.input.modelId %}"
+          ModelId = local.alerts_bedrock_inference_profile_arn
           Body = {
             anthropic_version = "bedrock-2023-05-31"
             max_tokens        = "{% $states.input.maxTokens %}"
