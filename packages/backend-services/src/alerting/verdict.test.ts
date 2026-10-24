@@ -22,9 +22,16 @@ vi.mock('@gitgazer/db/schema', () => ({
 }));
 
 const mockLt = vi.fn();
+const mockNe = vi.fn();
+const mockInArray = vi.fn();
 vi.mock('drizzle-orm', async (importOriginal) => {
     const actual = await importOriginal<typeof import('drizzle-orm')>();
-    return {...actual, lt: (...args: Parameters<typeof actual.lt>) => (mockLt(...args), actual.lt(...args))};
+    return {
+        ...actual,
+        lt: (...args: Parameters<typeof actual.lt>) => (mockLt(...args), actual.lt(...args)),
+        ne: (...args: Parameters<typeof actual.ne>) => (mockNe(...args), actual.ne(...args)),
+        inArray: (...args: Parameters<typeof actual.inArray>) => (mockInArray(...args), actual.inArray(...args)),
+    };
 });
 
 const mockWarn = vi.fn();
@@ -55,6 +62,7 @@ const job = {
     workflowName: 'CI',
     name: 'test',
     id: 99,
+    runId: 500,
     headBranch: 'feature',
     completedAt: new Date('2026-10-24T12:00:00Z'),
     repository: {defaultBranch: 'main'},
@@ -129,33 +137,51 @@ describe('classifyVerdict', () => {
 describe('loadJobHistory', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('queries history and maps rows, dropping rows without completedAt', async () => {
-        const rows = [
-            {runId: 1, runAttempt: 1, conclusion: 'success', headBranch: 'main', completedAt: new Date('2026-10-24T10:00:00Z')},
-            {runId: 2, runAttempt: 1, conclusion: 'failure', headBranch: null, completedAt: null},
-        ];
-        const limit = vi.fn().mockResolvedValue(rows);
-        const orderBy = vi.fn().mockReturnValue({limit});
-        const where = vi.fn().mockReturnValue({orderBy});
-        const from = vi.fn().mockReturnValue({where});
-        const select = vi.fn().mockReturnValue({from});
+    const query = (rows: unknown[]) => {
+        const q: Record<string, unknown> = {};
+        for (const method of ['from', 'where', 'groupBy', 'orderBy', 'limit']) q[method] = vi.fn(() => q);
+        q.then = (resolve: (value: unknown[]) => unknown, reject: (reason: unknown) => unknown) => Promise.resolve(rows).then(resolve, reject);
+        return q as Record<'from' | 'where' | 'groupBy' | 'orderBy' | 'limit', ReturnType<typeof vi.fn>>;
+    };
+    const mockQueries = (runRows: unknown[], attemptRows: unknown[]) => {
+        const runs = query(runRows);
+        const attempts = query(attemptRows);
+        const select = vi.fn().mockReturnValueOnce(runs).mockReturnValueOnce(attempts);
         mockWithRlsTransaction.mockImplementation(async (p: {callback: Function}) => p.callback({select}));
+        return {runs, attempts, select};
+    };
+
+    it('loads every attempt of the newest runs, dropping rows without completedAt', async () => {
+        const rows = [
+            {runId: 1, runAttempt: 2, conclusion: 'success', headBranch: 'main', completedAt: new Date('2026-10-24T10:00:00Z')},
+            {runId: 1, runAttempt: 1, conclusion: 'failure', headBranch: 'main', completedAt: null},
+        ];
+        const {runs, attempts} = mockQueries([{runId: 1}, {runId: 2}], rows);
 
         const out = await loadJobHistory(job);
 
         expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1']}));
-        expect(limit).toHaveBeenCalledWith(90);
+        expect(runs.groupBy).toHaveBeenCalledWith('runId');
+        expect(runs.limit).toHaveBeenCalledWith(30);
+        expect(mockInArray).toHaveBeenCalledWith('runId', [1, 2]);
+        expect(attempts.limit).not.toHaveBeenCalled();
         expect(out).toEqual([rows[0]]);
     });
 
-    it('only includes jobs that completed before this one', async () => {
-        const limit = vi.fn().mockResolvedValue([]);
-        const select = vi.fn().mockReturnValue({from: () => ({where: () => ({orderBy: () => ({limit})})})});
-        mockWithRlsTransaction.mockImplementation(async (p: {callback: Function}) => p.callback({select}));
+    it('only includes other runs that completed before this job', async () => {
+        mockQueries([], []);
 
         await loadJobHistory(job);
 
         expect(mockLt).toHaveBeenCalledWith('completedAt', job.completedAt);
+        expect(mockNe).toHaveBeenCalledWith('runId', 500);
+    });
+
+    it('skips the attempts query when there are no earlier runs', async () => {
+        const {select} = mockQueries([], []);
+
+        expect(await loadJobHistory(job)).toEqual([]);
+        expect(select).toHaveBeenCalledTimes(1);
     });
 
     it('returns no history when this job has no completion time', async () => {

@@ -2,14 +2,12 @@ import {getLogger} from '@gitgazer/backend-core/logger';
 import {withRlsTransaction} from '@gitgazer/db/client';
 import {workflowJobs} from '@gitgazer/db/schema';
 import type {VerdictKind, WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
-import {and, desc, eq, inArray, lt, ne} from 'drizzle-orm';
+import {and, desc, eq, inArray, lt, max, ne} from 'drizzle-orm';
 
 export const HISTORY_WINDOW = 30;
 export const MIN_HISTORY = 5;
 export const FLAKY_MIN_RECOVERIES = 2;
 export const REAL_MIN_STREAK = 5;
-// Each rerun attempt is its own job row, so fetch enough rows to cover HISTORY_WINDOW runs with a few reruns each.
-const HISTORY_ROW_LIMIT = HISTORY_WINDOW * 3;
 
 const HISTORY_CONCLUSIONS = ['success', 'failure'] as const satisfies readonly WorkflowConclusion[];
 type HistoryConclusion = (typeof HISTORY_CONCLUSIONS)[number];
@@ -83,8 +81,30 @@ export const loadJobHistory = async (job: WorkflowJobWithRelations): Promise<Job
     const rows = await withRlsTransaction({
         integrationIds: [job.integrationId],
         readOnly: true,
-        callback: async (tx) =>
-            tx
+        callback: async (tx) => {
+            const earlierRuns = and(
+                eq(workflowJobs.integrationId, job.integrationId),
+                eq(workflowJobs.repositoryId, job.repositoryId),
+                eq(workflowJobs.workflowName, job.workflowName),
+                eq(workflowJobs.name, job.name),
+                inArray(workflowJobs.conclusion, [...HISTORY_CONCLUSIONS]),
+                // Other attempts of this run are not history: a failed rerun would otherwise break the streak it is judged against.
+                ne(workflowJobs.runId, job.runId),
+                // Only jobs that finished before this one, so later completions in the same batch don't count.
+                lt(workflowJobs.completedAt, completedAt),
+            );
+
+            // Runs first, then all their attempts: limiting attempts directly could keep a rerun's success but drop its original failure.
+            const recentRuns = await tx
+                .select({runId: workflowJobs.runId})
+                .from(workflowJobs)
+                .where(earlierRuns)
+                .groupBy(workflowJobs.runId)
+                .orderBy(desc(max(workflowJobs.completedAt)))
+                .limit(HISTORY_WINDOW);
+            if (recentRuns.length === 0) return [];
+
+            return tx
                 .select({
                     runId: workflowJobs.runId,
                     runAttempt: workflowJobs.runAttempt,
@@ -95,18 +115,15 @@ export const loadJobHistory = async (job: WorkflowJobWithRelations): Promise<Job
                 .from(workflowJobs)
                 .where(
                     and(
-                        eq(workflowJobs.integrationId, job.integrationId),
-                        eq(workflowJobs.repositoryId, job.repositoryId),
-                        eq(workflowJobs.workflowName, job.workflowName),
-                        eq(workflowJobs.name, job.name),
-                        inArray(workflowJobs.conclusion, [...HISTORY_CONCLUSIONS]),
-                        ne(workflowJobs.id, job.id),
-                        // Only jobs that finished before this one, so later completions in the same batch don't count.
-                        lt(workflowJobs.completedAt, completedAt),
+                        earlierRuns,
+                        inArray(
+                            workflowJobs.runId,
+                            recentRuns.map((run) => run.runId),
+                        ),
                     ),
                 )
-                .orderBy(desc(workflowJobs.completedAt))
-                .limit(HISTORY_ROW_LIMIT),
+                .orderBy(desc(workflowJobs.completedAt));
+        },
     });
 
     return rows.flatMap(({conclusion, completedAt, ...row}) =>
