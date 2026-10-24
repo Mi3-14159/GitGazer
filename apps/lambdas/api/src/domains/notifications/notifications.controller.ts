@@ -52,6 +52,8 @@ export const upsertNotificationRule = async (params: {
     createOnly?: boolean;
     ruleId?: string;
 }): Promise<NotificationRule> => {
+    // Omitted so the DB default applies on insert and the stored value is kept on update.
+    const includeLogDetails = params.rule.include_log_details === undefined ? {} : {include_log_details: params.rule.include_log_details};
     const result = await withRlsTransaction({
         integrationIds: [params.integrationId],
         userName: gitgazerWriter.name,
@@ -65,6 +67,7 @@ export const upsertNotificationRule = async (params: {
                     channels: params.rule.channels,
                     enabled: params.rule.enabled,
                     ignore_dependabot: params.rule.ignore_dependabot,
+                    ...includeLogDetails,
                     rule: params.rule.rule,
                 })
                 .onConflictDoUpdate({
@@ -74,6 +77,7 @@ export const upsertNotificationRule = async (params: {
                         channels: params.rule.channels,
                         enabled: params.rule.enabled,
                         ignore_dependabot: params.rule.ignore_dependabot,
+                        ...includeLogDetails,
                         rule: params.rule.rule,
                         updatedAt: new Date(),
                     },
