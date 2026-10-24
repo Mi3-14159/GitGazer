@@ -13,7 +13,7 @@
 > **Superseded during implementation:** how the worker reaches Bedrock changed after this plan was written. The
 > spec's "AI summary" and "Where it runs" sections are authoritative: the worker signs Bedrock Converse requests
 > (SigV4, region from `AWS_REGION`, model ID from the config secret) and relays them through the existing http-proxy
-> Lambda. Task 3's proxy truncation became opt-in per request and byte-based (last 1 MiB, streamed); Task 4's direct
+> Lambda. Task 3's proxy truncation became opt-in per request and byte-based (a streamed tail of about 850 KiB, so even its JSON-escaped form fits Lambda's 6 MB response limit); Task 4's direct
 > SDK client and Task 11's dual-stack / VPC-endpoint approach were replaced. The default daily summary cap is 1000.
 
 ## Global Constraints
