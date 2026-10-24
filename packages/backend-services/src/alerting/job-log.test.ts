@@ -137,6 +137,10 @@ describe('job-log', () => {
         expect(out).toContain('before');
         expect(out).toContain('after');
         expect(redactSecrets('https://user:pw@host/x')).toBe('https://[REDACTED]@host/x');
+        expect(redactSecrets('https://deploy:p@credentialSuffix@example.com/repo')).toBe('https://[REDACTED]@example.com/repo');
+        expect(redactSecrets('redis://:privatevalue@host:6379')).toBe('redis://[REDACTED]@host:6379');
+        expect(redactSecrets('https://x-access-token@github.com/acme/app')).toBe('https://[REDACTED]@github.com/acme/app');
+        expect(redactSecrets('see https://example.com/a@b?c=d@e')).toBe('see https://example.com/a@b?c=d@e');
     });
 
     it('strips ANSI color codes from the excerpt', () => {
