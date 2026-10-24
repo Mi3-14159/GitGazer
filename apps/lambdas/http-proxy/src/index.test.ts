@@ -89,4 +89,25 @@ describe('http-proxy handler', () => {
         expect(result.statusCode).toBe(502);
         expect(JSON.parse(result.body).error).toBe('Upstream request failed');
     });
+
+    it('truncates oversized bodies to the tail', async () => {
+        const max = 4 * 1024 * 1024;
+        const body = 'a'.repeat(max) + '0123456END';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, {status: 200, headers: {'content-type': 'text/plain'}})));
+
+        const result = await handler({url: 'https://api.github.com/logs', method: 'GET'});
+
+        expect(result.body.length).toBe(max);
+        expect(result.body.endsWith('END')).toBe(true);
+        expect(result.headers['x-gitgazer-body-truncated']).toBe('true');
+    });
+
+    it('does not mark normal bodies as truncated', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', {status: 200})));
+
+        const result = await handler({url: 'https://api.github.com/user', method: 'GET'});
+
+        expect(result.body).toBe('{}');
+        expect(result.headers['x-gitgazer-body-truncated']).toBeUndefined();
+    });
 });

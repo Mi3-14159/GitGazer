@@ -4,6 +4,9 @@ const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com'
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
+// Lambda's synchronous payload limit is 6 MB; the tail is kept because the error is at the end of a job log
+const MAX_RESPONSE_BODY = 4 * 1024 * 1024;
+
 /**
  * Response headers the proxy forwards back to the caller. Critically includes
  * the GitHub rate-limit headers so in-VPC callers (e.g. the backfill worker)
@@ -64,13 +67,17 @@ export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
             body: event.method !== 'GET' && event.method !== 'HEAD' ? event.body : undefined,
         });
 
-        const responseBody = await response.text();
+        const fullBody = await response.text();
+        const truncated = fullBody.length > MAX_RESPONSE_BODY;
+        const responseBody = truncated ? fullBody.slice(-MAX_RESPONSE_BODY) : fullBody;
 
         const responseHeaders: Record<string, string> = {'content-type': response.headers.get('content-type') ?? 'application/json'};
         for (const name of FORWARDED_RESPONSE_HEADERS) {
             const value = response.headers.get(name);
             if (value !== null) responseHeaders[name] = value;
         }
+
+        if (truncated) responseHeaders['x-gitgazer-body-truncated'] = 'true';
 
         return {
             statusCode: response.status,
