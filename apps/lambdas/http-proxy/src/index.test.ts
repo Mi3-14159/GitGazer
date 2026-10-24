@@ -89,4 +89,71 @@ describe('http-proxy handler', () => {
         expect(result.statusCode).toBe(502);
         expect(JSON.parse(result.body).error).toBe('Upstream request failed');
     });
+
+    it('truncates opted-in oversized bodies to a byte-capped tail', async () => {
+        const maxBytes = 1024 * 1024;
+        const encoder = new TextEncoder();
+        const chunks = [...Array.from({length: 4}, () => encoder.encode('é'.repeat(200 * 1024))), encoder.encode('0123456END')];
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                for (const chunk of chunks) controller.enqueue(chunk);
+                controller.close();
+            },
+        });
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, {status: 200, headers: {'content-type': 'text/plain'}})));
+
+        const result = await handler({url: 'https://api.github.com/logs', method: 'GET', headers: {'X-GitGazer-Truncate-Tail': 'true'}});
+
+        expect(Buffer.byteLength(result.body, 'utf-8')).toBeLessThanOrEqual(maxBytes);
+        expect(result.body.endsWith('éé0123456END')).toBe(true);
+        expect(result.headers['x-gitgazer-body-truncated']).toBe('true');
+    });
+
+    it('keeps an escape-heavy tail within the Lambda response limit once serialized', async () => {
+        const body = new Uint8Array(2 * 1024 * 1024).fill(0x1b);
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, {status: 200, headers: {'content-type': 'text/plain'}})));
+
+        const result = await handler({url: 'https://api.github.com/logs', method: 'GET', headers: {'x-gitgazer-truncate-tail': 'true'}});
+
+        expect(Buffer.byteLength(JSON.stringify(result), 'utf-8')).toBeLessThan(6 * 1024 * 1024);
+        expect(result.headers['x-gitgazer-body-truncated']).toBe('true');
+    });
+
+    it('does not truncate without the opt-in header', async () => {
+        const body = 'a'.repeat(2 * 1024 * 1024) + 'END';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, {status: 200, headers: {'content-type': 'application/json'}})));
+
+        const result = await handler({url: 'https://api.github.com/repos/acme/web', method: 'GET'});
+
+        expect(result.body).toBe(body);
+        expect(result.headers['x-gitgazer-body-truncated']).toBeUndefined();
+    });
+
+    it('does not forward the opt-in header upstream', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response('log', {status: 200}));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await handler({
+            url: 'https://api.github.com/logs',
+            method: 'GET',
+            headers: {authorization: 'Bearer abc', 'x-gitgazer-truncate-tail': 'true'},
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith('https://api.github.com/logs', {
+            method: 'GET',
+            headers: {authorization: 'Bearer abc'},
+            body: undefined,
+        });
+        expect(result.body).toBe('log');
+        expect(result.headers['x-gitgazer-body-truncated']).toBeUndefined();
+    });
+
+    it('does not mark normal bodies as truncated', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', {status: 200})));
+
+        const result = await handler({url: 'https://api.github.com/user', method: 'GET'});
+
+        expect(result.body).toBe('{}');
+        expect(result.headers['x-gitgazer-body-truncated']).toBeUndefined();
+    });
 });

@@ -24,6 +24,19 @@ describe('config', () => {
         expect(config.get('environment')).toBe(process.env.ENVIRONMENT ?? 'default');
     });
 
+    it('exposes alert defaults', async () => {
+        const {default: config} = await import('./config');
+
+        expect(config.get('alerts')).toEqual({
+            bedrockModelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+            summaryDailyCap: 1000,
+            logFetchTimeoutMs: 5000,
+            bedrockTimeoutMs: 8000,
+            minRemainingMsForEnrichment: 30000,
+            concurrency: 5,
+        });
+    });
+
     it('loads values from secrets manager when CONFIG_SECRET_ARN is set', async () => {
         const {getSecretValue} = await import('./clients/secrets-manager.client');
         // Use a key not set in .env.test so SM value is not overridden by an env var

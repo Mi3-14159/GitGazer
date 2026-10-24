@@ -24,6 +24,20 @@ export const getInstallationOctokit = (installationId: number): Octokit => {
     });
 };
 
+export const downloadJobLog = async (installationId: number, owner: string, repo: string, jobId: number): Promise<string> => {
+    const octokit = getInstallationOctokit(installationId);
+    const {data} = await octokit.actions.downloadJobLogsForWorkflowRun({
+        owner,
+        repo,
+        job_id: jobId,
+        // The HTTP proxy only truncates opted-in responses, so other JSON responses stay parseable
+        headers: {'x-gitgazer-truncate-tail': 'true'},
+    });
+
+    // Octokit returns an ArrayBuffer instead of a string depending on the forwarded content-type
+    return typeof data === 'string' ? data : new TextDecoder('utf-8').decode(data as ArrayBuffer);
+};
+
 export type RepoInfo = {
     id: number;
     name: string;
