@@ -1,93 +1,114 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mockSend = vi.fn();
-const clientCtor = vi.fn();
+const proxyFetch = vi.fn();
+const testCredentials: {accessKeyId: string; secretAccessKey: string; sessionToken?: string} = {
+    accessKeyId: 'AKIDTESTKEY',
+    secretAccessKey: 'test-secret',
+};
 
-vi.mock('@aws-sdk/client-sfn', () => ({
-    SFNClient: class {
-        constructor(options: any) {
-            clientCtor(options);
-        }
-        send(...args: any[]) {
-            return mockSend(...args);
-        }
-    },
-    StartSyncExecutionCommand: class {
-        constructor(public input: any) {}
-    },
+vi.mock('./proxy-fetch', () => ({proxyFetch: (...args: unknown[]) => proxyFetch(...args)}));
+vi.mock('@aws-sdk/credential-provider-node', () => ({
+    defaultProvider: () => async () => ({...testCredentials}),
 }));
 
-const stateMachineArn = 'arn:aws:states:eu-central-1:000000000000:stateMachine:alert-summary';
+const converseUrl = 'https://bedrock-runtime.eu-central-1.amazonaws.com/model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse';
 
 let bedrock: typeof import('./bedrock.client');
 
-const load = async () => {
-    vi.resetModules();
-    bedrock = await import('./bedrock.client');
-};
+const jsonResponse = (body: unknown, init?: ResponseInit) =>
+    new Response(JSON.stringify(body), {status: 200, headers: {'content-type': 'application/json'}, ...init});
 
 beforeEach(async () => {
-    mockSend.mockReset();
-    clientCtor.mockReset();
-    process.env.ALERTS_BEDROCK_STATE_MACHINE_ARN = stateMachineArn;
-    await load();
+    proxyFetch.mockReset();
+    delete testCredentials.sessionToken;
+    vi.resetModules();
+    bedrock = await import('./bedrock.client');
 });
 
 afterEach(() => {
-    delete process.env.ALERTS_BEDROCK_STATE_MACHINE_ARN;
+    vi.unstubAllEnvs();
 });
 
 describe('converse', () => {
-    it('starts a sync execution with system, prompt and maxTokens', async () => {
-        mockSend.mockResolvedValue({status: 'SUCCEEDED', output: JSON.stringify({text: 'summary'})});
+    it('sends a SigV4-signed Converse request through the proxy', async () => {
+        proxyFetch.mockResolvedValue(jsonResponse({output: {message: {content: [{text: 'summary'}]}}}));
 
         await bedrock.converse({system: 'sys', prompt: 'log', maxTokens: 300});
 
-        const {input} = mockSend.mock.calls[0][0];
-        expect(input.stateMachineArn).toBe(stateMachineArn);
-        expect(JSON.parse(input.input)).toEqual({
-            system: 'sys',
-            prompt: 'log',
-            maxTokens: 300,
+        expect(proxyFetch).toHaveBeenCalledTimes(1);
+        const [url, init] = proxyFetch.mock.calls[0];
+        expect(url).toBe(converseUrl);
+        expect(init.method).toBe('POST');
+        expect(JSON.parse(init.body)).toEqual({
+            system: [{text: 'sys'}],
+            messages: [{role: 'user', content: [{text: 'log'}]}],
+            inferenceConfig: {maxTokens: 300},
         });
+
+        const {authorization} = init.headers;
+        expect(authorization.startsWith('AWS4-HMAC-SHA256 Credential=AKIDTESTKEY/')).toBe(true);
+        expect(authorization).toContain('/eu-central-1/bedrock/aws4_request');
+        const signedHeaders = /SignedHeaders=([^,]+)/.exec(authorization)?.[1].split(';');
+        expect(signedHeaders).toEqual(expect.arrayContaining(['host', 'x-amz-date']));
+        expect(signedHeaders).not.toContain('content-length');
+        expect(init.headers.host).toBe('bedrock-runtime.eu-central-1.amazonaws.com');
+        expect(init.headers['content-type']).toBe('application/json');
+        expect(init.headers['x-gitgazer-truncate-tail']).toBeUndefined();
     });
 
-    it('uses the dual-stack endpoint', async () => {
-        mockSend.mockResolvedValue({status: 'SUCCEEDED', output: JSON.stringify({text: 'summary'})});
+    it('includes the session token header when credentials have one', async () => {
+        testCredentials.sessionToken = 'test-session-token';
+        proxyFetch.mockResolvedValue(jsonResponse({output: {message: {content: [{text: 'summary'}]}}}));
 
         await bedrock.converse({system: 's', prompt: 'p', maxTokens: 10});
 
-        expect(clientCtor).toHaveBeenCalledWith({region: 'eu-central-1', useDualstackEndpoint: true, maxAttempts: 2});
+        const [, init] = proxyFetch.mock.calls[0];
+        expect(init.headers['x-amz-security-token']).toBe('test-session-token');
     });
 
-    it('returns the text from the execution output', async () => {
-        mockSend.mockResolvedValue({status: 'SUCCEEDED', output: JSON.stringify({text: 'summary'})});
+    it('returns the first text block', async () => {
+        proxyFetch.mockResolvedValue(jsonResponse({output: {message: {content: [{reasoningContent: {}}, {text: 'first'}, {text: 'second'}]}}}));
 
-        await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).resolves.toBe('summary');
+        await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).resolves.toBe('first');
     });
 
-    it("returns '' when the output has no text", async () => {
-        mockSend.mockResolvedValue({status: 'SUCCEEDED', output: JSON.stringify({})});
+    it("returns '' when there is no text", async () => {
+        proxyFetch.mockResolvedValue(jsonResponse({output: {message: {content: []}}}));
 
         await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).resolves.toBe('');
     });
 
-    it('throws with status and error code when the execution fails', async () => {
-        mockSend.mockResolvedValue({status: 'FAILED', error: 'States.Timeout', cause: 'leaked prompt'});
+    it('throws with status and error type but not the body on failure', async () => {
+        proxyFetch.mockResolvedValue(
+            jsonResponse(
+                {message: 'leaked prompt'},
+                {
+                    status: 429,
+                    headers: {
+                        'content-type': 'application/json',
+                        'x-amzn-errortype': 'ThrottlingException:http://internal.amazon.com/coral/com.amazon.bedrock/',
+                    },
+                },
+            ),
+        );
 
-        const error = await bedrock.converse({system: 's', prompt: 'p', maxTokens: 10}).catch((err: Error) => err);
+        const error = await bedrock.converse({system: 's', prompt: 'secret prompt', maxTokens: 10}).catch((err: Error) => err);
 
         expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain('FAILED');
-        expect((error as Error).message).toContain('States.Timeout');
+        expect((error as Error).message).toContain('429');
+        expect((error as Error).message).toContain('ThrottlingException');
         expect((error as Error).message).not.toContain('leaked prompt');
+        expect((error as Error).message).not.toContain('secret prompt');
     });
 
-    it('throws when the state machine ARN is not configured', async () => {
-        delete process.env.ALERTS_BEDROCK_STATE_MACHINE_ARN;
-        await load();
+    it('uses the configured model ID', async () => {
+        vi.stubEnv('ALERTS_BEDROCK_MODEL_ID', 'eu.anthropic.other-model-v1:0');
+        vi.resetModules();
+        bedrock = await import('./bedrock.client');
+        proxyFetch.mockResolvedValue(jsonResponse({output: {message: {content: [{text: 'x'}]}}}));
 
-        await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).rejects.toThrow('Bedrock state machine ARN is not configured');
-        expect(mockSend).not.toHaveBeenCalled();
+        await bedrock.converse({system: 's', prompt: 'p', maxTokens: 10});
+
+        expect(proxyFetch.mock.calls[0][0]).toBe('https://bedrock-runtime.eu-central-1.amazonaws.com/model/eu.anthropic.other-model-v1%3A0/converse');
     });
 });

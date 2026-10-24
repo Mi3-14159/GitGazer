@@ -1,30 +1,45 @@
 import config from '../config';
-import {SFNClient, StartSyncExecutionCommand} from '@aws-sdk/client-sfn';
+import {proxyFetch} from './proxy-fetch';
+import {defaultProvider} from '@aws-sdk/credential-provider-node';
+import {Sha256} from '@smithy/core/checksum';
+import {SignatureV4} from '@smithy/signature-v4';
 
-let client: SFNClient | undefined;
+const region = 'eu-central-1';
+const hostname = `bedrock-runtime.${region}.amazonaws.com`;
 
-const getClient = (): SFNClient => {
-    client ??= new SFNClient({region: 'eu-central-1', useDualstackEndpoint: true, maxAttempts: 2});
-    return client;
+let signer: SignatureV4 | undefined;
+
+const getSigner = (): SignatureV4 => {
+    signer ??= new SignatureV4({service: 'bedrock', region, credentials: defaultProvider(), sha256: Sha256});
+    return signer;
 };
 
+/** Signed here and relayed by the http-proxy Lambda, because the worker's VPC has no IPv4 egress and Bedrock has no IPv6 endpoint. */
 export const converse = async (params: {system: string; prompt: string; maxTokens: number}): Promise<string> => {
-    const {bedrockStateMachineArn} = config.get('alerts');
-    if (!bedrockStateMachineArn) {
-        throw new Error('Bedrock state machine ARN is not configured');
+    const path = `/model/${encodeURIComponent(config.get('alerts').bedrockModelId)}/converse`;
+    const body = JSON.stringify({
+        system: [{text: params.system}],
+        messages: [{role: 'user', content: [{text: params.prompt}]}],
+        inferenceConfig: {maxTokens: params.maxTokens},
+    });
+
+    const signed = await getSigner().sign({
+        method: 'POST',
+        protocol: 'https:',
+        hostname,
+        path,
+        headers: {host: hostname, 'content-type': 'application/json'},
+        body,
+    });
+
+    const response = await proxyFetch(`https://${hostname}${path}`, {method: 'POST', headers: signed.headers, body});
+
+    // The body is left out: Bedrock error messages can echo prompt content.
+    if (!response.ok) {
+        const errorType = response.headers.get('x-amzn-errortype')?.split(':')[0] ?? 'unknown error';
+        throw new Error(`Bedrock Converse failed with status ${response.status}: ${errorType}`);
     }
 
-    const response = await getClient().send(
-        new StartSyncExecutionCommand({
-            stateMachineArn: bedrockStateMachineArn,
-            input: JSON.stringify({system: params.system, prompt: params.prompt, maxTokens: params.maxTokens}),
-        }),
-    );
-
-    // `cause` is deliberately left out: it can echo prompt content.
-    if (response.status !== 'SUCCEEDED') {
-        throw new Error(`Bedrock workflow execution ${response.status}: ${response.error ?? 'unknown error'}`);
-    }
-
-    return JSON.parse(response.output ?? '{}').text ?? '';
+    const result = (await response.json()) as {output?: {message?: {content?: {text?: string}[]}}};
+    return result.output?.message?.content?.find((block) => typeof block.text === 'string')?.text ?? '';
 };

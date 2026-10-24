@@ -5,11 +5,13 @@
     "@aws-lambda-powertools/logger": "catalog:",
     "@aws-sdk/client-lambda": "catalog:",
     "@aws-sdk/client-secrets-manager": "catalog:",
-    "@aws-sdk/client-sfn": "catalog:",
     "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/credential-provider-node": "catalog:",
     "@gitgazer/db": "workspace:*",
     "@octokit/auth-app": "catalog:",
     "@octokit/rest": "catalog:",
+    "@smithy/core": "catalog:",
+    "@smithy/signature-v4": "catalog:",
     "convict": "catalog:"
   },
   "devDependencies": {

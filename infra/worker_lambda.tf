@@ -1,3 +1,8 @@
+locals {
+  alerts_bedrock_inference_profile_arn = "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.alerts_bedrock_inference_profile_id}"
+  alerts_bedrock_foundation_model_arn  = "arn:aws:bedrock:eu-*::foundation-model/${trimprefix(var.alerts_bedrock_inference_profile_id, "eu.")}"
+}
+
 resource "aws_cloudwatch_log_group" "worker" {
   name              = "/aws/lambda/${var.name_prefix}-worker-${terraform.workspace}"
   retention_in_days = 30
@@ -108,9 +113,12 @@ data "aws_iam_policy_document" "worker" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["states:StartSyncExecution"]
-    resources = [aws_sfn_state_machine.alert_summary.arn]
+    effect  = "Allow"
+    actions = ["bedrock:InvokeModel"]
+    resources = [
+      local.alerts_bedrock_inference_profile_arn,
+      local.alerts_bedrock_foundation_model_arn,
+    ]
   }
 
   statement {
@@ -158,7 +166,7 @@ resource "aws_lambda_function" "worker" {
       RDS_HOST                            = local.database_endpoint
       CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
-      ALERTS_BEDROCK_STATE_MACHINE_ARN    = aws_sfn_state_machine.alert_summary.arn
+      ALERTS_BEDROCK_MODEL_ID             = var.alerts_bedrock_inference_profile_id
     }
   }
 

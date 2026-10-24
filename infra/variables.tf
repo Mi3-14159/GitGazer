@@ -213,7 +213,7 @@ variable "enable_rds_proxy" {
 
 variable "alerts_bedrock_inference_profile_id" {
   type        = string
-  description = "EU geographic Bedrock inference profile ID the alert summary workflow invokes"
+  description = "EU geographic Bedrock inference profile ID the worker invokes for alert summaries"
   default     = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 
   validation {
