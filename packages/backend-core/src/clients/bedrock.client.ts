@@ -4,7 +4,7 @@ import {BedrockRuntimeClient, ConverseCommand} from '@aws-sdk/client-bedrock-run
 let client: BedrockRuntimeClient | undefined;
 
 const getClient = (): BedrockRuntimeClient => {
-    client ??= new BedrockRuntimeClient({region: 'eu-central-1', useDualstackEndpoint: true, maxAttempts: 2});
+    client ??= new BedrockRuntimeClient({region: 'eu-central-1', useDualstackEndpoint: false, maxAttempts: 2});
     return client;
 };
 

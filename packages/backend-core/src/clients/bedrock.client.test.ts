@@ -33,7 +33,7 @@ describe('converse', () => {
         const text = await bedrock.converse({system: 'sys', prompt: 'log', maxTokens: 300});
 
         expect(text).toBe('summary');
-        expect(clientCtor).toHaveBeenCalledWith({region: 'eu-central-1', useDualstackEndpoint: true, maxAttempts: 2});
+        expect(clientCtor).toHaveBeenCalledWith({region: 'eu-central-1', useDualstackEndpoint: false, maxAttempts: 2});
         const {input} = mockSend.mock.calls[0][0];
         expect(input.modelId).toBe('eu.anthropic.claude-haiku-4-5-20251001-v1:0');
         expect(input.inferenceConfig.maxTokens).toBe(300);
