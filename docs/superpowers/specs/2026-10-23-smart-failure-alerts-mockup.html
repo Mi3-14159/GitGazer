@@ -1,0 +1,240 @@
+<style>
+    .slack {
+        font-family: -apple-system, 'Segoe UI', sans-serif;
+        background: #fff;
+        color: #1d1c1d;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+    .slack .msg {
+        display: flex;
+        gap: 10px;
+    }
+    .slack .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+        background: #4a154b;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .slack .who {
+        font-weight: 700;
+    }
+    .slack .who span {
+        font-weight: 400;
+        color: #616061;
+        font-size: 12px;
+        margin-left: 6px;
+    }
+    .slack .att {
+        border-left: 4px solid #e01e5a;
+        padding-left: 10px;
+        margin-top: 6px;
+    }
+    .slack .hdr {
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 6px;
+    }
+    .slack .fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 16px;
+    }
+    .slack a {
+        color: #1264a3;
+        text-decoration: none;
+    }
+    .slack .ai {
+        background: #f8f8f8;
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin: 8px 0;
+    }
+    .slack pre {
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-size: 12px;
+        margin: 6px 0;
+        white-space: pre-wrap;
+        color: #1d1c1d;
+    }
+    .slack .badge {
+        display: inline-block;
+        font-size: 12px;
+        padding: 1px 8px;
+        border-radius: 10px;
+        margin-right: 6px;
+    }
+    .slack .flaky {
+        background: #fff4d6;
+        color: #7a5800;
+    }
+    .slack .real {
+        background: #fde7ec;
+        color: #a01043;
+    }
+    .slack .btns {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+    .slack .btn {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 3px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1d1c1d;
+        background: #fff;
+    }
+    .slack .btn.needs-app {
+        border-style: dashed;
+        color: #616061;
+    }
+    .slack .muted {
+        color: #616061;
+        font-size: 12px;
+    }
+    .slack .mention {
+        background: #e8f5fa;
+        color: #1264a3;
+        border-radius: 3px;
+        padding: 0 2px;
+    }
+    .note {
+        font-size: 13px;
+        margin-top: 8px;
+    }
+</style>
+
+<h2>What should a smarter failure alert look like?</h2>
+<p class="subtitle">
+    Today's alert for reference, then two directions. Click the one closer to what you want, then tell me in the terminal what to change.
+</p>
+
+<div class="section">
+    <div class="label">Today</div>
+    <div class="mockup">
+        <div class="mockup-header">Current GitGazer alert (one message per failed job)</div>
+        <div class="mockup-body">
+            <div class="slack">
+                <div class="msg">
+                    <div class="avatar">G</div>
+                    <div style="flex: 1">
+                        <div class="who">GitGazer <span>10:42</span></div>
+                        <div class="att">
+                            <div class="hdr">CI - failure</div>
+                            <div class="fields">
+                                <div><b>Organisation:</b> <a>acme</a></div>
+                                <div><b>Repository:</b> <a>checkout-service</a></div>
+                                <div><b>Workflow:</b> <a>CI / test</a></div>
+                                <div><b>Conclusion:</b> <a>failure</a></div>
+                                <div><b>Event:</b> pull_request</div>
+                                <div><b>Sender:</b> <a>jdoe</a></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="options">
+    <div
+        class="option"
+        data-choice="compact"
+        onclick="toggleSelect(this)"
+    >
+        <div class="letter">A</div>
+        <div class="content">
+            <h3>Compact: one-line diagnosis</h3>
+            <p>Same message, plus a single AI sentence and a flaky/real badge. Stays short in busy channels.</p>
+            <div
+                class="slack"
+                style="margin-top: 8px"
+            >
+                <div class="msg">
+                    <div class="avatar">G</div>
+                    <div style="flex: 1">
+                        <div class="who">GitGazer <span>10:42</span></div>
+                        <div class="att">
+                            <div class="hdr">CI / test failed · checkout-service · feat/coupons</div>
+                            <div>
+                                <span class="badge real">Likely a real failure</span><span class="muted">this job passed on main 12× in a row</span>
+                            </div>
+                            <div class="ai">
+                                🔎 <b>Type error</b> in <code>src/cart/discount.ts:42</code>: <code>Coupon</code> is missing <code>expiresAt</code>.
+                                Introduced by <a>#1234</a>.
+                            </div>
+                            <div class="muted">by <span class="mention">@jdoe</span> · pull_request · <a>run #8812</a></div>
+                            <div class="btns"><span class="btn">Open failed step</span><span class="btn">Open PR</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="option"
+        data-choice="rich"
+        onclick="toggleSelect(this)"
+    >
+        <div class="letter">B</div>
+        <div class="content">
+            <h3>Rich: diagnosis, evidence, actions</h3>
+            <p>Summary plus the actual error lines, flakiness history, and action buttons. Longer, but often no click-through needed.</p>
+            <div
+                class="slack"
+                style="margin-top: 8px"
+            >
+                <div class="msg">
+                    <div class="avatar">G</div>
+                    <div style="flex: 1">
+                        <div class="who">GitGazer <span>10:42</span></div>
+                        <div
+                            class="att"
+                            style="border-left-color: #ecb22e"
+                        >
+                            <div class="hdr">CI / e2e failed · checkout-service · main</div>
+                            <div>
+                                <span class="badge flaky">Probably flaky</span
+                                ><span class="muted">failed 4 of last 30 runs; 3 passed on rerun of the same commit</span>
+                            </div>
+                            <div class="ai">
+                                🔎 <b>Timeout</b> waiting for <code>#pay-button</code> in <code>checkout.spec.ts</code>. Same error as the last 3
+                                flaky failures. Commit looks unrelated (docs only).
+                            </div>
+                            <pre>
+✖ checkout › pays with saved card (30012ms)
+  TimeoutError: locator('#pay-button') not visible after 30000ms
+    at checkout.spec.ts:57:18</pre>
+                            <div class="muted">pushed by <span class="mention">@asmith</span> · <a>run #8813</a> · attempt 1</div>
+                            <div class="btns">
+                                <span class="btn">Open failed step</span><span class="btn needs-app">↻ Rerun job</span
+                                ><span class="btn needs-app">🔕 Mute as flaky (7d)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="note muted">
+    Dashed buttons (rerun, mute) need a real Slack app with interactivity. Today GitGazer posts through incoming webhook URLs, which only support link
+    buttons.
+</p>
