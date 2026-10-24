@@ -143,6 +143,9 @@ The verdict is computed for every integration, including manual-webhook ones.
   The prompt tells the model to say "unclear" rather than guess.
 - **Budget guard:** a per-integration daily cap on summaries (precedent: the time-based quota for MCP queries,
   `mcpQueryUsage` in `packages/db/src/schema/gitgazer.ts`). Over the cap, the alert ships without a summary.
+  It is a soft cap: it counts alerts that carried a summary, so alerts sent in parallel can overshoot it by a few,
+  and Bedrock calls that time out are not counted. That is acceptable at the default of 1000 per day; a strict
+  budget would need an atomic per-day counter.
 - Precedent in infra: `infra/analytics_bedrock.tf` (guardrail with EU guardrail profile),
   `infra/bedrock_logging.tf`, and Bedrock IAM statements in `infra/api_rest_lambda.tf`. Reuse the patterns.
 - **The worker relays Bedrock calls through the existing HTTP proxy Lambda:** it signs a Bedrock Converse request
