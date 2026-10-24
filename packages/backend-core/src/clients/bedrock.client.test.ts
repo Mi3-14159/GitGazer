@@ -19,6 +19,7 @@ const jsonResponse = (body: unknown, init?: ResponseInit) =>
     new Response(JSON.stringify(body), {status: 200, headers: {'content-type': 'application/json'}, ...init});
 
 beforeEach(async () => {
+    vi.stubEnv('AWS_REGION', 'eu-central-1');
     proxyFetch.mockReset();
     delete testCredentials.sessionToken;
     vi.resetModules();
@@ -99,6 +100,24 @@ describe('converse', () => {
         expect((error as Error).message).toContain('ThrottlingException');
         expect((error as Error).message).not.toContain('leaked prompt');
         expect((error as Error).message).not.toContain('secret prompt');
+    });
+
+    it('uses the region from AWS_REGION', async () => {
+        vi.stubEnv('AWS_REGION', 'eu-west-1');
+        proxyFetch.mockResolvedValue(jsonResponse({output: {message: {content: [{text: 'x'}]}}}));
+
+        await bedrock.converse({system: 's', prompt: 'p', maxTokens: 10});
+
+        const [url, init] = proxyFetch.mock.calls[0];
+        expect(url).toBe('https://bedrock-runtime.eu-west-1.amazonaws.com/model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse');
+        expect(init.headers.authorization).toContain('/eu-west-1/bedrock/aws4_request');
+    });
+
+    it('throws when AWS_REGION is not set', async () => {
+        vi.stubEnv('AWS_REGION', '');
+
+        await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).rejects.toThrow('AWS_REGION is not set');
+        expect(proxyFetch).not.toHaveBeenCalled();
     });
 
     it('uses the configured model ID', async () => {
