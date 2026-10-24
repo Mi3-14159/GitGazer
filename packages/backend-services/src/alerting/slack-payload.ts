@@ -1,3 +1,4 @@
+import type {VerdictKind} from '@gitgazer/db/types';
 import type {Verdict} from './verdict';
 
 export type SlackAlertInput = {
@@ -23,8 +24,8 @@ export type SlackBlock = {type: 'section'; text: SlackText} | {type: 'context'; 
 export type SlackPayload = {text: string; attachments: [{color: string; blocks: SlackBlock[]}]};
 
 const MAX_MRKDWN_LENGTH = 3000;
-const COLORS: Record<Verdict['kind'], string> = {real: '#e01e5a', flaky: '#ecb22e', unknown: '#9e9e9e'};
-const VERDICT_LABELS: Record<'flaky' | 'real', string> = {flaky: 'Probably flaky', real: 'Likely a real failure'};
+const COLORS: Record<VerdictKind, string> = {real: '#e01e5a', flaky: '#ecb22e', unknown: '#9e9e9e'};
+const VERDICT_LABELS: Record<Exclude<VerdictKind, 'unknown'>, string> = {flaky: 'Probably flaky', real: 'Likely a real failure'};
 
 export const escapeMrkdwn = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

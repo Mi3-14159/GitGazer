@@ -1,7 +1,7 @@
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {withRlsTransaction} from '@gitgazer/db/client';
 import {workflowJobs} from '@gitgazer/db/schema';
-import type {WorkflowJobWithRelations} from '@gitgazer/db/types';
+import type {VerdictKind, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, desc, eq, inArray, ne} from 'drizzle-orm';
 
 export const HISTORY_WINDOW = 30;
@@ -17,7 +17,7 @@ export type JobHistoryEntry = {
     completedAt: Date;
 };
 
-export type Verdict = {kind: 'flaky' | 'real' | 'unknown'; evidence: string | null};
+export type Verdict = {kind: VerdictKind; evidence: string | null};
 
 const UNKNOWN: Verdict = {kind: 'unknown', evidence: null};
 
