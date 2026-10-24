@@ -3,7 +3,7 @@
     import WorkflowJobRow from '@/components/workflows/WorkflowJobRow.vue';
     import type {ColumnConfig} from '@/types/table';
     import {formatDuration} from '@/utils/status';
-    import type {WorkflowJob, WorkflowRunWithRelations} from '@common/types';
+    import type {WorkflowConclusion, WorkflowJob, WorkflowRunWithRelations} from '@common/types';
     import {ChevronDown, ChevronRight, GitBranch, GitCommit, User} from '@lucide/vue';
     import {formatDistanceToNow} from 'date-fns';
 
@@ -17,6 +17,10 @@
         toggle: [id: number];
         'job-click': [job: WorkflowJob];
     }>();
+
+    function countSuccessfulJobs(jobs: WorkflowJob[]): number {
+        return jobs.filter((job) => job.conclusion === ('success' satisfies WorkflowConclusion)).length;
+    }
 </script>
 
 <template>
@@ -64,7 +68,7 @@
             <template v-else-if="column.id === 'jobs'">
                 <div class="flex items-center gap-1">
                     <span class="text-xs font-medium">{{ run.workflowJobs.length }}</span>
-                    <span class="text-xs text-muted-foreground"> ({{ run.workflowJobs.filter((j) => j.conclusion === 'success').length }} ✓) </span>
+                    <span class="text-xs text-muted-foreground"> ({{ countSuccessfulJobs(run.workflowJobs) }} ✓) </span>
                 </div>
             </template>
             <!-- Actor -->

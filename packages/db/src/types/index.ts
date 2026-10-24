@@ -9,6 +9,7 @@ export * from './members';
 export * from './metrics';
 export * from './notifications';
 export * from './workflow-filters';
+export * from './workflows';
 
 // Disambiguate names that also exist in '@octokit/webhooks-types' so the
 // GitGazer schema-derived types take precedence (preserves prior behavior,
