@@ -108,12 +108,9 @@ data "aws_iam_policy_document" "worker" {
   }
 
   statement {
-    effect  = "Allow"
-    actions = ["bedrock:InvokeModel"]
-    resources = [
-      "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-haiku-*",
-      "arn:aws:bedrock:eu-*::foundation-model/anthropic.claude-haiku-*",
-    ]
+    effect    = "Allow"
+    actions   = ["states:StartSyncExecution"]
+    resources = [aws_sfn_state_machine.alert_summary.arn]
   }
 
   statement {
@@ -161,6 +158,7 @@ resource "aws_lambda_function" "worker" {
       RDS_HOST                            = local.database_endpoint
       CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
+      ALERTS_BEDROCK_STATE_MACHINE_ARN    = aws_sfn_state_machine.alert_summary.arn
     }
   }
 

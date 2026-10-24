@@ -128,6 +128,12 @@ const config = convict({
             default: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
             env: 'ALERTS_BEDROCK_MODEL_ID',
         },
+        bedrockStateMachineArn: {
+            doc: 'ARN of the Step Functions Express workflow that calls Bedrock for failure summaries',
+            format: String,
+            default: '',
+            env: 'ALERTS_BEDROCK_STATE_MACHINE_ARN',
+        },
         summaryDailyCap: {
             doc: 'Maximum AI failure summaries generated per day',
             format: Number,
