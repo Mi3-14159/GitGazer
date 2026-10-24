@@ -96,10 +96,17 @@ describe('converse', () => {
         const error = await bedrock.converse({system: 's', prompt: 'secret prompt', maxTokens: 10}).catch((err: Error) => err);
 
         expect(error).toBeInstanceOf(Error);
+        expect((error as Error).name).toBe('ThrottlingException');
         expect((error as Error).message).toContain('429');
         expect((error as Error).message).toContain('ThrottlingException');
         expect((error as Error).message).not.toContain('leaked prompt');
         expect((error as Error).message).not.toContain('secret prompt');
+    });
+
+    it('names the error UnknownBedrockError without an error type header', async () => {
+        proxyFetch.mockResolvedValue(new Response('{}', {status: 500}));
+
+        await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).rejects.toMatchObject({name: 'UnknownBedrockError'});
     });
 
     it('uses the region from AWS_REGION', async () => {

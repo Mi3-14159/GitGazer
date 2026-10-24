@@ -41,8 +41,11 @@ export const converse = async (params: {system: string; prompt: string; maxToken
 
     // The body is left out: Bedrock error messages can echo prompt content.
     if (!response.ok) {
-        const errorType = response.headers.get('x-amzn-errortype')?.split(':')[0] ?? 'unknown error';
-        throw new Error(`Bedrock Converse failed with status ${response.status}: ${errorType}`);
+        const errorType = response.headers.get('x-amzn-errortype')?.split(':')[0] || 'UnknownBedrockError';
+        const error = new Error(`Bedrock Converse failed with status ${response.status}: ${errorType}`);
+        // Callers log only the name, so it carries the error type the SDK would have used.
+        error.name = errorType;
+        throw error;
     }
 
     const result = (await response.json()) as {output?: {message?: {content?: {text?: string}[]}}};
