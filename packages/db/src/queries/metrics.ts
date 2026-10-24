@@ -3,6 +3,7 @@ import {RdsTransaction, withRlsTransaction} from '../client';
 import {integrations, pullRequestReviews, pullRequests, repositories, user, workflowJobs, workflowRuns} from '../schema';
 import type {Granularity, MetricDataPoint, MetricResult, MetricSeries, MetricsFilter} from '../types/metrics';
 import {GRANULARITY_VALUES} from '../types/metrics';
+import type {WorkflowConclusion} from '../types/workflows';
 
 type MetricsParams = {
     integrationIds: string[];
@@ -23,6 +24,13 @@ function dateTruncExpression(granularity: Granularity, column: SQL) {
     }
     return sql`date_trunc(${sql.raw(`'${granularity}'`)}, ${column})`;
 }
+
+// Conclusions are fixed literals, never user input, so inlining them with sql.raw is safe.
+function conclusionLiterals(...conclusions: WorkflowConclusion[]) {
+    return sql.raw(conclusions.map((conclusion) => `'${conclusion}'`).join(', '));
+}
+
+const FAILED_CONCLUSIONS = conclusionLiterals('failure', 'timed_out');
 
 function getEffectiveRepositoryIds(filter: MetricsFilter): number[] | undefined {
     if (filter.repositoryIds?.length) return filter.repositoryIds;
@@ -465,14 +473,14 @@ export async function getChangeFailureRate({integrationIds, filter}: MetricsPara
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
                 const rows = await tx.execute(
-                    sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
+                    sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN (${FAILED_CONCLUSIONS})) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
                 return fillResultPeriods({metric: 'Change Failure Rate', unit: '%', data: [], series}, from, to, granularity);
             }
 
             const rows = await tx.execute(
-                sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN ('failure', 'timed_out')) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
+                sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN (${FAILED_CONCLUSIONS})) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
             return fillResultPeriods({metric: 'Change Failure Rate', unit: '%', data}, from, to, granularity);
@@ -508,7 +516,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                     FROM ${workflowRuns}
                     WHERE ${integrationScope(workflowRuns.integrationId, integrationIds)}
                       AND ${workflowRuns.status} = 'completed'
-                      AND ${workflowRuns.conclusion} IN ('failure', 'timed_out')
+                      AND ${workflowRuns.conclusion} IN (${FAILED_CONCLUSIONS})
                       AND ${gte(workflowRuns.createdAt, from)}
                       AND ${lte(workflowRuns.createdAt, to)}
                       ${repoFilter} ${topicsFilter} ${branchFilter} ${userFilter}
@@ -516,7 +524,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                 recovery AS (
                     SELECT f.id as failed_id, f.created_at as failed_at, f.repository_id, min(s.created_at) as recovered_at
                     FROM failed_runs f
-                    JOIN ${workflowRuns} s ON s.workflow_id = f.workflow_id AND s.head_branch = f.head_branch AND s.integration_id = f.integration_id AND s.conclusion = 'success' AND s.status = 'completed' AND s.created_at > f.created_at
+                    JOIN ${workflowRuns} s ON s.workflow_id = f.workflow_id AND s.head_branch = f.head_branch AND s.integration_id = f.integration_id AND s.conclusion = ${conclusionLiterals('success')} AND s.status = 'completed' AND s.created_at > f.created_at
                     GROUP BY f.id, f.created_at, f.repository_id
                 )`;
 

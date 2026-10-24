@@ -1,14 +1,15 @@
 import {AlertCircle, CheckCircle2, Clock, XCircle} from '@lucide/vue';
+import type {WorkflowConclusion} from '@common/types';
 import type {Component} from 'vue';
 
 export function statusBadgeVariant(status: string): 'success' | 'destructive' | 'warning' | 'default' | 'secondary' {
     switch (status) {
-        case 'success':
+        case 'success' satisfies WorkflowConclusion:
             return 'success';
-        case 'failure':
+        case 'failure' satisfies WorkflowConclusion:
         case 'failed':
             return 'destructive';
-        case 'cancelled':
+        case 'cancelled' satisfies WorkflowConclusion:
             return 'warning';
         default:
             return 'secondary';
@@ -17,12 +18,12 @@ export function statusBadgeVariant(status: string): 'success' | 'destructive' | 
 
 export function statusIcon(status: string): Component {
     switch (status) {
-        case 'success':
+        case 'success' satisfies WorkflowConclusion:
             return CheckCircle2;
-        case 'failure':
+        case 'failure' satisfies WorkflowConclusion:
         case 'failed':
             return XCircle;
-        case 'cancelled':
+        case 'cancelled' satisfies WorkflowConclusion:
             return AlertCircle;
         default:
             return Clock;

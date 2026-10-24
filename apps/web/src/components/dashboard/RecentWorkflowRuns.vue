@@ -6,7 +6,7 @@
     import CardHeader from '@/components/ui/CardHeader.vue';
     import CardTitle from '@/components/ui/CardTitle.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
-    import type {WorkflowRunWithRelations} from '@common/types';
+    import type {WorkflowConclusion, WorkflowRunWithRelations} from '@common/types';
     import {Ban, CheckCircle2, Clock, GitBranch, GitCommitHorizontal, Timer, User, Workflow, XCircle} from '@lucide/vue';
     import {formatDistanceToNow} from 'date-fns';
     import {computed, type Component} from 'vue';
@@ -54,7 +54,7 @@
     function getStatusConfig(w: WorkflowRunWithRelations) {
         if (w.status === 'in_progress') return statusConfig.in_progress;
         if (w.status === 'queued') return statusConfig.queued;
-        return statusConfig[w.conclusion ?? 'success'] ?? statusConfig.success;
+        return statusConfig[w.conclusion ?? ('success' satisfies WorkflowConclusion)] ?? statusConfig.success;
     }
 
     function workflowDuration(w: WorkflowRunWithRelations) {

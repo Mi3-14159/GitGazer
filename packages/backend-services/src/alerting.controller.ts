@@ -3,7 +3,7 @@ import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRules} from '@gitgazer/db/schema';
-import {NotificationRuleChannelType, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import {NotificationRuleChannelType, WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
 type AlertContext = {
@@ -86,7 +86,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
 }
 
 function isCompletedFailure(workflowJob: WorkflowJobWithRelations): boolean {
-    return workflowJob.status === 'completed' && workflowJob.conclusion === 'failure';
+    return workflowJob.status === 'completed' && workflowJob.conclusion === ('failure' satisfies WorkflowConclusion);
 }
 
 function getAlertContext(workflowJob: WorkflowJobWithRelations): AlertContext {

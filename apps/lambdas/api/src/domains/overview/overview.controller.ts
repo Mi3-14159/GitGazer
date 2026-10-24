@@ -1,8 +1,11 @@
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {workflowRunRelations} from '@gitgazer/db/queries';
 import {workflowRuns} from '@gitgazer/db/schema';
-import {resolveDateBounds, type OverviewResponse, type WorkflowFilters} from '@gitgazer/db/types';
+import {resolveDateBounds, type OverviewResponse, type WorkflowConclusion, type WorkflowFilters} from '@gitgazer/db/types';
 import {and, count, gte, lte, sql, sum} from 'drizzle-orm';
+
+// Conclusions are fixed literals, never user input, so inlining them with sql.raw is safe.
+const conclusionLiteral = (conclusion: WorkflowConclusion) => sql.raw(`'${conclusion}'`);
 
 type OverviewParams = {
     integrationIds: string[];
@@ -25,8 +28,8 @@ export const getOverview = async ({integrationIds, filters}: OverviewParams): Pr
             const [statsRow] = await tx
                 .select({
                     total: count(),
-                    success: sum(sql`CASE WHEN ${workflowRuns.conclusion} = 'success' THEN 1 ELSE 0 END`),
-                    failure: sum(sql`CASE WHEN ${workflowRuns.conclusion} = 'failure' THEN 1 ELSE 0 END`),
+                    success: sum(sql`CASE WHEN ${workflowRuns.conclusion} = ${conclusionLiteral('success')} THEN 1 ELSE 0 END`),
+                    failure: sum(sql`CASE WHEN ${workflowRuns.conclusion} = ${conclusionLiteral('failure')} THEN 1 ELSE 0 END`),
                     inProgress: sum(sql`CASE WHEN ${workflowRuns.status} = 'in_progress' THEN 1 ELSE 0 END`),
                 })
                 .from(workflowRuns)

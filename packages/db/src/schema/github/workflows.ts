@@ -1,5 +1,12 @@
 import {bigint, boolean, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
-import {GITHUB_APP_WEBHOOK_EVENTS, GITHUB_ORG_ROLES, MEMBER_ASSIGNMENT_SOURCES, MEMBER_ROLES, ORG_SYNC_DEFAULT_ROLES} from '../../types';
+import {
+    GITHUB_APP_WEBHOOK_EVENTS,
+    GITHUB_ORG_ROLES,
+    MEMBER_ASSIGNMENT_SOURCES,
+    MEMBER_ROLES,
+    ORG_SYNC_DEFAULT_ROLES,
+    WORKFLOW_CONCLUSIONS,
+} from '../../types';
 import {users} from '../gitgazer';
 import {githubSchema, mcpTenantSeparationPolicy, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
 
@@ -206,7 +213,7 @@ export const workflowRuns = githubSchema
             actorId: bigint('actor_id', {mode: 'number'}).notNull(),
             event: varchar('event', {length: 255}),
             conclusion: varchar({
-                enum: ['success', 'failure', 'neutral', 'cancelled', 'timed_out', 'action_required', 'stale', 'skipped'],
+                enum: WORKFLOW_CONCLUSIONS,
             }),
             createdAt: timestamp('created_at', {
                 withTimezone: true,
