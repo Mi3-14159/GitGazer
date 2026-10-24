@@ -29,7 +29,7 @@ describe('config', () => {
 
         expect(config.get('alerts')).toEqual({
             bedrockModelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
-            summaryDailyCap: 200,
+            summaryDailyCap: 1000,
             logFetchTimeoutMs: 5000,
             bedrockTimeoutMs: 8000,
             minRemainingMsForEnrichment: 30000,

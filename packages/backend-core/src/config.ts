@@ -131,7 +131,7 @@ const config = convict({
         summaryDailyCap: {
             doc: 'Maximum AI failure summaries generated per day',
             format: Number,
-            default: 200,
+            default: 1000,
             env: 'ALERTS_SUMMARY_DAILY_CAP',
         },
         logFetchTimeoutMs: {
