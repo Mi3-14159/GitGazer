@@ -21,6 +21,12 @@ vi.mock('@gitgazer/db/schema', () => ({
     },
 }));
 
+const mockLt = vi.fn();
+vi.mock('drizzle-orm', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('drizzle-orm')>();
+    return {...actual, lt: (...args: Parameters<typeof actual.lt>) => (mockLt(...args), actual.lt(...args))};
+});
+
 const mockWarn = vi.fn();
 vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({warn: mockWarn, info: vi.fn(), error: vi.fn(), debug: vi.fn()}),
@@ -50,6 +56,7 @@ const job = {
     name: 'test',
     id: 99,
     headBranch: 'feature',
+    completedAt: new Date('2026-10-24T12:00:00Z'),
     repository: {defaultBranch: 'main'},
 } as unknown as WorkflowJobWithRelations;
 
@@ -60,8 +67,30 @@ describe('classifyVerdict', () => {
     });
 
     it('flaky with two rerun recoveries', () => {
-        const history = [...recovery(1), ...recovery(2), entry('success'), entry('success')];
-        expect(classifyVerdict(history, current)).toEqual({kind: 'flaky', evidence: 'failed 2 of last 6 runs; 2 passed on rerun'});
+        const history = [...recovery(1), ...recovery(2), entry('success'), entry('success'), entry('success')];
+        expect(classifyVerdict(history, current)).toEqual({kind: 'flaky', evidence: 'failed 2 of last 5 runs; 2 passed on rerun'});
+    });
+
+    it('counts reruns of one run as a single run', () => {
+        const threeAttempts = (runId: number) => [
+            entry('success', {runId, runAttempt: 3}),
+            entry('failure', {runId, runAttempt: 2}),
+            entry('failure', {runId, runAttempt: 1}),
+        ];
+        expect(classifyVerdict([...threeAttempts(1), ...threeAttempts(2)], current)).toEqual({kind: 'unknown', evidence: null});
+    });
+
+    it('reports runs, not attempts, in the flaky evidence', () => {
+        const history = [
+            entry('success', {runId: 1, runAttempt: 3}),
+            entry('failure', {runId: 1, runAttempt: 2}),
+            entry('failure', {runId: 1, runAttempt: 1}),
+            ...recovery(2),
+            entry('success'),
+            entry('success'),
+            entry('success'),
+        ];
+        expect(classifyVerdict(history, current)).toEqual({kind: 'flaky', evidence: 'failed 2 of last 5 runs; 2 passed on rerun'});
     });
 
     it('does not count a success followed by a later failure as a recovery', () => {
@@ -69,6 +98,7 @@ describe('classifyVerdict', () => {
             entry('failure', {runId: 1, runAttempt: 2}),
             entry('success', {runId: 1, runAttempt: 1}),
             ...recovery(2),
+            entry('success'),
             entry('success'),
             entry('success'),
         ];
@@ -114,8 +144,28 @@ describe('loadJobHistory', () => {
         const out = await loadJobHistory(job);
 
         expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1']}));
-        expect(limit).toHaveBeenCalledWith(30);
+        expect(limit).toHaveBeenCalledWith(90);
         expect(out).toEqual([rows[0]]);
+    });
+
+    it('only includes jobs that completed before this one', async () => {
+        const limit = vi.fn().mockResolvedValue([]);
+        const select = vi.fn().mockReturnValue({from: () => ({where: () => ({orderBy: () => ({limit})})})});
+        mockWithRlsTransaction.mockImplementation(async (p: {callback: Function}) => p.callback({select}));
+
+        await loadJobHistory(job);
+
+        expect(mockLt).toHaveBeenCalledWith('completedAt', job.completedAt);
+    });
+
+    it('skips the completion filter when this job has no completion time', async () => {
+        const limit = vi.fn().mockResolvedValue([]);
+        const select = vi.fn().mockReturnValue({from: () => ({where: () => ({orderBy: () => ({limit})})})});
+        mockWithRlsTransaction.mockImplementation(async (p: {callback: Function}) => p.callback({select}));
+
+        await loadJobHistory({...job, completedAt: null} as unknown as WorkflowJobWithRelations);
+
+        expect(mockLt).not.toHaveBeenCalled();
     });
 });
 
