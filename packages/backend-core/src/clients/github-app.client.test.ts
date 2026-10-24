@@ -20,12 +20,17 @@ beforeEach(() => {
 });
 
 describe('downloadJobLog', () => {
-    it('calls downloadJobLogsForWorkflowRun with job_id', async () => {
+    it('calls downloadJobLogsForWorkflowRun with job_id and opts into proxy tail truncation', async () => {
         downloadJobLogsForWorkflowRun.mockResolvedValue({data: 'line1\nline2'});
 
         const log = await downloadJobLog(42, 'acme', 'web', 99);
 
-        expect(downloadJobLogsForWorkflowRun).toHaveBeenCalledWith({owner: 'acme', repo: 'web', job_id: 99});
+        expect(downloadJobLogsForWorkflowRun).toHaveBeenCalledWith({
+            owner: 'acme',
+            repo: 'web',
+            job_id: 99,
+            headers: {'x-gitgazer-truncate-tail': 'true'},
+        });
         expect(log).toBe('line1\nline2');
     });
 
