@@ -89,6 +89,9 @@ describe('job-log', () => {
             ['SECRET: "s3cr3t value"', 's3cr3t value'],
             ['api_key = abc123xyz', 'abc123xyz'],
             ['GITHUB_TOKEN: tok-value-1', 'tok-value-1'],
+            ['{"token": "abc123"}', 'abc123'],
+            ['{"password":"x9y8z7"}', 'x9y8z7'],
+            ["{'api_key': 'k3y-v4lue'}", 'k3y-v4lue'],
         ];
         for (const [input, secret] of cases) {
             const out = redactSecrets(input);

@@ -13,7 +13,7 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
     [/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, REDACTED],
     [/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, `Bearer ${REDACTED}`],
     [/:\/\/[^\s/:@]+:[^\s/@]+@/g, `://${REDACTED}@`],
-    [/((?:password|secret|token|api[_-]?key)\w*\s*[=:]\s*)(?:"[^"]*"|'[^']*'|\S+)/gi, `$1${REDACTED}`],
+    [/((?:password|secret|token|api[_-]?key)\w*["']?\s*[=:]\s*)(?:"[^"]*"|'[^']*'|\S+)/gi, `$1${REDACTED}`],
 ];
 
 export const redactSecrets = (text: string): string =>
