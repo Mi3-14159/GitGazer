@@ -1,6 +1,13 @@
 import {ProxyRequest, ProxyResponse} from '@gitgazer/backend-core/clients/proxy.types';
 
-const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com', 'slack.com', 'api.slack.com']);
+const ALLOWED_HOSTS = new Set([
+    'api.github.com',
+    'github.com',
+    'hooks.slack.com',
+    'slack.com',
+    'api.slack.com',
+    'bedrock-runtime.eu-central-1.amazonaws.com',
+]);
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -28,6 +35,7 @@ const FORWARDED_RESPONSE_HEADERS = [
     'x-ratelimit-reset',
     'x-ratelimit-used',
     'x-ratelimit-resource',
+    'x-amzn-errortype',
 ];
 
 /** Streams the body, keeping only the last MAX_TAIL_BYTES in memory, because a job log's error is at its end. */
