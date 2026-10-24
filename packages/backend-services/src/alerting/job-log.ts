@@ -5,6 +5,7 @@ const LOG_PREFIX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z ?/;
 const ANSI_SEQUENCE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const ERROR_MARKER = '##[error]';
 const GROUP_MARKER = '##[group]';
+const STEP_MARKER = '##[group]Run ';
 const CONTEXT_LINES = 3;
 const MAX_EXCERPT_LINES = 10;
 const MAX_EXCERPT_CHARS = 1500;
@@ -25,19 +26,26 @@ export const redactSecrets = (text: string): string =>
 
 export const stripLogPrefix = (line: string): string => line.replace(LOG_PREFIX, '').replace(ANSI_SEQUENCE, '');
 
+const lastIndexStartingWith = (lines: string[], prefix: string, from: number): number => {
+    for (let i = from; i >= 0; i--) {
+        if (lines[i].startsWith(prefix)) return i;
+    }
+    return -1;
+};
+
 export const failedStepTail = (log: string, maxChars: number): string => {
     const lines = log.split(/\r?\n/).map(stripLogPrefix);
+    const lastError = lastIndexStartingWith(lines, ERROR_MARKER, lines.length - 1);
 
-    const sections: string[][] = [];
-    for (const line of lines) {
-        if (line.startsWith(GROUP_MARKER) || sections.length === 0) {
-            sections.push([]);
-        }
-        sections[sections.length - 1].push(line);
+    // A step's output can open its own groups, so the failing step runs from its "Run" header to the next group after the error.
+    let failing = lines;
+    if (lastError !== -1) {
+        const start = lastIndexStartingWith(lines, STEP_MARKER, lastError);
+        const end = lines.findIndex((line, index) => index > lastError && line.startsWith(GROUP_MARKER));
+        failing = lines.slice(Math.max(start, 0), end === -1 ? lines.length : end);
     }
 
-    const failing = [...sections].reverse().find((section) => section.some((line) => line.startsWith(ERROR_MARKER)));
-    const text = redactSecrets((failing ?? lines).join('\n'));
+    const text = redactSecrets(failing.join('\n'));
     return text.length > maxChars ? text.slice(-maxChars) : text;
 };
 

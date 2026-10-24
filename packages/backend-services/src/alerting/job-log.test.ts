@@ -27,12 +27,39 @@ describe('job-log', () => {
         expect(failedStepTail(fixture, 10_000)).not.toMatch(/2026-10-24T/);
     });
 
-    it('picks the failing group', () => {
+    it('picks the failing step', () => {
         const tail = failedStepTail(fixture, 10_000);
         expect(tail).toContain('##[group]Run pnpm test');
         expect(tail).toContain('AssertionError');
         expect(tail).not.toContain('Syncing repository');
         expect(tail).not.toContain('Cleaning up orphan');
+    });
+
+    it("keeps the step's own groups that precede its last error", () => {
+        const log = stamp([
+            '##[group]Run actions/checkout@v4',
+            'Syncing repository: acme/app',
+            '##[endgroup]',
+            '##[group]Run pnpm test',
+            'pnpm test',
+            '##[endgroup]',
+            '##[group]Failing tests',
+            '##[error]AssertionError: expected 41 to be 42',
+            '##[endgroup]',
+            '##[group]Test report',
+            '12 passed, 1 failed',
+            '##[endgroup]',
+            '##[error]Process completed with exit code 1.',
+            '##[group]Post job cleanup',
+            'Cleaning up orphan processes',
+        ]);
+
+        const tail = failedStepTail(log, 10_000);
+        expect(tail).toContain('AssertionError: expected 41 to be 42');
+        expect(tail).toContain('12 passed, 1 failed');
+        expect(tail).not.toContain('Syncing repository');
+        expect(tail).not.toContain('Cleaning up orphan');
+        expect(extractErrorExcerpt(log)).toContain('AssertionError: expected 41 to be 42');
     });
 
     it('uses the whole log when no group has an error', () => {
