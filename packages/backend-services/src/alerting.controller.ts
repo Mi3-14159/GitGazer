@@ -1,5 +1,9 @@
+import {findPullRequest, loadLogDetails} from './alerting/log-details';
+import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
+import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
 import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
+import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRules} from '@gitgazer/db/schema';
@@ -17,23 +21,11 @@ type AlertContext = {
     senderLogin: string;
 };
 
-type SlackPayload = {
-    blocks: Array<{
-        type: 'header' | 'section';
-        text?: {
-            emoji?: boolean;
-            text: string;
-            type: 'plain_text' | 'mrkdwn';
-        };
-        fields?: Array<{
-            text: string;
-            type: 'mrkdwn';
-        }>;
-    }>;
-    color: string;
-};
+type AlertOptions = {getRemainingTimeMs?: () => number};
 
-export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelations): Promise<void> {
+type DetailsSkipReason = 'rule_opt_out' | 'low_time';
+
+export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelations, options?: AlertOptions): Promise<void> {
     const logger = getLogger();
 
     if (!isCompletedFailure(workflowJob)) {
@@ -52,14 +44,46 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
         return;
     }
 
-    logger.info(`Found ${matching.length} matching notification rules for integration ${workflowJob.integrationId}`, {matching});
+    logger.info(`Found ${matching.length} matching notification rules for integration ${workflowJob.integrationId}`, {
+        ruleIds: matching.map((rule) => rule.id),
+    });
 
-    const body = getSlackBody(workflowJob);
+    const [verdict, pullRequest] = await Promise.all([computeVerdict(workflowJob), findPullRequest(workflowJob)]);
 
-    const notifications = flattenSlackNotifications(matching);
+    const skipReason = getDetailsSkipReason(matching, options);
+    const details = skipReason ? null : await loadLogDetails(workflowJob, verdict, pullRequest?.title ?? null);
 
-    for (const notification of notifications) {
-        await sendSlackNotification(notification.webhookUrl, body, notification.ruleId, logger);
+    logger.info('Sending failure alert', {
+        integrationId: workflowJob.integrationId,
+        jobId: workflowJob.id,
+        verdict: verdict.kind,
+        detailsAttempted: skipReason === null,
+        detailsLoaded: details !== null,
+        summaryIncluded: Boolean(details?.summary),
+        excerptIncluded: Boolean(details?.excerpt),
+        skipReason: skipReason ?? undefined,
+    });
+
+    const alertInput: Omit<SlackAlertInput, 'details'> = {
+        owner: context.ownerLogin,
+        repository: context.repositoryName,
+        branch: context.headBranch,
+        workflowName: context.workflowName,
+        jobName: context.jobName,
+        jobId: workflowJob.id,
+        runId: context.runId,
+        runAttempt: workflowJob.runAttempt,
+        event: workflowJob.workflowRun?.event ?? null,
+        senderLogin: context.senderLogin,
+        pullRequestNumber: pullRequest?.number ?? null,
+        verdict,
+    };
+
+    for (const rule of matching) {
+        const body = buildSlackAlert({...alertInput, details: rule.include_log_details ? details : null});
+        for (const webhookUrl of getSlackWebhookUrls(rule)) {
+            await sendSlackNotification(webhookUrl, body, rule.id, logger);
+        }
     }
 
     try {
@@ -78,6 +102,9 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
                 jobName: context.jobName,
                 workflowRunId: context.runId,
                 workflowJobId: workflowJob.id,
+                verdict: verdict.kind,
+                // Counted by the daily summary cap, so only true when a summary was actually produced.
+                aiSummary: Boolean(details?.summary),
             },
         });
     } catch (error) {
@@ -87,6 +114,12 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
 
 function isCompletedFailure(workflowJob: WorkflowJobWithRelations): boolean {
     return workflowJob.status === 'completed' && workflowJob.conclusion === ('failure' satisfies WorkflowConclusion);
+}
+
+function getDetailsSkipReason(rules: MatchingRule[], options?: AlertOptions): DetailsSkipReason | null {
+    if (!rules.some((rule) => rule.include_log_details)) return 'rule_opt_out';
+    const remainingMs = options?.getRemainingTimeMs?.() ?? Infinity;
+    return remainingMs < config.get('alerts').minRemainingMsForEnrichment ? 'low_time' : null;
 }
 
 function getAlertContext(workflowJob: WorkflowJobWithRelations): AlertContext {
@@ -166,12 +199,8 @@ async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelatio
 
 type MatchingRule = Awaited<ReturnType<typeof findMatchingNotificationRules>>[number];
 
-function flattenSlackNotifications(rules: MatchingRule[]): Array<{ruleId: string | undefined; webhookUrl: string}> {
-    return rules.flatMap((rule) =>
-        rule.channels
-            .filter((channel) => channel.type === NotificationRuleChannelType.SLACK)
-            .map((channel) => ({ruleId: rule.id, webhookUrl: channel.webhook_url})),
-    );
+function getSlackWebhookUrls(rule: MatchingRule): string[] {
+    return rule.channels.filter((channel) => channel.type === NotificationRuleChannelType.SLACK).map((channel) => channel.webhook_url);
 }
 
 async function sendSlackNotification(webhookUrl: string, body: SlackPayload, ruleId: string | undefined, logger: ReturnType<typeof getLogger>) {
@@ -191,54 +220,4 @@ async function sendSlackNotification(webhookUrl: string, body: SlackPayload, rul
     } catch (error) {
         logger.error(`Failed to send Slack notification for rule ${ruleId}`, error as Error);
     }
-}
-
-function getSlackBody(workflowJob: WorkflowJobWithRelations): SlackPayload {
-    const ownerLogin = workflowJob.repository.owner?.login ?? 'unknown';
-    const repositoryName = workflowJob.repository.name;
-    const repositoryUrl = `https://github.com/${ownerLogin}/${repositoryName}`;
-    const senderLogin = workflowJob.sender?.login ?? 'unknown';
-
-    return {
-        blocks: [
-            {
-                text: {
-                    emoji: true,
-                    text: `${workflowJob.workflowName} - ${workflowJob.conclusion}`,
-                    type: 'plain_text',
-                },
-                type: 'header',
-            },
-            {
-                fields: [
-                    {
-                        text: `*Organisation:* <http://github.com/${ownerLogin}|${ownerLogin}>`,
-                        type: 'mrkdwn',
-                    },
-                    {
-                        text: `*Repository:* <${repositoryUrl}|${repositoryName}>`,
-                        type: 'mrkdwn',
-                    },
-                    {
-                        text: `*Workflow:* <${repositoryUrl}/actions/runs/${workflowJob.runId}|${workflowJob.workflowName} / ${workflowJob.name}>`,
-                        type: 'mrkdwn',
-                    },
-                    {
-                        text: `*Conclusion:* <${repositoryUrl}/actions/runs/${workflowJob.runId}|${workflowJob.conclusion}>`,
-                        type: 'mrkdwn',
-                    },
-                    {
-                        text: `*Event:* ${workflowJob.workflowRun?.event ?? 'unknown'}`,
-                        type: 'mrkdwn',
-                    },
-                    {
-                        text: `*Sender:* <https://github.com/${senderLogin}|${senderLogin}>`,
-                        type: 'mrkdwn',
-                    },
-                ],
-                type: 'section',
-            },
-        ],
-        color: '#e01e5a',
-    };
 }
