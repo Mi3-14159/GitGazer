@@ -107,6 +107,33 @@ describe('job-log', () => {
         expect(redactSecrets('https://user:pw@host/x')).toBe('https://[REDACTED]@host/x');
     });
 
+    it('strips ANSI color codes from the excerpt', () => {
+        const log = stamp([
+            '##[group]Run pnpm test',
+            '\x1b[31mAssertionError\x1b[39m: expected 41 to be 42',
+            '\x1b[1m##[error]\x1b[22mProcess completed with exit code 1.',
+        ]);
+        const excerpt = extractErrorExcerpt(log)!;
+        expect(excerpt).not.toContain('\x1b');
+        expect(excerpt).toBe(['AssertionError: expected 41 to be 42', 'Process completed with exit code 1.'].join('\n'));
+    });
+
+    it('redacts an assignment split by ANSI codes', () => {
+        const log = stamp(['##[group]Run deploy', '\x1b[36mtoken\x1b[39m: s3cr3tvalue', '##[error]deploy failed']);
+        expect(extractErrorExcerpt(log)).not.toContain('s3cr3tvalue');
+        expect(failedStepTail(log, 1000)).not.toContain('s3cr3tvalue');
+    });
+
+    it('handles CRLF line endings', () => {
+        const log = stamp(['##[group]Run pnpm test', 'AssertionError: expected 41 to be 42', '##[error]Process completed with exit code 1.']).replace(
+            /\n/g,
+            '\r\n',
+        );
+        const excerpt = extractErrorExcerpt(log)!;
+        expect(excerpt).not.toContain('\r');
+        expect(excerpt).toBe(['AssertionError: expected 41 to be 42', 'Process completed with exit code 1.'].join('\n'));
+    });
+
     it('redacts secrets in the excerpt and the tail', () => {
         const log = stamp(['##[group]Run x', 'token=abcdef123456', '##[error]failed']);
         expect(extractErrorExcerpt(log)).not.toContain('abcdef123456');

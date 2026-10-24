@@ -1,5 +1,7 @@
 const REDACTED = '[REDACTED]';
 const LOG_PREFIX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z ?/;
+// CI tools force colors on, and a code inside `token\x1b[39m: value` would hide the assignment from redaction
+const ANSI_SEQUENCE = /\x1b\[[0-9;?]*[A-Za-z]/g;
 const ERROR_MARKER = '##[error]';
 const GROUP_MARKER = '##[group]';
 const CONTEXT_LINES = 3;
@@ -19,10 +21,10 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
 export const redactSecrets = (text: string): string =>
     SECRET_PATTERNS.reduce((out, [pattern, replacement]) => out.replace(pattern, replacement), text);
 
-export const stripLogPrefix = (line: string): string => line.replace(LOG_PREFIX, '');
+export const stripLogPrefix = (line: string): string => line.replace(LOG_PREFIX, '').replace(ANSI_SEQUENCE, '');
 
 export const failedStepTail = (log: string, maxChars: number): string => {
-    const lines = log.split('\n').map(stripLogPrefix);
+    const lines = log.split(/\r?\n/).map(stripLogPrefix);
 
     const sections: string[][] = [];
     for (const line of lines) {
