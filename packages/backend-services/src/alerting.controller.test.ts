@@ -1,6 +1,9 @@
 import type {WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+const logger = vi.hoisted(() => ({debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => logger}));
+
 const tables = vi.hoisted(() => ({
     notificationRules: {enabled: 'enabled', rule: 'rule', ignore_dependabot: 'ignore_dependabot'},
     githubAppInstallations: {installationId: 'installation_id', integrationId: 'integration_id', accountLogin: 'account_login'},
@@ -237,6 +240,23 @@ describe('sendWorkflowJobAlerts', () => {
 
         expect(mockProxyFetch.mock.calls.map(([url]) => url)).toEqual(['https://hooks.slack.com/a', 'https://hooks.slack.com/b']);
         expect(mockCreateEventLogEntry).toHaveBeenCalledTimes(1);
+    });
+
+    // Alerts run while the worker ingests other records, so shared logger keys cannot identify the job.
+    it('passes the job ids with every log line', async () => {
+        rowsByTable.set(tables.notificationRules, [rule('rule-1', true, ['https://hooks.slack.com/a', 'https://hooks.slack.com/b'])]);
+        mockProxyFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+        mockCreateEventLogEntry.mockRejectedValueOnce(new Error('db down'));
+
+        await sendWorkflowJobAlerts(job);
+        rowsByTable.set(tables.notificationRules, []);
+        await sendWorkflowJobAlerts(job);
+
+        const logged = [logger.debug, logger.info, logger.warn, logger.error].flatMap((level) => level.mock.calls);
+        expect(logged.length).toBeGreaterThan(3);
+        for (const [message, attributes] of logged) {
+            expect(attributes, String(message)).toMatchObject({integrationId: 'int-1', jobId: 99});
+        }
     });
 
     it('posts the payload built by buildSlackAlert', async () => {

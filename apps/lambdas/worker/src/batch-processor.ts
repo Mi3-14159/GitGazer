@@ -30,8 +30,8 @@ export const processRecord = async (record: SQSRecord): Promise<WorkflowJobWithR
         return null;
     }
 
+    // No per-record logger keys: alerts for earlier records log concurrently and would pick them up.
     const {integrationId, eventType, payload, source} = message;
-    logger.appendKeys({integrationId, eventType, source});
 
     const {data, stale} = await insertEvent(integrationId, eventType, payload);
 

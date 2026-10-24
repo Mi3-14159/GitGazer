@@ -1,6 +1,9 @@
 import type {SQSRecord} from 'aws-lambda';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+const logger = vi.hoisted(() => ({debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), appendKeys: vi.fn()}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => logger}));
+
 const mockSyncOrgMembers = vi.fn();
 const mockInsertEvent = vi.fn();
 const mockPostToConnections = vi.fn();
@@ -27,6 +30,13 @@ beforeEach(async () => {
 });
 
 describe('processRecord', () => {
+    // Alerts for earlier records are still logging while this one is ingested.
+    it('does not set per-record keys on the shared logger', async () => {
+        await batchProcessor.processRecord(makeRecord({integrationId: 'int-1', eventType: 'workflow_job', payload: {}}));
+
+        expect(logger.appendKeys).not.toHaveBeenCalled();
+    });
+
     it('routes an org_member_sync task to syncOrgMembers and skips the importer', async () => {
         const result = await batchProcessor.processRecord(makeRecord({taskType: 'org_member_sync', installationId: 42, accountLogin: 'acme'}));
 
