@@ -109,6 +109,15 @@ data "aws_iam_policy_document" "worker" {
 
   statement {
     effect  = "Allow"
+    actions = ["bedrock:InvokeModel"]
+    resources = [
+      "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-haiku-*",
+      "arn:aws:bedrock:eu-*::foundation-model/anthropic.claude-haiku-*",
+    ]
+  }
+
+  statement {
+    effect  = "Allow"
     actions = ["rds-db:connect"]
     resources = [
       "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${local.db_resource_id}/*"
