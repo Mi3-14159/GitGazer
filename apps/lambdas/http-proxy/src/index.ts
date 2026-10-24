@@ -6,8 +6,9 @@ const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const TRUNCATE_TAIL_HEADER = 'x-gitgazer-truncate-tail';
 
-// Lambda's 6 MB response limit applies to the JSON-escaped payload, which can be several times the raw bytes
-const MAX_TAIL_BYTES = 1024 * 1024;
+// Lambda's 6 MB response limit applies to the JSON-serialized payload, where a control byte grows to six (\u001b);
+// budget for that worst case and leave room for the headers and envelope.
+const MAX_TAIL_BYTES = Math.floor((5 * 1024 * 1024) / 6);
 
 /**
  * Response headers the proxy forwards back to the caller. Critically includes
