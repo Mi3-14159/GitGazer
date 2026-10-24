@@ -17,7 +17,10 @@ const getSigner = (region: string): SignatureV4 => {
     return signer;
 };
 
-/** Signed here and relayed by the http-proxy Lambda, because the worker's VPC has no IPv4 egress and Bedrock has no IPv6 endpoint. */
+/**
+ * Signed here rather than through the SDK so proxyFetch can relay it via the http-proxy Lambda: the worker's VPC has no
+ * IPv4 egress and Bedrock has no IPv6 endpoint. Without a configured proxy, proxyFetch sends the same request directly.
+ */
 export const converse = async (params: {system: string; prompt: string; maxTokens: number}): Promise<string> => {
     const region = getRegion();
     const hostname = `bedrock-runtime.${region}.amazonaws.com`;

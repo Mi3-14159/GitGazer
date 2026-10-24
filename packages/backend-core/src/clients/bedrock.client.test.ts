@@ -28,6 +28,7 @@ beforeEach(async () => {
 
 afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
 });
 
 describe('converse', () => {
@@ -107,6 +108,22 @@ describe('converse', () => {
         proxyFetch.mockResolvedValue(new Response('{}', {status: 500}));
 
         await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).rejects.toMatchObject({name: 'UnknownBedrockError'});
+    });
+
+    it('sends the signed request straight to Bedrock when no http proxy is configured', async () => {
+        vi.stubEnv('HTTP_PROXY_FUNCTION_NAME', '');
+        const actual = await vi.importActual<typeof import('./proxy-fetch')>('./proxy-fetch');
+        proxyFetch.mockImplementation(actual.proxyFetch);
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({output: {message: {content: [{text: 'direct'}]}}}));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(bedrock.converse({system: 's', prompt: 'p', maxTokens: 10})).resolves.toBe('direct');
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(String(url)).toBe(converseUrl);
+        expect(init.method).toBe('POST');
+        expect(new Headers(init.headers).get('authorization')).toMatch(/^AWS4-HMAC-SHA256 Credential=AKIDTESTKEY\//);
     });
 
     it('uses the region from AWS_REGION', async () => {
