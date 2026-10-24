@@ -158,14 +158,11 @@ describe('loadJobHistory', () => {
         expect(mockLt).toHaveBeenCalledWith('completedAt', job.completedAt);
     });
 
-    it('skips the completion filter when this job has no completion time', async () => {
-        const limit = vi.fn().mockResolvedValue([]);
-        const select = vi.fn().mockReturnValue({from: () => ({where: () => ({orderBy: () => ({limit})})})});
-        mockWithRlsTransaction.mockImplementation(async (p: {callback: Function}) => p.callback({select}));
+    it('returns no history when this job has no completion time', async () => {
+        const out = await loadJobHistory({...job, completedAt: null} as unknown as WorkflowJobWithRelations);
 
-        await loadJobHistory({...job, completedAt: null} as unknown as WorkflowJobWithRelations);
-
-        expect(mockLt).not.toHaveBeenCalled();
+        expect(out).toEqual([]);
+        expect(mockWithRlsTransaction).not.toHaveBeenCalled();
     });
 });
 

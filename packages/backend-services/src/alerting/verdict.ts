@@ -76,6 +76,10 @@ export const classifyVerdict = (history: JobHistoryEntry[], current: {headBranch
 };
 
 export const loadJobHistory = async (job: WorkflowJobWithRelations): Promise<JobHistoryEntry[]> => {
+    // Without a completion time there is no way to tell which runs came before this one.
+    const {completedAt} = job;
+    if (!completedAt) return [];
+
     const rows = await withRlsTransaction({
         integrationIds: [job.integrationId],
         readOnly: true,
@@ -98,7 +102,7 @@ export const loadJobHistory = async (job: WorkflowJobWithRelations): Promise<Job
                         inArray(workflowJobs.conclusion, [...HISTORY_CONCLUSIONS]),
                         ne(workflowJobs.id, job.id),
                         // Only jobs that finished before this one, so later completions in the same batch don't count.
-                        job.completedAt ? lt(workflowJobs.completedAt, job.completedAt) : undefined,
+                        lt(workflowJobs.completedAt, completedAt),
                     ),
                 )
                 .orderBy(desc(workflowJobs.completedAt))
