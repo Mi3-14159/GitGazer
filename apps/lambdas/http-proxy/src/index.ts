@@ -2,6 +2,10 @@ import {ProxyRequest, ProxyResponse} from '@gitgazer/backend-core/clients/proxy.
 
 const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'hooks.slack.com', 'slack.com', 'api.slack.com']);
 
+// Bedrock is only reachable in the Lambda's own region.
+const isAllowedHost = (hostname: string): boolean =>
+    ALLOWED_HOSTS.has(hostname) || (!!process.env.AWS_REGION && hostname === `bedrock-runtime.${process.env.AWS_REGION}.amazonaws.com`);
+
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const TRUNCATE_TAIL_HEADER = 'x-gitgazer-truncate-tail';
@@ -28,6 +32,7 @@ const FORWARDED_RESPONSE_HEADERS = [
     'x-ratelimit-reset',
     'x-ratelimit-used',
     'x-ratelimit-resource',
+    'x-amzn-errortype',
 ];
 
 /** Streams the body, keeping only the last MAX_TAIL_BYTES in memory, because a job log's error is at its end. */
@@ -77,7 +82,7 @@ export const handler = async (event: ProxyRequest): Promise<ProxyResponse> => {
         return {statusCode: 400, headers: {}, body: JSON.stringify({error: 'Only HTTPS targets allowed'})};
     }
 
-    if (!ALLOWED_HOSTS.has(targetUrl.hostname)) {
+    if (!isAllowedHost(targetUrl.hostname)) {
         return {statusCode: 403, headers: {}, body: JSON.stringify({error: `Host not allowed: ${targetUrl.hostname}`})};
     }
 

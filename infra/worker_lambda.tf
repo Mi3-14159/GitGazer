@@ -1,3 +1,8 @@
+locals {
+  alerts_bedrock_inference_profile_arn = "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.alerts_bedrock_inference_profile_id}"
+  alerts_bedrock_foundation_model_arn  = "arn:aws:bedrock:eu-*::foundation-model/${trimprefix(var.alerts_bedrock_inference_profile_id, "eu.")}"
+}
+
 resource "aws_cloudwatch_log_group" "worker" {
   name              = "/aws/lambda/${var.name_prefix}-worker-${terraform.workspace}"
   retention_in_days = 30
@@ -104,6 +109,15 @@ data "aws_iam_policy_document" "worker" {
     ]
     resources = [
       "${aws_apigatewayv2_api.websocket.execution_arn}/*",
+    ]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = ["bedrock:InvokeModel"]
+    resources = [
+      local.alerts_bedrock_inference_profile_arn,
+      local.alerts_bedrock_foundation_model_arn,
     ]
   }
 

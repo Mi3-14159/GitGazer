@@ -70,6 +70,9 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
     mcpQuota = {
       maxQuerySeconds = local.mcp_query_timeout_seconds
     }
+    alerts = {
+      bedrockModelId = var.alerts_bedrock_inference_profile_id
+    }
     githubApp = {
       id            = var.gh_app.id
       privateKey    = data.aws_kms_secrets.this.plaintext["gh_app_private_key"]

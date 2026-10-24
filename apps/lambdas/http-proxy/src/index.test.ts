@@ -1,10 +1,14 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {handler} from './index';
 
 describe('http-proxy handler', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+    });
+
+    afterEach(() => {
+        vi.unstubAllEnvs();
     });
 
     it('returns 400 when required fields are missing', async () => {
@@ -79,6 +83,52 @@ describe('http-proxy handler', () => {
         expect(result.headers['content-type']).toBe('application/json');
         // Body-framing header must NOT be forwarded — the body is already decoded.
         expect(result.headers['content-encoding']).toBeUndefined();
+    });
+
+    it('allows bedrock-runtime in the region from AWS_REGION', async () => {
+        vi.stubEnv('AWS_REGION', 'eu-central-1');
+        const fetchMock = vi.fn().mockResolvedValue(new Response('{}', {status: 200, headers: {'content-type': 'application/json'}}));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await handler({
+            url: 'https://bedrock-runtime.eu-central-1.amazonaws.com/model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse',
+            method: 'POST',
+            body: '{}',
+        });
+
+        expect(result.statusCode).toBe(200);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects bedrock-runtime in another region', async () => {
+        vi.stubEnv('AWS_REGION', 'eu-central-1');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await handler({url: 'https://bedrock-runtime.us-east-1.amazonaws.com/model/x/converse', method: 'POST', body: '{}'});
+
+        expect(result.statusCode).toBe(403);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('forwards x-amzn-errortype', async () => {
+        vi.stubEnv('AWS_REGION', 'eu-central-1');
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(
+                new Response('{"message":"Too many requests"}', {
+                    status: 429,
+                    headers: {
+                        'content-type': 'application/json',
+                        'x-amzn-errortype': 'ThrottlingException:http://internal.amazon.com/coral/com.amazon.bedrock/',
+                    },
+                }),
+            ),
+        );
+
+        const result = await handler({url: 'https://bedrock-runtime.eu-central-1.amazonaws.com/model/x/converse', method: 'POST', body: '{}'});
+
+        expect(result.headers['x-amzn-errortype']).toBe('ThrottlingException:http://internal.amazon.com/coral/com.amazon.bedrock/');
     });
 
     it('returns 502 when upstream fetch throws', async () => {
