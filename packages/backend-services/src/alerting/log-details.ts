@@ -10,6 +10,9 @@ import {githubAppInstallations, pullRequests, workflowRunPullRequests} from '@gi
 import type {WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, asc, eq, sql} from 'drizzle-orm';
 
+export const DETAILS_SKIP_REASONS = ['rule_opt_out', 'low_time', 'no_installation', 'download_failed'] as const;
+export type DetailsSkipReason = (typeof DETAILS_SKIP_REASONS)[number];
+
 const LOG_TAIL_CHARS = 32_000;
 const MAX_CONTEXT_CHARS = 500;
 
@@ -96,7 +99,7 @@ export const loadLogDetails = async (
         return null;
     }
     if (installationId === null) {
-        logger.info('Log details skipped', {...ids, skipReason: 'no_installation'});
+        logger.info('Log details skipped', {...ids, skipReason: 'no_installation' satisfies DetailsSkipReason});
         return null;
     }
 
@@ -105,7 +108,12 @@ export const loadLogDetails = async (
         log = await withTimeout(downloadJobLog(installationId, owner, repo, job.id), config.get('alerts').logFetchTimeoutMs);
     } catch (error) {
         // A 403 is expected until the installation accepts the Actions: read permission.
-        logger.warn('Log details skipped', {...ids, installationId, skipReason: 'download_failed', ...errorFields(error)});
+        logger.warn('Log details skipped', {
+            ...ids,
+            installationId,
+            skipReason: 'download_failed' satisfies DetailsSkipReason,
+            ...errorFields(error),
+        });
         return null;
     }
 

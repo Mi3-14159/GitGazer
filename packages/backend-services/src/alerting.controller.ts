@@ -1,4 +1,4 @@
-import {findPullRequest, loadLogDetails} from './alerting/log-details';
+import {findPullRequest, loadLogDetails, type DetailsSkipReason} from './alerting/log-details';
 import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
 import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
@@ -22,8 +22,6 @@ type AlertContext = {
 };
 
 type AlertOptions = {getRemainingTimeMs?: () => number};
-
-type DetailsSkipReason = 'rule_opt_out' | 'low_time';
 
 export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelations, options?: AlertOptions): Promise<void> {
     const logger = getLogger();
