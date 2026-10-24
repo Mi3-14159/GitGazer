@@ -166,7 +166,6 @@ resource "aws_lambda_function" "worker" {
       RDS_HOST                            = local.database_endpoint
       CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
       NODE_OPTIONS                        = "--enable-source-maps"
-      ALERTS_BEDROCK_MODEL_ID             = var.alerts_bedrock_inference_profile_id
     }
   }
 
