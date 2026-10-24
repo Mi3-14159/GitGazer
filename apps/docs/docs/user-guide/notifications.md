@@ -66,6 +66,16 @@ All filter fields are optional. Leaving a field blank means "match any value" fo
 
 - Add `critical` to **Topics**. Check **Ignore Dependabot**.
 
+## Log Details
+
+**Include log details** is a checkbox on the rule form. It is not a filter: it never stops a rule from firing. It only controls what a failure alert for this rule contains.
+
+When it is checked, failure alerts also show the error lines from the failed job log and a short AI-generated summary. The verdict (probably flaky or likely a real failure) does not depend on this setting; it is shown whenever the job history is clear enough to decide.
+
+- New rules have it checked. Existing rules keep it unchecked until you opt in.
+- Everyone in the Slack channel can read the error lines, so only enable it where that is acceptable.
+- It requires the GitGazer GitHub App. Integrations set up with a manual webhook never fetch logs, so their alerts carry no log details.
+
 ## Manage Rules
 
 ### Edit a Rule

@@ -48,9 +48,9 @@
         isSaving.value = true;
         saveError.value = '';
         try {
-            const {label, channels, enabled, ignore_dependabot, rule: ruleFilter} = rule;
+            const {label, channels, enabled, ignore_dependabot, include_log_details, rule: ruleFilter} = rule;
             const saved = await upsertNotification(
-                {label, channels, enabled, ignore_dependabot, rule: ruleFilter},
+                {label, channels, enabled, ignore_dependabot, include_log_details, rule: ruleFilter},
                 rule.integrationId,
                 rule.id || undefined,
             );
@@ -93,9 +93,9 @@
         notifications.value[idx] = {...rule, enabled: !previousEnabled};
 
         try {
-            const {label, channels, ignore_dependabot, rule: ruleFilter} = rule;
+            const {label, channels, ignore_dependabot, include_log_details, rule: ruleFilter} = rule;
             const saved = await upsertNotification(
-                {label, channels, enabled: !previousEnabled, ignore_dependabot, rule: ruleFilter},
+                {label, channels, enabled: !previousEnabled, ignore_dependabot, include_log_details, rule: ruleFilter},
                 rule.integrationId,
                 rule.id || undefined,
             );

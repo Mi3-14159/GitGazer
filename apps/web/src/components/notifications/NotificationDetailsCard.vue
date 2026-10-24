@@ -207,6 +207,27 @@
                 >
             </div>
 
+            <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                    <Checkbox
+                        v-model="notificationRule.include_log_details"
+                        id="include-log-details"
+                        aria-describedby="include-log-details-hint"
+                    />
+                    <Label
+                        for="include-log-details"
+                        class="cursor-pointer"
+                        >Include log details (error lines and AI summary)</Label
+                    >
+                </div>
+                <p
+                    id="include-log-details-hint"
+                    class="text-xs text-muted-foreground"
+                >
+                    Everyone in the Slack channel will see error lines from the job log. Requires the GitGazer GitHub App.
+                </p>
+            </div>
+
             <div
                 v-if="notificationRule.channels[0]?.type === NotificationRuleChannelType.SLACK"
                 class="space-y-2"
