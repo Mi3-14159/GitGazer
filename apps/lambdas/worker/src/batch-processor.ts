@@ -1,4 +1,3 @@
-import {sendWorkflowJobAlerts} from '@gitgazer/backend-services/alerting.controller';
 import {syncOrgMembers} from '@gitgazer/backend-services/org-member-sync';
 import {insertEvent} from '@gitgazer/github-import/index';
 import {postToConnections} from '@gitgazer/backend-services/webhooks.controller';
@@ -23,21 +22,21 @@ const isOrgMemberSyncTask = (message: SQSMessage): message is OrgMemberSyncTask 
     return 'taskType' in message && message.taskType === 'org_member_sync';
 };
 
-export const processRecord = async (record: SQSRecord): Promise<void> => {
+export const processRecord = async (record: SQSRecord): Promise<WorkflowJobWithRelations | null> => {
     const message: SQSMessage = JSON.parse(record.body);
 
     if (isOrgMemberSyncTask(message)) {
         await syncOrgMembers(message.installationId, message.accountLogin);
-        return;
+        return null;
     }
 
+    // No per-record logger keys: alerts for earlier records log concurrently and would pick them up.
     const {integrationId, eventType, payload, source} = message;
-    logger.appendKeys({integrationId, eventType, source});
 
     const {data, stale} = await insertEvent(integrationId, eventType, payload);
 
     if (source === 'backfill') {
-        return;
+        return null;
     }
 
     // Post-commit side effects — failures here should not cause SQS retry
@@ -49,10 +48,6 @@ export const processRecord = async (record: SQSRecord): Promise<void> => {
                 payload: data,
             });
         }
-
-        if (!stale && eventType === 'workflow_job') {
-            await sendWorkflowJobAlerts(data as WorkflowJobWithRelations);
-        }
     } catch (error) {
         logger.warn('Post-commit side effect failed', {
             integrationId,
@@ -60,4 +55,6 @@ export const processRecord = async (record: SQSRecord): Promise<void> => {
             error: error instanceof Error ? error.message : String(error),
         });
     }
+
+    return !stale && eventType === 'workflow_job' ? (data as WorkflowJobWithRelations) : null;
 };
