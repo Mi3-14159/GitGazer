@@ -25,6 +25,7 @@
         createdAt: '',
         updatedAt: '',
         ignore_dependabot: false,
+        include_log_details: true,
         rule: {owner: '', repository_name: '', workflow_name: '', head_branch: '', topics: []},
         channels: [{type: NotificationRuleChannelType.SLACK, webhook_url: ''}],
     });
