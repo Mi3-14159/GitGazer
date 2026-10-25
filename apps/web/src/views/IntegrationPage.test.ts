@@ -3,14 +3,17 @@ import router from '@/router';
 import type {MemberRole} from '@common/types';
 import {flushPromises, mount} from '@vue/test-utils';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {ref} from 'vue';
+import {ref, type Component} from 'vue';
 import {createMemoryHistory, createRouter} from 'vue-router';
 
 let role: MemberRole = 'owner';
 
 vi.mock('@/composables/useIntegration', () => ({
     useIntegration: () => ({
-        getIntegrations: vi.fn(async () => [{integrationId: 'int-1', label: 'Platform', role, createdAt: '', githubAppInstallations: []}]),
+        getIntegrations: vi.fn(async () => [
+            {integrationId: 'int-1', label: 'Platform', role, createdAt: '', githubAppInstallations: []},
+            {integrationId: 'int-2', label: 'Payments', role, createdAt: '', githubAppInstallations: []},
+        ]),
         isLoadingIntegrations: ref(false),
         createIntegration: vi.fn(),
         updateIntegration: vi.fn(),
@@ -32,7 +35,14 @@ vi.mock('@/composables/useGithubApp', () => ({
     useGithubApp: () => ({linkInstallation: vi.fn(), unlinkInstallation: vi.fn(), updateWebhookEvents: vi.fn()}),
 }));
 
-async function mountAt(path: string) {
+const listApps = vi.fn(async () => []);
+vi.mock('@/composables/useIntegrationApps', () => ({
+    useIntegrationApps: () => ({listApps, installApp: vi.fn(), uninstallApp: vi.fn()}),
+}));
+
+const DEFAULT_STUBS: Record<string, Component | boolean> = {AppsTab: true, IntegrationMembers: {template: '<div data-testid="members-tab" />'}};
+
+async function mountAt(path: string, stubs: Record<string, Component | boolean> = DEFAULT_STUBS) {
     const memoryRouter = createRouter({
         history: createMemoryHistory(),
         routes: [
@@ -41,10 +51,7 @@ async function mountAt(path: string) {
         ],
     });
     await memoryRouter.push(path);
-    const wrapper = mount(
-        {template: '<RouterView />'},
-        {global: {plugins: [memoryRouter], stubs: {AppsTab: true, IntegrationMembers: {template: '<div data-testid="members-tab" />'}}}},
-    );
+    const wrapper = mount({template: '<RouterView />'}, {global: {plugins: [memoryRouter], stubs}});
     await flushPromises();
     return {wrapper, router: memoryRouter};
 }
@@ -68,6 +75,16 @@ describe('IntegrationPage', () => {
         await tabs[2].trigger('mousedown');
         await flushPromises();
         expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Settings');
+    });
+
+    it('reloads the apps when navigating to another integration', async () => {
+        const {router: memoryRouter} = await mountAt('/integrations/int-1/apps', {GithubAppPanel: true, WebhookAppPanel: true});
+        expect(listApps.mock.calls).toEqual([['int-1']]);
+
+        await memoryRouter.push('/integrations/int-2/apps');
+        await flushPromises();
+
+        expect(listApps.mock.calls).toEqual([['int-1'], ['int-2']]);
     });
 
     it('redirects /integrations/:id/users to the members tab', async () => {

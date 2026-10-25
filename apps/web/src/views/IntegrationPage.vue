@@ -127,6 +127,7 @@
                 <h1 class="sr-only">{{ integration.label }}</h1>
             </header>
 
+            <!-- The router reuses this view across integrations; the keys below remount each tab so it loads the new one -->
             <Tabs
                 :model-value="tab"
                 @update:model-value="selectTab"
@@ -142,6 +143,7 @@
                     class="pt-2"
                 >
                     <AppsTab
+                        :key="integration.integrationId"
                         :integration="integration"
                         @integration-changed="refreshIntegrations"
                     />
@@ -151,6 +153,7 @@
                     class="pt-2"
                 >
                     <IntegrationMembers
+                        :key="integration.integrationId"
                         :integration-id="integration.integrationId"
                         :role="integration.role"
                     />
@@ -160,6 +163,7 @@
                     class="pt-2"
                 >
                     <IntegrationSettings
+                        :key="integration.integrationId"
                         :integration="integration"
                         @save-label="onSaveLabel"
                         @delete="confirmDelete"
