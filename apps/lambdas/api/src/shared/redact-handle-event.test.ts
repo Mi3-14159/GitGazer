@@ -1,6 +1,6 @@
 import type {APIGatewayProxyEventV2} from 'aws-lambda';
 import {describe, expect, it} from 'vitest';
-import {redactHandleRouteBody} from '@/shared/redact-handle-event';
+import {redactHandleRouteBody, redactHandleRouteResult} from '@/shared/redact-handle-event';
 
 const URL_BODY = JSON.stringify({name: 'Ops', url: 'https://hooks.slack.com/services/T000/B000/XXXX'});
 
@@ -42,5 +42,79 @@ describe('redactHandleRouteBody', () => {
         const input = event('POST', '/api/integrations/i-1/apps/a-1/handles');
         redactHandleRouteBody(input);
         expect(input.body).toBe(URL_BODY);
+    });
+});
+
+const SLACK_URL = 'https://hooks.slack.com/services/T000/B000/XXXX';
+const SECRET = 's3cret-value';
+
+const result = (body: unknown) => ({
+    statusCode: 200,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+    isBase64Encoded: false,
+});
+
+describe('redactHandleRouteResult', () => {
+    const appsList = [
+        {appId: 'app-g', type: 'github', createdAt: '', settings: {secret: SECRET, orgSyncDefaultRole: 'viewer'}},
+        {appId: 'app-w', type: 'webhook', createdAt: '', handles: [{handleId: 'h-1', appId: 'app-w', name: 'Ops', url: SLACK_URL, ruleCount: 1}]},
+    ];
+    const handle = {handleId: 'h-1', appId: 'app-w', name: 'Ops', url: SLACK_URL, ruleCount: 0};
+
+    it.each([
+        ['GET', '/api/integrations/i-1/apps', appsList],
+        ['POST', '/api/integrations/i-1/apps', appsList[0]],
+        ['POST', '/api/integrations/i-1/apps/a-1/handles', handle],
+        ['PATCH', '/api/integrations/i-1/handles/h-1', handle],
+    ])('masks webhook URLs and the secret in the %s %s response', (method, path, body) => {
+        const logged = redactHandleRouteResult(event(method, path), result(body));
+
+        expect(logged.body).not.toContain('hooks.slack.com');
+        expect(logged.body).not.toContain(SECRET);
+        expect(logged.statusCode).toBe(200);
+    });
+
+    it('keeps the rest of the GET apps response readable', () => {
+        const logged = redactHandleRouteResult(event('GET', '/api/integrations/i-1/apps'), result(appsList));
+
+        expect(JSON.parse(logged.body!)).toEqual([
+            {...appsList[0], settings: {secret: '[REDACTED]', orgSyncDefaultRole: 'viewer'}},
+            {...appsList[1], handles: [{...handle, ruleCount: 1, url: '[REDACTED]'}]},
+        ]);
+    });
+
+    it('decodes a base64 body before masking it', () => {
+        const encoded = {...result(handle), body: Buffer.from(JSON.stringify(handle)).toString('base64'), isBase64Encoded: true};
+
+        const logged = redactHandleRouteResult(event('PATCH', '/api/integrations/i-1/handles/h-1'), encoded);
+
+        expect(logged.isBase64Encoded).toBe(false);
+        expect(JSON.parse(logged.body!)).toMatchObject({name: 'Ops', url: '[REDACTED]'});
+    });
+
+    it('drops a body it cannot parse, such as a compressed one', () => {
+        const compressed = {...result(handle), headers: {'Content-Encoding': 'gzip'}, body: 'H4sIAAAAAAAAA6tWyk', isBase64Encoded: true};
+
+        const logged = redactHandleRouteResult(event('POST', '/api/integrations/i-1/apps/a-1/handles'), compressed);
+
+        expect(logged.body).toBe('[REDACTED]');
+    });
+
+    it('does not modify the response that is returned to the client', () => {
+        const response = result(handle);
+
+        redactHandleRouteResult(event('PATCH', '/api/integrations/i-1/handles/h-1'), response);
+
+        expect(response.body).toContain(SLACK_URL);
+    });
+
+    it.each([
+        ['GET', '/api/integrations/i-1/rules'],
+        ['DELETE', '/api/integrations/i-1/handles/h-1'],
+        ['GET', '/api/integrations'],
+    ])('leaves the %s %s response unchanged', (method, path) => {
+        const response = result({url: 'https://example.com'});
+        expect(redactHandleRouteResult(event(method, path), response)).toBe(response);
     });
 });
