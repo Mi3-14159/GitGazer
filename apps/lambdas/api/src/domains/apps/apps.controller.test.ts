@@ -9,6 +9,7 @@ const selectQueue: unknown[][] = [];
 const deletedTables: unknown[] = [];
 const insertedValues: {table: unknown; values: unknown}[] = [];
 const orderByArgs: unknown[][] = [];
+const queryLog: string[] = [];
 
 const chain = (result: unknown[]) => {
     const c: any = {
@@ -21,14 +22,20 @@ const chain = (result: unknown[]) => {
             orderByArgs.push(args);
             return c;
         },
-        for: () => c,
+        for: (strength: string) => {
+            queryLog.push(`for:${strength}`);
+            return c;
+        },
         then: (resolve: (v: unknown[]) => unknown, reject: (e: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
     };
     return c;
 };
 
 const mockTx = {
-    select: () => chain(selectQueue.shift() ?? []),
+    select: () => {
+        queryLog.push('select');
+        return chain(selectQueue.shift() ?? []);
+    },
     insert: (table: unknown) => ({
         values: (values: unknown) => {
             insertedValues.push({table, values});
@@ -81,6 +88,7 @@ describe('apps controller', () => {
         deletedTables.length = 0;
         insertedValues.length = 0;
         orderByArgs.length = 0;
+        queryLog.length = 0;
         mockWithRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
         mockGetGithubSettings.mockResolvedValue({appId: 'app-g', secret: SECRET, orgSyncDefaultRole: 'member'});
         mockCreateEventLogEntry.mockResolvedValue({});
@@ -199,6 +207,14 @@ describe('apps controller', () => {
 
             await expect(controller.createHandle({...base, appId: 'app-g', name: 'x', url: SLACK_URL})).rejects.toBeInstanceOf(BadRequestError);
             expect(insertedValues).toHaveLength(0);
+        });
+
+        it('createHandle locks the Webhook app row before counting its handles', async () => {
+            selectQueue.push([{appId: 'app-w', type: 'webhook'}], [{count: 0}]);
+
+            await controller.createHandle({...base, appId: 'app-w', name: 'x', url: SLACK_URL});
+
+            expect(queryLog).toEqual(['select', 'for:update', 'select']);
         });
 
         it('createHandle stores the trimmed name and the url', async () => {

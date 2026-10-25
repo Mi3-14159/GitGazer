@@ -30,11 +30,12 @@ const assertWebhookUrl = (url: unknown): string => {
     return url;
 };
 
-const findApp = async (tx: RdsTransaction, integrationId: string, appId: string) => {
-    const [app] = await tx
+const findApp = async (tx: RdsTransaction, integrationId: string, appId: string, lock?: 'update') => {
+    const query = tx
         .select({appId: integrationApps.appId, type: integrationApps.type})
         .from(integrationApps)
         .where(and(eq(integrationApps.integrationId, integrationId), eq(integrationApps.appId, appId)));
+    const [app] = lock ? await query.for(lock) : await query;
     if (!app) {
         throw new NotFoundError('App not found');
     }
@@ -222,7 +223,8 @@ export const createHandle = async (params: Scope & {appId: string; name: string;
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            const app = await findApp(tx, integrationId, appId);
+            // Serialises concurrent creates on this app so the count below can't be outrun
+            const app = await findApp(tx, integrationId, appId, 'update');
             if (app.type !== 'webhook') {
                 throw new BadRequestError('Handles can only be added to a Webhook app');
             }
