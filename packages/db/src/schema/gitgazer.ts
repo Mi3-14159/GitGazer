@@ -1,10 +1,12 @@
 import {sql} from 'drizzle-orm';
-import {bigint, boolean, index, integer, jsonb, pgSchema, primaryKey, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
+import {bigint, boolean, foreignKey, index, integer, jsonb, pgSchema, primaryKey, text, timestamp, unique, uuid, varchar} from 'drizzle-orm/pg-core';
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,
+    INTEGRATION_APP_TYPES,
     INVITATION_STATUSES,
     MEMBER_ROLES,
+    ORG_SYNC_DEFAULT_ROLES,
     WEBSOCKET_CHANNELS,
     type EventLogEntryMetadata,
     type NotificationRuleChannel,
@@ -141,5 +143,123 @@ export const notificationRules = gitgazerSchema
             updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),
         },
         (table) => [primaryKey({columns: [table.integrationId, table.id]}), writerTenantSeparationPolicy(), readerTenantSeparationPolicy()],
+    )
+    .enableRLS();
+
+export const integrationApps = gitgazerSchema
+    .table(
+        'integration_apps',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            appId: uuid('app_id').defaultRandom().notNull(),
+            type: varchar('type', {length: 20, enum: INTEGRATION_APP_TYPES}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.appId]}),
+            unique().on(table.integrationId, table.type),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
+export const integrationAppGithubSettings = gitgazerSchema
+    .table(
+        'integration_app_github_settings',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            appId: uuid('app_id').notNull(),
+            secret: uuid('secret').notNull().defaultRandom(),
+            orgSyncDefaultRole: varchar('org_sync_default_role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull().default('viewer'),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.appId]}),
+            foreignKey({
+                columns: [table.integrationId, table.appId],
+                foreignColumns: [integrationApps.integrationId, integrationApps.appId],
+            }).onDelete('cascade'),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
+export const notificationHandles = gitgazerSchema
+    .table(
+        'notification_handles',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            handleId: uuid('handle_id').defaultRandom().notNull(),
+            appId: uuid('app_id').notNull(),
+            name: varchar('name', {length: 100}).notNull(),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+            updatedAt: timestamp('updated_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.handleId]}),
+            foreignKey({
+                columns: [table.integrationId, table.appId],
+                foreignColumns: [integrationApps.integrationId, integrationApps.appId],
+            }).onDelete('cascade'),
+            index('notification_handles_integration_app_idx').on(table.integrationId, table.appId),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
+export const webhookHandleDetails = gitgazerSchema
+    .table(
+        'webhook_handle_details',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            handleId: uuid('handle_id').notNull(),
+            url: text('url').notNull(),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.handleId]}),
+            foreignKey({
+                columns: [table.integrationId, table.handleId],
+                foreignColumns: [notificationHandles.integrationId, notificationHandles.handleId],
+            }).onDelete('cascade'),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
+export const notificationRuleDestinations = gitgazerSchema
+    .table(
+        'notification_rule_destinations',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            ruleId: uuid('rule_id').notNull(),
+            handleId: uuid('handle_id').notNull(),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.ruleId, table.handleId]}),
+            foreignKey({
+                columns: [table.integrationId, table.ruleId],
+                foreignColumns: [notificationRules.integrationId, notificationRules.id],
+            }).onDelete('cascade'),
+            foreignKey({
+                columns: [table.integrationId, table.handleId],
+                foreignColumns: [notificationHandles.integrationId, notificationHandles.handleId],
+            }).onDelete('cascade'),
+            index('notification_rule_destinations_integration_handle_idx').on(table.integrationId, table.handleId),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
     )
     .enableRLS();

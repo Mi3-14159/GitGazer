@@ -2,6 +2,7 @@ export type {EmitterWebhookEventName} from '@octokit/webhooks';
 export type * from '@octokit/webhooks-types';
 export * from './alerts';
 export * from './api';
+export * from './apps';
 export * from './auth';
 export * from './entities';
 export * from './event-log';
