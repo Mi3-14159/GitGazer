@@ -10,6 +10,11 @@ export const dbRelations = defineRelations(schema, (r) => ({
         apps: r.many.integrationApps(),
     },
     integrationApps: {
+        integration: r.one.integrations({
+            from: r.integrationApps.integrationId,
+            to: r.integrations.integrationId,
+            optional: false,
+        }),
         githubSettings: r.one.integrationAppGithubSettings({
             from: [r.integrationApps.integrationId, r.integrationApps.appId],
             to: [r.integrationAppGithubSettings.integrationId, r.integrationAppGithubSettings.appId],
