@@ -1,5 +1,6 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
-import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
+import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
+import {provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
 import {
     deleteIntegration,
     getIntegrations,
@@ -7,14 +8,16 @@ import {
     updateOrgSyncSettings,
     upsertIntegration,
 } from '@/domains/integrations/integrations.controller';
+import {getGithubSettings} from '@/domains/apps/github-settings';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {ConflictError} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
-import {githubAppInstallations, integrations as integrationsTable} from '@gitgazer/db/schema/github/workflows';
+import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq, isNull} from 'drizzle-orm';
 
@@ -158,20 +161,29 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         throw new BadRequestError('Installation is already linked to an integration');
     }
 
-    // Link installation to integration — atomic guard against a concurrent link.
-    // The UPDATE only matches while integration_id IS NULL; if a racing request
-    // linked it first, 0 rows are returned and we reject instead of overwriting.
-    // Events are (re)set here so installations created before a new event type was
-    // supported still subscribe to everything on link.
-    const linked = await db
-        .update(githubAppInstallations)
-        .set({integrationId, webhookEvents: [...GITHUB_APP_WEBHOOK_EVENTS], updatedAt: new Date()})
-        .where(and(eq(githubAppInstallations.installationId, installationId), isNull(githubAppInstallations.integrationId)))
-        .returning({installationId: githubAppInstallations.installationId});
+    // Not withRlsTransaction: the writer's tenant policy hides the still-unlinked installation row.
+    // The FOR SHARE lock makes a concurrent GitHub app removal wait for this link, so its re-check sees it.
+    const githubSettings = await db.transaction(async (tx) => {
+        const settings = await getGithubSettings(tx, integrationId, 'share');
+        if (!settings) {
+            throw new ConflictError('Install the GitHub app first');
+        }
 
-    if (linked.length === 0) {
-        throw new BadRequestError('Installation is already linked to an integration');
-    }
+        // The UPDATE only matches while integration_id IS NULL; if a racing request
+        // linked it first, 0 rows are returned and we reject instead of overwriting.
+        // Events are (re)set here so installations created before a new event type was
+        // supported still subscribe to everything on link.
+        const linked = await tx
+            .update(githubAppInstallations)
+            .set({integrationId, webhookEvents: [...GITHUB_APP_WEBHOOK_EVENTS], updatedAt: new Date()})
+            .where(and(eq(githubAppInstallations.installationId, installationId), isNull(githubAppInstallations.integrationId)))
+            .returning({installationId: githubAppInstallations.installationId});
+
+        if (linked.length === 0) {
+            throw new BadRequestError('Installation is already linked to an integration');
+        }
+        return settings;
+    });
 
     // Provision webhooks
     let webhookCount = 0;
@@ -202,16 +214,10 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
     let orgSyncResult = {matched: 0, unmatched: 0};
     if (installation.accountType === 'Organization') {
         try {
-            const [integration] = await db
-                .select({orgSyncDefaultRole: integrationsTable.orgSyncDefaultRole})
-                .from(integrationsTable)
-                .where(eq(integrationsTable.integrationId, integrationId));
-
-            const defaultRole = integration?.orgSyncDefaultRole ?? 'viewer';
             orgSyncResult = await resolveAndAssignOrgMembers({
                 integrationId,
                 installationId,
-                role: defaultRole,
+                role: githubSettings.orgSyncDefaultRole,
                 accountLogin: installation.accountLogin,
             });
         } catch (error) {
@@ -239,27 +245,7 @@ router.delete(
             throw new BadRequestError('Invalid installation ID');
         }
 
-        // Delete webhooks from GitHub (app is still installed, webhooks won't auto-delete)
-        try {
-            await deprovisionAllWebhooks(integrationId, installationId);
-        } catch (error) {
-            getLogger().error('Failed to deprovision webhooks', {error});
-        }
-
-        // Unlink installation (set integration_id back to NULL)
-        await db
-            .update(githubAppInstallations)
-            .set({integrationId: null, updatedAt: new Date()})
-            .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
-
-        await createEventLogEntry({
-            integrationId,
-            category: 'integration',
-            type: 'info',
-            title: 'GitHub App unlinked',
-            message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
-            metadata: {integrationId, installationId},
-        });
+        await unlinkInstallation(integrationId, installationId);
 
         return new Response(null, {
             status: HttpStatusCodes.NO_CONTENT,

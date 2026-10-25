@@ -1,8 +1,8 @@
+import {getGithubSettings} from '@/domains/apps/github-settings';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {Middleware} from '@aws-lambda-powertools/event-handler/types';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {integrations} from '@gitgazer/db/schema/github/workflows';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
 
@@ -17,14 +17,14 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
     }
 
     const integrationId = pathParameters.integrationId;
-    const userIntegrations = await withRlsTransaction({
+    const settings = await withRlsTransaction({
         integrationIds: [integrationId],
         callback: async (tx: RdsTransaction) => {
-            return await tx.select().from(integrations);
+            return await getGithubSettings(tx, integrationId);
         },
     });
 
-    if (!userIntegrations.length || !userIntegrations[0].secret) {
+    if (!settings?.secret) {
         throw new InternalServerError('Integration secret not configured');
     }
 
@@ -36,7 +36,7 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
     }
 
     const rawBody = event.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload, 'utf-8');
-    const isValid = validateSignature(rawBody, userIntegrations[0].secret, signature);
+    const isValid = validateSignature(rawBody, settings.secret, signature);
     if (!isValid) {
         throw new UnauthorizedError('Invalid signature');
     }

@@ -7,6 +7,10 @@ vi.mock('@gitgazer/db/client', () => {
     };
 });
 
+function settingsTx(rows: unknown[]) {
+    return {select: () => ({from: () => ({innerJoin: () => ({where: () => rows})})})};
+}
+
 function makeReqCtx(event: any) {
     return {event} as any;
 }
@@ -36,12 +40,12 @@ describe('verifyGithubSign middleware', () => {
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('throws BadRequestError when integration cannot be found (missing secret)', async () => {
+    it('rejects when the integration has no GitHub app', async () => {
         const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./webhooks.middleware');
         const next = vi.fn(async () => undefined);
         (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            return params.callback({select: () => ({from: () => [{id: 'int-1'}]})});
+            return params.callback(settingsTx([]));
         });
 
         const event = {
@@ -60,7 +64,7 @@ describe('verifyGithubSign middleware', () => {
         const {verifyGithubSign} = await import('./webhooks.middleware');
         const next = vi.fn(async () => undefined);
         (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            return params.callback({select: () => ({from: () => [{id: 'int-1', secret: 'shh'}]})});
+            return params.callback(settingsTx([{appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'}]));
         });
 
         const eventMissingSig = {
@@ -88,7 +92,7 @@ describe('verifyGithubSign middleware', () => {
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
         (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            return params.callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+            return params.callback(settingsTx([{appId: 'app-1', secret, orgSyncDefaultRole: 'viewer'}]));
         });
 
         const payload = JSON.stringify({hello: 'world'});
@@ -106,13 +110,33 @@ describe('verifyGithubSign middleware', () => {
         expect(next).not.toHaveBeenCalled();
     });
 
+    it('verifies the signature with the GitHub app secret', async () => {
+        const rds = await import('@gitgazer/db/client');
+        const {verifyGithubSign} = await import('./webhooks.middleware');
+        const next = vi.fn(async () => undefined);
+        (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
+            return params.callback(settingsTx([{appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'}]));
+        });
+
+        const payload = JSON.stringify({ok: true});
+        const event = {
+            pathParameters: {integrationId: 'int-1'},
+            headers: {'x-hub-signature-256': signatureFor(payload, 'shh')},
+            body: payload,
+        };
+
+        await verifyGithubSign({reqCtx: makeReqCtx(event), next} as any);
+
+        expect(next).toHaveBeenCalledTimes(1);
+    });
+
     it('calls next when signature is valid', async () => {
         const rds = await import('@gitgazer/db/client');
         const {verifyGithubSign} = await import('./webhooks.middleware');
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
         (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            return params.callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+            return params.callback(settingsTx([{appId: 'app-1', secret, orgSyncDefaultRole: 'viewer'}]));
         });
 
         const payload = JSON.stringify({ok: true});
@@ -136,7 +160,7 @@ describe('verifyGithubSign middleware', () => {
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
         (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            return params.callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+            return params.callback(settingsTx([{appId: 'app-1', secret, orgSyncDefaultRole: 'viewer'}]));
         });
 
         const payload = JSON.stringify({deploy: true});
@@ -161,7 +185,7 @@ describe('verifyGithubSign middleware', () => {
         const next = vi.fn(async () => undefined);
         const secret = 'shh';
         (rds.withRlsTransaction as any).mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            return params.callback({select: () => ({from: () => [{id: 'int-1', secret}]})});
+            return params.callback(settingsTx([{appId: 'app-1', secret, orgSyncDefaultRole: 'viewer'}]));
         });
 
         const payload = JSON.stringify({deploy: true});

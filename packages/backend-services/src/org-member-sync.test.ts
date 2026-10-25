@@ -24,6 +24,10 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
         id: Symbol('users.id'),
         githubId: Symbol('users.githubId'),
     },
+    integrationAppGithubSettings: {
+        integrationId: Symbol('integrationAppGithubSettings.integrationId'),
+        orgSyncDefaultRole: Symbol('integrationAppGithubSettings.orgSyncDefaultRole'),
+    },
 }));
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
@@ -34,10 +38,6 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubOrgMembers: {
         installationId: Symbol('installationId'),
         githubUserId: Symbol('githubUserId'),
-    },
-    integrations: {
-        integrationId: Symbol('integrationId'),
-        orgSyncDefaultRole: Symbol('orgSyncDefaultRole'),
     },
     userAssignments: {
         userId: Symbol('userId'),
@@ -57,11 +57,14 @@ vi.mock('./org-member-resolver', () => ({
 }));
 
 // Helper: chainable select mock supporting .from().where() and .from().innerJoin().where()
+const innerJoinTargets: unknown[] = [];
+
 const buildSelectChain = (result: any) => ({
     from: () => ({
-        innerJoin: () => ({
-            where: () => Promise.resolve(result),
-        }),
+        innerJoin: (target: unknown) => {
+            innerJoinTargets.push(target);
+            return {where: () => Promise.resolve(result)};
+        },
         where: () => Promise.resolve(result),
     }),
 });
@@ -83,6 +86,7 @@ let syncModule: typeof import('./org-member-sync');
 describe('org-member-sync', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
+        innerJoinTargets.length = 0;
         mockResolveAndAssignOrgMembers.mockResolvedValue({matched: 0, unmatched: 0});
         syncModule = await import('./org-member-sync');
     });
@@ -127,6 +131,9 @@ describe('org-member-sync', () => {
 
             await syncModule.syncOrgMembers(42, 'test-org');
 
+            const {integrationAppGithubSettings} = await import('@gitgazer/db/schema/gitgazer');
+            expect(innerJoinTargets[0]).toBe(integrationAppGithubSettings);
+
             // resolveAndAssignOrgMembers was called for auto-add
             expect(mockResolveAndAssignOrgMembers).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -157,6 +164,24 @@ describe('org-member-sync', () => {
             mockDb.select.mockImplementation(() => buildSelectChain([]));
 
             await syncModule.syncOrgMembers(42, 'test-org');
+
+            expect(mockResolveAndAssignOrgMembers).not.toHaveBeenCalled();
+            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
+        });
+
+        it('skips reconciliation when the integration has no GitHub app', async () => {
+            mockListOrgMembers.mockResolvedValue([{id: 1001, login: 'alice', role: 'member'}]);
+
+            mockDb.insert.mockReturnValue({values: buildInsertChain().values});
+            mockDb.delete.mockReturnValue(buildDeleteChain());
+
+            // the installation is linked, but the settings join finds no GitHub app
+            mockDb.select.mockImplementation(() => buildSelectChain([]));
+
+            await syncModule.syncOrgMembers(42, 'test-org');
+
+            const {integrationAppGithubSettings} = await import('@gitgazer/db/schema/gitgazer');
+            expect(innerJoinTargets).toEqual([integrationAppGithubSettings]);
 
             expect(mockResolveAndAssignOrgMembers).not.toHaveBeenCalled();
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();

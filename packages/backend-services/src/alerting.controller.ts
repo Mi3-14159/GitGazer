@@ -1,4 +1,4 @@
-import {findPullRequest, loadLogDetails, type DetailsSkipReason} from './alerting/log-details';
+import {findPullRequest, loadLogDetails, type DetailsSkipReason, type LogDetails} from './alerting/log-details';
 import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
 import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
@@ -6,8 +6,8 @@ import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {notificationRules} from '@gitgazer/db/schema';
-import {NotificationRuleChannelType, WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import {notificationRuleDestinations, notificationRules, webhookHandleDetails} from '@gitgazer/db/schema';
+import {WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
 type AlertContext = {
@@ -38,52 +38,56 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
     }
 
     const context = getAlertContext(workflowJob);
-    const matching = await findMatchingNotificationRules(workflowJob, context);
+    const {ruleIds, targets} = await findMatchingRulesAndTargets(workflowJob, context);
 
-    if (matching.length === 0) {
+    if (ruleIds.length === 0) {
         logger.info(`No matching notification rules for integration ${workflowJob.integrationId}`, logIds);
         return;
     }
 
-    logger.info(`Found ${matching.length} matching notification rules for integration ${workflowJob.integrationId}`, {
+    logger.info(`Found ${ruleIds.length} matching notification rules for integration ${workflowJob.integrationId}`, {
         ...logIds,
-        ruleIds: matching.map((rule) => rule.id),
+        ruleIds,
     });
 
     const [verdict, pullRequest] = await Promise.all([computeVerdict(workflowJob), findPullRequest(workflowJob)]);
 
-    const skipReason = getDetailsSkipReason(matching, options);
-    const details = skipReason ? null : await loadLogDetails(workflowJob, verdict, pullRequest?.title ?? null);
+    let details: LogDetails | null = null;
+    if (targets.length === 0) {
+        logger.warn('Matching notification rules have no destinations', logIds);
+    } else {
+        const skipReason = getDetailsSkipReason(targets, options);
+        details = skipReason ? null : await loadLogDetails(workflowJob, verdict, pullRequest?.title ?? null);
 
-    logger.info('Sending failure alert', {
-        ...logIds,
-        verdict: verdict.kind,
-        detailsAttempted: skipReason === null,
-        detailsLoaded: details !== null,
-        summaryIncluded: Boolean(details?.summary),
-        excerptIncluded: Boolean(details?.excerpt),
-        skipReason: skipReason ?? undefined,
-    });
+        logger.info('Sending failure alert', {
+            ...logIds,
+            verdict: verdict.kind,
+            handleCount: targets.length,
+            detailsAttempted: skipReason === null,
+            detailsLoaded: details !== null,
+            summaryIncluded: Boolean(details?.summary),
+            excerptIncluded: Boolean(details?.excerpt),
+            skipReason: skipReason ?? undefined,
+        });
 
-    const alertInput: Omit<SlackAlertInput, 'details'> = {
-        owner: context.ownerLogin,
-        repository: context.repositoryName,
-        branch: context.headBranch,
-        workflowName: context.workflowName,
-        jobName: context.jobName,
-        jobId: workflowJob.id,
-        runId: context.runId,
-        runAttempt: workflowJob.runAttempt,
-        event: workflowJob.workflowRun?.event ?? null,
-        senderLogin: context.senderLogin,
-        pullRequestNumber: pullRequest?.number ?? null,
-        verdict,
-    };
+        const alertInput: Omit<SlackAlertInput, 'details'> = {
+            owner: context.ownerLogin,
+            repository: context.repositoryName,
+            branch: context.headBranch,
+            workflowName: context.workflowName,
+            jobName: context.jobName,
+            jobId: workflowJob.id,
+            runId: context.runId,
+            runAttempt: workflowJob.runAttempt,
+            event: workflowJob.workflowRun?.event ?? null,
+            senderLogin: context.senderLogin,
+            pullRequestNumber: pullRequest?.number ?? null,
+            verdict,
+        };
 
-    for (const rule of matching) {
-        const body = buildSlackAlert({...alertInput, details: rule.include_log_details ? details : null});
-        for (const webhookUrl of getSlackWebhookUrls(rule)) {
-            await sendSlackNotification(webhookUrl, body, {...logIds, ruleId: rule.id}, logger);
+        for (const target of targets) {
+            const body = buildSlackAlert({...alertInput, details: target.includeLogDetails ? details : null});
+            await sendSlackNotification(target.url, body, {...logIds, handleId: target.handleId}, logger);
         }
     }
 
@@ -117,8 +121,8 @@ function isCompletedFailure(workflowJob: WorkflowJobWithRelations): boolean {
     return workflowJob.status === 'completed' && workflowJob.conclusion === ('failure' satisfies WorkflowConclusion);
 }
 
-function getDetailsSkipReason(rules: MatchingRule[], options?: AlertOptions): DetailsSkipReason | null {
-    if (!rules.some((rule) => rule.include_log_details)) return 'rule_opt_out';
+function getDetailsSkipReason(targets: HandleTarget[], options?: AlertOptions): DetailsSkipReason | null {
+    if (!targets.some((target) => target.includeLogDetails)) return 'rule_opt_out';
     const remainingMs = options?.getRemainingTimeMs?.() ?? Infinity;
     return remainingMs < config.get('alerts').minRemainingMsForEnrichment ? 'low_time' : null;
 }
@@ -139,14 +143,21 @@ function getAlertContext(workflowJob: WorkflowJobWithRelations): AlertContext {
     };
 }
 
-async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelations, context: AlertContext) {
+type HandleTarget = {handleId: string; url: string; includeLogDetails: boolean};
+
+// Rules and their handles come from one statement so a concurrent rule edit cannot pair old filters or log settings with a new destination.
+async function findMatchingRulesAndTargets(
+    workflowJob: WorkflowJobWithRelations,
+    context: AlertContext,
+): Promise<{ruleIds: string[]; targets: HandleTarget[]}> {
     const isDependabotEvent = context.senderLogin === 'dependabot[bot]' || context.jobName === 'Dependabot';
     const repoTopics = workflowJob.repository.topics ?? [];
 
-    return await withRlsTransaction({
+    const rows = await withRlsTransaction({
         integrationIds: [workflowJob.integrationId],
         callback: async (tx: RdsTransaction) => {
             const conditions = [
+                eq(notificationRules.integrationId, workflowJob.integrationId),
                 eq(notificationRules.enabled, true),
                 or(
                     sql`${notificationRules.rule}->>'owner' IS NULL`,
@@ -191,23 +202,46 @@ async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelatio
             }
 
             return await tx
-                .select()
+                .select({
+                    ruleId: notificationRules.id,
+                    includeLogDetails: notificationRules.include_log_details,
+                    handleId: webhookHandleDetails.handleId,
+                    url: webhookHandleDetails.url,
+                })
                 .from(notificationRules)
+                .leftJoin(
+                    notificationRuleDestinations,
+                    and(
+                        eq(notificationRuleDestinations.integrationId, notificationRules.integrationId),
+                        eq(notificationRuleDestinations.ruleId, notificationRules.id),
+                    ),
+                )
+                .leftJoin(
+                    webhookHandleDetails,
+                    and(
+                        eq(webhookHandleDetails.integrationId, notificationRuleDestinations.integrationId),
+                        eq(webhookHandleDetails.handleId, notificationRuleDestinations.handleId),
+                    ),
+                )
                 .where(and(...conditions));
         },
     });
-}
 
-type MatchingRule = Awaited<ReturnType<typeof findMatchingNotificationRules>>[number];
-
-function getSlackWebhookUrls(rule: MatchingRule): string[] {
-    return rule.channels.filter((channel) => channel.type === NotificationRuleChannelType.SLACK).map((channel) => channel.webhook_url);
+    const ruleIds = [...new Set(rows.map((row) => row.ruleId))];
+    const targets = new Map<string, HandleTarget>();
+    for (const row of rows) {
+        if (row.handleId === null || row.url === null) continue;
+        const target = targets.get(row.handleId) ?? {handleId: row.handleId, url: row.url, includeLogDetails: false};
+        target.includeLogDetails ||= row.includeLogDetails;
+        targets.set(row.handleId, target);
+    }
+    return {ruleIds, targets: [...targets.values()]};
 }
 
 async function sendSlackNotification(
     webhookUrl: string,
     body: SlackPayload,
-    logContext: {integrationId: string; jobId: number; ruleId: string | undefined},
+    logContext: {integrationId: string; jobId: number; handleId: string},
     logger: ReturnType<typeof getLogger>,
 ) {
     try {
@@ -217,13 +251,12 @@ async function sendSlackNotification(
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
-            retries: 3,
         });
         if (!res.ok) {
             throw new Error(`Slack webhook failed with status ${res.status} and body ${await res.text()}`);
         }
-        logger.info(`Successfully sent alert to Slack for rule ${logContext.ruleId}`, logContext);
+        logger.info(`Successfully sent alert to Slack handle ${logContext.handleId}`, logContext);
     } catch (error) {
-        logger.error(`Failed to send Slack notification for rule ${logContext.ruleId}`, {...logContext, error});
+        logger.error(`Failed to send Slack notification to handle ${logContext.handleId}`, {...logContext, error});
     }
 }

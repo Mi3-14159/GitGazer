@@ -8,7 +8,7 @@
     defineProps<{
         integrationId: string;
         webhookUrl: string;
-        secret: string;
+        secret: string | null;
         canRotate: boolean;
     }>();
 
@@ -32,15 +32,20 @@
                     :model-value="webhookUrl"
                     type="text"
                     readonly
+                    aria-label="Webhook URL"
                     class="font-mono text-xs !h-8 !px-2"
                 />
                 <Button
                     variant="ghost"
                     size="sm"
                     class="h-8 w-8 p-0 shrink-0"
+                    aria-label="Copy webhook URL"
                     @click="copyToClipboard(webhookUrl)"
                 >
-                    <Copy class="h-3 w-3" />
+                    <Copy
+                        class="h-3 w-3"
+                        aria-hidden="true"
+                    />
                 </Button>
             </div>
         </div>
@@ -51,17 +56,28 @@
                 <Key class="h-3 w-3" />
                 Webhook Secret
             </div>
-            <div class="flex items-center gap-1">
+            <p
+                v-if="secret === null"
+                class="flex h-8 items-center text-xs text-muted-foreground"
+            >
+                Hidden. Only admins and owners can see the secret.
+            </p>
+            <div
+                v-else
+                class="flex items-center gap-1"
+            >
                 <Input
                     :model-value="secret"
                     :type="visibleSecret ? 'text' : 'password'"
                     readonly
+                    aria-label="Webhook secret"
                     class="font-mono text-xs !h-8 !px-2"
                 />
                 <Button
                     variant="ghost"
                     size="sm"
                     class="h-8 w-8 p-0 shrink-0"
+                    :aria-label="visibleSecret ? 'Hide secret' : 'Show secret'"
                     @click="visibleSecret = !visibleSecret"
                 >
                     <EyeOff
@@ -77,9 +93,13 @@
                     variant="ghost"
                     size="sm"
                     class="h-8 w-8 p-0 shrink-0"
+                    aria-label="Copy secret"
                     @click="copyToClipboard(secret)"
                 >
-                    <Copy class="h-3 w-3" />
+                    <Copy
+                        class="h-3 w-3"
+                        aria-hidden="true"
+                    />
                 </Button>
                 <Button
                     v-if="canRotate"

@@ -7,6 +7,38 @@ const schema = {...gitgazerSchema, ...githubSchema};
 export const dbRelations = defineRelations(schema, (r) => ({
     integrations: {
         githubAppInstallations: r.many.githubAppInstallations(),
+        apps: r.many.integrationApps(),
+    },
+    integrationApps: {
+        integration: r.one.integrations({
+            from: r.integrationApps.integrationId,
+            to: r.integrations.integrationId,
+            optional: false,
+        }),
+        githubSettings: r.one.integrationAppGithubSettings({
+            from: [r.integrationApps.integrationId, r.integrationApps.appId],
+            to: [r.integrationAppGithubSettings.integrationId, r.integrationAppGithubSettings.appId],
+        }),
+        handles: r.many.notificationHandles({
+            from: [r.integrationApps.integrationId, r.integrationApps.appId],
+            to: [r.notificationHandles.integrationId, r.notificationHandles.appId],
+        }),
+    },
+    notificationHandles: {
+        webhookDetails: r.one.webhookHandleDetails({
+            from: [r.notificationHandles.integrationId, r.notificationHandles.handleId],
+            to: [r.webhookHandleDetails.integrationId, r.webhookHandleDetails.handleId],
+        }),
+        destinations: r.many.notificationRuleDestinations({
+            from: [r.notificationHandles.integrationId, r.notificationHandles.handleId],
+            to: [r.notificationRuleDestinations.integrationId, r.notificationRuleDestinations.handleId],
+        }),
+    },
+    notificationRules: {
+        destinations: r.many.notificationRuleDestinations({
+            from: [r.notificationRules.integrationId, r.notificationRules.id],
+            to: [r.notificationRuleDestinations.integrationId, r.notificationRuleDestinations.ruleId],
+        }),
     },
     userAssignments: {
         user: r.one.users({

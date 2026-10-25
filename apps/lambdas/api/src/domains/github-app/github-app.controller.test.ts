@@ -23,6 +23,10 @@ vi.mock('@gitgazer/db/schema/app', () => ({
 
 vi.mock('@gitgazer/db/schema/gitgazer', () => ({
     users: {githubId: Symbol('users.githubId')},
+    integrationAppGithubSettings: {
+        integrationId: Symbol('integrationAppGithubSettings.integrationId'),
+        orgSyncDefaultRole: Symbol('integrationAppGithubSettings.orgSyncDefaultRole'),
+    },
 }));
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
@@ -36,10 +40,6 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubOrgMembers: {
         installationId: Symbol('installationId'),
         githubUserId: Symbol('githubUserId'),
-    },
-    integrations: {
-        integrationId: Symbol('integrationId'),
-        orgSyncDefaultRole: Symbol('orgSyncDefaultRole'),
     },
     pendingOrgSync: {
         integrationId: Symbol('integrationId'),
@@ -74,11 +74,14 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
 let controller: typeof import('./github-app.controller');
 
 // Helper to build a chainable select mock (supports .from().where() and .from().innerJoin().where())
-const buildSelectChain = (result: any) => ({
+const buildSelectChain = (result: any, innerJoin: (...args: any[]) => void = () => undefined) => ({
     from: () => ({
-        innerJoin: () => ({
-            where: () => Promise.resolve(result),
-        }),
+        innerJoin: (...args: any[]) => {
+            innerJoin(...args);
+            return {
+                where: () => Promise.resolve(result),
+            };
+        },
         where: () => Promise.resolve(result),
     }),
 });
@@ -127,13 +130,13 @@ describe('github-app.controller — organization events', () => {
             mockDb.insert.mockReturnValue({values: insertChain.values});
 
             // Mock select calls in order:
-            // 1. innerJoin: installation+integration → integrationId + orgSyncDefaultRole
+            // 1. innerJoin: installation+GitHub app settings → integrationId + orgSyncDefaultRole
             // 2. GitGazer user lookup by github_id
             let selectCallCount = 0;
             mockDb.select.mockImplementation(() => {
                 selectCallCount++;
                 switch (selectCallCount) {
-                    case 1: // installation+integration innerJoin
+                    case 1: // installation+GitHub app settings innerJoin
                         return buildSelectChain([{integrationId: 'int-abc', orgSyncDefaultRole: 'viewer'}]);
                     case 2: // GitGazer user lookup
                         return buildSelectChain([{id: 99}]);
@@ -228,6 +231,20 @@ describe('github-app.controller — organization events', () => {
             expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
         });
 
+        it('skips member sync when the linked integration has no GitHub app', async () => {
+            const insertChain = buildInsertChain();
+            mockDb.insert.mockReturnValue({values: insertChain.values});
+            const innerJoin = vi.fn();
+            mockDb.select.mockImplementation(() => buildSelectChain([], innerJoin));
+
+            await controller.handleGithubAppEvent('organization', memberAddedEvent);
+
+            const schema = await import('@gitgazer/db/schema/gitgazer');
+            expect(innerJoin.mock.calls[0][0]).toBe(schema.integrationAppGithubSettings);
+            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
+            expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+        });
+
         it('skips integration sync when user has no GitGazer account', async () => {
             const insertChain = buildInsertChain();
             mockDb.insert.mockReturnValue({values: insertChain.values});
@@ -236,7 +253,7 @@ describe('github-app.controller — organization events', () => {
             mockDb.select.mockImplementation(() => {
                 selectCallCount++;
                 switch (selectCallCount) {
-                    case 1: // innerJoin: installation+integration
+                    case 1: // innerJoin: installation+GitHub app settings
                         return buildSelectChain([{integrationId: 'int-abc', orgSyncDefaultRole: 'member'}]);
                     case 2: // No GitGazer user found
                         return buildSelectChain([]);
@@ -280,7 +297,7 @@ describe('github-app.controller — organization events', () => {
             mockDb.delete.mockReturnValue(buildDeleteChain());
 
             // Mock select calls:
-            // 1. Installation+integration innerJoin → linked
+            // 1. Installation+GitHub app settings innerJoin → linked
             // 2. GitGazer user lookup → found
             let selectCallCount = 0;
             mockDb.select.mockImplementation(() => {

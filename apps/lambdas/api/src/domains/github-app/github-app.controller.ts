@@ -4,15 +4,8 @@ import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {users} from '@gitgazer/db/schema/gitgazer';
-import {
-    githubAppInstallations,
-    githubAppWebhooks,
-    githubOrgMembers,
-    integrations,
-    pendingOrgSync,
-    userAssignments,
-} from '@gitgazer/db/schema/github/workflows';
+import {integrationAppGithubSettings, users} from '@gitgazer/db/schema/gitgazer';
+import {githubAppInstallations, githubAppWebhooks, githubOrgMembers, pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_ORG_ROLES, type GithubOrgRole} from '@gitgazer/db/types';
 import {
     InstallationEvent,
@@ -265,14 +258,14 @@ const handleOrganizationEvent = async (event: OrganizationEvent): Promise<void> 
 const syncMemberToIntegration = async (installationId: number, githubUserId: number, githubLogin: string): Promise<void> => {
     const logger = getLogger();
 
-    // Single join: installation → integration (avoids TOCTOU and reduces queries)
+    // Single join: installation → GitHub app settings (avoids TOCTOU and reduces queries)
     const [linked] = await db
         .select({
-            integrationId: integrations.integrationId,
-            orgSyncDefaultRole: integrations.orgSyncDefaultRole,
+            integrationId: integrationAppGithubSettings.integrationId,
+            orgSyncDefaultRole: integrationAppGithubSettings.orgSyncDefaultRole,
         })
         .from(githubAppInstallations)
-        .innerJoin(integrations, eq(githubAppInstallations.integrationId, integrations.integrationId))
+        .innerJoin(integrationAppGithubSettings, eq(githubAppInstallations.integrationId, integrationAppGithubSettings.integrationId))
         .where(eq(githubAppInstallations.installationId, installationId));
 
     if (!linked) {
@@ -358,13 +351,13 @@ const syncMemberToIntegration = async (installationId: number, githubUserId: num
 const removeMemberFromIntegration = async (installationId: number, githubUserId: number, githubLogin: string): Promise<void> => {
     const logger = getLogger();
 
-    // Single join: installation → integration (consistent with syncMemberToIntegration)
+    // Single join: installation → GitHub app settings (consistent with syncMemberToIntegration)
     const [linked] = await db
         .select({
-            integrationId: integrations.integrationId,
+            integrationId: integrationAppGithubSettings.integrationId,
         })
         .from(githubAppInstallations)
-        .innerJoin(integrations, eq(githubAppInstallations.integrationId, integrations.integrationId))
+        .innerJoin(integrationAppGithubSettings, eq(githubAppInstallations.integrationId, integrationAppGithubSettings.integrationId))
         .where(eq(githubAppInstallations.installationId, installationId));
 
     if (!linked) {

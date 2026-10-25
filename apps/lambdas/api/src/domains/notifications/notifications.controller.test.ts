@@ -8,6 +8,8 @@ vi.mock('@gitgazer/db/client', () => ({
 
 vi.mock('@gitgazer/db/schema', () => ({
     notificationRules: Symbol('notificationRules'),
+    notificationHandles: {integrationId: 'h.integrationId', handleId: 'h.handleId'},
+    notificationRuleDestinations: {integrationId: 'd.integrationId', ruleId: 'd.ruleId', handleId: 'd.handleId'},
     gitgazerWriter: {name: 'gitgazer_writer'},
 }));
 
@@ -19,6 +21,12 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
 vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: vi.fn(), info: vi.fn(), warn: vi.fn()}),
 }));
+
+const ruleQueryTx = (rules: unknown[]) => {
+    const findMany = vi.fn().mockResolvedValue(rules);
+    return {tx: {query: {notificationRules: {findMany}}, select: vi.fn()}, findMany};
+};
+const dest = (integrationId: string, ruleId: string, handleId: string) => ({integrationId, ruleId, handleId});
 
 let notifications: typeof import('./notifications.controller');
 
@@ -40,6 +48,7 @@ describe('notifications controller', () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
+                delete: () => ({where: () => Promise.resolve()}),
                 insert: () => ({
                     values: () => ({
                         onConflictDoUpdate: () => ({
@@ -67,7 +76,7 @@ describe('notifications controller', () => {
         const rule: any = {
             label: 'CI alerts',
             enabled: true,
-            channels: [],
+            handleIds: [],
             ignore_dependabot: false,
             rule: {
                 owner: 'o',
@@ -109,6 +118,7 @@ describe('notifications controller', () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
+                delete: () => ({where: () => Promise.resolve()}),
                 insert: () => ({
                     values: () => ({
                         onConflictDoUpdate: () => ({
@@ -143,7 +153,7 @@ describe('notifications controller', () => {
             rule: {
                 label: 'Topic rule',
                 enabled: true,
-                channels: [],
+                handleIds: [],
                 ignore_dependabot: false,
                 rule: {owner: 'o', repository_name: 'r', workflow_name: 'w', head_branch: 'b', topics: ['frontend', 'backend']},
             } as any,
@@ -164,25 +174,21 @@ describe('notifications controller', () => {
     it('getNotificationRules passes through rule as-is', async () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            const mockTx = {
-                select: () => ({
-                    from: () =>
-                        Promise.resolve([
-                            {
-                                id: 'uuid-old',
-                                integrationId: 'integrationA',
-                                label: 'Old rule',
-                                channels: [],
-                                enabled: true,
-                                ignore_dependabot: false,
-                                rule: {head_branch: 'main'},
-                                createdAt: now,
-                                updatedAt: now,
-                            },
-                        ]),
-                }),
-            };
-            return params.callback(mockTx);
+            const {tx} = ruleQueryTx([
+                {
+                    id: 'uuid-old',
+                    integrationId: 'integrationA',
+                    label: 'Old rule',
+                    channels: [],
+                    enabled: true,
+                    ignore_dependabot: false,
+                    rule: {head_branch: 'main'},
+                    createdAt: now,
+                    updatedAt: now,
+                    destinations: [],
+                },
+            ]);
+            return params.callback(tx);
         });
 
         const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
@@ -196,10 +202,42 @@ describe('notifications controller', () => {
         expect(out[0].rule.topics).toBeUndefined();
     });
 
+    it('getNotificationRules keeps destinations apart for the same rule id in two integrations', async () => {
+        const now = new Date();
+        const ruleRow = (integrationId: string) => ({
+            id: 'rule-same',
+            integrationId,
+            label: `Rule ${integrationId}`,
+            channels: [],
+            enabled: true,
+            ignore_dependabot: false,
+            include_log_details: true,
+            rule: {},
+            createdAt: now,
+            updatedAt: now,
+        });
+        mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) =>
+            params.callback(
+                ruleQueryTx([
+                    {...ruleRow('integrationA'), destinations: [dest('integrationA', 'rule-same', 'handle-a')]},
+                    {...ruleRow('integrationB'), destinations: [dest('integrationB', 'rule-same', 'handle-b')]},
+                ]).tx,
+            ),
+        );
+
+        const out = await notifications.getNotificationRules({integrationIds: ['integrationA', 'integrationB']});
+
+        expect(out.map((r) => [r.integrationId, r.handleIds])).toEqual([
+            ['integrationA', ['handle-a']],
+            ['integrationB', ['handle-b']],
+        ]);
+    });
+
     it('upsertNotificationRule succeeds even when event log entry fails', async () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
+                delete: () => ({where: () => Promise.resolve()}),
                 insert: () => ({
                     values: () => ({
                         onConflictDoUpdate: () => ({
@@ -229,7 +267,7 @@ describe('notifications controller', () => {
             rule: {
                 label: 'Failing rule',
                 enabled: true,
-                channels: [],
+                handleIds: [],
                 ignore_dependabot: false,
                 rule: {topics: []},
             } as any,
@@ -259,6 +297,7 @@ describe('notifications controller', () => {
             const captured: {values?: any; set?: any} = {};
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => {
                 const mockTx = {
+                    delete: () => ({where: () => Promise.resolve()}),
                     insert: () => ({
                         values: (v: any) => {
                             captured.values = v;
@@ -276,11 +315,16 @@ describe('notifications controller', () => {
             return captured;
         };
 
-        const baseRule = {label: 'CI alerts', enabled: true, channels: [], ignore_dependabot: false, rule: {topics: []}};
+        const baseRule = {label: 'CI alerts', enabled: true, handleIds: [], ignore_dependabot: false, rule: {topics: []}};
 
         it('toNotificationRule maps include_log_details', async () => {
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) =>
-                params.callback({select: () => ({from: () => Promise.resolve([{...savedRow, include_log_details: false}, savedRow])})}),
+                params.callback(
+                    ruleQueryTx([
+                        {...savedRow, include_log_details: false, destinations: []},
+                        {...savedRow, destinations: []},
+                    ]).tx,
+                ),
             );
 
             const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
@@ -355,7 +399,7 @@ describe('notifications controller', () => {
 describe('isNotificationRuleUpdate include_log_details', () => {
     const base = {
         label: 'r',
-        channels: [{type: 'SLACK', webhook_url: 'https://hooks.slack.com/x'}],
+        handleIds: [],
         enabled: true,
         ignore_dependabot: false,
         rule: {},
@@ -370,7 +414,7 @@ describe('isNotificationRule include_log_details', () => {
     const base = {
         integrationId: 'int-1',
         label: 'r',
-        channels: [{type: 'SLACK', webhook_url: 'https://hooks.slack.com/x'}],
+        handleIds: [],
         createdAt: '2026-10-24T00:00:00.000Z',
         updatedAt: '2026-10-24T00:00:00.000Z',
         enabled: true,
@@ -381,4 +425,124 @@ describe('isNotificationRule include_log_details', () => {
     it('accepts a boolean include_log_details', () => expect(isNotificationRule({...base, include_log_details: true})).toBe(true));
     it('rejects a missing include_log_details', () => expect(isNotificationRule(base)).toBe(false));
     it('rejects a non-boolean include_log_details', () => expect(isNotificationRule({...base, include_log_details: 'yes'})).toBe(false));
+});
+
+describe('notification rule handles', () => {
+    const now = new Date();
+    const uuid = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
+    const savedRow = {
+        id: 'rule-1',
+        integrationId: 'integrationA',
+        label: 'CI alerts',
+        channels: [],
+        enabled: true,
+        ignore_dependabot: false,
+        include_log_details: true,
+        rule: {},
+        createdAt: now,
+        updatedAt: now,
+    };
+    const rule = {label: 'CI alerts', enabled: true, handleIds: ['h1'], ignore_dependabot: false, rule: {}} as any;
+
+    const buildTx = (existingHandles: {handleId: string}[]) => {
+        const calls: {op: string; table?: unknown; values?: any}[] = [];
+        const tx = {
+            select: () => ({from: () => ({where: () => Promise.resolve(existingHandles)})}),
+            delete: (table: unknown) => {
+                calls.push({op: 'delete', table});
+                return {where: () => Promise.resolve()};
+            },
+            insert: (table: unknown) => ({
+                values: (values: any) => {
+                    calls.push({op: 'insert', table, values});
+                    return {
+                        onConflictDoUpdate: () => ({returning: () => Promise.resolve([savedRow])}),
+                        then: (resolve: (v: unknown) => unknown) => resolve(undefined),
+                    };
+                },
+            }),
+        };
+        mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => params.callback(tx));
+        return calls;
+    };
+
+    beforeEach(async () => {
+        vi.restoreAllMocks();
+        mockWithRlsTransaction.mockReset();
+        mockCreateEventLogEntry.mockResolvedValue({});
+        notifications = await import('./notifications.controller');
+    });
+
+    it('rejects a handle id that is not in the integration', async () => {
+        const calls = buildTx([]);
+
+        await expect(notifications.upsertNotificationRule({rule, integrationId: 'integrationA'})).rejects.toThrow('Unknown notification handle');
+
+        expect(calls).toEqual([]);
+    });
+
+    it('replaces the rule destinations on update', async () => {
+        const calls = buildTx([{handleId: 'h1'}]);
+
+        await notifications.upsertNotificationRule({rule, integrationId: 'integrationA', ruleId: 'rule-1'});
+
+        const ops = calls.map((c) => c.op);
+        expect(ops).toEqual(['insert', 'delete', 'insert']);
+        expect(calls[2].values).toEqual([{integrationId: 'integrationA', ruleId: 'rule-1', handleId: 'h1'}]);
+        expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message: expect.stringContaining('destinations: 1')}));
+    });
+
+    it('getNotificationRules reads rules and destinations in one query', async () => {
+        const {tx, findMany} = ruleQueryTx([{...savedRow, destinations: [dest(savedRow.integrationId, 'rule-1', 'h-new')]}]);
+        mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => params.callback(tx));
+
+        const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
+
+        expect(findMany).toHaveBeenCalledTimes(1);
+        expect(findMany).toHaveBeenCalledWith(expect.objectContaining({with: {destinations: true}}));
+        expect(tx.select).not.toHaveBeenCalled();
+        expect(out[0].handleIds).toEqual(['h-new']);
+    });
+
+    it('getNotificationRules returns handleIds and no urls', async () => {
+        mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) =>
+            params.callback(
+                ruleQueryTx([
+                    {
+                        ...savedRow,
+                        destinations: [dest(savedRow.integrationId, 'rule-1', 'h1'), dest(savedRow.integrationId, 'rule-1', 'h2')],
+                    },
+                    {...savedRow, id: 'rule-2', destinations: []},
+                ]).tx,
+            ),
+        );
+
+        const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
+
+        expect(out.map((r) => r.handleIds)).toEqual([['h1', 'h2'], []]);
+        expect(JSON.stringify(out)).not.toContain('hooks.slack.com');
+        expect(out[0]).not.toHaveProperty('channels');
+    });
+
+    it('isNotificationRuleUpdate rejects a payload with channels but no handleIds', () => {
+        expect(
+            isNotificationRuleUpdate({
+                label: 'r',
+                channels: [{type: 'SLACK', webhook_url: 'https://hooks.slack.com/x'}],
+                enabled: true,
+                ignore_dependabot: false,
+                rule: {},
+            }),
+        ).toBe(false);
+    });
+
+    it('isNotificationRuleUpdate validates handleIds shape and size', () => {
+        const base = {label: 'r', enabled: true, ignore_dependabot: false, rule: {}};
+        expect(isNotificationRuleUpdate({...base, handleIds: [uuid(1)]})).toBe(true);
+        expect(isNotificationRuleUpdate({...base, handleIds: ['not-a-uuid']})).toBe(false);
+        expect(isNotificationRuleUpdate({...base, handleIds: Array.from({length: 21}, (_, i) => uuid(i % 10).replace(/.$/, String(i % 10)))})).toBe(
+            false,
+        );
+        expect(isNotificationRuleUpdate({...base, handleIds: [uuid(1), uuid(1)]})).toBe(true);
+    });
 });

@@ -14,14 +14,15 @@ const rule = {
     ignore_dependabot: true,
     include_log_details: false,
     rule: {owner: 'o', repository_name: '', workflow_name: '', head_branch: '', topics: []},
-    channels: [{type: 'slack', webhook_url: 'https://hooks.slack.com/x'}],
+    handleIds: ['h-1'],
 } as unknown as NotificationRule;
 
 const upsertNotification = vi.fn();
+const getNotifications = vi.fn().mockResolvedValue([rule]);
 
 vi.mock('@/composables/useNotification', () => ({
     useNotification: () => ({
-        getNotifications: vi.fn().mockResolvedValue([rule]),
+        getNotifications,
         isLoadingNotifications: ref(false),
         upsertNotification,
         deleteNotification: vi.fn(),
@@ -32,9 +33,16 @@ vi.mock('@/composables/useIntegration', () => ({
     useIntegration: () => ({getIntegrations: vi.fn().mockResolvedValue([{integrationId: 'int-1', label: 'I', role: 'owner'}])}),
 }));
 
+const listApps = vi.fn();
+
+vi.mock('@/composables/useIntegrationApps', () => ({
+    useIntegrationApps: () => ({listApps}),
+}));
+
 describe('NotificationsPage', () => {
     it("toggling the rule's enabled state keeps include_log_details", async () => {
         upsertNotification.mockResolvedValue(rule);
+        listApps.mockResolvedValue([]);
         const wrapper = mount(NotificationsPage, {
             global: {
                 stubs: {
@@ -59,5 +67,55 @@ describe('NotificationsPage', () => {
             'int-1',
             'r1',
         );
+    });
+
+    it('shows "No destination" for a rule without handles', async () => {
+        listApps.mockResolvedValue([]);
+        getNotifications.mockResolvedValueOnce([{...rule, handleIds: []}]);
+        const wrapper = mount(NotificationsPage, {global: {stubs: {PageHeader: true, Dialog: true, DeleteNotificationDialog: true}}});
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('No destination');
+    });
+
+    it('shows the handle names of a rule', async () => {
+        listApps.mockResolvedValue([
+            {appId: 'a', type: 'webhook', createdAt: '', handles: [{handleId: 'h-1', appId: 'a', name: 'Team Alpha', url: null, ruleCount: 1}]},
+        ]);
+        const wrapper = mount(NotificationsPage, {global: {stubs: {PageHeader: true, Dialog: true, DeleteNotificationDialog: true}}});
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Team Alpha');
+    });
+
+    it('shows the handle name on a rule saved for an integration without prior rules', async () => {
+        getNotifications.mockResolvedValueOnce([]);
+        listApps.mockResolvedValue([]);
+        const saved = {...rule, handleIds: ['h-9']};
+        upsertNotification.mockResolvedValue(saved);
+        const wrapper = mount(NotificationsPage, {
+            global: {
+                stubs: {
+                    PageHeader: true,
+                    DeleteNotificationDialog: true,
+                    Dialog: {template: '<div><slot :close="() => {}" /></div>'},
+                    NotificationDetailsCard: {
+                        props: ['onSave'],
+                        data: () => ({draft: saved}),
+                        template: '<button class="save" @click="onSave(draft)">save</button>',
+                    },
+                },
+            },
+        });
+        await flushPromises();
+        expect(wrapper.text()).not.toContain('Fresh');
+
+        listApps.mockResolvedValue([
+            {appId: 'a', type: 'webhook', createdAt: '', handles: [{handleId: 'h-9', appId: 'a', name: 'Fresh', url: null, ruleCount: 1}]},
+        ]);
+        await wrapper.find('button.save').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Fresh');
     });
 });
