@@ -24,6 +24,10 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
         id: Symbol('users.id'),
         githubId: Symbol('users.githubId'),
     },
+    integrationAppGithubSettings: {
+        integrationId: Symbol('integrationAppGithubSettings.integrationId'),
+        orgSyncDefaultRole: Symbol('integrationAppGithubSettings.orgSyncDefaultRole'),
+    },
 }));
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
@@ -34,10 +38,6 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubOrgMembers: {
         installationId: Symbol('installationId'),
         githubUserId: Symbol('githubUserId'),
-    },
-    integrations: {
-        integrationId: Symbol('integrationId'),
-        orgSyncDefaultRole: Symbol('orgSyncDefaultRole'),
     },
     userAssignments: {
         userId: Symbol('userId'),
@@ -154,6 +154,21 @@ describe('org-member-sync', () => {
             mockDb.delete.mockReturnValue(buildDeleteChain());
 
             // innerJoin returns empty (not linked)
+            mockDb.select.mockImplementation(() => buildSelectChain([]));
+
+            await syncModule.syncOrgMembers(42, 'test-org');
+
+            expect(mockResolveAndAssignOrgMembers).not.toHaveBeenCalled();
+            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
+        });
+
+        it('skips reconciliation when the integration has no GitHub app', async () => {
+            mockListOrgMembers.mockResolvedValue([{id: 1001, login: 'alice', role: 'member'}]);
+
+            mockDb.insert.mockReturnValue({values: buildInsertChain().values});
+            mockDb.delete.mockReturnValue(buildDeleteChain());
+
+            // the installation is linked, but the settings join finds no GitHub app
             mockDb.select.mockImplementation(() => buildSelectChain([]));
 
             await syncModule.syncOrgMembers(42, 'test-org');

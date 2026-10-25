@@ -3,8 +3,8 @@ import {listOrgMembers} from '@gitgazer/backend-core/clients/github-app.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {users} from '@gitgazer/db/schema/gitgazer';
-import {githubAppInstallations, githubOrgMembers, integrations, pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {integrationAppGithubSettings, users} from '@gitgazer/db/schema/gitgazer';
+import {githubAppInstallations, githubOrgMembers, pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {and, eq, inArray, isNotNull, notInArray, sql} from 'drizzle-orm';
 
 const BATCH_SIZE = 500;
@@ -77,18 +77,18 @@ export const syncOrgMembers = async (installationId: number, accountLogin: strin
 const reconcileIntegrationMembers = async (installationId: number, accountLogin: string): Promise<void> => {
     const logger = getLogger();
 
-    // Check if installation is linked to an integration
+    // Only integrations with a GitHub app have settings; without one there is nothing to reconcile
     const [linked] = await db
         .select({
-            integrationId: integrations.integrationId,
-            orgSyncDefaultRole: integrations.orgSyncDefaultRole,
+            integrationId: integrationAppGithubSettings.integrationId,
+            orgSyncDefaultRole: integrationAppGithubSettings.orgSyncDefaultRole,
         })
         .from(githubAppInstallations)
-        .innerJoin(integrations, eq(githubAppInstallations.integrationId, integrations.integrationId))
+        .innerJoin(integrationAppGithubSettings, eq(githubAppInstallations.integrationId, integrationAppGithubSettings.integrationId))
         .where(eq(githubAppInstallations.installationId, installationId));
 
     if (!linked) {
-        logger.debug('Installation not linked to integration, skipping reconciliation', {installationId});
+        logger.debug('Installation not linked to an integration with a GitHub app, skipping reconciliation', {installationId});
         return;
     }
 
