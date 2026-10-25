@@ -45,7 +45,9 @@
     const selectClass =
         'flex h-9 w-full rounded-lg border border-border bg-input-background px-3 pr-8 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50';
 
+    const HANDLE_REQUIRED = 'Notification handle is required';
     const errorMsg = ref('');
+    const handleInvalid = computed(() => errorMsg.value === HANDLE_REQUIRED);
     const topicInput = ref('');
 
     watch(
@@ -146,7 +148,7 @@
             return;
         }
         if (notificationRule.value.handleIds.length === 0) {
-            errorMsg.value = 'Notification handle is required';
+            errorMsg.value = HANDLE_REQUIRED;
             return;
         }
         errorMsg.value = '';
@@ -373,6 +375,8 @@
                                     id="notification-handle"
                                     :value="selectedHandleId"
                                     :disabled="!selectedAppId"
+                                    :aria-invalid="handleInvalid"
+                                    :aria-describedby="handleInvalid ? 'notification-error' : undefined"
                                     :class="selectClass"
                                     @change="onHandleChange"
                                 >
@@ -404,6 +408,7 @@
 
             <p
                 v-if="errorMsg || saveError"
+                id="notification-error"
                 class="text-xs text-destructive"
             >
                 {{ errorMsg || saveError }}

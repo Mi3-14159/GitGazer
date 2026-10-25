@@ -66,6 +66,7 @@
                 }
             }
             showDialog.value = false;
+            await loadHandleNames([rule.integrationId]);
         } catch {
             saveError.value = 'Failed to save notification rule. Please try again.';
         } finally {
@@ -134,7 +135,7 @@
                 for (const handle of app.handles) names[handle.handleId] = handle.name;
             }
         }
-        handleNames.value = names;
+        handleNames.value = {...handleNames.value, ...names};
     }
 
     onMounted(async () => {

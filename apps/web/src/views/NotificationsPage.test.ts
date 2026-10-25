@@ -87,4 +87,35 @@ describe('NotificationsPage', () => {
 
         expect(wrapper.text()).toContain('Team Alpha');
     });
+
+    it('shows the handle name on a rule saved for an integration without prior rules', async () => {
+        getNotifications.mockResolvedValueOnce([]);
+        listApps.mockResolvedValue([]);
+        const saved = {...rule, handleIds: ['h-9']};
+        upsertNotification.mockResolvedValue(saved);
+        const wrapper = mount(NotificationsPage, {
+            global: {
+                stubs: {
+                    PageHeader: true,
+                    DeleteNotificationDialog: true,
+                    Dialog: {template: '<div><slot :close="() => {}" /></div>'},
+                    NotificationDetailsCard: {
+                        props: ['onSave'],
+                        data: () => ({draft: saved}),
+                        template: '<button class="save" @click="onSave(draft)">save</button>',
+                    },
+                },
+            },
+        });
+        await flushPromises();
+        expect(wrapper.text()).not.toContain('Fresh');
+
+        listApps.mockResolvedValue([
+            {appId: 'a', type: 'webhook', createdAt: '', handles: [{handleId: 'h-9', appId: 'a', name: 'Fresh', url: null, ruleCount: 1}]},
+        ]);
+        await wrapper.find('button.save').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Fresh');
+    });
 });
