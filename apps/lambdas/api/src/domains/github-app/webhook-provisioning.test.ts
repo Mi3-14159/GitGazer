@@ -257,7 +257,7 @@ describe('provisioning racing an installation unlink', () => {
         expect(client.createRepoWebhook).not.toHaveBeenCalled();
         expect(logger.warn).toHaveBeenCalledWith(
             expect.any(String),
-            expect.objectContaining({integrationId: 'int-1', installationId: 1, webhookId: 99, targetName: 'my-org'}),
+            expect.objectContaining({integrationId: 'int-1', installationId: 1, webhookId: 99, targetName: 'my-org', reason: 'unlinked'}),
         );
     });
 
@@ -285,6 +285,58 @@ describe('provisioning racing an installation unlink', () => {
 
         expect(txInsertValues).not.toHaveBeenCalled();
         expect(client.deleteOrgWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 99);
+        expect(logger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({webhookId: 99, reason: 'app removed'}));
+    });
+
+    it('deletes the webhook it just created when the GitHub app was reinstalled during provisioning', async () => {
+        withRlsTransaction.mockResolvedValueOnce(SETTINGS); // GitHub settings lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]);
+        client.createOrgWebhook.mockResolvedValueOnce(99);
+        // Removed, reinstalled and relinked meanwhile: same installation, new app and secret
+        getGithubSettings.mockResolvedValueOnce({...SETTINGS, appId: 'app-2', secret: 'new-sek'});
+
+        await expect(mod.provisionWebhooks('int-1', 1)).resolves.toBe(0);
+
+        expect(txInsertValues).not.toHaveBeenCalled();
+        expect(client.deleteOrgWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 99);
+        expect(client.listInstallationRepos).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({integrationId: 'int-1', installationId: 1, webhookId: 99, reason: 'app replaced'}),
+        );
+        expect(JSON.stringify(logger.warn.mock.calls)).not.toMatch(/sek/);
+    });
+
+    it('deletes the webhook it just created when the secret was rotated during provisioning', async () => {
+        withRlsTransaction.mockResolvedValueOnce(SETTINGS); // GitHub settings lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]);
+        withRlsTransaction.mockResolvedValueOnce([]); // no org webhook
+        client.createRepoWebhook.mockResolvedValueOnce(123);
+        getGithubSettings.mockResolvedValueOnce({...SETTINGS, secret: 'rotated-sek'});
+
+        await expect(mod.provisionWebhooksForRepos('int-1', 1, newRepos)).resolves.toBe(0);
+
+        expect(client.createRepoWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 'repo', expect.any(String), 'sek', ['workflow_run']);
+        expect(txInsertValues).not.toHaveBeenCalled();
+        expect(client.deleteRepoWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 'repo', 123);
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({integrationId: 'int-1', installationId: 1, webhookId: 123, reason: 'secret rotated'}),
+        );
+        expect(JSON.stringify(logger.warn.mock.calls)).not.toMatch(/sek/);
+    });
+
+    it('records the webhook when the app id and secret it was created with are still current', async () => {
+        withRlsTransaction.mockResolvedValueOnce(SETTINGS); // GitHub settings lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]);
+        withRlsTransaction.mockResolvedValueOnce([]); // no org webhook
+        client.createRepoWebhook.mockResolvedValueOnce(123);
+        getGithubSettings.mockResolvedValueOnce({...SETTINGS});
+
+        await expect(mod.provisionWebhooksForRepos('int-1', 1, newRepos)).resolves.toBe(1);
+
+        expect(txInsertValues).toHaveBeenCalledWith(expect.objectContaining({webhookId: 123}));
+        expect(client.deleteRepoWebhook).not.toHaveBeenCalled();
     });
 
     it('logs and does not throw when deleting the orphaned webhook fails', async () => {

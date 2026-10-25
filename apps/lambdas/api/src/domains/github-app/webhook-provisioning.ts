@@ -17,7 +17,7 @@ import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
 import {and, eq, inArray} from 'drizzle-orm';
-import {getGithubSettings} from '@/domains/apps/github-settings';
+import {getGithubSettings, GithubSettings} from '@/domains/apps/github-settings';
 
 const getWebhookUrl = (integrationId: string): string => {
     const importUrlBase = config.get('importUrlBase');
@@ -39,9 +39,13 @@ const deleteWebhookOnGithub = async (octokit: InstallationOctokit, webhook: Pick
     }
 };
 
+type CreatedWith = Pick<GithubSettings, 'appId' | 'secret'>;
+type NotRecordedReason = 'unlinked' | 'app removed' | 'app replaced' | 'secret rotated' | 'record failed';
+
 // Writer RLS, not db: the tenant policy hides an installation that is no longer linked to this integration, which is
-// exactly the check. FOR SHARE makes a concurrent unlink's UPDATE wait for this record, or this read wait for its commit.
-const recordWebhookIfLinked = async (webhook: WebhookRecord): Promise<boolean> =>
+// exactly the check. FOR SHARE makes a concurrent unlink, app removal or secret rotation wait for this record, or this
+// read wait for its commit. A rotation only re-keys recorded webhooks, so one created with an older secret must not land.
+const recordWebhookIfLinked = async (webhook: WebhookRecord, createdWith: CreatedWith): Promise<NotRecordedReason | undefined> =>
     await withRlsTransaction({
         integrationIds: [webhook.integrationId],
         userName: gitgazerWriter.name,
@@ -57,15 +61,18 @@ const recordWebhookIfLinked = async (webhook: WebhookRecord): Promise<boolean> =
                     ),
                 )
                 .for('share');
-            if (!settings || !installation) return false;
+            if (!installation) return 'unlinked';
+            if (!settings) return 'app removed';
+            if (settings.appId !== createdWith.appId) return 'app replaced';
+            if (settings.secret !== createdWith.secret) return 'secret rotated';
 
             await tx.insert(githubAppWebhooks).values(webhook);
-            return true;
+            return undefined;
         },
     });
 
 // A live webhook without a record would never be deprovisioned
-const deleteUnrecordedWebhook = async (octokit: InstallationOctokit, webhook: WebhookRecord, reason: 'unlinked' | 'record failed') => {
+const deleteUnrecordedWebhook = async (octokit: InstallationOctokit, webhook: WebhookRecord, reason: NotRecordedReason) => {
     const logger = getLogger();
     const context = {
         integrationId: webhook.integrationId,
@@ -83,17 +90,18 @@ const deleteUnrecordedWebhook = async (octokit: InstallationOctokit, webhook: We
     }
 };
 
-// GitHub calls hold no lock, so the installation can be unlinked (and already deprovisioned) while a webhook is being created
-const keepWebhookIfLinked = async (octokit: InstallationOctokit, webhook: WebhookRecord): Promise<boolean> => {
-    let recorded: boolean;
+// GitHub calls hold no lock, so the installation can be unlinked (and already deprovisioned) or the GitHub app replaced
+// while a webhook is being created
+const keepWebhookIfLinked = async (octokit: InstallationOctokit, createdWith: CreatedWith, webhook: WebhookRecord): Promise<boolean> => {
+    let notRecorded: NotRecordedReason | undefined;
     try {
-        recorded = await recordWebhookIfLinked(webhook);
+        notRecorded = await recordWebhookIfLinked(webhook, createdWith);
     } catch (error) {
         await deleteUnrecordedWebhook(octokit, webhook, 'record failed');
         throw error;
     }
-    if (!recorded) await deleteUnrecordedWebhook(octokit, webhook, 'unlinked');
-    return recorded;
+    if (notRecorded) await deleteUnrecordedWebhook(octokit, webhook, notRecorded);
+    return !notRecorded;
 };
 
 const loadGithubSettings = async (integrationId: string) => {
@@ -132,7 +140,7 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
     if (installation.repositorySelection === 'all' && installation.accountType === 'Organization') {
         try {
             const webhookId = await createOrgWebhook(octokit, installation.accountLogin, webhookUrl, settings.secret, events);
-            const kept = await keepWebhookIfLinked(octokit, {
+            const kept = await keepWebhookIfLinked(octokit, settings, {
                 integrationId,
                 installationId,
                 webhookId,
@@ -153,7 +161,7 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
 
     // Per-repo webhooks: selected-repository installs, user accounts, or org webhook fallback.
     const repos = await listInstallationRepos(installationId);
-    const webhookCount = await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings.secret, events);
+    const webhookCount = await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings, events);
 
     logger.info(`Provisioned ${webhookCount} webhooks for integration ${integrationId}`);
     return webhookCount;
@@ -165,7 +173,7 @@ const createPerRepoWebhooks = async (
     octokit: InstallationOctokit,
     repos: RepoInfo[],
     webhookUrl: string,
-    secret: string,
+    createdWith: CreatedWith,
     events: string[],
 ): Promise<number> => {
     const logger = getLogger();
@@ -173,8 +181,8 @@ const createPerRepoWebhooks = async (
     const results = await Promise.all(
         repos.map(async (repo) => {
             try {
-                const webhookId = await createRepoWebhook(octokit, repo.owner, repo.name, webhookUrl, secret, events);
-                const kept = await keepWebhookIfLinked(octokit, {
+                const webhookId = await createRepoWebhook(octokit, repo.owner, repo.name, webhookUrl, createdWith.secret, events);
+                const kept = await keepWebhookIfLinked(octokit, createdWith, {
                     integrationId,
                     installationId,
                     webhookId,
@@ -234,7 +242,7 @@ export const provisionWebhooksForRepos = async (integrationId: string, installat
     const webhookUrl = getWebhookUrl(integrationId);
     const octokit = getInstallationOctokit(installationId);
 
-    return await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings.secret, installation.webhookEvents);
+    return await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings, installation.webhookEvents);
 };
 
 export type RecordedWebhook = Pick<typeof githubAppWebhooks.$inferSelect, 'webhookId' | 'targetType' | 'targetName'>;
