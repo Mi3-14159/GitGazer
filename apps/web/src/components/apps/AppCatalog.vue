@@ -3,6 +3,7 @@
     import {APP_INFO, COMING_LATER} from '@/components/apps/appCatalog';
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
+    import {cn} from '@/lib/utils';
     import type {IntegrationAppType} from '@common/types';
 
     defineProps<{
@@ -30,7 +31,10 @@
                 :key="type"
                 class="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm"
             >
-                <AppIcon :icon="APP_INFO[type].icon" />
+                <AppIcon
+                    :icon="APP_INFO[type].icon"
+                    :tone="APP_INFO[type].tone.chip"
+                />
                 <div class="min-w-0 flex-1">
                     <h3 class="font-semibold">{{ APP_INFO[type].name }}</h3>
                     <p class="text-sm text-muted-foreground">{{ APP_INFO[type].description }}</p>
@@ -51,16 +55,19 @@
             <li
                 v-for="app in COMING_LATER"
                 :key="app.name"
-                class="flex items-center gap-3 rounded-xl border border-dashed p-4"
+                :class="cn('flex items-center gap-3 rounded-xl border border-dashed p-4', app.tone.border)"
             >
-                <AppIcon :icon="app.icon" />
+                <AppIcon
+                    :icon="app.icon"
+                    :tone="app.tone.chip"
+                />
                 <div class="min-w-0 flex-1">
                     <h3 class="font-semibold text-muted-foreground">{{ app.name }}</h3>
                     <p class="text-sm text-muted-foreground">{{ app.description }}</p>
                 </div>
                 <Badge
                     variant="secondary"
-                    class="shrink-0 font-medium"
+                    :class="cn('shrink-0 font-medium', app.tone.chip)"
                 >
                     Coming later
                 </Badge>

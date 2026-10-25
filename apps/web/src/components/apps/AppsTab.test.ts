@@ -34,15 +34,14 @@ function catalogItem(wrapper: Awaited<ReturnType<typeof mountTab>>, name: string
 }
 
 describe('AppsTab', () => {
-    it('shows Slack, GitLab and Jira as coming later and not installable', async () => {
+    it('shows Slack as the only app coming later and not installable', async () => {
         const wrapper = await mountTab('owner');
 
-        for (const name of ['Slack', 'GitLab', 'Jira']) {
-            const item = catalogItem(wrapper, name);
-            expect(item, name).toBeDefined();
-            expect(item!.text()).toContain('Coming later');
-            expect(item!.findAll('button')).toHaveLength(0);
-        }
+        const slack = catalogItem(wrapper, 'Slack');
+        expect(slack).toBeDefined();
+        expect(slack!.text()).toContain('Coming later');
+        expect(slack!.findAll('button')).toHaveLength(0);
+        expect(wrapper.findAll('li').filter((li) => li.text().includes('Coming later'))).toHaveLength(1);
     });
 
     it('shows Install for the webhook app when it is not installed (admin only)', async () => {
