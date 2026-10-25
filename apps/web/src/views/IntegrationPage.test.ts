@@ -64,7 +64,8 @@ describe('IntegrationPage', () => {
         expect(wrapper.find('h1').text()).toBe('Platform');
         expect(wrapper.text()).not.toContain('Owner Ada');
 
-        await tabs[2].trigger('click');
+        // Radix tabs select on mousedown (and on focus), not on click
+        await tabs[2].trigger('mousedown');
         await flushPromises();
         expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Settings');
     });
