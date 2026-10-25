@@ -25,6 +25,18 @@ locals {
     "integrations/{integrationId}/notifications/{notificationId}" = {
       methods = ["DELETE", "PUT"]
     },
+    "integrations/{integrationId}/apps" = {
+      methods = ["GET", "POST"]
+    },
+    "integrations/{integrationId}/apps/{appId}" = {
+      methods = ["DELETE"]
+    },
+    "integrations/{integrationId}/apps/{appId}/handles" = {
+      methods = ["POST"]
+    },
+    "integrations/{integrationId}/handles/{handleId}" = {
+      methods = ["PATCH", "DELETE"]
+    },
     "integrations/{integrationId}/github-app" = {
       methods = ["GET", "POST"]
     },

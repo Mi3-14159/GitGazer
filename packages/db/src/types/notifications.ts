@@ -39,7 +39,7 @@ export type NotificationRuleChannel = {
 
 const ALLOWED_WEBHOOK_HOSTS = new Set(['hooks.slack.com']);
 
-const isAllowedWebhookUrl = (url: string): boolean => {
+export const isAllowedWebhookUrl = (url: string): boolean => {
     try {
         const parsed = new URL(url);
         if (parsed.protocol !== 'https:') return false;

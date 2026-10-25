@@ -1,3 +1,4 @@
+import appsRoutes from '@/domains/apps/apps.routes';
 import authRoutes from '@/domains/auth/auth.routes';
 import eventLogRoutes from '@/domains/event-log/event-log.routes';
 import githubAppRoutes from '@/domains/github-app/github-app.routes';
@@ -49,6 +50,7 @@ export const createApp = (): Router => {
     app.includeRouter(workflowsRoutes);
     app.includeRouter(overviewRoutes);
     app.includeRouter(integrationsRoutes);
+    app.includeRouter(appsRoutes);
     app.includeRouter(membersRoutes);
     app.includeRouter(metricsRoutes);
     app.includeRouter(mcpRoutes);

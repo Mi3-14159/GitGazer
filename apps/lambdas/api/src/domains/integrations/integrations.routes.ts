@@ -1,5 +1,6 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
-import {deprovisionAllWebhooks, provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
+import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
+import {provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
 import {
     deleteIntegration,
     getIntegrations,
@@ -238,27 +239,7 @@ router.delete(
             throw new BadRequestError('Invalid installation ID');
         }
 
-        // Delete webhooks from GitHub (app is still installed, webhooks won't auto-delete)
-        try {
-            await deprovisionAllWebhooks(integrationId, installationId);
-        } catch (error) {
-            getLogger().error('Failed to deprovision webhooks', {error});
-        }
-
-        // Unlink installation (set integration_id back to NULL)
-        await db
-            .update(githubAppInstallations)
-            .set({integrationId: null, updatedAt: new Date()})
-            .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
-
-        await createEventLogEntry({
-            integrationId,
-            category: 'integration',
-            type: 'info',
-            title: 'GitHub App unlinked',
-            message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
-            metadata: {integrationId, installationId},
-        });
+        await unlinkInstallation(integrationId, installationId);
 
         return new Response(null, {
             status: HttpStatusCodes.NO_CONTENT,
