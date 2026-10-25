@@ -274,6 +274,29 @@ describe('sendWorkflowJobAlerts', () => {
         expect(mockCreateEventLogEntry).toHaveBeenCalledTimes(1);
     });
 
+    it('skips the log download and summary when no handle would receive the alert', async () => {
+        setDestinations();
+
+        await sendWorkflowJobAlerts(job);
+
+        expect(spies.loadLogDetails).not.toHaveBeenCalled();
+        expect(mockDownloadJobLog).not.toHaveBeenCalled();
+        expect(mockSummarizeFailure).not.toHaveBeenCalled();
+        expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({metadata: expect.objectContaining({aiSummary: false})}));
+    });
+
+    it('does not fetch logs when only an opted-in rule without destinations wants details', async () => {
+        rowsByTable.set(tables.notificationRules, [rule('rule-in', true), rule('rule-out', false)]);
+        setDestinations(destination('rule-out', 'out'));
+
+        await sendWorkflowJobAlerts(job);
+
+        expect(spies.loadLogDetails).not.toHaveBeenCalled();
+        expect(mockDownloadJobLog).not.toHaveBeenCalled();
+        expect(slackInputs()).toEqual([expect.objectContaining({details: null})]);
+        expect(mockProxyFetch).toHaveBeenCalledTimes(1);
+    });
+
     it('logs the handle id and never the URL', async () => {
         mockProxyFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
 

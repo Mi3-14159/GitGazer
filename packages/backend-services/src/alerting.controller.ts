@@ -1,4 +1,4 @@
-import {findPullRequest, loadLogDetails, type DetailsSkipReason} from './alerting/log-details';
+import {findPullRequest, loadLogDetails, type DetailsSkipReason, type LogDetails} from './alerting/log-details';
 import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
 import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
@@ -50,44 +50,46 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
         ruleIds: matching.map((rule) => rule.id),
     });
 
+    const targets = await loadHandleTargets(workflowJob.integrationId, matching);
     const [verdict, pullRequest] = await Promise.all([computeVerdict(workflowJob), findPullRequest(workflowJob)]);
 
-    const skipReason = getDetailsSkipReason(matching, options);
-    const details = skipReason ? null : await loadLogDetails(workflowJob, verdict, pullRequest?.title ?? null);
-
-    logger.info('Sending failure alert', {
-        ...logIds,
-        verdict: verdict.kind,
-        detailsAttempted: skipReason === null,
-        detailsLoaded: details !== null,
-        summaryIncluded: Boolean(details?.summary),
-        excerptIncluded: Boolean(details?.excerpt),
-        skipReason: skipReason ?? undefined,
-    });
-
-    const alertInput: Omit<SlackAlertInput, 'details'> = {
-        owner: context.ownerLogin,
-        repository: context.repositoryName,
-        branch: context.headBranch,
-        workflowName: context.workflowName,
-        jobName: context.jobName,
-        jobId: workflowJob.id,
-        runId: context.runId,
-        runAttempt: workflowJob.runAttempt,
-        event: workflowJob.workflowRun?.event ?? null,
-        senderLogin: context.senderLogin,
-        pullRequestNumber: pullRequest?.number ?? null,
-        verdict,
-    };
-
-    const targets = await loadHandleTargets(workflowJob.integrationId, matching);
+    let details: LogDetails | null = null;
     if (targets.length === 0) {
         logger.warn('Matching notification rules have no destinations', logIds);
-    }
+    } else {
+        const skipReason = getDetailsSkipReason(targets, options);
+        details = skipReason ? null : await loadLogDetails(workflowJob, verdict, pullRequest?.title ?? null);
 
-    for (const target of targets) {
-        const body = buildSlackAlert({...alertInput, details: target.includeLogDetails ? details : null});
-        await sendSlackNotification(target.url, body, {...logIds, handleId: target.handleId}, logger);
+        logger.info('Sending failure alert', {
+            ...logIds,
+            verdict: verdict.kind,
+            handleCount: targets.length,
+            detailsAttempted: skipReason === null,
+            detailsLoaded: details !== null,
+            summaryIncluded: Boolean(details?.summary),
+            excerptIncluded: Boolean(details?.excerpt),
+            skipReason: skipReason ?? undefined,
+        });
+
+        const alertInput: Omit<SlackAlertInput, 'details'> = {
+            owner: context.ownerLogin,
+            repository: context.repositoryName,
+            branch: context.headBranch,
+            workflowName: context.workflowName,
+            jobName: context.jobName,
+            jobId: workflowJob.id,
+            runId: context.runId,
+            runAttempt: workflowJob.runAttempt,
+            event: workflowJob.workflowRun?.event ?? null,
+            senderLogin: context.senderLogin,
+            pullRequestNumber: pullRequest?.number ?? null,
+            verdict,
+        };
+
+        for (const target of targets) {
+            const body = buildSlackAlert({...alertInput, details: target.includeLogDetails ? details : null});
+            await sendSlackNotification(target.url, body, {...logIds, handleId: target.handleId}, logger);
+        }
     }
 
     try {
@@ -120,8 +122,8 @@ function isCompletedFailure(workflowJob: WorkflowJobWithRelations): boolean {
     return workflowJob.status === 'completed' && workflowJob.conclusion === ('failure' satisfies WorkflowConclusion);
 }
 
-function getDetailsSkipReason(rules: MatchingRule[], options?: AlertOptions): DetailsSkipReason | null {
-    if (!rules.some((rule) => rule.include_log_details)) return 'rule_opt_out';
+function getDetailsSkipReason(targets: HandleTarget[], options?: AlertOptions): DetailsSkipReason | null {
+    if (!targets.some((target) => target.includeLogDetails)) return 'rule_opt_out';
     const remainingMs = options?.getRemainingTimeMs?.() ?? Infinity;
     return remainingMs < config.get('alerts').minRemainingMsForEnrichment ? 'low_time' : null;
 }
