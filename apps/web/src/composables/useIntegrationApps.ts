@@ -1,0 +1,71 @@
+import {useAuth} from '@/composables/useAuth';
+import {parseApiResponse} from '@/utils/apiResponse';
+import type {IntegrationApp, IntegrationAppType, NotificationHandle} from '@common/types';
+
+const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
+
+const JSON_HEADERS = {'Content-Type': 'application/json'};
+
+export const useIntegrationApps = () => {
+    const {fetchWithAuth} = useAuth();
+
+    const listApps = async (integrationId: string): Promise<IntegrationApp[]> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch apps: ${response.status}`);
+        }
+        return parseApiResponse<IntegrationApp[]>(response);
+    };
+
+    const installApp = async (integrationId: string, type: IntegrationAppType): Promise<IntegrationApp> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps`, {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify({type}),
+        });
+        if (response.status !== 201) {
+            throw new Error(`Failed to install app: ${response.status}`);
+        }
+        return parseApiResponse<IntegrationApp>(response);
+    };
+
+    const uninstallApp = async (integrationId: string, appId: string): Promise<void> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}`, {method: 'DELETE'});
+        if (!response.ok) {
+            throw new Error(`Failed to uninstall app: ${response.status}`);
+        }
+    };
+
+    const createHandle = async (integrationId: string, appId: string, input: {name: string; url: string}): Promise<NotificationHandle> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}/handles`, {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify(input),
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to create handle: ${response.status}`);
+        }
+        return parseApiResponse<NotificationHandle>(response);
+    };
+
+    const updateHandle = async (integrationId: string, handleId: string, input: {name?: string; url?: string}): Promise<NotificationHandle> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/handles/${handleId}`, {
+            method: 'PATCH',
+            headers: JSON_HEADERS,
+            body: JSON.stringify(input),
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to update handle: ${response.status}`);
+        }
+        return parseApiResponse<NotificationHandle>(response);
+    };
+
+    const deleteHandle = async (integrationId: string, handleId: string): Promise<void> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/handles/${handleId}`, {method: 'DELETE'});
+        if (!response.ok) {
+            throw new Error(`Failed to delete handle: ${response.status}`);
+        }
+    };
+
+    return {listApps, installApp, uninstallApp, createHandle, updateHandle, deleteHandle};
+};

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-    import PageHeader from '@/components/PageHeader.vue';
     import Badge from '@/components/ui/Badge.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
@@ -8,16 +7,17 @@
     import InviteUserDialog from '@/components/users/InviteUserDialog.vue';
     import PendingInvitationCard from '@/components/users/PendingInvitationCard.vue';
     import UserCard from '@/components/users/UserCard.vue';
-    import {useIntegration} from '@/composables/useIntegration';
     import {useMembers} from '@/composables/useMembers';
     import type {Invitation, TeamMember, UserInviteFormData, UserRole} from '@/types/user';
     import {hasRole, type MemberRole} from '@common/types';
-    import {ArrowLeft, Clock, Loader2, Search, UserPlus, Users} from '@lucide/vue';
+    import {Clock, Loader2, Search, UserPlus, Users} from '@lucide/vue';
     import {computed, onMounted, ref} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
 
-    const route = useRoute();
-    const router = useRouter();
+    const props = defineProps<{
+        integrationId: string;
+        role: MemberRole;
+    }>();
+
     const {
         getMembers: fetchMembers,
         getInvitations: fetchInvitations,
@@ -27,12 +27,9 @@
         revokeInvitation: apiRevokeInvitation,
         resendInvitation: apiResendInvitation,
     } = useMembers();
-    const {getIntegrations} = useIntegration();
 
-    const integrationId = computed(() => route.params.integrationId as string);
-    const integrationLabel = computed(() => (route.query.label as string) || '');
-    const userRole = ref<MemberRole>('viewer');
-    const canManageMembers = computed(() => hasRole(userRole.value, 'admin'));
+    const integrationId = computed(() => props.integrationId);
+    const canManageMembers = computed(() => hasRole(props.role, 'admin'));
     const copiedLink = ref(false);
     const confirmRemoveUserId = ref<string | null>(null);
     const confirmRevokeInvitationId = ref<string | null>(null);
@@ -51,16 +48,7 @@
         loading.value = true;
         error.value = null;
         try {
-            const [apiMembers, apiInvitations, apiIntegrations] = await Promise.all([
-                fetchMembers(integrationId.value),
-                fetchInvitations(integrationId.value),
-                getIntegrations(),
-            ]);
-
-            const currentIntegration = apiIntegrations?.find((i) => i.integrationId === integrationId.value);
-            if (currentIntegration) {
-                userRole.value = currentIntegration.role;
-            }
+            const [apiMembers, apiInvitations] = await Promise.all([fetchMembers(integrationId.value), fetchInvitations(integrationId.value)]);
 
             members.value = apiMembers.map((m) => ({
                 id: String(m.userId),
@@ -201,33 +189,19 @@
 </script>
 
 <template>
-    <div class="space-y-4 p-4">
-        <!-- Header with back navigation -->
-        <PageHeader
-            title="Manage Users"
-            :description="integrationLabel || `Integration ${integrationId}`"
-            :icon="Users"
+    <div class="space-y-4">
+        <div
+            v-if="canManageMembers"
+            class="flex justify-end"
         >
-            <template #left>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-8 w-8 p-0 mr-1"
-                    aria-label="Back to integrations"
-                    @click="router.push({name: 'integrations'})"
-                >
-                    <ArrowLeft class="h-4 w-4" />
-                </Button>
-            </template>
             <Button
-                v-if="canManageMembers"
                 size="sm"
                 @click="showInviteDialog = true"
             >
                 <UserPlus class="h-4 w-4" />
                 Invite Member
             </Button>
-        </PageHeader>
+        </div>
 
         <!-- Error Banner -->
         <div
@@ -287,7 +261,7 @@
                         :key="member.id"
                         :user="member"
                         :readonly="!canManageMembers"
-                        :caller-role="userRole"
+                        :caller-role="role"
                         @change-role="handleChangeRole"
                         @remove="handleRemoveUser"
                     />

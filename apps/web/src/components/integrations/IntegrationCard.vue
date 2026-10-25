@@ -40,7 +40,6 @@
                     :can-rename="can('admin')"
                     :can-delete="can('owner')"
                     :can-leave="!can('owner')"
-                    :can-manage-members="can('admin')"
                     @save-label="(id, label) => emit('save-label', id, label)"
                     @delete="(i) => emit('delete', i)"
                     @leave="(i) => emit('leave', i)"

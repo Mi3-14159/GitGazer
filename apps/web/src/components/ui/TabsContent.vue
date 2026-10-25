@@ -14,6 +14,7 @@
 <template>
     <div
         v-if="isActive"
+        role="tabpanel"
         :class="cn('mt-2', props.class)"
     >
         <slot />

@@ -3,7 +3,7 @@
     import Input from '@/components/ui/Input.vue';
     import {formatTimeSince} from '@/utils/formatDate';
     import type {IntegrationWithRole} from '@common/types';
-    import {Activity, LogOut, Trash2, Users} from '@lucide/vue';
+    import {Activity, ArrowRight, LogOut, Trash2} from '@lucide/vue';
     import {nextTick, ref} from 'vue';
     import {useRouter} from 'vue-router';
 
@@ -14,7 +14,6 @@
         canRename: boolean;
         canDelete: boolean;
         canLeave: boolean;
-        canManageMembers: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -112,16 +111,16 @@
                 variant="outline"
                 size="sm"
                 class="h-8 gap-1.5"
+                :aria-label="`Open ${integration.label}`"
                 @click="
                     router.push({
-                        name: 'integration-users',
-                        params: {integrationId: integration.integrationId},
-                        query: {label: integration.label},
+                        name: 'integration',
+                        params: {integrationId: integration.integrationId, tab: 'apps'},
                     })
                 "
             >
-                <Users class="h-3.5 w-3.5" />
-                <span class="hidden sm:inline">{{ canManageMembers ? 'Manage Users' : 'View Users' }}</span>
+                <ArrowRight class="h-3.5 w-3.5" />
+                <span class="hidden sm:inline">Open</span>
             </Button>
             <Button
                 v-if="canLeave"

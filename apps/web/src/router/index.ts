@@ -46,10 +46,18 @@ const router = createRouter({
                     meta: {title: 'Integrations'},
                 },
                 {
+                    path: 'integrations/:integrationId',
+                    redirect: (to) => `/integrations/${to.params.integrationId}/apps`,
+                },
+                {
                     path: 'integrations/:integrationId/users',
-                    name: 'integration-users',
-                    component: () => import('@/views/IntegrationUsersPage.vue'),
-                    meta: {title: 'Manage Users'},
+                    redirect: (to) => `/integrations/${to.params.integrationId}/members`,
+                },
+                {
+                    path: 'integrations/:integrationId/:tab(apps|members|settings)',
+                    name: 'integration',
+                    component: () => import('@/views/IntegrationPage.vue'),
+                    meta: {title: 'Integration'},
                 },
 
                 {
