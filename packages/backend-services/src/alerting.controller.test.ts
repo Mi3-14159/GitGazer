@@ -5,7 +5,14 @@ const logger = vi.hoisted(() => ({debug: vi.fn(), info: vi.fn(), warn: vi.fn(), 
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => logger}));
 
 const tables = vi.hoisted(() => ({
-    notificationRules: {enabled: 'enabled', rule: 'rule', ignore_dependabot: 'ignore_dependabot'},
+    notificationRules: {
+        integrationId: 'integration_id',
+        id: 'id',
+        include_log_details: 'include_log_details',
+        enabled: 'enabled',
+        rule: 'rule',
+        ignore_dependabot: 'ignore_dependabot',
+    },
     notificationRuleDestinations: {integrationId: 'integration_id', ruleId: 'rule_id', handleId: 'handle_id'},
     webhookHandleDetails: {integrationId: 'integration_id', handleId: 'handle_id', url: 'url'},
     githubAppInstallations: {installationId: 'installation_id', integrationId: 'integration_id', accountLogin: 'account_login'},
@@ -15,20 +22,43 @@ const tables = vi.hoisted(() => ({
 vi.mock('@gitgazer/db/schema', () => tables);
 
 const rowsByTable = new Map<object, unknown[]>();
+// Set to make the single rules+handles read return exactly these rows, ignoring the per-table fixtures.
+let joinedRows: unknown[] | null = null;
+const readTables: object[] = [];
+
+type JoinedRow = {ruleId: string; includeLogDetails: boolean; handleId: string | null; url: string | null};
+
+// Mirrors notification_rules LEFT JOIN destinations LEFT JOIN webhook_handle_details: a rule without a (live) handle yields one row with null handle.
+const joinRulesAndDestinations = (): unknown[] => {
+    if (joinedRows) return joinedRows;
+    const rules = (rowsByTable.get(tables.notificationRules) ?? []) as {id: string; include_log_details: boolean}[];
+    const destinations = (rowsByTable.get(tables.notificationRuleDestinations) ?? []) as {ruleId: string; handleId: string; url: string}[];
+    return rules.flatMap((r): JoinedRow[] => {
+        const own = destinations.filter((d) => d.ruleId === r.id);
+        return own.length === 0
+            ? [{ruleId: r.id, includeLogDetails: r.include_log_details, handleId: null, url: null}]
+            : own.map((d) => ({ruleId: r.id, includeLogDetails: r.include_log_details, handleId: d.handleId, url: d.url}));
+    });
+};
 const fakeTx = {
     select: () => {
         let table: object;
         const builder: Record<string, unknown> = {
             from: (t: object) => {
                 table = t;
+                readTables.push(t);
                 return builder;
             },
             innerJoin: () => builder,
+            leftJoin: () => builder,
             where: () => builder,
             orderBy: () => builder,
             limit: () => builder,
             then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
-                Promise.resolve(rowsByTable.get(table) ?? []).then(resolve, reject),
+                Promise.resolve(table === tables.notificationRules ? joinRulesAndDestinations() : (rowsByTable.get(table) ?? [])).then(
+                    resolve,
+                    reject,
+                ),
         };
         return builder;
     },
@@ -113,6 +143,9 @@ const slackInputs = () => spies.buildSlackAlert.mock.calls.map(([input]) => inpu
 describe('sendWorkflowJobAlerts', () => {
     beforeEach(() => {
         rowsByTable.clear();
+        joinedRows = null;
+        readTables.length = 0;
+        mockWithRlsTransaction.mockReset();
         mockWithRlsTransaction.mockImplementation(async (p: {callback: (tx: typeof fakeTx) => unknown}) => p.callback(fakeTx));
         mockComputeVerdict.mockResolvedValue({kind: 'flaky', evidence: 'failed 4 of last 30 runs; 3 passed on rerun'});
         mockSummarizeFailure.mockResolvedValue(SUMMARY);
@@ -263,6 +296,22 @@ describe('sendWorkflowJobAlerts', () => {
 
         expect(mockProxyFetch).toHaveBeenCalledTimes(1);
         expect(postedBodies()[0]).toContain(SUMMARY);
+    });
+
+    it('takes handles and the details flag from the same read as the matching rules', async () => {
+        // A second read of destinations would find this stale pairing (rule-A -> handle-A with details) and must not be used.
+        rowsByTable.set(tables.notificationRules, [rule('rule-A', true)]);
+        setDestinations(destination('rule-A', 'handle-A'));
+        joinedRows = [{ruleId: 'rule-A', includeLogDetails: false, handleId: 'handle-B', url: 'https://hooks.slack.com/handle-B'}];
+
+        await sendWorkflowJobAlerts(job);
+
+        expect(readTables.filter((table) => table === tables.notificationRules)).toHaveLength(1);
+        expect(readTables).not.toContain(tables.notificationRuleDestinations);
+        expect(readTables).not.toContain(tables.webhookHandleDetails);
+        expect(mockProxyFetch.mock.calls.map(([url]) => url)).toEqual(['https://hooks.slack.com/handle-B']);
+        expect(spies.loadLogDetails).not.toHaveBeenCalled();
+        expect(slackInputs()).toEqual([expect.objectContaining({details: null})]);
     });
 
     it('a rule without destinations sends nothing and does not throw', async () => {

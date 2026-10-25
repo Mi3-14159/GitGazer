@@ -8,7 +8,7 @@ import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRuleDestinations, notificationRules, webhookHandleDetails} from '@gitgazer/db/schema';
 import {WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
-import {and, eq, inArray, or, sql} from 'drizzle-orm';
+import {and, eq, or, sql} from 'drizzle-orm';
 
 type AlertContext = {
     ownerLogin: string;
@@ -38,19 +38,18 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
     }
 
     const context = getAlertContext(workflowJob);
-    const matching = await findMatchingNotificationRules(workflowJob, context);
+    const {ruleIds, targets} = await findMatchingRulesAndTargets(workflowJob, context);
 
-    if (matching.length === 0) {
+    if (ruleIds.length === 0) {
         logger.info(`No matching notification rules for integration ${workflowJob.integrationId}`, logIds);
         return;
     }
 
-    logger.info(`Found ${matching.length} matching notification rules for integration ${workflowJob.integrationId}`, {
+    logger.info(`Found ${ruleIds.length} matching notification rules for integration ${workflowJob.integrationId}`, {
         ...logIds,
-        ruleIds: matching.map((rule) => rule.id),
+        ruleIds,
     });
 
-    const targets = await loadHandleTargets(workflowJob.integrationId, matching);
     const [verdict, pullRequest] = await Promise.all([computeVerdict(workflowJob), findPullRequest(workflowJob)]);
 
     let details: LogDetails | null = null;
@@ -144,14 +143,21 @@ function getAlertContext(workflowJob: WorkflowJobWithRelations): AlertContext {
     };
 }
 
-async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelations, context: AlertContext) {
+type HandleTarget = {handleId: string; url: string; includeLogDetails: boolean};
+
+// Rules and their handles come from one statement so a concurrent rule edit cannot pair old filters or log settings with a new destination.
+async function findMatchingRulesAndTargets(
+    workflowJob: WorkflowJobWithRelations,
+    context: AlertContext,
+): Promise<{ruleIds: string[]; targets: HandleTarget[]}> {
     const isDependabotEvent = context.senderLogin === 'dependabot[bot]' || context.jobName === 'Dependabot';
     const repoTopics = workflowJob.repository.topics ?? [];
 
-    return await withRlsTransaction({
+    const rows = await withRlsTransaction({
         integrationIds: [workflowJob.integrationId],
         callback: async (tx: RdsTransaction) => {
             const conditions = [
+                eq(notificationRules.integrationId, workflowJob.integrationId),
                 eq(notificationRules.enabled, true),
                 or(
                     sql`${notificationRules.rule}->>'owner' IS NULL`,
@@ -196,45 +202,40 @@ async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelatio
             }
 
             return await tx
-                .select()
+                .select({
+                    ruleId: notificationRules.id,
+                    includeLogDetails: notificationRules.include_log_details,
+                    handleId: webhookHandleDetails.handleId,
+                    url: webhookHandleDetails.url,
+                })
                 .from(notificationRules)
-                .where(and(...conditions));
-        },
-    });
-}
-
-type MatchingRule = Awaited<ReturnType<typeof findMatchingNotificationRules>>[number];
-
-type HandleTarget = {handleId: string; url: string; includeLogDetails: boolean};
-
-async function loadHandleTargets(integrationId: string, rules: MatchingRule[]): Promise<HandleTarget[]> {
-    const ruleIds = rules.map((rule) => rule.id);
-    if (ruleIds.length === 0) return [];
-
-    const rows = await withRlsTransaction({
-        integrationIds: [integrationId],
-        callback: async (tx: RdsTransaction) =>
-            await tx
-                .select({ruleId: notificationRuleDestinations.ruleId, handleId: notificationRuleDestinations.handleId, url: webhookHandleDetails.url})
-                .from(notificationRuleDestinations)
-                .innerJoin(
+                .leftJoin(
+                    notificationRuleDestinations,
+                    and(
+                        eq(notificationRuleDestinations.integrationId, notificationRules.integrationId),
+                        eq(notificationRuleDestinations.ruleId, notificationRules.id),
+                    ),
+                )
+                .leftJoin(
                     webhookHandleDetails,
                     and(
                         eq(webhookHandleDetails.integrationId, notificationRuleDestinations.integrationId),
                         eq(webhookHandleDetails.handleId, notificationRuleDestinations.handleId),
                     ),
                 )
-                .where(and(eq(notificationRuleDestinations.integrationId, integrationId), inArray(notificationRuleDestinations.ruleId, ruleIds))),
+                .where(and(...conditions));
+        },
     });
 
-    const optedIn = new Set(rules.filter((rule) => rule.include_log_details).map((rule) => rule.id));
+    const ruleIds = [...new Set(rows.map((row) => row.ruleId))];
     const targets = new Map<string, HandleTarget>();
     for (const row of rows) {
+        if (row.handleId === null || row.url === null) continue;
         const target = targets.get(row.handleId) ?? {handleId: row.handleId, url: row.url, includeLogDetails: false};
-        target.includeLogDetails ||= optedIn.has(row.ruleId);
+        target.includeLogDetails ||= row.includeLogDetails;
         targets.set(row.handleId, target);
     }
-    return [...targets.values()];
+    return {ruleIds, targets: [...targets.values()]};
 }
 
 async function sendSlackNotification(
