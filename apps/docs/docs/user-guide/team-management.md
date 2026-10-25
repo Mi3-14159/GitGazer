@@ -24,8 +24,8 @@ Higher roles inherit all capabilities of lower roles.
 ## Open the Members Page
 
 1. Go to the **Integrations** page.
-2. Click the **members** button on an integration card.
-3. You'll see the **Manage Users** page with a member list and any pending invitations.
+2. Click an integration to open it, then select the **Members** tab.
+3. You'll see the member list with a member list and any pending invitations.
 
 A stats bar shows the total member count and number of pending invitations.
 
@@ -89,7 +89,8 @@ Restrictions:
 Any member except the owner can leave an integration:
 
 1. Go to the **Integrations** page.
-2. Click **Leave** on the integration card.
+2. Open the integration and select the **Settings** tab.
+3. Click **Leave**.
 
 Once you leave, you'll need an admin to re-invite you if you want access again.
 
@@ -117,14 +118,14 @@ When a GitHub App installation is linked to an integration, GitGazer can automat
 
 To set the default role for auto-synced members:
 
-1. Go to the integration's settings.
+1. Open the integration, select the **Apps** tab, and open the **GitHub** app.
 2. Under **Org Sync Default Role**, choose **Viewer**, **Member**, or **Admin**.
 
 _Requires **admin** role or higher._ See [Setting Up Integrations](integrations#org-sync-default-role) for details.
 
 ## Searching Members
 
-Use the search bar at the top of the Manage Users page to filter:
+Use the search bar at the top of the **Members** tab to filter:
 
 - **Members** by name or email.
 - **Pending invitations** by email or inviter name.

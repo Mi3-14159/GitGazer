@@ -12,7 +12,7 @@ Notification rules send Slack alerts when GitHub Actions workflows fail. You def
 
 1. A `workflow_job` event with `conclusion: failure` arrives via webhook.
 2. The worker checks all enabled notification rules for that integration.
-3. Rules whose filter criteria match the event trigger a Slack message to the configured webhook URL.
+3. Rules whose filter criteria match the event trigger a Slack message to the rule's notification handle.
 4. The alert includes the workflow name, repository, branch, job name, and a link to the run on GitHub.
 
 :::info[When do alerts fire?]
@@ -27,17 +27,27 @@ Alerts fire only for **completed job failures** — not for runs that are in pro
 2. Click **Add Rule**.
 3. Fill in the form:
 
-| Field                 | Required | Description                                                                                  |
-| --------------------- | -------- | -------------------------------------------------------------------------------------------- |
-| **Label**             | Yes      | A name for this rule (max 100 characters)                                                    |
-| **Integration**       | Yes      | Which integration this rule applies to                                                       |
-| **Slack Webhook URL** | Yes      | The [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) URL to send alerts to |
-| **Enabled**           | —        | Toggle the rule on or off (default: enabled)                                                 |
+| Field           | Required | Description                                                                      |
+| --------------- | -------- | -------------------------------------------------------------------------------- |
+| **Label**       | Yes      | A name for this rule (max 100 characters)                                        |
+| **Integration** | Yes      | Which integration this rule applies to                                           |
+| **Destination** | Yes      | The **App** and **Handle** to send alerts to (see [Destinations](#destinations)) |
+| **Enabled**     | —        | Toggle the rule on or off (default: enabled)                                     |
 
 1. Optionally, set filter criteria to narrow when the rule fires (see [Filter Criteria](#filter-criteria) below).
 2. Click **Save**.
 
 The new rule appears as a card on the Notifications page.
+
+## Destinations
+
+A rule doesn't hold a Slack URL itself. It sends to a **handle**: a named Slack incoming webhook that an admin added to the integration's **Webhook** app. In the rule editor, pick the **App**, then one of its **Handle**s.
+
+If the integration has no handles yet, the editor links to the **Apps** tab, where an admin can add one. See [Webhook App Settings](integrations#webhook-app-settings).
+
+If a handle is deleted, the rules that used it stay but show **No destination** and send nothing until you pick another handle.
+
+When several matching rules share a handle, Slack gets **one message per failed job**, not one per rule.
 
 ## Filter Criteria
 
@@ -97,22 +107,22 @@ Each rule card shows:
 - Rule label and integration
 - Enabled/Disabled badge
 - Channel type (Slack)
-- Slack webhook URL (masked — click the eye icon to reveal, copy button to copy)
+- A **No destination** badge if the rule has no handle
 - Active filter badges showing which criteria are set
 - Created and last updated timestamps
 
 ## Permissions
 
-Creating, editing, and deleting notification rules requires the **member** role or higher on the integration. Viewers can see existing rules but cannot modify them.
+Creating, editing, and deleting notification rules requires the **member** role or higher on the integration. Viewers can see existing rules but cannot modify them. Adding handles requires the **admin** role.
 
 If you don't see the **Add Rule** button, ask an integration admin to upgrade your role. See [Managing Team Members](team-management) for details.
 
 ## Setting Up a Slack Webhook
 
-If you don't have a Slack webhook URL yet:
+Handles need a Slack webhook URL. If you don't have one yet:
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) and create a new app (or select an existing one).
 2. Under **Features → Incoming Webhooks**, toggle webhooks on.
 3. Click **Add New Webhook to Workspace** and select the channel to post to.
 4. Copy the webhook URL (starts with `https://hooks.slack.com/services/...`).
-5. Paste it into the **Slack Webhook URL** field when creating a notification rule.
+5. Add it as a handle in the **Webhook** app (see [Add a Handle](integrations#add-a-handle)), then pick that handle in your notification rule.
