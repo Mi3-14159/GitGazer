@@ -22,13 +22,11 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: vi.fn(), info: vi.fn(), warn: vi.fn()}),
 }));
 
-const selectSequence = (results: unknown[][]) => {
-    let call = 0;
-    return () => {
-        const rows = results[call++];
-        return {from: () => Object.assign(Promise.resolve(rows), {where: () => Promise.resolve(rows)})};
-    };
+const ruleQueryTx = (rules: unknown[]) => {
+    const findMany = vi.fn().mockResolvedValue(rules);
+    return {tx: {query: {notificationRules: {findMany}}, select: vi.fn()}, findMany};
 };
+const dest = (integrationId: string, ruleId: string, handleId: string) => ({integrationId, ruleId, handleId});
 
 let notifications: typeof import('./notifications.controller');
 
@@ -176,25 +174,21 @@ describe('notifications controller', () => {
     it('getNotificationRules passes through rule as-is', async () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
-            const mockTx = {
-                select: selectSequence([
-                    [
-                        {
-                            id: 'uuid-old',
-                            integrationId: 'integrationA',
-                            label: 'Old rule',
-                            channels: [],
-                            enabled: true,
-                            ignore_dependabot: false,
-                            rule: {head_branch: 'main'},
-                            createdAt: now,
-                            updatedAt: now,
-                        },
-                    ],
-                    [],
-                ]),
-            };
-            return params.callback(mockTx);
+            const {tx} = ruleQueryTx([
+                {
+                    id: 'uuid-old',
+                    integrationId: 'integrationA',
+                    label: 'Old rule',
+                    channels: [],
+                    enabled: true,
+                    ignore_dependabot: false,
+                    rule: {head_branch: 'main'},
+                    createdAt: now,
+                    updatedAt: now,
+                    destinations: [],
+                },
+            ]);
+            return params.callback(tx);
         });
 
         const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
@@ -223,15 +217,12 @@ describe('notifications controller', () => {
             updatedAt: now,
         });
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) =>
-            params.callback({
-                select: selectSequence([
-                    [ruleRow('integrationA'), ruleRow('integrationB')],
-                    [
-                        {integrationId: 'integrationA', ruleId: 'rule-same', handleId: 'handle-a'},
-                        {integrationId: 'integrationB', ruleId: 'rule-same', handleId: 'handle-b'},
-                    ],
-                ]),
-            }),
+            params.callback(
+                ruleQueryTx([
+                    {...ruleRow('integrationA'), destinations: [dest('integrationA', 'rule-same', 'handle-a')]},
+                    {...ruleRow('integrationB'), destinations: [dest('integrationB', 'rule-same', 'handle-b')]},
+                ]).tx,
+            ),
         );
 
         const out = await notifications.getNotificationRules({integrationIds: ['integrationA', 'integrationB']});
@@ -328,7 +319,12 @@ describe('notifications controller', () => {
 
         it('toNotificationRule maps include_log_details', async () => {
             mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) =>
-                params.callback({select: selectSequence([[{...savedRow, include_log_details: false}, savedRow], []])}),
+                params.callback(
+                    ruleQueryTx([
+                        {...savedRow, include_log_details: false, destinations: []},
+                        {...savedRow, destinations: []},
+                    ]).tx,
+                ),
             );
 
             const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
@@ -496,17 +492,29 @@ describe('notification rule handles', () => {
         expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message: expect.stringContaining('destinations: 1')}));
     });
 
+    it('getNotificationRules reads rules and destinations in one query', async () => {
+        const {tx, findMany} = ruleQueryTx([{...savedRow, destinations: [dest(savedRow.integrationId, 'rule-1', 'h-new')]}]);
+        mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => params.callback(tx));
+
+        const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});
+
+        expect(findMany).toHaveBeenCalledTimes(1);
+        expect(findMany).toHaveBeenCalledWith(expect.objectContaining({with: {destinations: true}}));
+        expect(tx.select).not.toHaveBeenCalled();
+        expect(out[0].handleIds).toEqual(['h-new']);
+    });
+
     it('getNotificationRules returns handleIds and no urls', async () => {
         mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) =>
-            params.callback({
-                select: selectSequence([
-                    [savedRow, {...savedRow, id: 'rule-2'}],
-                    [
-                        {integrationId: savedRow.integrationId, ruleId: 'rule-1', handleId: 'h1'},
-                        {integrationId: savedRow.integrationId, ruleId: 'rule-1', handleId: 'h2'},
-                    ],
-                ]),
-            }),
+            params.callback(
+                ruleQueryTx([
+                    {
+                        ...savedRow,
+                        destinations: [dest(savedRow.integrationId, 'rule-1', 'h1'), dest(savedRow.integrationId, 'rule-1', 'h2')],
+                    },
+                    {...savedRow, id: 'rule-2', destinations: []},
+                ]).tx,
+            ),
         );
 
         const out = await notifications.getNotificationRules({integrationIds: ['integrationA']});

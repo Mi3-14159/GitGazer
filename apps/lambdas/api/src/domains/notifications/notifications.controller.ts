@@ -37,24 +37,18 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
         return [];
     }
 
-    const rows = await withRlsTransaction({
+    // One statement, so a concurrent rule edit cannot pair old filters with new handles
+    const rules = await withRlsTransaction({
         integrationIds,
-        callback: async (tx: RdsTransaction) => {
-            const rules = await tx.select().from(notificationRules);
-            const destinations = await tx.select().from(notificationRuleDestinations);
-            return {rules, destinations};
-        },
+        callback: async (tx: RdsTransaction) => await tx.query.notificationRules.findMany({with: {destinations: true}}),
     });
 
-    // Rule ids are only unique per integration
-    const ruleKey = (integrationId: string, ruleId: string) => `${integrationId}:${ruleId}`;
-    const handleIdsByRule = new Map<string, string[]>();
-    for (const {integrationId, ruleId, handleId} of rows.destinations) {
-        const key = ruleKey(integrationId, ruleId);
-        handleIdsByRule.set(key, [...(handleIdsByRule.get(key) ?? []), handleId]);
-    }
-
-    return rows.rules.map((row) => toNotificationRule(row, handleIdsByRule.get(ruleKey(row.integrationId, row.id)) ?? []));
+    return rules.map((row) =>
+        toNotificationRule(
+            row,
+            row.destinations.map((d) => d.handleId),
+        ),
+    );
 };
 
 export const upsertNotificationRule = async (params: {
