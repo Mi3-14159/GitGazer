@@ -62,7 +62,7 @@ describe('IntegrationPage', () => {
         expect(tabs.map((t) => t.attributes('aria-selected'))).toEqual(['false', 'true', 'false']);
         expect(wrapper.find('[data-testid="members-tab"]').exists()).toBe(true);
         expect(wrapper.find('h1').text()).toBe('Platform');
-        expect(wrapper.text()).toContain('Owner Ada');
+        expect(wrapper.text()).not.toContain('Owner Ada');
 
         await tabs[2].trigger('click');
         await flushPromises();

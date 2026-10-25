@@ -4,7 +4,6 @@
     import IntegrationSettings from '@/components/integrations/IntegrationSettings.vue';
     import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
     import IntegrationMembers from '@/components/members/IntegrationMembers.vue';
-    import Button from '@/components/ui/Button.vue';
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import Tabs from '@/components/ui/Tabs.vue';
@@ -12,9 +11,7 @@
     import TabsList from '@/components/ui/TabsList.vue';
     import TabsTrigger from '@/components/ui/TabsTrigger.vue';
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
-    import {useMembers} from '@/composables/useMembers';
-    import {hasRole, type IntegrationMember} from '@common/types';
-    import {ChevronRight, Plug, Settings2} from '@lucide/vue';
+    import {ChevronRight, Plug} from '@lucide/vue';
     import {computed, onMounted, ref, watch} from 'vue';
     import {RouterLink, useRoute, useRouter} from 'vue-router';
 
@@ -35,29 +32,19 @@
         confirmLeave,
         handleLeave,
     } = useIntegrationCrud();
-    const {getMembers} = useMembers();
 
     const integrationId = computed(() => route.params.integrationId as string);
     const tab = computed(() => route.params.tab as string);
     const integration = computed(() => integrations.value.find((i) => i.integrationId === integrationId.value));
-    const canRename = computed(() => !!integration.value && hasRole(integration.value.role, 'admin'));
 
     const isLoading = ref(true);
     const loadError = ref<string | null>(null);
-    const members = ref<IntegrationMember[]>([]);
-
-    const ownerName = computed(() => {
-        const owner = members.value.find((m) => m.role === 'owner');
-        return owner ? (owner.user.name ?? owner.user.email ?? 'Unknown') : null;
-    });
 
     async function load() {
         isLoading.value = true;
         loadError.value = null;
         try {
             await refreshIntegrations();
-            // The meta line is decoration; a failed members request must not hide the page.
-            members.value = await getMembers(integrationId.value).catch(() => []);
         } catch (e) {
             loadError.value = e instanceof Error ? e.message : 'Failed to load integration';
         } finally {
@@ -137,25 +124,7 @@
                         </li>
                     </ol>
                 </nav>
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <h1 class="break-words text-xl font-semibold">{{ integration.label }}</h1>
-                        <p class="text-sm text-muted-foreground">
-                            <template v-if="ownerName">Owner {{ ownerName }} · </template>
-                            {{ members.length }} {{ members.length === 1 ? 'member' : 'members' }}
-                        </p>
-                    </div>
-                    <Button
-                        v-if="canRename"
-                        variant="outline"
-                        size="sm"
-                        class="hidden shrink-0 sm:inline-flex"
-                        @click="selectTab('settings')"
-                    >
-                        <Settings2 class="h-4 w-4" />
-                        Rename
-                    </Button>
-                </div>
+                <h1 class="sr-only">{{ integration.label }}</h1>
             </header>
 
             <Tabs
