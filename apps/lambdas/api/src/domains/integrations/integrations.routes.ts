@@ -12,6 +12,7 @@ import {getGithubSettings} from '@/domains/apps/github-settings';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {ConflictError} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
@@ -160,6 +161,11 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         throw new BadRequestError('Installation is already linked to an integration');
     }
 
+    const githubSettings = await getGithubSettings(db, integrationId);
+    if (!githubSettings) {
+        throw new ConflictError('Install the GitHub app first');
+    }
+
     // Link installation to integration — atomic guard against a concurrent link.
     // The UPDATE only matches while integration_id IS NULL; if a racing request
     // linked it first, 0 rows are returned and we reject instead of overwriting.
@@ -204,16 +210,12 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
     let orgSyncResult = {matched: 0, unmatched: 0};
     if (installation.accountType === 'Organization') {
         try {
-            const settings = await getGithubSettings(db, integrationId);
-
-            if (settings) {
-                orgSyncResult = await resolveAndAssignOrgMembers({
-                    integrationId,
-                    installationId,
-                    role: settings.orgSyncDefaultRole,
-                    accountLogin: installation.accountLogin,
-                });
-            }
+            orgSyncResult = await resolveAndAssignOrgMembers({
+                integrationId,
+                installationId,
+                role: githubSettings.orgSyncDefaultRole,
+                accountLogin: installation.accountLogin,
+            });
         } catch (error) {
             logger.error('Failed to auto-add org members', {error, integrationId, installationId});
         }
