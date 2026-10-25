@@ -33,15 +33,6 @@ export const isNotificationRule = (rule: any): rule is NotificationRule => {
     );
 };
 
-export enum NotificationRuleChannelType {
-    SLACK = 'SLACK',
-}
-
-export type NotificationRuleChannel = {
-    type: NotificationRuleChannelType;
-    webhook_url: string;
-};
-
 const ALLOWED_WEBHOOK_HOSTS = new Set(['hooks.slack.com']);
 
 export const isAllowedWebhookUrl = (url: string): boolean => {
@@ -67,15 +58,6 @@ export const isAllowedWebhookUrl = (url: string): boolean => {
     } catch {
         return false;
     }
-};
-
-export const isNotificationRuleChannel = (channel: any): channel is NotificationRuleChannel => {
-    if (typeof channel !== 'object' || channel === null) return false;
-    return (
-        Object.values(NotificationRuleChannelType).includes(channel.type) &&
-        typeof channel.webhook_url === 'string' &&
-        isAllowedWebhookUrl(channel.webhook_url)
-    );
 };
 
 export type NotificationRuleRule = {

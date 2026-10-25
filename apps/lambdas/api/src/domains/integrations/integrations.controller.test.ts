@@ -56,17 +56,6 @@ describe('integrations controller', () => {
         controller = await import('./integrations.controller');
     });
 
-    describe('getIntegrations', () => {
-        it('leaves the legacy secret and org sync role columns out of the response', async () => {
-            const findMany = vi.fn().mockResolvedValue([{integrationId: 'int-1'}]);
-            mockWithRlsTransaction.mockImplementation(async (params) => params.callback({query: {integrations: {findMany}}}));
-
-            await controller.getIntegrations({integrationIds: ['int-1']});
-
-            expect(findMany).toHaveBeenCalledWith(expect.objectContaining({columns: {secret: false, orgSyncDefaultRole: false}}));
-        });
-    });
-
     describe('updateOrgSyncSettings', () => {
         it('updates the org sync default role', async () => {
             mockWithRlsTransaction.mockImplementation(async (params) => {

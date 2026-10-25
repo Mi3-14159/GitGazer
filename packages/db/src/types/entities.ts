@@ -32,10 +32,6 @@ export type IntegrationInvitationInsert = typeof schema.integrationInvitations.$
 
 export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflowRuns'], {with: typeof workflowRunRelations}>;
 export type WorkflowJobWithRelations = BuildQueryResult<Schema, Schema['workflowJobs'], {with: typeof workflowJobRelations}>;
-export type Integration = BuildQueryResult<
-    Schema,
-    Schema['integrations'],
-    {columns: {secret: false; orgSyncDefaultRole: false}; with: typeof integrationsQueryRelations}
->;
+export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
 export type IntegrationWithRole = Integration & {role: MemberRole};
 export type IntegrationMember = BuildQueryResult<Schema, Schema['userAssignments'], {with: typeof memberQueryRelations}>;
