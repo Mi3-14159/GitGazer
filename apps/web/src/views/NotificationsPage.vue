@@ -8,6 +8,7 @@
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegration} from '@/composables/useIntegration';
+    import {useIntegrationApps} from '@/composables/useIntegrationApps';
     import {useNotification} from '@/composables/useNotification';
     import type {IntegrationWithRole, NotificationRule} from '@common/types';
     import {hasRole} from '@common/types';
@@ -16,6 +17,7 @@
 
     const {getNotifications, isLoadingNotifications, upsertNotification, deleteNotification} = useNotification();
     const {getIntegrations} = useIntegration();
+    const {listApps} = useIntegrationApps();
 
     const notifications = ref<NotificationRule[]>([]);
     const integrations = ref<IntegrationWithRole[]>([]);
@@ -26,6 +28,7 @@
     const isSaving = ref(false);
     const togglingIds = ref(new Set<string>());
     const saveError = ref('');
+    const handleNames = ref<Record<string, string>>({});
 
     function openCreate() {
         editingRule.value = null;
@@ -48,9 +51,9 @@
         isSaving.value = true;
         saveError.value = '';
         try {
-            const {label, channels, enabled, ignore_dependabot, include_log_details, rule: ruleFilter} = rule;
+            const {label, handleIds, enabled, ignore_dependabot, include_log_details, rule: ruleFilter} = rule;
             const saved = await upsertNotification(
-                {label, channels, enabled, ignore_dependabot, include_log_details, rule: ruleFilter},
+                {label, handleIds, enabled, ignore_dependabot, include_log_details, rule: ruleFilter},
                 rule.integrationId,
                 rule.id || undefined,
             );
@@ -93,9 +96,9 @@
         notifications.value[idx] = {...rule, enabled: !previousEnabled};
 
         try {
-            const {label, channels, ignore_dependabot, include_log_details, rule: ruleFilter} = rule;
+            const {label, handleIds, ignore_dependabot, include_log_details, rule: ruleFilter} = rule;
             const saved = await upsertNotification(
-                {label, channels, enabled: !previousEnabled, ignore_dependabot, include_log_details, rule: ruleFilter},
+                {label, handleIds, enabled: !previousEnabled, ignore_dependabot, include_log_details, rule: ruleFilter},
                 rule.integrationId,
                 rule.id || undefined,
             );
@@ -121,10 +124,24 @@
 
     const canCreateNotification = computed(() => integrations.value.some((i) => hasRole(i.role, 'member')));
 
+    async function loadHandleNames(integrationIds: string[]) {
+        const results = await Promise.allSettled(integrationIds.map((id) => listApps(id)));
+        const names: Record<string, string> = {};
+        for (const result of results) {
+            if (result.status !== 'fulfilled') continue;
+            for (const app of result.value) {
+                if (app.type !== 'webhook') continue;
+                for (const handle of app.handles) names[handle.handleId] = handle.name;
+            }
+        }
+        handleNames.value = names;
+    }
+
     onMounted(async () => {
         const [n, i] = await Promise.all([getNotifications(), getIntegrations()]);
         notifications.value = n ?? [];
         integrations.value = i ?? [];
+        await loadHandleNames([...new Set(notifications.value.map((rule) => rule.integrationId))]);
     });
 </script>
 
@@ -134,7 +151,7 @@
         class="space-y-4 p-4"
     >
         <!-- Header -->
-        <PageHeader description="Configure Slack webhooks to receive alerts about workflow status changes">
+        <PageHeader description="Choose which notification handles receive alerts about workflow status changes">
             <Button
                 v-if="canCreateNotification"
                 size="sm"
@@ -177,6 +194,7 @@
                 :key="rule.id"
                 :rule="rule"
                 :integration-label="integrationLabel(rule.integrationId)"
+                :handle-names="handleNames"
                 :readonly="!canManageNotification(rule.integrationId)"
                 @toggle="handleToggleEnabled"
                 @edit="openEdit"

@@ -4,17 +4,16 @@
     import Button from '@/components/ui/Button.vue';
     import Card from '@/components/ui/Card.vue';
     import CardContent from '@/components/ui/CardContent.vue';
-    import Input from '@/components/ui/Input.vue';
     import Switch from '@/components/ui/Switch.vue';
-    import {copyToClipboard} from '@/utils/clipboard';
     import {formatDate} from '@/utils/formatDate';
     import type {NotificationRule} from '@common/types';
-    import {Calendar, CheckCircle2, Copy, Eye, EyeOff, Filter, Pencil, Trash2, XCircle} from '@lucide/vue';
-    import {ref} from 'vue';
+    import {AlertTriangle, Calendar, CheckCircle2, Filter, Pencil, Send, Trash2, XCircle} from '@lucide/vue';
+    import {computed} from 'vue';
 
     const props = defineProps<{
         rule: NotificationRule;
         integrationLabel: string;
+        handleNames?: Record<string, string>;
         readonly?: boolean;
     }>();
 
@@ -24,15 +23,11 @@
         delete: [rule: NotificationRule];
     }>();
 
-    const showWebhook = ref(false);
+    const destinations = computed(() => props.rule.handleIds.map((id) => props.handleNames?.[id] ?? 'Unknown handle'));
 
     function hasActiveFilters(rule: NotificationRule) {
         const {rule: r} = rule;
         return !!(r.owner || r.repository_name || r.workflow_name || r.head_branch || r.topics?.length);
-    }
-
-    function toggleWebhookVisibility() {
-        showWebhook.value = !showWebhook.value;
     }
 </script>
 
@@ -73,10 +68,12 @@
                                 Filtered
                             </Badge>
                             <Badge
-                                variant="secondary"
-                                class="h-5 text-xs"
+                                v-if="rule.handleIds.length === 0"
+                                variant="warning"
+                                class="gap-1 h-5 text-xs"
                             >
-                                {{ rule.channels[0]?.type ?? '—' }}
+                                <AlertTriangle class="h-3 w-3" />
+                                No destination
                             </Badge>
                         </div>
                     </div>
@@ -109,42 +106,27 @@
                     </div>
                 </div>
 
-                <!-- Webhook & Filters Grid -->
+                <!-- Destinations & Filters Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-1">
-                    <!-- Slack Webhook -->
-                    <div class="space-y-1">
-                        <div class="text-xs font-medium text-muted-foreground">Slack Webhook</div>
-                        <div class="flex items-center gap-1">
-                            <Input
-                                :model-value="rule.channels[0]?.webhook_url ?? ''"
-                                :type="showWebhook ? 'text' : 'password'"
-                                readonly
-                                class="font-mono text-xs !h-8 !px-2"
-                            />
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                class="h-8 w-8 p-0 shrink-0"
-                                @click="toggleWebhookVisibility"
+                    <div
+                        v-if="destinations.length > 0"
+                        class="space-y-1"
+                    >
+                        <div class="text-xs font-medium text-muted-foreground">Destinations</div>
+                        <ul class="flex flex-wrap gap-1">
+                            <li
+                                v-for="(name, index) in destinations"
+                                :key="rule.handleIds[index]"
                             >
-                                <EyeOff
-                                    v-if="showWebhook"
-                                    class="h-3 w-3"
-                                />
-                                <Eye
-                                    v-else
-                                    class="h-3 w-3"
-                                />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                class="h-8 w-8 p-0 shrink-0"
-                                @click="copyToClipboard(rule.channels[0]?.webhook_url ?? '')"
-                            >
-                                <Copy class="h-3 w-3" />
-                            </Button>
-                        </div>
+                                <Badge
+                                    variant="secondary"
+                                    class="gap-1 h-6 text-xs"
+                                >
+                                    <Send class="h-3 w-3" />
+                                    {{ name }}
+                                </Badge>
+                            </li>
+                        </ul>
                     </div>
 
                     <!-- Active Filters -->
