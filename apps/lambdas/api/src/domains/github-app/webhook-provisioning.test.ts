@@ -103,18 +103,22 @@ describe('updateAllWebhookEvents', () => {
     });
 });
 
-describe('updateAllWebhookSecrets', () => {
-    it('updates every webhook secret when all updates succeed', async () => {
-        await mod.updateAllWebhookSecrets('int-1', 1, 'super-secret');
+describe('updateWebhookSecrets', () => {
+    it('updates exactly the given webhooks without re-reading the recorded ones', async () => {
+        storedWebhooks.push({...WEBHOOKS[0], webhookId: 99, targetName: 'replacement-org'});
 
+        await mod.updateWebhookSecrets('int-1', 1, WEBHOOKS, 'super-secret');
+
+        expect(withRlsTransaction).not.toHaveBeenCalled();
         expect(client.updateOrgWebhookSecret).toHaveBeenCalledTimes(1);
+        expect(client.updateOrgWebhookSecret).toHaveBeenCalledWith(expect.anything(), 'my-org', 11, expect.any(String), 'super-secret');
         expect(client.updateRepoWebhookSecret).toHaveBeenCalledTimes(1);
     });
 
     it('throws when a webhook secret update fails', async () => {
         client.updateRepoWebhookSecret.mockRejectedValueOnce(new Error('GitHub 404'));
 
-        await expect(mod.updateAllWebhookSecrets('int-1', 1, 'super-secret')).rejects.toThrow(/Failed to update secret on 1 of 2/);
+        await expect(mod.updateWebhookSecrets('int-1', 1, WEBHOOKS, 'super-secret')).rejects.toThrow(/Failed to update secret on 1 of 2/);
 
         expect(client.updateOrgWebhookSecret).toHaveBeenCalledTimes(1);
     });

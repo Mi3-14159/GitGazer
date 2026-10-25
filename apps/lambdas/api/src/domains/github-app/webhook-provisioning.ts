@@ -361,19 +361,16 @@ export const updateAllWebhookEvents = async (integrationId: string, installation
     logger.info(`Updated webhook events for installation ${installationId}`);
 };
 
-export const updateAllWebhookSecrets = async (integrationId: string, installationId: number, secret: string): Promise<void> => {
+// Updates only the given records: re-reading the current ones could re-key webhooks of a replacement GitHub app with the
+// secret of the one that was removed
+export const updateWebhookSecrets = async (
+    integrationId: string,
+    installationId: number,
+    webhooks: RecordedWebhook[],
+    secret: string,
+): Promise<void> => {
     const logger = getLogger();
     logger.info(`Updating webhook secrets for integration ${integrationId}, installation ${installationId}`);
-
-    const webhooks = await withRlsTransaction({
-        integrationIds: [integrationId],
-        callback: async (tx: RdsTransaction) => {
-            return await tx
-                .select()
-                .from(githubAppWebhooks)
-                .where(and(eq(githubAppWebhooks.integrationId, integrationId), eq(githubAppWebhooks.installationId, installationId)));
-        },
-    });
 
     const webhookUrl = getWebhookUrl(integrationId);
     const octokit = getInstallationOctokit(installationId);

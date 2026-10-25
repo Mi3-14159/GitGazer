@@ -1,6 +1,6 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
-import {deprovisionAllWebhooks, updateAllWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
-import {installGithubApp} from '@/domains/apps/github-settings';
+import {deprovisionAllWebhooks, RecordedWebhook, updateWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
+import {getGithubSettings, installGithubApp} from '@/domains/apps/github-settings';
 import {ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
@@ -209,19 +209,26 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
 
     logger.info(`Rotating secret for integration ${integrationId}`);
 
-    const results = await withRlsTransaction({
+    // Settings row first, like the app removal and webhook recording, so a concurrent remove or relink waits for this
+    // rotation. The recorded webhooks are captured with the new secret: they are the only ones keyed with it.
+    const rotated = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            return await tx
+            const settings = await getGithubSettings(tx, integrationId, 'update');
+            if (!settings) return undefined;
+
+            const [updated] = await tx
                 .update(integrationAppGithubSettings)
                 .set({secret: sql`gen_random_uuid()`})
-                .where(eq(integrationAppGithubSettings.integrationId, integrationId))
+                .where(and(eq(integrationAppGithubSettings.integrationId, integrationId), eq(integrationAppGithubSettings.appId, settings.appId)))
                 .returning({secret: integrationAppGithubSettings.secret});
+            const webhooks = await tx.select().from(githubAppWebhooks).where(eq(githubAppWebhooks.integrationId, integrationId));
+            return {secret: updated.secret, webhooks};
         },
     });
 
-    if (results.length === 0) {
+    if (!rotated) {
         throw new NotFoundError('GitHub app not installed');
     }
 
@@ -234,23 +241,14 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
         metadata: {integrationId},
     });
 
-    const newSecret = results[0].secret;
+    const webhooksByInstallation = new Map<number, RecordedWebhook[]>();
+    for (const webhook of rotated.webhooks) {
+        webhooksByInstallation.set(webhook.installationId, [...(webhooksByInstallation.get(webhook.installationId) ?? []), webhook]);
+    }
 
-    // Update all linked GitHub App webhooks with the new secret
-    const webhookInstallations = await withRlsTransaction({
-        integrationIds,
-        callback: async (tx: RdsTransaction) => {
-            return await tx
-                .select({installationId: githubAppWebhooks.installationId})
-                .from(githubAppWebhooks)
-                .where(eq(githubAppWebhooks.integrationId, integrationId))
-                .groupBy(githubAppWebhooks.installationId);
-        },
-    });
-
-    for (const {installationId} of webhookInstallations) {
+    for (const [installationId, webhooks] of webhooksByInstallation) {
         try {
-            await updateAllWebhookSecrets(integrationId, installationId, newSecret);
+            await updateWebhookSecrets(integrationId, installationId, webhooks, rotated.secret);
         } catch (error) {
             logger.error(`Failed to update webhook secrets for installation ${installationId}`, {error});
             await createEventLogEntry({
