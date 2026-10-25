@@ -2,7 +2,7 @@ export type NotificationRule = {
     integrationId: string;
     id?: string;
     label: string;
-    channels: NotificationRuleChannel[];
+    handleIds: string[];
     createdAt: string;
     updatedAt: string;
     enabled: boolean;
@@ -11,14 +11,19 @@ export type NotificationRule = {
     rule: NotificationRuleRule;
 };
 
-// implement a guard clause for NotificationRule
+export const MAX_RULE_HANDLES = 20;
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const isHandleIds = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.length <= MAX_RULE_HANDLES && value.every((id) => typeof id === 'string' && UUID_SHAPE.test(id));
+
 export const isNotificationRule = (rule: any): rule is NotificationRule => {
     if (typeof rule !== 'object' || rule === null) return false;
     return (
         typeof rule.integrationId === 'string' &&
         typeof rule.label === 'string' &&
-        Array.isArray(rule.channels) &&
-        rule.channels.every(isNotificationRuleChannel) &&
+        isHandleIds(rule.handleIds) &&
         typeof rule.createdAt === 'string' &&
         typeof rule.updatedAt === 'string' &&
         typeof rule.enabled === 'boolean' &&
@@ -105,8 +110,7 @@ export const isNotificationRuleUpdate = (rule: any): rule is NotificationRuleUpd
         typeof rule.label === 'string' &&
         rule.label.trim().length > 0 &&
         rule.label.length <= 100 &&
-        Array.isArray(rule.channels) &&
-        rule.channels.every(isNotificationRuleChannel) &&
+        isHandleIds(rule.handleIds) &&
         typeof rule.enabled === 'boolean' &&
         typeof rule.ignore_dependabot === 'boolean' &&
         (rule.include_log_details === undefined || typeof rule.include_log_details === 'boolean') &&
