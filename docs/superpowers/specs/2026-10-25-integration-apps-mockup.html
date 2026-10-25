@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integration apps · responsive</title>
+<style>
+  :root {
+    --bg: #fff; --card: #fff; --fg: #1a1a1f; --muted: #ececf0; --muted-fg: #717182;
+    --border: rgba(0,0,0,.09); --primary: #030213; --accent: #e9ebef;
+    --success: #16a34a; --success-bg: #dcfce7; --warning: #b45309; --warning-bg: #fef3c7;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg); background: #e5e7eb; padding: 24px; }
+  .stage { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+  .frame-label { font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .desktop { width: 980px; max-width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+  .phone { width: 390px; border-radius: 40px; border: 10px solid #111; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .phone .page { height: 780px; overflow-y: auto; }
+
+  .page { container-type: inline-size; background: var(--bg); }
+  .navwrap { padding: 8px 16px 4px; }
+  .nav { display: grid; grid-template-columns: repeat(6, 1fr); background: var(--muted); border-radius: 8px; padding: 4px; }
+  .nav span { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border-radius: 6px; color: var(--muted-fg); font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .nav span.on { background: #fff; color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .nav svg { width: 16px; height: 16px; flex: none; }
+  main { padding: 20px 16px 32px; }
+  .crumbs { color: var(--muted-fg); font-size: 13px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 4px 0 16px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .meta { color: var(--muted-fg); font-size: 13px; margin-top: 2px; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+  .tab { padding: 9px 12px; color: var(--muted-fg); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .tab.on { color: var(--fg); border-color: var(--fg); font-weight: 600; }
+  .count { background: var(--muted); border-radius: 999px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin: 22px 0 10px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .app { display: flex; flex-direction: column; gap: 12px; }
+  .app-top { display: flex; gap: 12px; align-items: center; }
+  .icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+  .icon svg { width: 20px; height: 20px; }
+  .gh { background: #24292f; color: #fff; } .wh { background: #eef2ff; color: #4f46e5; }
+  .sl { background: #fdf2f8; color: #be185d; } .gl { background: #fff7ed; color: #ea580c; } .ji { background: #eff6ff; color: #2563eb; }
+  .name { font-weight: 600; font-size: 15px; }
+  .desc { color: var(--muted-fg); font-size: 13px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted-fg); border-top: 1px solid var(--border); padding-top: 10px; }
+  .stats b { color: var(--fg); }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .ok { color: var(--success); background: var(--success-bg); } .wait { color: var(--warning); background: var(--warning-bg); }
+  .soon { color: var(--muted-fg); background: var(--muted); } .soon::before { display: none; }
+  .ml { margin-left: auto; }
+  .btn { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 7px 12px; font: inherit; font-weight: 500; white-space: nowrap; }
+  .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .catalog .card { display: flex; gap: 12px; align-items: center; opacity: .75; }
+  .detail { margin-top: 26px; }
+  .detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .rows { display: grid; }
+  .row { display: grid; grid-template-columns: 1.3fr 1.3fr .7fr 1.4fr .5fr 24px; align-items: center; gap: 12px; padding: 12px 8px; border-top: 1px solid var(--border); }
+  .row.th { border-top: 0; font-size: 12px; color: var(--muted-fg); padding-top: 4px; }
+  .host { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--muted-fg); overflow: hidden; text-overflow: ellipsis; }
+  .fmt { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; justify-self: start; }
+  .link { color: #2563eb; font-size: 12.5px; margin-left: 6px; }
+  .note { font-size: 12.5px; color: var(--muted-fg); margin-top: 10px; }
+  .lbl { display: none; }
+
+  @container (max-width: 640px) {
+    .nav span .t { display: none; }
+    .head .btn { display: none; }
+    .grid { grid-template-columns: 1fr; }
+    .detail-head { flex-wrap: wrap; }
+    .detail-head .desc { display: none; }
+    .detail-head .btn { width: 100%; margin-left: 0; text-align: center; }
+    .row.th { display: none; }
+    .row { grid-template-columns: 1fr auto; grid-template-areas: "name status" "host host" "meta meta"; gap: 4px 8px; padding: 12px 2px; }
+    .row .c-name { grid-area: name; } .row .c-status { grid-area: status; justify-self: end; }
+    .row .c-host { grid-area: host; }
+    .row .c-fmt, .row .c-rules { display: none; }
+    .row .c-meta { grid-area: meta; display: flex; gap: 10px; font-size: 12.5px; color: var(--muted-fg); }
+    .row .c-more { display: none; }
+  }
+  @container (min-width: 641px) { .row .c-meta { display: none; } }
+</style>
+</head>
+<body>
+<template id="page">
+  <div class="navwrap">
+    <div class="nav">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span class="t">Overview</span></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4V8z"/></svg><span class="t">Workflows</span></span>
+      <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg><span class="t">Integrations</span></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="t">Notifications</span></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg><span class="t">Dashboards</span></span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span class="t">Event Log</span></span>
+    </div>
+  </div>
+  <main>
+    <div class="crumbs">Integrations › Platform Team</div>
+    <div class="head">
+      <div><h1>Platform Team</h1><div class="meta">Owner: you · 14 members</div></div>
+      <button class="btn">Rename</button>
+    </div>
+    <div class="tabs">
+      <div class="tab on">Apps <span class="count">2</span></div>
+      <div class="tab">Members <span class="count">14</span></div>
+      <div class="tab">Settings</div>
+    </div>
+
+    <h2>Installed</h2>
+    <div class="grid">
+      <div class="card app">
+        <div class="app-top">
+          <div class="icon gh"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg></div>
+          <div><div class="name">GitHub</div><div class="desc">Runs, jobs and pull requests</div></div>
+          <span class="pill ok ml">Receiving</span>
+        </div>
+        <div class="stats"><span><b>2</b> installations</span><span><b>38</b> repos</span><span>Org sync <b>on</b></span></div>
+      </div>
+      <div class="card app">
+        <div class="app-top">
+          <div class="icon wh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg></div>
+          <div><div class="name">Webhook</div><div class="desc">Slack incoming webhooks</div></div>
+          
+        </div>
+        <div class="stats"><span><b>2</b> handles</span><span><b>4</b> rules</span></div>
+      </div>
+    </div>
+
+    <h2>Available</h2>
+    <div class="grid catalog">
+      <div class="card"><div class="icon sl"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="10" y="2" width="4" height="9" rx="2"/><rect x="13" y="10" width="9" height="4" rx="2"/><rect x="10" y="13" width="4" height="9" rx="2"/><rect x="2" y="10" width="9" height="4" rx="2"/></svg></div><div><div class="name">Slack</div><div class="desc">Ping the person behind a failure</div></div><span class="pill soon ml">Later</span></div>
+      <div class="card"><div class="icon gl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 21 4-12H8l4 12ZM3 9l1.6-5 2.4 5H3Zm18 0-1.6-5L17 9h4ZM3 9l9 12L3 13V9Zm18 0-9 12 9-8V9Z"/></svg></div><div><div class="name">GitLab</div><div class="desc">Pipelines and merge requests</div></div><span class="pill soon ml">Later</span></div>
+      <div class="card"><div class="icon ji"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 12l4 4 6-6 6 6 4-4L12 2Zm0 10-4 4 4 4 4-4-4-4Z"/></svg></div><div><div class="name">Jira</div><div class="desc">Tickets for real failures</div></div><span class="pill soon ml">Later</span></div>
+    </div>
+
+    <div class="detail card">
+      <div class="detail-head">
+        <div class="icon wh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg></div>
+        <div><div class="name">Webhook · handles</div><div class="desc">Each handle is a Slack incoming webhook URL. Only admins see the URLs.</div></div>
+        <button class="btn primary ml">+ Add handle</button>
+      </div>
+      <div class="rows">
+        <div class="row th"><span>Name</span><span>Host</span><span></span><span></span><span>Rules</span><span></span></div>
+        <div class="row"><b class="c-name">#ci-alerts</b><span class="host c-host">hooks.slack.com</span><span class="c-fmt"></span><span class="c-status"></span><span class="c-rules">3</span><span class="c-more">⋯</span><span class="c-meta">3 rules</span></div>
+        <div class="row"><b class="c-name">#deploys</b><span class="host c-host">hooks.slack.com</span><span class="c-fmt"></span><span class="c-status"></span><span class="c-rules">1</span><span class="c-more">⋯</span><span class="c-meta">1 rule</span></div>
+      </div>
+      
+    </div>
+  </main>
+</template>
+
+<div class="stage">
+  <div><div class="frame-label">Desktop</div><div class="desktop"><div class="page" id="d"></div></div></div>
+  <div><div class="frame-label">Phone · 390 px</div><div class="phone"><div class="page" id="m"></div></div></div>
+</div>
+<script>
+  const tpl = document.getElementById('page');
+  for (const id of ['d', 'm']) document.getElementById(id).appendChild(tpl.content.cloneNode(true));
+</script>
+</body>
+</html>
