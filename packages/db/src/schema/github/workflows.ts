@@ -19,8 +19,6 @@ export const integrations = githubSchema
             ownerId: bigint('owner_id', {mode: 'number'})
                 .notNull()
                 .references(() => users.id),
-            secret: uuid('secret').notNull().defaultRandom(),
-            orgSyncDefaultRole: varchar('org_sync_default_role', {length: 20, enum: ORG_SYNC_DEFAULT_ROLES}).notNull().default('viewer'),
             createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
         },
         () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy(), mcpTenantSeparationPolicy()],

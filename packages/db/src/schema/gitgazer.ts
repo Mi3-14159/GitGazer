@@ -9,7 +9,6 @@ import {
     ORG_SYNC_DEFAULT_ROLES,
     WEBSOCKET_CHANNELS,
     type EventLogEntryMetadata,
-    type NotificationRuleChannel,
     type NotificationRuleRule,
 } from '../types';
 import {integrations, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './github';
@@ -134,7 +133,6 @@ export const notificationRules = gitgazerSchema
                 .references(() => integrations.integrationId, {onDelete: 'cascade'}),
             id: uuid('id').defaultRandom().notNull(),
             label: varchar('label', {length: 100}).notNull().default(''),
-            channels: jsonb('channels').notNull().$type<NotificationRuleChannel[]>(),
             enabled: boolean('enabled').notNull().default(true),
             ignore_dependabot: boolean('ignore_dependabot').notNull().default(false),
             include_log_details: boolean('include_log_details').notNull().default(true),

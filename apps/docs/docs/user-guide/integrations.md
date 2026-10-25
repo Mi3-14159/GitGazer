@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Setting Up Integrations
-description: Connect GitGazer to your GitHub repositories via the GitHub App or manual webhooks.
+description: Connect GitGazer to your GitHub repositories and set up apps, webhook handles, and settings for an integration.
 ---
 
 # Setting Up Integrations
@@ -32,16 +32,46 @@ If you prefer to manage webhooks yourself (e.g., for a single repository):
 1. Go to the **Integrations** page.
 2. Click **New Integration**.
 3. Enter a label (e.g., "My Org") and click **Create**.
-4. On the new integration card, copy the **Webhook URL** and **Secret**.
-5. In GitHub, create a webhook on your repository or organization:
-    - **Payload URL**: paste the webhook URL from step 4.
+4. Open the new integration, go to the **Apps** tab, and open the **GitHub** app.
+5. Copy the **Webhook URL** and **Secret**.
+6. In GitHub, create a webhook on your repository or organization:
+    - **Payload URL**: paste the webhook URL from step 5.
     - **Content type**: `application/json`.
-    - **Secret**: paste the secret from step 4.
+    - **Secret**: paste the secret from step 5.
     - **Events**: select **Workflow runs** and **Workflow jobs** (and optionally **Pull requests** and **Pull request reviews**).
 
-## Manage Integrations
+## Open an Integration
 
-Each integration appears as a card on the Integrations page.
+The **Integrations** page lists all integrations you belong to. Click one to open its page, which has three tabs:
+
+| Tab          | What It Holds                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| **Apps**     | The apps installed in the integration and a catalog of apps you can add.                      |
+| **Members**  | The people with access and pending invitations. See [Managing Team Members](team-management). |
+| **Settings** | Rename, leave, or delete the integration.                                                     |
+
+## Apps
+
+An **app** is a piece of GitGazer you install into an integration. The **Apps** tab shows the installed apps first, then a catalog.
+
+| App         | What It Does                                                                    |
+| ----------- | ------------------------------------------------------------------------------- |
+| **GitHub**  | Receives workflow runs, jobs, and pull requests from GitHub.                    |
+| **Webhook** | Holds named Slack incoming webhooks that notification rules can send alerts to. |
+
+Slack, GitLab, and Jira appear in the catalog as **coming later**.
+
+New integrations include the GitHub app automatically. Open an app to see and change its settings.
+
+:::info[Who can see what]
+
+Everyone in the integration can see the installed apps and the names of webhook handles. Only **admins** and **owners** can see secrets and webhook URLs, and install or remove apps and manage handles.
+
+:::
+
+## GitHub App Settings
+
+Open the **GitHub** app to manage how GitGazer receives data from GitHub.
 
 ### Webhook URL & Secret
 
@@ -49,41 +79,19 @@ Each integration appears as a card on the Integrations page.
 - **View the secret** by clicking the eye icon. Click again to hide it.
 - **Copy the secret** using the copy button.
 
+_Visible to **admin** role or higher._
+
 ### Rotate Webhook Secret
 
 If a secret is compromised, rotate it:
 
-1. Click the **rotate** button on the integration card.
+1. Click the **rotate** button next to the secret.
 2. Confirm in the dialog — this action is permanent.
 3. Copy the new secret and update it in your GitHub webhook settings.
 
 :::warning
 After rotating, your existing GitHub webhook will stop working until you update the secret on the GitHub side.
 :::
-
-### Rename an Integration
-
-Click the integration label to edit it inline. Press Enter or click away to save.
-
-_Requires **admin** role or higher._
-
-### Delete an Integration
-
-1. Click the **delete** button on the integration card.
-2. Type the exact integration label to confirm.
-3. Click **Delete Integration**.
-
-_Requires **owner** role. This action is permanent and removes all associated data._
-
-### Leave an Integration
-
-If you no longer need access, click **Leave** on the integration card. You'll need an admin to re-invite you if you want access again.
-
-_Available to all members except the owner._
-
-## GitHub App Settings
-
-When a GitHub App installation is linked to an integration, you can manage:
 
 ### Webhook Event Subscriptions
 
@@ -112,14 +120,67 @@ When GitHub organization members are auto-synced to GitGazer, they receive a def
 
 _Requires **admin** role or higher._
 
-### Unlink GitHub App
+### Link or Unlink a GitHub App Installation
 
-To disconnect the GitHub App installation from an integration:
+If no installation is linked yet, click **Install the GitHub App** in the GitHub app. Webhook events, org sync, and installations appear once an installation is linked.
 
-1. Click the **unlink** button.
+To disconnect an installation from the integration:
+
+1. Click the **unlink** button next to the installation.
 2. Confirm in the dialog.
 
 This removes the link in GitGazer but does **not** uninstall the GitHub App from your GitHub account.
+
+_Requires **admin** role or higher._
+
+### Remove the GitHub App
+
+Click **Remove GitHub app** at the bottom of the GitHub app and confirm. GitGazer stops receiving new data for the integration and the webhook URL and secret stop working. Everything already collected — workflow runs, jobs, pull requests, and members — is kept. Installing the app again creates a new secret.
+
+_Requires **admin** role or higher._
+
+## Webhook App Settings
+
+The **Webhook** app holds **handles**. A handle is a name plus a Slack incoming webhook URL (starting with `https://hooks.slack.com/`). [Notification rules](notifications) send alerts to handles, so you paste each URL once and reuse it in many rules.
+
+### Add a Handle
+
+1. Open the **Webhook** app on the **Apps** tab. If it isn't installed yet, install it from the catalog.
+2. Click **Add handle**.
+3. Enter a **Name** (e.g., `#ci-alerts`) and the **Slack webhook URL**.
+4. Save.
+
+An app holds up to 20 handles. To get a Slack webhook URL, see [Setting Up a Slack Webhook](notifications#setting-up-a-slack-webhook).
+
+### Edit or Delete a Handle
+
+Use the actions menu on a handle to change its name or URL, or to delete it. If rules use the handle, the dialog warns you before deleting. Those rules keep existing but show **No destination** and send nothing until you pick another handle.
+
+_Adding, editing, and deleting handles requires **admin** role or higher. Other members see only the handle names._
+
+## Integration Settings
+
+Open the **Settings** tab of an integration to manage the integration itself.
+
+### Rename an Integration
+
+Edit the label and save.
+
+_Requires **admin** role or higher._
+
+### Delete an Integration
+
+1. Click **delete** in the **Settings** tab.
+2. Type the exact integration label to confirm.
+3. Click **Delete Integration**.
+
+_Requires **owner** role. This action is permanent and removes all associated data._
+
+### Leave an Integration
+
+If you no longer need access, click **Leave** in the **Settings** tab. You'll need an admin to re-invite you if you want access again.
+
+_Available to all members except the owner._
 
 ## What's Next
 

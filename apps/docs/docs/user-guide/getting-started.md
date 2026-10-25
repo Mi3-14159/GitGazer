@@ -29,14 +29,14 @@ Follow the [Setting Up Integrations](integrations) guide to get started.
 
 GitGazer uses a top navigation bar with these main sections:
 
-| Tab               | What It Does                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-| **Overview**      | At-a-glance health dashboard — total runs, success rates, failures, and recent activity          |
-| **Workflows**     | Real-time table of all workflow runs with filtering, live updates, and job details               |
-| **Integrations**  | Manage your connections to GitHub — create integrations, link the GitHub App, configure webhooks |
-| **Notifications** | Set up Slack alerts for workflow failures based on repository, branch, or workflow filters       |
-| **Dashboards**    | Analytics views with CI/CD metrics (DORA/SPACE style)                                            |
-| **Event Log**     | Chronological record of all events across your integrations                                      |
+| Tab               | What It Does                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| **Overview**      | At-a-glance health dashboard — total runs, success rates, failures, and recent activity    |
+| **Workflows**     | Real-time table of all workflow runs with filtering, live updates, and job details         |
+| **Integrations**  | Create integrations and manage their apps, members, and settings                           |
+| **Notifications** | Set up Slack alerts for workflow failures based on repository, branch, or workflow filters |
+| **Dashboards**    | Analytics views with CI/CD metrics (DORA/SPACE style)                                      |
+| **Event Log**     | Chronological record of all events across your integrations                                |
 
 ### Header Actions
 

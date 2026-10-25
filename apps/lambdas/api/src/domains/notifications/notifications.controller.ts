@@ -80,7 +80,6 @@ export const upsertNotificationRule = async (params: {
                     integrationId: params.integrationId,
                     id: params.ruleId,
                     label: params.rule.label,
-                    channels: [],
                     enabled: params.rule.enabled,
                     ignore_dependabot: params.rule.ignore_dependabot,
                     ...includeLogDetails,
@@ -90,7 +89,6 @@ export const upsertNotificationRule = async (params: {
                     target: [notificationRules.integrationId, notificationRules.id],
                     set: {
                         label: params.rule.label,
-                        channels: [],
                         enabled: params.rule.enabled,
                         ignore_dependabot: params.rule.ignore_dependabot,
                         ...includeLogDetails,
