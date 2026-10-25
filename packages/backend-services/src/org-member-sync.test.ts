@@ -57,11 +57,14 @@ vi.mock('./org-member-resolver', () => ({
 }));
 
 // Helper: chainable select mock supporting .from().where() and .from().innerJoin().where()
+const innerJoinTargets: unknown[] = [];
+
 const buildSelectChain = (result: any) => ({
     from: () => ({
-        innerJoin: () => ({
-            where: () => Promise.resolve(result),
-        }),
+        innerJoin: (target: unknown) => {
+            innerJoinTargets.push(target);
+            return {where: () => Promise.resolve(result)};
+        },
         where: () => Promise.resolve(result),
     }),
 });
@@ -83,6 +86,7 @@ let syncModule: typeof import('./org-member-sync');
 describe('org-member-sync', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
+        innerJoinTargets.length = 0;
         mockResolveAndAssignOrgMembers.mockResolvedValue({matched: 0, unmatched: 0});
         syncModule = await import('./org-member-sync');
     });
@@ -126,6 +130,9 @@ describe('org-member-sync', () => {
             });
 
             await syncModule.syncOrgMembers(42, 'test-org');
+
+            const {integrationAppGithubSettings} = await import('@gitgazer/db/schema/gitgazer');
+            expect(innerJoinTargets[0]).toBe(integrationAppGithubSettings);
 
             // resolveAndAssignOrgMembers was called for auto-add
             expect(mockResolveAndAssignOrgMembers).toHaveBeenCalledWith(
@@ -172,6 +179,9 @@ describe('org-member-sync', () => {
             mockDb.select.mockImplementation(() => buildSelectChain([]));
 
             await syncModule.syncOrgMembers(42, 'test-org');
+
+            const {integrationAppGithubSettings} = await import('@gitgazer/db/schema/gitgazer');
+            expect(innerJoinTargets).toEqual([integrationAppGithubSettings]);
 
             expect(mockResolveAndAssignOrgMembers).not.toHaveBeenCalled();
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
