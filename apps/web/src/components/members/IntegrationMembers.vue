@@ -59,7 +59,7 @@
                 role: m.role as UserRole,
                 status: 'active' as const,
                 joinedAt: String(m.createdAt),
-                lastActiveAt: undefined,
+                lastActiveAt: m.user.lastActiveAt ? String(m.user.lastActiveAt) : undefined,
                 integrationIds: [],
             }));
 
