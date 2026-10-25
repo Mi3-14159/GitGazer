@@ -23,6 +23,7 @@ export const users = gitgazerSchema.table('users', {
     picture: text('picture'),
     githubId: bigint('github_id', {mode: 'number'}).unique(),
     githubLogin: varchar('github_login', {length: 255}),
+    lastActiveAt: timestamp('last_active_at', {withTimezone: true}),
 });
 
 // Per-user MCP query-time budget in a rolling window anchored at the user's first request (lasts

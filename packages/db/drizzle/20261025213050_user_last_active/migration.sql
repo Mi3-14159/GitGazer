@@ -1,0 +1,1 @@
+ALTER TABLE "gitgazer"."users" ADD COLUMN "last_active_at" timestamp with time zone;

@@ -11,7 +11,7 @@ import {users} from '@gitgazer/db/schema/gitgazer';
 import {pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
 import {APIGatewayProxyEventV2} from 'aws-lambda';
-import {eq} from 'drizzle-orm';
+import {eq, sql} from 'drizzle-orm';
 
 export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
     const logger = getLogger();
@@ -97,6 +97,7 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
                 picture,
                 githubId,
                 githubLogin,
+                lastActiveAt: sql`now()`,
             })
             .onConflictDoUpdate({
                 target: users.cognitoId,
@@ -106,6 +107,7 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
                     picture,
                     githubId,
                     githubLogin,
+                    lastActiveAt: sql`now()`,
                 },
             })
             .returning({id: users.id});
