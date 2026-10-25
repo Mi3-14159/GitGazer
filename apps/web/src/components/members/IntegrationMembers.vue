@@ -190,19 +190,6 @@
 
 <template>
     <div class="space-y-4">
-        <div
-            v-if="canManageMembers"
-            class="flex justify-end"
-        >
-            <Button
-                size="sm"
-                @click="showInviteDialog = true"
-            >
-                <UserPlus class="h-4 w-4" />
-                Invite Member
-            </Button>
-        </div>
-
         <!-- Error Banner -->
         <div
             v-if="error"
@@ -242,6 +229,15 @@
                         class="pl-9"
                     />
                 </div>
+                <Button
+                    v-if="canManageMembers"
+                    size="sm"
+                    class="w-full shrink-0 sm:w-auto"
+                    @click="showInviteDialog = true"
+                >
+                    <UserPlus class="h-4 w-4" />
+                    Invite Member
+                </Button>
             </div>
 
             <!-- Members -->

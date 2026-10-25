@@ -102,7 +102,7 @@
         />
 
         <template v-else>
-            <header class="space-y-2">
+            <header>
                 <nav aria-label="Breadcrumb">
                     <ol class="flex items-center gap-1 text-sm text-muted-foreground">
                         <li>
