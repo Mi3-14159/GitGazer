@@ -58,7 +58,7 @@ const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecr
             ),
         )
         .where(eq(notificationHandles.integrationId, integrationId))
-        .orderBy(notificationHandles.createdAt);
+        .orderBy(notificationHandles.createdAt, notificationHandles.name, notificationHandles.handleId);
 
     const counts = await tx
         .select({handleId: notificationRuleDestinations.handleId, ruleCount: count()})
@@ -142,14 +142,18 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
         throw new NotFoundError('App not found');
     }
 
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: 'success',
-        title: 'App installed',
-        message: `The ${type} app was installed`,
-        metadata: {integrationId},
-    });
+    try {
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'success',
+            title: 'App installed',
+            message: `The ${type} app was installed`,
+            metadata: {integrationId},
+        });
+    } catch (error) {
+        getLogger().error('Failed to create event log entry for app install', {error, integrationId, appType: type});
+    }
 
     return app;
 };
@@ -187,14 +191,18 @@ export const uninstallApp = async (params: Scope & {appId: string}): Promise<voi
 
     getLogger().info('App uninstalled', {integrationId, appId, appType: app.type});
 
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: 'info',
-        title: 'App removed',
-        message: `The ${app.type} app was removed`,
-        metadata: {integrationId},
-    });
+    try {
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'info',
+            title: 'App removed',
+            message: `The ${app.type} app was removed`,
+            metadata: {integrationId},
+        });
+    } catch (error) {
+        getLogger().error('Failed to create event log entry for app removal', {error, integrationId, appId, appType: app.type});
+    }
 };
 
 const loadHandle = async (tx: RdsTransaction, integrationId: string, handleId: string): Promise<NotificationHandle> => {

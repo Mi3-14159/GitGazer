@@ -8,6 +8,7 @@ import {ConflictError} from '@/shared/errors';
 const selectQueue: unknown[][] = [];
 const deletedTables: unknown[] = [];
 const insertedValues: {table: unknown; values: unknown}[] = [];
+const orderByArgs: unknown[][] = [];
 
 const chain = (result: unknown[]) => {
     const c: any = {
@@ -16,7 +17,10 @@ const chain = (result: unknown[]) => {
         leftJoin: () => c,
         where: () => c,
         groupBy: () => c,
-        orderBy: () => c,
+        orderBy: (...args: unknown[]) => {
+            orderByArgs.push(args);
+            return c;
+        },
         for: () => c,
         then: (resolve: (v: unknown[]) => unknown, reject: (e: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
     };
@@ -76,6 +80,7 @@ describe('apps controller', () => {
         selectQueue.length = 0;
         deletedTables.length = 0;
         insertedValues.length = 0;
+        orderByArgs.length = 0;
         mockWithRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
         mockGetGithubSettings.mockResolvedValue({appId: 'app-g', secret: SECRET, orgSyncDefaultRole: 'member'});
         mockCreateEventLogEntry.mockResolvedValue({});
@@ -120,12 +125,40 @@ describe('apps controller', () => {
         });
     });
 
+    describe('handle ordering', () => {
+        it('orders handles by created_at, then name, then id so migrated handles list stably', async () => {
+            queueListData();
+
+            await controller.listApps({...base, canSeeSecrets: false});
+
+            expect(orderByArgs[1]).toEqual([notificationHandles.createdAt, notificationHandles.name, notificationHandles.handleId]);
+        });
+    });
+
     describe('installApp', () => {
         it('installApp rejects a second app of the same type', async () => {
             selectQueue.push([{appId: 'app-g'}]);
 
             await expect(controller.installApp({...base, type: 'github'})).rejects.toBeInstanceOf(ConflictError);
             expect(mockInstallGithubApp).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('event log failures', () => {
+        it('installApp still succeeds when the event log write fails', async () => {
+            selectQueue.push([]);
+            selectQueue.push([{appId: 'app-w', type: 'webhook', createdAt: CREATED}], [], []);
+            mockCreateEventLogEntry.mockRejectedValue(new Error('db down'));
+
+            await expect(controller.installApp({...base, type: 'webhook'})).resolves.toMatchObject({type: 'webhook'});
+        });
+
+        it('uninstallApp still succeeds when the event log write fails', async () => {
+            selectQueue.push([{appId: 'app-w', type: 'webhook'}]);
+            mockCreateEventLogEntry.mockRejectedValue(new Error('db down'));
+
+            await expect(controller.uninstallApp({...base, appId: 'app-w'})).resolves.toBeUndefined();
+            expect(deletedTables).toEqual([integrationApps]);
         });
     });
 
