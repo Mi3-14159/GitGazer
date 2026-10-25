@@ -2,9 +2,19 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
 
+const mockTransaction = vi.fn();
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: (...args: any[]) => mockWithRlsTransaction(...args),
-    db: {transaction: vi.fn()},
+    db: {transaction: (...args: any[]) => mockTransaction(...args)},
+}));
+
+vi.mock('@gitgazer/db/schema/gitgazer', () => ({
+    integrationAppGithubSettings: {
+        integrationId: Symbol('integrationAppGithubSettings.integrationId'),
+        appId: Symbol('integrationAppGithubSettings.appId'),
+        secret: Symbol('integrationAppGithubSettings.secret'),
+    },
+    integrationApps: Symbol('integrationApps'),
 }));
 
 vi.mock('@gitgazer/db/queries', () => ({
@@ -96,7 +106,73 @@ describe('integrations controller', () => {
                     defaultRole: 'viewer',
                     integrationIds: ['nonexistent'],
                 }),
-            ).rejects.toThrow('Integration not found or access denied');
+            ).rejects.toThrow('GitHub app not installed');
+        });
+    });
+
+    describe('createIntegration', () => {
+        it('creates a GitHub app with the integration', async () => {
+            const inserts: {table: unknown; values: any}[] = [];
+            const tx = {
+                insert: (table: unknown) => ({
+                    values: (values: any) => {
+                        inserts.push({table, values});
+                        return {returning: () => Promise.resolve([{integrationId: 'int-1', appId: 'app-1'}])};
+                    },
+                }),
+            };
+            mockTransaction.mockImplementation(async (callback: Function) => callback(tx));
+            mockWithRlsTransaction.mockResolvedValue([{integrationId: 'int-1'}]);
+            const schema = await import('@gitgazer/db/schema/gitgazer');
+
+            await controller.upsertIntegration({label: 'My integration', userId: 7, integrationIds: []});
+
+            const appInsert = inserts.find((i) => i.table === schema.integrationApps);
+            expect(appInsert?.values).toEqual({integrationId: 'int-1', type: 'github'});
+            const settingsInsert = inserts.find((i) => i.table === schema.integrationAppGithubSettings);
+            expect(settingsInsert?.values).toEqual({integrationId: 'int-1', appId: 'app-1'});
+        });
+    });
+
+    describe('rotateSecret', () => {
+        const settingsUpdateTx = (rows: unknown[], onSet?: (values: unknown) => void) => ({
+            update: () => ({
+                set: (values: unknown) => {
+                    onSet?.(values);
+                    return {where: () => ({returning: () => Promise.resolve(rows)})};
+                },
+            }),
+        });
+
+        it('rotates the secret on the GitHub app settings', async () => {
+            let updateTarget: unknown;
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                if (params.userName) {
+                    return params.callback({
+                        update: (table: unknown) => {
+                            updateTarget = table;
+                            return settingsUpdateTx([{secret: 'new-secret'}]).update();
+                        },
+                    });
+                }
+                return params.callback({
+                    select: () => ({from: () => ({where: () => ({groupBy: () => Promise.resolve([{installationId: 5}])})})}),
+                    query: {integrations: {findMany: () => Promise.resolve([{integrationId: 'int-1'}])}},
+                });
+            });
+            const webhooks = await import('@/domains/github-app/webhook-provisioning');
+            const schema = await import('@gitgazer/db/schema/gitgazer');
+
+            await controller.rotateSecret({integrationId: 'int-1', integrationIds: ['int-1']});
+
+            expect(updateTarget).toBe(schema.integrationAppGithubSettings);
+            expect(webhooks.updateAllWebhookSecrets).toHaveBeenCalledWith('int-1', 5, 'new-secret');
+        });
+
+        it('rotateSecret throws NotFound without a GitHub app', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(settingsUpdateTx([])));
+
+            await expect(controller.rotateSecret({integrationId: 'int-1', integrationIds: ['int-1']})).rejects.toThrow('GitHub app not installed');
         });
     });
 });

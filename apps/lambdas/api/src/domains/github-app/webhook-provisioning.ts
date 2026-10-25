@@ -15,8 +15,9 @@ import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {githubAppInstallations, githubAppWebhooks, integrations} from '@gitgazer/db/schema/github/workflows';
+import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
 import {and, eq} from 'drizzle-orm';
+import {getGithubSettings} from '@/domains/apps/github-settings';
 
 const getWebhookUrl = (integrationId: string): string => {
     const importUrlBase = config.get('importUrlBase');
@@ -26,21 +27,23 @@ const getWebhookUrl = (integrationId: string): string => {
     return `${importUrlBase}/${integrationId}`;
 };
 
+const loadGithubSettings = async (integrationId: string) => {
+    const settings = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) => await getGithubSettings(tx, integrationId),
+    });
+
+    if (!settings) {
+        throw new Error(`Integration ${integrationId} has no GitHub app`);
+    }
+    return settings;
+};
+
 export const provisionWebhooks = async (integrationId: string, installationId: number): Promise<number> => {
     const logger = getLogger();
     logger.info(`Provisioning webhooks for integration ${integrationId}, installation ${installationId}`);
 
-    // Get integration secret
-    const [integration] = await withRlsTransaction({
-        integrationIds: [integrationId],
-        callback: async (tx: RdsTransaction) => {
-            return await tx.select().from(integrations).where(eq(integrations.integrationId, integrationId));
-        },
-    });
-
-    if (!integration) {
-        throw new Error(`Integration ${integrationId} not found`);
-    }
+    const settings = await loadGithubSettings(integrationId);
 
     // Get installation config
     const [installation] = await db.select().from(githubAppInstallations).where(eq(githubAppInstallations.installationId, installationId));
@@ -59,7 +62,7 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
     // still provisioned when the org currently has zero repositories.
     if (installation.repositorySelection === 'all' && installation.accountType === 'Organization') {
         try {
-            const webhookId = await createOrgWebhook(octokit, installation.accountLogin, webhookUrl, integration.secret, events);
+            const webhookId = await createOrgWebhook(octokit, installation.accountLogin, webhookUrl, settings.secret, events);
             await db.insert(githubAppWebhooks).values({
                 integrationId,
                 installationId,
@@ -79,7 +82,7 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
 
     // Per-repo webhooks: selected-repository installs, user accounts, or org webhook fallback.
     const repos = await listInstallationRepos(installationId);
-    const webhookCount = await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, integration.secret, events);
+    const webhookCount = await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings.secret, events);
 
     logger.info(`Provisioned ${webhookCount} webhooks for integration ${integrationId}`);
     return webhookCount;
@@ -125,16 +128,7 @@ export const provisionWebhooksForRepos = async (integrationId: string, installat
     const logger = getLogger();
     logger.info(`Provisioning webhooks for ${repos.length} new repos on integration ${integrationId}`);
 
-    const [integration] = await withRlsTransaction({
-        integrationIds: [integrationId],
-        callback: async (tx: RdsTransaction) => {
-            return await tx.select().from(integrations).where(eq(integrations.integrationId, integrationId));
-        },
-    });
-
-    if (!integration) {
-        throw new Error(`Integration ${integrationId} not found`);
-    }
+    const settings = await loadGithubSettings(integrationId);
 
     const [installation] = await db.select().from(githubAppInstallations).where(eq(githubAppInstallations.installationId, installationId));
 
@@ -168,7 +162,7 @@ export const provisionWebhooksForRepos = async (integrationId: string, installat
     const webhookUrl = getWebhookUrl(integrationId);
     const octokit = getInstallationOctokit(installationId);
 
-    return await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, integration.secret, installation.webhookEvents);
+    return await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings.secret, installation.webhookEvents);
 };
 
 export const deprovisionAllWebhooks = async (integrationId: string, installationId: number): Promise<void> => {

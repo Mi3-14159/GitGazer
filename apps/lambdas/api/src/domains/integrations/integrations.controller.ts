@@ -1,11 +1,13 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {deprovisionAllWebhooks, updateAllWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
+import {installGithubApp} from '@/domains/apps/github-settings';
 import {ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
+import {integrationAppGithubSettings} from '@gitgazer/db/schema/gitgazer';
 import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {Integration, isMemberRole, type MemberRole, type OrgSyncDefaultRole} from '@gitgazer/db/types';
 import {and, eq, sql} from 'drizzle-orm';
@@ -105,6 +107,8 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
                 role: 'owner',
             });
 
+            await installGithubApp(tx, integration.integrationId);
+
             return integration;
         });
 
@@ -203,21 +207,20 @@ export const rotateSecret = async (params: {integrationId: string; integrationId
 
     logger.info(`Rotating secret for integration ${integrationId}`);
 
-    // Generate a new secret and update the integration
     const results = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
             return await tx
-                .update(integrations)
+                .update(integrationAppGithubSettings)
                 .set({secret: sql`gen_random_uuid()`})
-                .where(eq(integrations.integrationId, integrationId))
-                .returning();
+                .where(eq(integrationAppGithubSettings.integrationId, integrationId))
+                .returning({secret: integrationAppGithubSettings.secret});
         },
     });
 
     if (results.length === 0) {
-        throw new UnauthorizedError('Integration not found or access denied');
+        throw new NotFoundError('GitHub app not installed');
     }
 
     await createEventLogEntry({
@@ -292,15 +295,15 @@ export const updateOrgSyncSettings = async (params: {
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
             return await tx
-                .update(integrations)
+                .update(integrationAppGithubSettings)
                 .set({orgSyncDefaultRole: defaultRole})
-                .where(eq(integrations.integrationId, integrationId))
-                .returning();
+                .where(eq(integrationAppGithubSettings.integrationId, integrationId))
+                .returning({appId: integrationAppGithubSettings.appId});
         },
     });
 
     if (results.length === 0) {
-        throw new UnauthorizedError('Integration not found or access denied');
+        throw new NotFoundError('GitHub app not installed');
     }
 
     await createEventLogEntry({

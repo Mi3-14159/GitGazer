@@ -7,6 +7,7 @@ import {
     updateOrgSyncSettings,
     upsertIntegration,
 } from '@/domains/integrations/integrations.controller';
+import {getGithubSettings} from '@/domains/apps/github-settings';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -14,7 +15,7 @@ import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
-import {githubAppInstallations, integrations as integrationsTable} from '@gitgazer/db/schema/github/workflows';
+import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq, isNull} from 'drizzle-orm';
 
@@ -202,18 +203,16 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
     let orgSyncResult = {matched: 0, unmatched: 0};
     if (installation.accountType === 'Organization') {
         try {
-            const [integration] = await db
-                .select({orgSyncDefaultRole: integrationsTable.orgSyncDefaultRole})
-                .from(integrationsTable)
-                .where(eq(integrationsTable.integrationId, integrationId));
+            const settings = await getGithubSettings(db, integrationId);
 
-            const defaultRole = integration?.orgSyncDefaultRole ?? 'viewer';
-            orgSyncResult = await resolveAndAssignOrgMembers({
-                integrationId,
-                installationId,
-                role: defaultRole,
-                accountLogin: installation.accountLogin,
-            });
+            if (settings) {
+                orgSyncResult = await resolveAndAssignOrgMembers({
+                    integrationId,
+                    installationId,
+                    role: settings.orgSyncDefaultRole,
+                    accountLogin: installation.accountLogin,
+                });
+            }
         } catch (error) {
             logger.error('Failed to auto-add org members', {error, integrationId, installationId});
         }
