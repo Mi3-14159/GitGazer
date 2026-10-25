@@ -23,13 +23,16 @@
         :class="
             cn(
                 'flex h-full w-full flex-col gap-3 rounded-xl border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                selected && 'border-foreground/40 bg-accent/40',
+                selected && ['bg-accent/40', info.tone.border],
             )
         "
         @click="emit('select')"
     >
         <span class="flex items-center gap-3">
-            <AppIcon :icon="info.icon" />
+            <AppIcon
+                :icon="info.icon"
+                :tone="info.tone.chip"
+            />
             <span class="min-w-0">
                 <span class="block font-semibold">{{ info.name }}</span>
                 <span class="block text-sm text-muted-foreground">{{ info.description }}</span>

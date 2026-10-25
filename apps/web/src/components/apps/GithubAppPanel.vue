@@ -115,7 +115,10 @@
         aria-labelledby="github-app-heading"
     >
         <div class="flex items-center gap-3">
-            <AppIcon :icon="APP_INFO.github.icon" />
+            <AppIcon
+                :icon="APP_INFO.github.icon"
+                :tone="APP_INFO.github.tone.chip"
+            />
             <div class="min-w-0">
                 <h2
                     id="github-app-heading"

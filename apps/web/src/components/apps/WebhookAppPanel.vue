@@ -97,7 +97,10 @@
         aria-labelledby="webhook-app-heading"
     >
         <div class="flex flex-wrap items-center gap-3">
-            <AppIcon :icon="APP_INFO.webhook.icon" />
+            <AppIcon
+                :icon="APP_INFO.webhook.icon"
+                :tone="APP_INFO.webhook.tone.chip"
+            />
             <div class="min-w-0 flex-1">
                 <h2
                     id="webhook-app-heading"
