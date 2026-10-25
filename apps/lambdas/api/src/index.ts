@@ -1,6 +1,7 @@
 import '@gitgazer/backend-core/bootstrap';
 import {loadConfig} from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {redactHandleRouteBody} from '@/shared/redact-handle-event';
 import {createApp} from '@/shared/router';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {initDb} from '@gitgazer/db/client';
@@ -29,7 +30,7 @@ export const handler = async (event: APIGatewayProxyEventV2, context: Context): 
 
     logger.resetKeys();
     logger.addContext(context);
-    logger.logEventIfEnabled(event);
+    logger.logEventIfEnabled(redactHandleRouteBody(event));
 
     const result = await app.resolve(event, context);
 
