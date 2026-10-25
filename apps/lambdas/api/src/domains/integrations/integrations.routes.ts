@@ -161,25 +161,29 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         throw new BadRequestError('Installation is already linked to an integration');
     }
 
-    const githubSettings = await getGithubSettings(db, integrationId);
-    if (!githubSettings) {
-        throw new ConflictError('Install the GitHub app first');
-    }
+    // Not withRlsTransaction: the writer's tenant policy hides the still-unlinked installation row.
+    // The FOR SHARE lock makes a concurrent GitHub app removal wait for this link, so its re-check sees it.
+    const githubSettings = await db.transaction(async (tx) => {
+        const settings = await getGithubSettings(tx, integrationId, 'share');
+        if (!settings) {
+            throw new ConflictError('Install the GitHub app first');
+        }
 
-    // Link installation to integration — atomic guard against a concurrent link.
-    // The UPDATE only matches while integration_id IS NULL; if a racing request
-    // linked it first, 0 rows are returned and we reject instead of overwriting.
-    // Events are (re)set here so installations created before a new event type was
-    // supported still subscribe to everything on link.
-    const linked = await db
-        .update(githubAppInstallations)
-        .set({integrationId, webhookEvents: [...GITHUB_APP_WEBHOOK_EVENTS], updatedAt: new Date()})
-        .where(and(eq(githubAppInstallations.installationId, installationId), isNull(githubAppInstallations.integrationId)))
-        .returning({installationId: githubAppInstallations.installationId});
+        // The UPDATE only matches while integration_id IS NULL; if a racing request
+        // linked it first, 0 rows are returned and we reject instead of overwriting.
+        // Events are (re)set here so installations created before a new event type was
+        // supported still subscribe to everything on link.
+        const linked = await tx
+            .update(githubAppInstallations)
+            .set({integrationId, webhookEvents: [...GITHUB_APP_WEBHOOK_EVENTS], updatedAt: new Date()})
+            .where(and(eq(githubAppInstallations.installationId, installationId), isNull(githubAppInstallations.integrationId)))
+            .returning({installationId: githubAppInstallations.installationId});
 
-    if (linked.length === 0) {
-        throw new BadRequestError('Installation is already linked to an integration');
-    }
+        if (linked.length === 0) {
+            throw new BadRequestError('Installation is already linked to an integration');
+        }
+        return settings;
+    });
 
     // Provision webhooks
     let webhookCount = 0;

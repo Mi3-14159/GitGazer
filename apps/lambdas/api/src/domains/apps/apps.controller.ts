@@ -159,6 +159,52 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
     return app;
 };
 
+const MAX_DELETE_ATTEMPTS = 3;
+
+const findLinkedInstallations = async (tx: RdsTransaction, integrationId: string) =>
+    await tx
+        .select({installationId: githubAppInstallations.installationId})
+        .from(githubAppInstallations)
+        .where(eq(githubAppInstallations.integrationId, integrationId));
+
+// Collected github.* data and org-synced members stay; only the installations are detached
+const unlinkAll = async (integrationId: string, installations: {installationId: number}[]) => {
+    for (const {installationId} of installations) {
+        await unlinkInstallation(integrationId, installationId);
+    }
+};
+
+// Unlinking calls GitHub, so it runs outside any transaction; a link can land meanwhile and is caught by the re-check.
+const deleteAppRow = async (params: Scope & {appId: string; type: IntegrationAppType}): Promise<void> => {
+    const {integrationId, integrationIds, appId, type} = params;
+
+    for (let attempt = 1; attempt <= MAX_DELETE_ATTEMPTS; attempt++) {
+        const lateLinks = await withRlsTransaction({
+            integrationIds,
+            userName: gitgazerWriter.name,
+            callback: async (tx: RdsTransaction) => {
+                if (type === 'github') {
+                    // Waits for in-flight links (they hold FOR SHARE) and blocks new ones until this transaction ends
+                    await getGithubSettings(tx, integrationId, 'update');
+                    const linked = await findLinkedInstallations(tx, integrationId);
+                    if (linked.length > 0) return linked;
+                }
+                await tx.delete(integrationApps).where(and(eq(integrationApps.integrationId, integrationId), eq(integrationApps.appId, appId)));
+                return [];
+            },
+        });
+        if (lateLinks.length === 0) return;
+
+        const installationIds = lateLinks.map((i) => i.installationId);
+        if (attempt === MAX_DELETE_ATTEMPTS) {
+            getLogger().error('Gave up removing app: installations kept being linked', {integrationId, appId, attempt, installationIds});
+            throw new ConflictError('Installations are still being linked to this integration. Try removing the GitHub app again.');
+        }
+        getLogger().warn('Installations were linked during app removal, unlinking them', {integrationId, appId, attempt, installationIds});
+        await unlinkAll(integrationId, lateLinks);
+    }
+};
+
 export const uninstallApp = async (params: Scope & {appId: string}): Promise<void> => {
     const {integrationId, integrationIds, appId} = params;
 
@@ -166,29 +212,13 @@ export const uninstallApp = async (params: Scope & {appId: string}): Promise<voi
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             const found = await findApp(tx, integrationId, appId);
-            const linked =
-                found.type === 'github'
-                    ? await tx
-                          .select({installationId: githubAppInstallations.installationId})
-                          .from(githubAppInstallations)
-                          .where(eq(githubAppInstallations.integrationId, integrationId))
-                    : [];
+            const linked = found.type === 'github' ? await findLinkedInstallations(tx, integrationId) : [];
             return {app: found, installations: linked};
         },
     });
 
-    // Collected github.* data and org-synced members stay; only the installations are detached
-    for (const {installationId} of installations) {
-        await unlinkInstallation(integrationId, installationId);
-    }
-
-    await withRlsTransaction({
-        integrationIds,
-        userName: gitgazerWriter.name,
-        callback: async (tx: RdsTransaction) => {
-            await tx.delete(integrationApps).where(and(eq(integrationApps.integrationId, integrationId), eq(integrationApps.appId, appId)));
-        },
-    });
+    await unlinkAll(integrationId, installations);
+    await deleteAppRow({integrationId, integrationIds, appId, type: app.type});
 
     getLogger().info('App uninstalled', {integrationId, appId, appType: app.type});
 

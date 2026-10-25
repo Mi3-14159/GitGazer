@@ -5,8 +5,12 @@ import {and, eq} from 'drizzle-orm';
 
 export type GithubSettings = {appId: string; secret: string; orgSyncDefaultRole: OrgSyncDefaultRole};
 
-export const getGithubSettings = async (tx: RdsTransaction | typeof db, integrationId: string): Promise<GithubSettings | undefined> => {
-    const [settings] = await tx
+export const getGithubSettings = async (
+    tx: RdsTransaction | typeof db,
+    integrationId: string,
+    lock?: 'share' | 'update',
+): Promise<GithubSettings | undefined> => {
+    const query = tx
         .select({
             appId: integrationAppGithubSettings.appId,
             secret: integrationAppGithubSettings.secret,
@@ -21,6 +25,7 @@ export const getGithubSettings = async (tx: RdsTransaction | typeof db, integrat
             ),
         )
         .where(and(eq(integrationApps.integrationId, integrationId), eq(integrationApps.type, 'github')));
+    const [settings] = lock ? await query.for(lock, {of: integrationAppGithubSettings}) : await query;
 
     return settings;
 };

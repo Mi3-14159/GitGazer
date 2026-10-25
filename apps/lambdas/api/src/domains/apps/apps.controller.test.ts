@@ -183,6 +183,35 @@ describe('apps controller', () => {
             expect(deletedTables).not.toContain(githubAppInstallations);
             expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({integrationId: 'int-1', category: 'integration'}));
         });
+
+        it('uninstallApp(github) re-checks under a settings lock and unlinks an installation linked after the snapshot', async () => {
+            selectQueue.push([{appId: 'app-g', type: 'github'}], [{installationId: 1}], [{installationId: 3}], []);
+
+            await controller.uninstallApp({...base, appId: 'app-g'});
+
+            expect(mockUnlinkInstallation.mock.calls).toEqual([
+                ['int-1', 1],
+                ['int-1', 3],
+            ]);
+            expect(mockGetGithubSettings).toHaveBeenCalledTimes(2);
+            expect(mockGetGithubSettings).toHaveBeenCalledWith(mockTx, 'int-1', 'update');
+            expect(deletedTables).toEqual([integrationApps]);
+        });
+
+        it('uninstallApp(github) fails instead of deleting while installations keep being linked', async () => {
+            selectQueue.push(
+                [{appId: 'app-g', type: 'github'}],
+                [{installationId: 1}],
+                [{installationId: 2}],
+                [{installationId: 3}],
+                [{installationId: 4}],
+            );
+
+            await expect(controller.uninstallApp({...base, appId: 'app-g'})).rejects.toBeInstanceOf(ConflictError);
+            expect(deletedTables).toEqual([]);
+            expect(mockUnlinkInstallation.mock.calls.map(([, id]) => id)).toEqual([1, 2, 3]);
+            expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+        });
     });
 
     describe('createHandle', () => {

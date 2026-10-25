@@ -6,10 +6,13 @@ const mocks = vi.hoisted(() => {
     const select = vi.fn(() => ({from: () => ({where})}));
     const returning = vi.fn();
     const update = vi.fn(() => ({set: () => ({where: () => ({returning})})}));
-    return {where, select, update, returning, getGithubSettings: vi.fn(), provisionWebhooks: vi.fn()};
+    const txUpdate = vi.fn(() => ({set: () => ({where: () => ({returning})})}));
+    const tx = {update: txUpdate};
+    const transaction = vi.fn(async (callback: (t: typeof tx) => unknown) => callback(tx));
+    return {where, select, update, returning, tx, txUpdate, transaction, getGithubSettings: vi.fn(), provisionWebhooks: vi.fn()};
 });
 
-vi.mock('@gitgazer/db/client', () => ({db: {select: mocks.select, update: mocks.update}}));
+vi.mock('@gitgazer/db/client', () => ({db: {select: mocks.select, update: mocks.update, transaction: mocks.transaction}}));
 vi.mock('@/domains/apps/github-settings', () => ({getGithubSettings: mocks.getGithubSettings}));
 vi.mock('@/domains/github-app/webhook-provisioning', () => ({provisionWebhooks: mocks.provisionWebhooks, updateAllWebhookEvents: vi.fn()}));
 vi.mock('@/domains/github-app/unlink-installation', () => ({unlinkInstallation: vi.fn()}));
@@ -57,6 +60,22 @@ describe('POST /api/integrations/:integrationId/github-app', () => {
         expect(res.statusCode).toBe(409);
         expect(res.body).toContain('Install the GitHub app first');
         expect(mocks.update).not.toHaveBeenCalled();
+        expect(mocks.txUpdate).not.toHaveBeenCalled();
         expect(mocks.provisionWebhooks).not.toHaveBeenCalled();
+    });
+
+    it('reads the GitHub settings with a share lock in the transaction that links the installation', async () => {
+        mocks.getGithubSettings.mockResolvedValue({appId: 'app-g', secret: 's', orgSyncDefaultRole: 'viewer'});
+        mocks.returning.mockResolvedValue([{installationId: 42}]);
+        mocks.provisionWebhooks.mockResolvedValue(1);
+        const router = (await import('@/domains/integrations/integrations.routes')).default;
+
+        const res = await router.resolve(linkEvent(), {} as Context);
+
+        expect(res.statusCode).toBe(200);
+        expect(mocks.transaction).toHaveBeenCalledTimes(1);
+        expect(mocks.getGithubSettings).toHaveBeenCalledWith(mocks.tx, 'i1', 'share');
+        expect(mocks.txUpdate).toHaveBeenCalledTimes(1);
+        expect(mocks.update).not.toHaveBeenCalled();
     });
 });

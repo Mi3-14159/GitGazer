@@ -18,6 +18,17 @@ describe('github settings', () => {
         await expect(getGithubSettings(tx as any, 'int-1')).resolves.toBeUndefined();
     });
 
+    it('getGithubSettings locks only the settings row when asked to', async () => {
+        const {getGithubSettings} = await import('./github-settings');
+        const schema = await import('@gitgazer/db/schema/gitgazer');
+        const row = {appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'};
+        const lock = vi.fn(() => Promise.resolve([row]));
+        const tx = {select: () => ({from: () => ({innerJoin: () => ({where: () => ({for: lock})})})})};
+
+        await expect(getGithubSettings(tx as any, 'int-1', 'share')).resolves.toEqual(row);
+        expect(lock).toHaveBeenCalledWith('share', {of: schema.integrationAppGithubSettings});
+    });
+
     it('installGithubApp inserts the app and its settings', async () => {
         const {installGithubApp} = await import('./github-settings');
         const schema = await import('@gitgazer/db/schema/gitgazer');
