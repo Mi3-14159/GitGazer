@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import AppsTab from '@/components/apps/AppsTab.vue';
     import DeleteIntegrationDialog from '@/components/integrations/DeleteIntegrationDialog.vue';
     import IntegrationSettings from '@/components/integrations/IntegrationSettings.vue';
     import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
@@ -171,7 +172,10 @@
                     value="apps"
                     class="pt-2"
                 >
-                    <p class="text-sm text-muted-foreground">Installed apps appear here.</p>
+                    <AppsTab
+                        :integration="integration"
+                        @integration-changed="refreshIntegrations"
+                    />
                 </TabsContent>
                 <TabsContent
                     value="members"

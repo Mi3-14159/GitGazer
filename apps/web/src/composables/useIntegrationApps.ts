@@ -6,6 +6,13 @@ const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 const JSON_HEADERS = {'Content-Type': 'application/json'};
 
+// The API explains 400 and 409 responses (invalid URL, handle limit, app already installed) in `message`.
+async function failure(response: Response, fallback: string): Promise<Error> {
+    const body = await response.json().catch(() => null);
+    const message = body && typeof body.message === 'string' ? body.message : `${fallback}: ${response.status}`;
+    return new Error(message);
+}
+
 export const useIntegrationApps = () => {
     const {fetchWithAuth} = useAuth();
 
@@ -24,7 +31,7 @@ export const useIntegrationApps = () => {
             body: JSON.stringify({type}),
         });
         if (response.status !== 201) {
-            throw new Error(`Failed to install app: ${response.status}`);
+            throw await failure(response, 'Failed to install app');
         }
         return parseApiResponse<IntegrationApp>(response);
     };
@@ -32,7 +39,7 @@ export const useIntegrationApps = () => {
     const uninstallApp = async (integrationId: string, appId: string): Promise<void> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}`, {method: 'DELETE'});
         if (!response.ok) {
-            throw new Error(`Failed to uninstall app: ${response.status}`);
+            throw await failure(response, 'Failed to uninstall app');
         }
     };
 
@@ -43,7 +50,7 @@ export const useIntegrationApps = () => {
             body: JSON.stringify(input),
         });
         if (!response.ok) {
-            throw new Error(`Failed to create handle: ${response.status}`);
+            throw await failure(response, 'Failed to create handle');
         }
         return parseApiResponse<NotificationHandle>(response);
     };
@@ -55,7 +62,7 @@ export const useIntegrationApps = () => {
             body: JSON.stringify(input),
         });
         if (!response.ok) {
-            throw new Error(`Failed to update handle: ${response.status}`);
+            throw await failure(response, 'Failed to update handle');
         }
         return parseApiResponse<NotificationHandle>(response);
     };
@@ -63,7 +70,7 @@ export const useIntegrationApps = () => {
     const deleteHandle = async (integrationId: string, handleId: string): Promise<void> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/handles/${handleId}`, {method: 'DELETE'});
         if (!response.ok) {
-            throw new Error(`Failed to delete handle: ${response.status}`);
+            throw await failure(response, 'Failed to delete handle');
         }
     };
 

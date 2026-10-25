@@ -1,22 +1,19 @@
 <script setup lang="ts">
+    import {GITHUB_APP_INSTALL_URL} from '@/components/apps/appCatalog';
     import GitHubIcon from '@/components/icons/GitHubIcon.vue';
-    import DeleteIntegrationDialog from '@/components/integrations/DeleteIntegrationDialog.vue';
     import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
-    import IntegrationCard from '@/components/integrations/IntegrationCard.vue';
     import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
-    import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
-    import RotateSecretDialog from '@/components/integrations/RotateSecretDialog.vue';
-    import UnlinkInstallationDialog from '@/components/integrations/UnlinkInstallationDialog.vue';
     import PageHeader from '@/components/PageHeader.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
     import EmptyState from '@/components/ui/EmptyState.vue';
     import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
-    import {hasRole} from '@common/types';
-    import {ExternalLink, Plug, Plus} from '@lucide/vue';
+    import {formatDate, formatTimeSince} from '@/utils/formatDate';
+    import {hasRole, type IntegrationWithRole} from '@common/types';
+    import {ChevronRight, ExternalLink, Plug, Plus} from '@lucide/vue';
     import {onMounted} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
+    import {RouterLink, useRoute, useRouter} from 'vue-router';
 
     const route = useRoute();
     const router = useRouter();
@@ -27,34 +24,31 @@
         showDialog,
         openCreate,
         handleSave,
-        handleSaveLabel,
-        showDeleteConfirm,
-        deletingIntegration,
-        confirmDelete,
-        handleDelete,
-        showRotateConfirm,
-        isRotating,
-        confirmRotate,
-        handleRotateSecret,
-        showUnlinkConfirm,
-        isUnlinking,
-        confirmUnlink,
-        handleUnlink,
-        handleSaveEvents,
-        handleUpdateOrgSyncRole,
-        showLeaveConfirm,
-        leavingIntegration,
-        isLeaving,
-        confirmLeave,
-        handleLeave,
         showAppLinkDialog,
         callbackInstallationId,
         appLinkError,
         handleLinkToExisting,
         handleCreateAndLink,
-        getWebhookUrl,
         refreshIntegrations,
     } = useIntegrationCrud();
+
+    const ROLE_LABELS = {owner: 'Owner', admin: 'Admin', member: 'Member', viewer: 'Viewer'} as const;
+
+    function summary(integration: IntegrationWithRole): string {
+        const installations = integration.githubAppInstallations ?? [];
+        const parts = [
+            ROLE_LABELS[integration.role],
+            `${installations.length} GitHub App ${installations.length === 1 ? 'installation' : 'installations'}`,
+            `Created ${formatDate(integration.createdAt)}`,
+        ];
+        const lastUpdate = installations.reduce<Date | null>((latest, inst) => {
+            const updated = new Date(inst.updatedAt);
+            return !latest || updated > latest ? updated : latest;
+        }, null);
+        const activity = lastUpdate ? formatTimeSince(lastUpdate) : null;
+        if (activity) parts.push(`Updated ${activity}`);
+        return parts.join(' · ');
+    }
 
     onMounted(async () => {
         await refreshIntegrations();
@@ -75,10 +69,9 @@
         data-tour="integrations-content"
         class="space-y-4 p-4"
     >
-        <!-- Header -->
-        <PageHeader description="Manage webhook endpoints, secrets, and GitHub App installations">
+        <PageHeader description="Open an integration to manage its apps, members and settings">
             <a
-                href="https://github.com/apps/gitgazer-integration/installations/new"
+                :href="GITHUB_APP_INSTALL_URL"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-xs font-medium h-8 border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -96,16 +89,15 @@
             </Button>
         </PageHeader>
 
-        <!-- Loading -->
         <div
             v-if="isLoadingIntegrations"
             class="space-y-3"
+            aria-busy="true"
         >
-            <Skeleton class="h-40 w-full rounded-xl" />
-            <Skeleton class="h-40 w-full rounded-xl" />
+            <Skeleton class="h-16 w-full rounded-xl" />
+            <Skeleton class="h-16 w-full rounded-xl" />
         </div>
 
-        <!-- Empty -->
         <EmptyState
             v-else-if="integrations.length === 0"
             :icon="Plug"
@@ -114,27 +106,30 @@
             @action="openCreate"
         />
 
-        <!-- Integration cards -->
-        <div
+        <ul
             v-else
-            class="space-y-3"
+            class="divide-y overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
         >
-            <IntegrationCard
+            <li
                 v-for="integration in integrations"
                 :key="integration.integrationId"
-                :integration="integration"
-                :webhook-url="getWebhookUrl(integration.integrationId)"
-                @save-label="handleSaveLabel"
-                @delete="confirmDelete"
-                @leave="confirmLeave"
-                @rotate="confirmRotate"
-                @unlink="confirmUnlink"
-                @save-events="handleSaveEvents"
-                @update-org-sync-role="handleUpdateOrgSyncRole"
-            />
-        </div>
+            >
+                <RouterLink
+                    :to="{name: 'integration', params: {integrationId: integration.integrationId, tab: 'apps'}}"
+                    class="flex items-center gap-3 p-4 transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                >
+                    <div class="min-w-0 flex-1">
+                        <p class="break-words font-semibold">{{ integration.label }}</p>
+                        <p class="text-sm text-muted-foreground">{{ summary(integration) }}</p>
+                    </div>
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </RouterLink>
+            </li>
+        </ul>
 
-        <!-- Create/Edit Dialog -->
         <Dialog
             :open="showDialog"
             @update:open="showDialog = $event"
@@ -146,39 +141,6 @@
                 />
             </template>
         </Dialog>
-
-        <!-- Delete Confirmation -->
-        <DeleteIntegrationDialog
-            :open="showDeleteConfirm"
-            :integration="deletingIntegration"
-            @update:open="showDeleteConfirm = $event"
-            @confirm="handleDelete"
-        />
-
-        <!-- Leave Confirmation -->
-        <LeaveIntegrationDialog
-            :open="showLeaveConfirm"
-            :integration="leavingIntegration"
-            :is-leaving="isLeaving"
-            @update:open="showLeaveConfirm = $event"
-            @confirm="handleLeave"
-        />
-
-        <!-- Rotate Secret Confirmation -->
-        <RotateSecretDialog
-            :open="showRotateConfirm"
-            :is-rotating="isRotating"
-            @update:open="showRotateConfirm = $event"
-            @confirm="handleRotateSecret"
-        />
-
-        <!-- Unlink Confirmation -->
-        <UnlinkInstallationDialog
-            :open="showUnlinkConfirm"
-            :is-unlinking="isUnlinking"
-            @update:open="showUnlinkConfirm = $event"
-            @confirm="handleUnlink"
-        />
 
         <!-- GitHub App Link Dialog (callback flow) -->
         <GitHubAppLinkDialog

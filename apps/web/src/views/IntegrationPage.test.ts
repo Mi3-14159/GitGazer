@@ -43,7 +43,7 @@ async function mountAt(path: string) {
     await memoryRouter.push(path);
     const wrapper = mount(
         {template: '<RouterView />'},
-        {global: {plugins: [memoryRouter], stubs: {IntegrationMembers: {template: '<div data-testid="members-tab" />'}}}},
+        {global: {plugins: [memoryRouter], stubs: {AppsTab: true, IntegrationMembers: {template: '<div data-testid="members-tab" />'}}}},
     );
     await flushPromises();
     return {wrapper, router: memoryRouter};

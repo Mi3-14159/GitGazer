@@ -25,6 +25,7 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             return await tx.query.integrations.findMany({
+                columns: {secret: false, orgSyncDefaultRole: false},
                 with: integrationsQueryRelations,
             });
         },
@@ -116,7 +117,8 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
 
         // Fetch the created integration with relations
         const fullIntegrations = await getIntegrations({integrationIds: [insertedIntegration.integrationId]});
-        const created = fullIntegrations[0] ?? {...insertedIntegration, githubAppInstallations: []};
+        const {secret: _secret, orgSyncDefaultRole: _orgSyncDefaultRole, ...inserted} = insertedIntegration;
+        const created = fullIntegrations[0] ?? {...inserted, githubAppInstallations: []};
 
         await createEventLogEntry({
             integrationId: insertedIntegration.integrationId,
