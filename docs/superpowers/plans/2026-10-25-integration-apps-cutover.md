@@ -5,11 +5,26 @@ The backfill migration (`integration_apps_backfill`) turns every existing integr
 ## Steps
 
 1. Announce a freeze of a few minutes until the post-deploy re-check: no secret rotation, no integration creation, no change to the org-sync default role, no notification rule edits.
-2. Pre-flight, before the migration. Must return `0`, otherwise the backfill aborts on the NOT NULL URL in the middle of the freeze. Fix the offending rules first.
+2. Pre-flight, before the migration. Every query must return `0`. Fix the offending rules first.
 
     ```sql
+    -- a. channels without a URL: the backfill would abort on the NOT NULL URL in the middle of the freeze
     SELECT count(*) FROM gitgazer.notification_rules r, jsonb_array_elements(r.channels) c WHERE coalesce(c->>'webhook_url','') = '';
+
+    -- b. integrations with more than 20 distinct webhook URLs across their rules: they would get a Webhook app above its 20-handle cap
+    SELECT count(*) FROM (
+      SELECT r.integration_id FROM gitgazer.notification_rules r, jsonb_array_elements(r.channels) c
+      GROUP BY r.integration_id HAVING count(DISTINCT c->>'webhook_url') > 20
+    ) x;
+
+    -- c. rules with more than 20 distinct channel URLs: they would get more than the 20 handleIds a rule save accepts
+    SELECT count(*) FROM (
+      SELECT r.integration_id, r.id FROM gitgazer.notification_rules r, jsonb_array_elements(r.channels) c
+      GROUP BY r.integration_id, r.id HAVING count(DISTINCT c->>'webhook_url') > 20
+    ) x;
     ```
+
+    Neither b nor c is expected to find anything. If either does, consolidate before the cutover: point those rules at fewer Slack webhook URLs (for example one channel per team instead of one per repository), so that each integration uses at most 20 distinct URLs and each rule at most 20, then re-run the pre-flight. The 20 limit stays, since the backfill copies channels as they are and the API would then reject edits to such rules.
 
 3. Apply the migrations:
 
