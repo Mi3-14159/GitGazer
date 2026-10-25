@@ -63,4 +63,16 @@ describe('unlinkInstallation', () => {
         expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({integrationId: null}));
         expect(mockCreateEventLogEntry).toHaveBeenCalled();
     });
+
+    it('does not throw when the event log write fails', async () => {
+        mockCreateEventLogEntry.mockRejectedValue(new Error('db down'));
+
+        await expect(unlinkInstallation('int-1', 42)).resolves.toBeUndefined();
+
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({integrationId: null}));
+        expect(mockLoggerError).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({integrationId: 'int-1', installationId: 42, error: expect.any(Error)}),
+        );
+    });
 });

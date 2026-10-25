@@ -18,12 +18,16 @@ export const unlinkInstallation = async (integrationId: string, installationId: 
         .set({integrationId: null, updatedAt: new Date()})
         .where(and(eq(githubAppInstallations.installationId, installationId), eq(githubAppInstallations.integrationId, integrationId)));
 
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: 'info',
-        title: 'GitHub App unlinked',
-        message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
-        metadata: {integrationId, installationId},
-    });
+    try {
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'info',
+            title: 'GitHub App unlinked',
+            message: `GitHub App installation ${installationId} was unlinked and webhooks deprovisioned`,
+            metadata: {integrationId, installationId},
+        });
+    } catch (error) {
+        getLogger().error('Failed to create event log entry for installation unlink', {error, integrationId, installationId});
+    }
 };
