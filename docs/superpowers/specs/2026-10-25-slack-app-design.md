@@ -34,6 +34,8 @@ This supersedes the parked design on local branch `slack-mentions/design` (typed
 - No change to alert content beyond the mention; `buildSlackAlert` keeps its layout.
 - No mentions in alerts sent through the Webhook app; it stays as it is for teams that don't install the Slack app.
 - No more than one Slack workspace per integration (the existing one-app-per-type rule).
+- No Enterprise Grid org-wide installs. GitGazer's own Slack is on Business+; the OAuth callback rejects an install with
+  `is_enterprise_install: true` and explains that the app must be installed per workspace.
 - Deleting the old incoming webhooks in Slack: Slack offers no API for one app to revoke another app's webhook (see
   "Moving Webhook handles").
 
@@ -60,6 +62,10 @@ This supersedes the parked design on local branch `slack-mentions/design` (typed
 - After installing, GitGazer offers to move Webhook rules over to Slack channels and asks the admin to remove the old
   webhooks in Slack (GitGazer cannot delete them itself).
 - The Webhook app stays available.
+- Several integrations may install the Slack app into the same workspace (the usual company setup). The installation
+  and the links are shared per workspace (see "Shared workspaces").
+- GitGazer reads the signed-in user's verified GitHub email addresses for matching. The product owner added the email
+  permission to the GitHub login app.
 
 ## Slack app registration
 
@@ -75,19 +81,38 @@ with Slack uses the OpenID Connect scopes (`openid`, `profile`, `email` as neede
 All Slack API calls go to `slack.com`, already allowed by `http-proxy`, so the worker and API reach Slack through
 `proxyFetch` as they reach GitHub today. No new egress.
 
+## Shared workspaces
+
+Slack gives an app one bot user per workspace, and revoking its token removes that bot from every channel. So the Slack
+installation belongs to the **workspace**, not to an integration:
+
+- A workspace installation record, keyed by Slack team ID: team name, bot user ID, bot token (encrypted), installed by
+  and when, and a disconnected flag. It is not tenant data, so it has no tenant separation policy; only the app's
+  database role can read it, never the MCP role, and the API never returns the token.
+- An integration's Slack app (`integration_apps` row of type `slack`) points at one workspace installation. Its channel
+  handles stay tenant data, as today.
+- Links between GitHub accounts and Slack users are stored per workspace too (team ID + GitHub user ID), so a person
+  found or connected once is linked for every integration in that workspace. The same access rules as the installation
+  apply: readable only by the app role; the API exposes only "linked or not" for the caller's own members.
+
 ## Installing and removing
 
 - **Install:** admins and owners click "Install" on the Slack card in the Apps tab. GitGazer redirects to Slack's OAuth
   authorize page with a `state` bound to the user's session and the integration (CSRF protection; single use, short
-  lived). The OAuth redirect lands on a new API route, which exchanges the code, then stores the app: workspace (team)
-  ID and name, bot user ID, bot token (encrypted), who installed it and when. Then the user returns to the Apps tab.
-- **Reinstall into another workspace:** not allowed while a Slack app is installed; remove it first.
-- **Remove in GitGazer:** revokes the bot token in Slack (`auth.revoke`), then deletes the app. Its handles, their rule
-  destinations and its links go with it (cascade), like removing the Webhook app.
+  lived). The OAuth redirect lands on a new API route, which exchanges the code, rejects org-wide installs, creates or
+  updates the workspace installation (storing the token from this latest install and clearing a disconnected flag),
+  and creates the integration's Slack app pointing at it. Then the user returns to the Apps tab. Installing into a
+  workspace another integration already uses always goes through Slack's OAuth too, which proves the installer belongs
+  to that workspace.
+- **Switching workspace:** not allowed while a Slack app is installed in the integration; remove it first.
+- **Remove in GitGazer:** deletes the integration's Slack app; its handles and their rule destinations go with it
+  (cascade), like removing the Webhook app. If no other integration still uses the workspace installation, GitGazer
+  also revokes the bot token (`auth.revoke`) and deletes the installation and its links. Otherwise the token stays.
 - **Removed or revoked in Slack:** GitGazer has no Events API, so it notices on the next call that fails with a
-  revoked/invalid-auth error. It marks the app as disconnected, stops using it, and the Slack card shows "Disconnected —
-  reinstall". Reinstalling into the same workspace reconnects it and keeps its handles and links. Moving to a different
-  workspace requires removing the app first.
+  revoked/invalid-auth error. It marks the workspace installation as disconnected, which affects every integration
+  using it: their Slack cards show "Disconnected — reinstall", and each writes one event-log entry. Reinstalling from
+  any of those integrations reconnects the workspace for all of them, keeping handles and links. Private channels may
+  need a new `/invite`, since Slack removed the bot from them.
 
 ## Handles: channels
 
@@ -113,11 +138,16 @@ All Slack API calls go to `slack.com`, already allowed by `http-proxy`, so the w
 
 ### Storage
 
-A link table per Slack app installation (tenant-scoped like everything else): GitHub user ID → Slack user ID, plus
-`source` and `checked_at`. Sources, defined once as an `as const` tuple:
+A link table per workspace (see "Shared workspaces"): GitHub user ID → Slack user ID, plus `source` and
+`checked_at`. Sources, defined once as an `as const` tuple:
 
-- `gitgazer_email` — email of a GitGazer user (from login), whose `users.githubId` is the GitHub account.
-- `github_profile_email` — the GitHub account's public profile email.
+- `gitgazer_email` — a verified email of a GitGazer user, whose `users.githubId` is the GitHub account. Read at login
+  from GitHub's `/user/emails` (verified addresses only, primary first) and stored for this lookup only; never shown
+  in the UI or logged. Today login requests only `openid` (`infra/main.tf`, `var.github_oauth_scopes`) and stores just
+  the public profile email; the builder adds the `user:email` scope (or relies on the "Email addresses" permission,
+  depending on the kind of GitHub app used for login, which the builder checks) and extends the login attribute
+  endpoint. Existing users see GitHub's consent screen once more at their next login.
+- `github_profile_email` — the GitHub account's public profile email, for people who don't use GitGazer.
 - `commit_email` — the head commit's author email, used only when that commit's author is known to be the same GitHub
   account.
 - `slack_sign_in` — the person connected themselves through Sign in with Slack.
@@ -130,7 +160,7 @@ Automatic lookups never overwrite a `slack_sign_in` link.
 For a GitHub account, try the sources in this order and stop at the first email that Slack's `users.lookupByEmail`
 resolves in the installed workspace:
 
-1. The email of the GitGazer user with that `githubId`, if any.
+1. The verified emails of the GitGazer user with that `githubId`, if any, primary first.
 2. The public email from `GET /users/{login}`, read with a GitHub App installation token. Integrations without a GitHub
    App installation (manual webhook only) skip this source.
 3. The head commit's author email from the run, only if it is not a `users.noreply.github.com` address and the commit's
@@ -144,7 +174,7 @@ When lookups run (Claude's call):
 - At send time, for the person on the alert, if there is no link or the stored result is older than its refresh
   interval: a found link is rechecked after 7 days, a "not found" after 24 hours. A lookup that fails (timeout, rate
   limit) doesn't block the alert; it goes out without a mention and is retried on a later alert.
-- Right after install, for the integration's members.
+- Right after install, for the integration's members not yet linked in that workspace.
 - When a member signs in to GitGazer, for that member.
 
 Rate limits: lookups are few (one person per alert at most, cached), within `users.lookupByEmail`'s tier. The builder
@@ -166,7 +196,7 @@ For people the automatic lookup misses (their Slack email differs):
 ### Visibility
 
 Members see whether a member is linked (a Slack badge on the Members page), not the Slack ID. Admins see the same.
-Links are not granted to the MCP role.
+Links and installations are not granted to the MCP role.
 
 ## Mentions in alerts
 
@@ -217,7 +247,12 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
 - The bot token is encrypted at rest (mechanism is the builder's call, e.g. KMS envelope encryption; the worker runs in
   a VPC without IPv4 egress, so the builder checks the chosen service is reachable) and decrypted only where a Slack
   call is made.
-- New tables get the tenant separation policies and are not granted to `gitgazer_mcp`.
+- Tenant tables (handles, handle details) get the tenant separation policies. The workspace installation and link
+  tables are shared across tenants by design: no tenant policy, readable only by the app role, never granted to
+  `gitgazer_mcp`, and only reachable through code paths that start from an integration whose Slack app points at
+  that workspace.
+- Users' verified emails are personal data: stored only for matching, not granted to `gitgazer_mcp`, never exposed
+  through the API.
 - No emails or Slack IDs in logs; log counts and booleans.
 
 ## Left to the builder
@@ -225,6 +260,7 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
 - Table and column names beyond those fixed above; whether Slack app settings and links are one table or several.
 - API route shapes for install, callbacks, channels, connect/disconnect and the move.
 - Token encryption mechanism within the constraints above.
+- Where users' verified emails are stored (column or table) and when they are refreshed (at each login is enough).
 - Exact refresh intervals if 7 days / 24 hours turn out to be awkward.
 - UI layout within the existing Apps and Members patterns.
 - Test layout, following existing tests in each package.
@@ -232,10 +268,14 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
 ## Calls made by Claude (not explicitly confirmed by the product owner)
 
 - One Slack workspace per integration; removing the app is required before switching workspace.
+- All verified GitHub emails count, primary first (work addresses are often secondary).
+- A disconnected workspace writes one event-log entry per affected integration, in addition to the card state.
+- People who never log into GitGazer can be linked and pinged but have no opt-out in this version.
 - Disconnects are detected lazily on the next failed call, since there is no Events API.
 - Link refresh: 7 days for a found link, 24 hours for "not found"; lookup failures send the alert without a mention.
 - Lookup order: GitGazer email, then GitHub profile email, then commit email.
 - Members see only whether someone is linked, never the Slack ID.
 - A disconnect sticks (no automatic re-link until the person connects again).
-- Removing the Slack app revokes its token and deletes its handles and links.
+- Removing the Slack app deletes the integration's handles; the token is revoked and the workspace's links deleted
+  only when the last integration using the workspace removes it.
 - The move runs per handle in its own transaction and skips handles for other workspaces.
