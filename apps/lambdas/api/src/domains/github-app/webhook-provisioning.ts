@@ -16,7 +16,7 @@ import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
-import {and, eq} from 'drizzle-orm';
+import {and, eq, inArray} from 'drizzle-orm';
 import {getGithubSettings} from '@/domains/apps/github-settings';
 
 const getWebhookUrl = (integrationId: string): string => {
@@ -64,10 +64,8 @@ const recordWebhookIfLinked = async (webhook: WebhookRecord): Promise<boolean> =
         },
     });
 
-// GitHub calls hold no lock, so the installation can be unlinked (and already deprovisioned) while a webhook is being created
-const keepWebhookIfLinked = async (octokit: InstallationOctokit, webhook: WebhookRecord): Promise<boolean> => {
-    if (await recordWebhookIfLinked(webhook)) return true;
-
+// A live webhook without a record would never be deprovisioned
+const deleteUnrecordedWebhook = async (octokit: InstallationOctokit, webhook: WebhookRecord, reason: 'unlinked' | 'record failed') => {
     const logger = getLogger();
     const context = {
         integrationId: webhook.integrationId,
@@ -75,14 +73,27 @@ const keepWebhookIfLinked = async (octokit: InstallationOctokit, webhook: Webhoo
         webhookId: webhook.webhookId,
         targetType: webhook.targetType,
         targetName: webhook.targetName,
+        reason,
     };
     try {
         await deleteWebhookOnGithub(octokit, webhook);
-        logger.warn('Installation unlinked during webhook provisioning, deleted the new webhook', context);
+        logger.warn('Deleted a new webhook that could not be recorded', context);
     } catch (error) {
-        logger.error('Failed to delete a webhook created after its installation was unlinked', {...context, error});
+        logger.error('Failed to delete a new webhook that could not be recorded', {...context, error});
     }
-    return false;
+};
+
+// GitHub calls hold no lock, so the installation can be unlinked (and already deprovisioned) while a webhook is being created
+const keepWebhookIfLinked = async (octokit: InstallationOctokit, webhook: WebhookRecord): Promise<boolean> => {
+    let recorded: boolean;
+    try {
+        recorded = await recordWebhookIfLinked(webhook);
+    } catch (error) {
+        await deleteUnrecordedWebhook(octokit, webhook, 'record failed');
+        throw error;
+    }
+    if (!recorded) await deleteUnrecordedWebhook(octokit, webhook, 'unlinked');
+    return recorded;
 };
 
 const loadGithubSettings = async (integrationId: string) => {
@@ -226,10 +237,9 @@ export const provisionWebhooksForRepos = async (integrationId: string, installat
     return await createPerRepoWebhooks(integrationId, installationId, octokit, repos, webhookUrl, settings.secret, installation.webhookEvents);
 };
 
-export const deprovisionAllWebhooks = async (integrationId: string, installationId: number): Promise<void> => {
-    const logger = getLogger();
-    logger.info(`Deprovisioning all webhooks for integration ${integrationId}, installation ${installationId}`);
+export type RecordedWebhook = Pick<typeof githubAppWebhooks.$inferSelect, 'webhookId' | 'targetType' | 'targetName'>;
 
+export const deprovisionAllWebhooks = async (integrationId: string, installationId: number): Promise<void> => {
     const webhooks = await withRlsTransaction({
         integrationIds: [integrationId],
         callback: async (tx: RdsTransaction) => {
@@ -237,7 +247,15 @@ export const deprovisionAllWebhooks = async (integrationId: string, installation
         },
     });
 
-    logger.debug(`Found ${webhooks.length} webhooks to delete for installation ${installationId}`);
+    await deprovisionWebhooks(integrationId, installationId, webhooks);
+};
+
+// Deletes only the given records, so webhooks recorded meanwhile (e.g. by a re-link) are left alone
+export const deprovisionWebhooks = async (integrationId: string, installationId: number, webhooks: RecordedWebhook[]): Promise<void> => {
+    const logger = getLogger();
+    logger.info('Deprovisioning webhooks', {integrationId, installationId, count: webhooks.length});
+    if (webhooks.length === 0) return;
+
     const octokit = getInstallationOctokit(installationId);
 
     await Promise.all(
@@ -256,11 +274,20 @@ export const deprovisionAllWebhooks = async (integrationId: string, installation
         integrationIds: [integrationId],
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            await tx.delete(githubAppWebhooks).where(eq(githubAppWebhooks.installationId, installationId));
+            await tx.delete(githubAppWebhooks).where(
+                and(
+                    eq(githubAppWebhooks.integrationId, integrationId),
+                    eq(githubAppWebhooks.installationId, installationId),
+                    inArray(
+                        githubAppWebhooks.webhookId,
+                        webhooks.map((w) => w.webhookId),
+                    ),
+                ),
+            );
         },
     });
 
-    logger.info(`Deprovisioned all webhooks for installation ${installationId}`);
+    logger.info('Deprovisioned webhooks', {integrationId, installationId, count: webhooks.length});
 };
 
 export const updateAllWebhookEvents = async (integrationId: string, installationId: number, events: string[]): Promise<void> => {

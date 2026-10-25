@@ -2,7 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockDeprovision = vi.fn();
 vi.mock('@/domains/github-app/webhook-provisioning', () => ({
-    deprovisionAllWebhooks: (...args: unknown[]) => mockDeprovision(...args),
+    deprovisionWebhooks: (...args: unknown[]) => mockDeprovision(...args),
 }));
 
 const mockCreateEventLogEntry = vi.fn();
@@ -15,21 +15,32 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: mockLoggerError, info: vi.fn(), warn: vi.fn(), debug: vi.fn()}),
 }));
 
+const RECORDED = [{webhookId: 99, targetType: 'organization', targetName: 'my-org'}];
+
 const mockSet = vi.fn();
 const mockWhere = vi.fn();
-vi.mock('@gitgazer/db/client', () => ({
-    db: {
-        update: () => ({
-            set: (values: unknown) => {
-                mockSet(values);
-                return {where: mockWhere};
-            },
-        }),
-    },
-}));
+const mockSelectWhere = vi.fn();
+const mockTx = {
+    update: () => ({
+        set: (values: unknown) => {
+            mockSet(values);
+            return {where: mockWhere};
+        },
+    }),
+    select: () => ({from: () => ({where: mockSelectWhere})}),
+};
+const mockTransaction = vi.fn(async (callback: (tx: typeof mockTx) => unknown) => await callback(mockTx));
+vi.mock('@gitgazer/db/client', () => ({db: {transaction: mockTransaction}}));
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubAppInstallations: {installationId: Symbol('installationId'), integrationId: Symbol('integrationId')},
+    githubAppWebhooks: {
+        installationId: Symbol('installationId'),
+        integrationId: Symbol('integrationId'),
+        webhookId: Symbol('webhookId'),
+        targetType: Symbol('targetType'),
+        targetName: Symbol('targetName'),
+    },
 }));
 
 let unlinkInstallation: typeof import('./unlink-installation').unlinkInstallation;
@@ -39,6 +50,7 @@ describe('unlinkInstallation', () => {
         vi.clearAllMocks();
         mockDeprovision.mockResolvedValue(undefined);
         mockWhere.mockResolvedValue(undefined);
+        mockSelectWhere.mockResolvedValue(RECORDED);
         mockCreateEventLogEntry.mockResolvedValue({});
         ({unlinkInstallation} = await import('./unlink-installation'));
     });
@@ -49,6 +61,15 @@ describe('unlinkInstallation', () => {
         expect(mockWhere).toHaveBeenCalledTimes(1);
         expect(mockDeprovision).toHaveBeenCalledTimes(1);
         expect(mockWhere.mock.invocationCallOrder[0]).toBeLessThan(mockDeprovision.mock.invocationCallOrder[0]);
+    });
+
+    it('reads the recorded webhooks in the detaching transaction and deprovisions exactly those', async () => {
+        await unlinkInstallation('int-1', 42);
+
+        expect(mockTransaction).toHaveBeenCalledTimes(1);
+        expect(mockWhere.mock.invocationCallOrder[0]).toBeLessThan(mockSelectWhere.mock.invocationCallOrder[0]);
+        // A re-link recording webhooks while deprovisioning runs is not in this snapshot, so its rows stay
+        expect(mockDeprovision).toHaveBeenCalledWith('int-1', 42, RECORDED);
     });
 
     it('does not deprovision when detaching fails', async () => {
@@ -62,7 +83,7 @@ describe('unlinkInstallation', () => {
     it('unlinks, deprovisions and logs', async () => {
         await unlinkInstallation('int-1', 42);
 
-        expect(mockDeprovision).toHaveBeenCalledWith('int-1', 42);
+        expect(mockDeprovision).toHaveBeenCalledWith('int-1', 42, RECORDED);
         expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({integrationId: null}));
         expect(mockWhere).toHaveBeenCalled();
         expect(mockCreateEventLogEntry).toHaveBeenCalledWith(

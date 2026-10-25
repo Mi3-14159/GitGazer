@@ -14,6 +14,12 @@ const client = {
 };
 vi.mock('@gitgazer/backend-core/clients/github-app.client', () => client);
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: () => 'https://example.test/webhooks'}}));
+const inArray = vi.hoisted(() => vi.fn());
+vi.mock('drizzle-orm', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('drizzle-orm')>();
+    inArray.mockImplementation(actual.inArray as never);
+    return {...actual, inArray};
+});
 vi.mock('@gitgazer/db/schema/app', () => ({gitgazerWriter: {name: 'gitgazer_writer'}}));
 const getGithubSettings = vi.fn();
 vi.mock('@/domains/apps/github-settings', () => ({getGithubSettings}));
@@ -304,8 +310,58 @@ describe('provisioning racing an installation unlink', () => {
         await expect(mod.provisionWebhooks('int-1', 1)).resolves.toBe(1);
         expect(client.deleteOrgWebhook).not.toHaveBeenCalled();
 
-        await mod.deprovisionAllWebhooks('int-1', 1);
+        // unlinkInstallation passes the rows it read right after detaching
+        await mod.deprovisionWebhooks('int-1', 1, [...storedWebhooks] as never);
 
         expect(client.deleteOrgWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 99);
+    });
+
+    it('deletes the org webhook it just created when recording it throws, then falls back as before', async () => {
+        withRlsTransaction.mockResolvedValueOnce(SETTINGS); // GitHub settings lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]);
+        client.createOrgWebhook.mockResolvedValueOnce(99);
+        installationLock.mockRejectedValueOnce(new Error('lock timeout'));
+        client.listInstallationRepos.mockResolvedValueOnce([]);
+
+        await expect(mod.provisionWebhooks('int-1', 1)).resolves.toBe(0);
+
+        expect(client.deleteOrgWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 99);
+        expect(client.listInstallationRepos).toHaveBeenCalledTimes(1);
+        expect(logger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({webhookId: 99, reason: 'record failed'}));
+    });
+
+    it('deletes the repo webhook it just created when recording it throws', async () => {
+        withRlsTransaction.mockResolvedValueOnce(SETTINGS); // GitHub settings lookup
+        dbSelectWhere.mockResolvedValueOnce([orgInstallation]);
+        withRlsTransaction.mockResolvedValueOnce([]); // no org webhook
+        client.createRepoWebhook.mockResolvedValueOnce(123);
+        installationLock.mockRejectedValueOnce(new Error('connection reset'));
+
+        await expect(mod.provisionWebhooksForRepos('int-1', 1, newRepos)).resolves.toBe(0);
+
+        expect(txInsertValues).not.toHaveBeenCalled();
+        expect(client.deleteRepoWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 'repo', 123);
+        expect(logger.error).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({error: expect.any(Error)}));
+    });
+});
+
+describe('deprovisionWebhooks', () => {
+    it('leaves the webhooks a re-link recorded during deprovisioning untouched', async () => {
+        const oldLink = {integrationId: 'int-1', installationId: 1, targetType: 'organization', targetName: 'my-org', webhookId: 99};
+        const newLink = {integrationId: 'int-1', installationId: 1, targetType: 'repository', targetName: 'my-org/repo', webhookId: 123};
+        storedWebhooks = [oldLink, newLink];
+
+        await mod.deprovisionWebhooks('int-1', 1, [oldLink] as never);
+
+        expect(client.deleteOrgWebhook).toHaveBeenCalledWith(expect.anything(), 'my-org', 99);
+        expect(client.deleteRepoWebhook).not.toHaveBeenCalled();
+        expect(inArray).toHaveBeenCalledWith(expect.anything(), [99]);
+    });
+
+    it('touches neither GitHub nor the database when nothing was recorded', async () => {
+        await mod.deprovisionWebhooks('int-1', 1, []);
+
+        expect(client.getInstallationOctokit).not.toHaveBeenCalled();
+        expect(withRlsTransaction).not.toHaveBeenCalled();
     });
 });
