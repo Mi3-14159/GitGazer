@@ -208,6 +208,40 @@ describe('notifications controller', () => {
         expect(out[0].rule.topics).toBeUndefined();
     });
 
+    it('getNotificationRules keeps destinations apart for the same rule id in two integrations', async () => {
+        const now = new Date();
+        const ruleRow = (integrationId: string) => ({
+            id: 'rule-same',
+            integrationId,
+            label: `Rule ${integrationId}`,
+            channels: [],
+            enabled: true,
+            ignore_dependabot: false,
+            include_log_details: true,
+            rule: {},
+            createdAt: now,
+            updatedAt: now,
+        });
+        mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) =>
+            params.callback({
+                select: selectSequence([
+                    [ruleRow('integrationA'), ruleRow('integrationB')],
+                    [
+                        {integrationId: 'integrationA', ruleId: 'rule-same', handleId: 'handle-a'},
+                        {integrationId: 'integrationB', ruleId: 'rule-same', handleId: 'handle-b'},
+                    ],
+                ]),
+            }),
+        );
+
+        const out = await notifications.getNotificationRules({integrationIds: ['integrationA', 'integrationB']});
+
+        expect(out.map((r) => [r.integrationId, r.handleIds])).toEqual([
+            ['integrationA', ['handle-a']],
+            ['integrationB', ['handle-b']],
+        ]);
+    });
+
     it('upsertNotificationRule succeeds even when event log entry fails', async () => {
         const now = new Date();
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
@@ -468,8 +502,8 @@ describe('notification rule handles', () => {
                 select: selectSequence([
                     [savedRow, {...savedRow, id: 'rule-2'}],
                     [
-                        {ruleId: 'rule-1', handleId: 'h1'},
-                        {ruleId: 'rule-1', handleId: 'h2'},
+                        {integrationId: savedRow.integrationId, ruleId: 'rule-1', handleId: 'h1'},
+                        {integrationId: savedRow.integrationId, ruleId: 'rule-1', handleId: 'h2'},
                     ],
                 ]),
             }),

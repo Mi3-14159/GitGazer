@@ -46,12 +46,15 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
         },
     });
 
+    // Rule ids are only unique per integration
+    const ruleKey = (integrationId: string, ruleId: string) => `${integrationId}:${ruleId}`;
     const handleIdsByRule = new Map<string, string[]>();
-    for (const {ruleId, handleId} of rows.destinations) {
-        handleIdsByRule.set(ruleId, [...(handleIdsByRule.get(ruleId) ?? []), handleId]);
+    for (const {integrationId, ruleId, handleId} of rows.destinations) {
+        const key = ruleKey(integrationId, ruleId);
+        handleIdsByRule.set(key, [...(handleIdsByRule.get(key) ?? []), handleId]);
     }
 
-    return rows.rules.map((row) => toNotificationRule(row, handleIdsByRule.get(row.id) ?? []));
+    return rows.rules.map((row) => toNotificationRule(row, handleIdsByRule.get(ruleKey(row.integrationId, row.id)) ?? []));
 };
 
 export const upsertNotificationRule = async (params: {
