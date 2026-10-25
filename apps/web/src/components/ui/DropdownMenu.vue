@@ -3,11 +3,15 @@
     import {DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger} from 'radix-vue';
     import {type HTMLAttributes} from 'vue';
 
-    defineProps<{
-        open?: boolean;
-        align?: 'start' | 'center' | 'end';
-        contentClass?: HTMLAttributes['class'];
-    }>();
+    // Vue casts an omitted boolean prop to false, which would pin the menu closed unless a caller binds v-model:open.
+    withDefaults(
+        defineProps<{
+            open?: boolean;
+            align?: 'start' | 'center' | 'end';
+            contentClass?: HTMLAttributes['class'];
+        }>(),
+        {open: undefined},
+    );
 
     const emit = defineEmits<{
         'update:open': [value: boolean];
