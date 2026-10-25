@@ -27,6 +27,64 @@ const getWebhookUrl = (integrationId: string): string => {
     return `${importUrlBase}/${integrationId}`;
 };
 
+type WebhookRecord = typeof githubAppWebhooks.$inferInsert;
+type InstallationOctokit = ReturnType<typeof getInstallationOctokit>;
+
+const deleteWebhookOnGithub = async (octokit: InstallationOctokit, webhook: Pick<WebhookRecord, 'targetType' | 'targetName' | 'webhookId'>) => {
+    if (webhook.targetType === 'organization') {
+        await deleteOrgWebhook(octokit, webhook.targetName, webhook.webhookId);
+    } else {
+        const [owner, repo] = webhook.targetName.split('/');
+        await deleteRepoWebhook(octokit, owner, repo, webhook.webhookId);
+    }
+};
+
+// Writer RLS, not db: the tenant policy hides an installation that is no longer linked to this integration, which is
+// exactly the check. FOR SHARE makes a concurrent unlink's UPDATE wait for this record, or this read wait for its commit.
+const recordWebhookIfLinked = async (webhook: WebhookRecord): Promise<boolean> =>
+    await withRlsTransaction({
+        integrationIds: [webhook.integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            const settings = await getGithubSettings(tx, webhook.integrationId, 'share');
+            const [installation] = await tx
+                .select({installationId: githubAppInstallations.installationId})
+                .from(githubAppInstallations)
+                .where(
+                    and(
+                        eq(githubAppInstallations.installationId, webhook.installationId),
+                        eq(githubAppInstallations.integrationId, webhook.integrationId),
+                    ),
+                )
+                .for('share');
+            if (!settings || !installation) return false;
+
+            await tx.insert(githubAppWebhooks).values(webhook);
+            return true;
+        },
+    });
+
+// GitHub calls hold no lock, so the installation can be unlinked (and already deprovisioned) while a webhook is being created
+const keepWebhookIfLinked = async (octokit: InstallationOctokit, webhook: WebhookRecord): Promise<boolean> => {
+    if (await recordWebhookIfLinked(webhook)) return true;
+
+    const logger = getLogger();
+    const context = {
+        integrationId: webhook.integrationId,
+        installationId: webhook.installationId,
+        webhookId: webhook.webhookId,
+        targetType: webhook.targetType,
+        targetName: webhook.targetName,
+    };
+    try {
+        await deleteWebhookOnGithub(octokit, webhook);
+        logger.warn('Installation unlinked during webhook provisioning, deleted the new webhook', context);
+    } catch (error) {
+        logger.error('Failed to delete a webhook created after its installation was unlinked', {...context, error});
+    }
+    return false;
+};
+
 const loadGithubSettings = async (integrationId: string) => {
     const settings = await withRlsTransaction({
         integrationIds: [integrationId],
@@ -63,7 +121,7 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
     if (installation.repositorySelection === 'all' && installation.accountType === 'Organization') {
         try {
             const webhookId = await createOrgWebhook(octokit, installation.accountLogin, webhookUrl, settings.secret, events);
-            await db.insert(githubAppWebhooks).values({
+            const kept = await keepWebhookIfLinked(octokit, {
                 integrationId,
                 installationId,
                 webhookId,
@@ -72,6 +130,8 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
                 targetName: installation.accountLogin,
                 events,
             });
+            // An unlinked installation must not fall through to the per-repo fallback below
+            if (!kept) return 0;
             logger.info(`Created org-level webhook for ${installation.accountLogin} (ID: ${webhookId})`);
             return 1;
         } catch (error) {
@@ -91,7 +151,7 @@ export const provisionWebhooks = async (integrationId: string, installationId: n
 const createPerRepoWebhooks = async (
     integrationId: string,
     installationId: number,
-    octokit: ReturnType<typeof getInstallationOctokit>,
+    octokit: InstallationOctokit,
     repos: RepoInfo[],
     webhookUrl: string,
     secret: string,
@@ -103,7 +163,7 @@ const createPerRepoWebhooks = async (
         repos.map(async (repo) => {
             try {
                 const webhookId = await createRepoWebhook(octokit, repo.owner, repo.name, webhookUrl, secret, events);
-                await db.insert(githubAppWebhooks).values({
+                const kept = await keepWebhookIfLinked(octokit, {
                     integrationId,
                     installationId,
                     webhookId,
@@ -112,6 +172,7 @@ const createPerRepoWebhooks = async (
                     targetName: repo.fullName,
                     events,
                 });
+                if (!kept) return 0;
                 logger.info(`Created repo webhook for ${repo.fullName} (ID: ${webhookId})`);
                 return 1 as number;
             } catch (error) {
@@ -183,12 +244,7 @@ export const deprovisionAllWebhooks = async (integrationId: string, installation
         webhooks.map(async (webhook) => {
             logger.debug(`Deleting webhook ${webhook.webhookId} on ${webhook.targetName} (${webhook.targetType})`);
             try {
-                if (webhook.targetType === 'organization') {
-                    await deleteOrgWebhook(octokit, webhook.targetName, webhook.webhookId);
-                } else {
-                    const [owner, repo] = webhook.targetName.split('/');
-                    await deleteRepoWebhook(octokit, owner, repo, webhook.webhookId);
-                }
+                await deleteWebhookOnGithub(octokit, webhook);
             } catch (error) {
                 logger.warn(`Failed to delete webhook ${webhook.webhookId} on ${webhook.targetName} (may already be deleted)`, {error});
             }

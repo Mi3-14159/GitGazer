@@ -43,7 +43,23 @@ describe('unlinkInstallation', () => {
         ({unlinkInstallation} = await import('./unlink-installation'));
     });
 
-    it('deprovisions, unlinks and logs', async () => {
+    it('detaches the installation before deprovisioning its webhooks', async () => {
+        await unlinkInstallation('int-1', 42);
+
+        expect(mockWhere).toHaveBeenCalledTimes(1);
+        expect(mockDeprovision).toHaveBeenCalledTimes(1);
+        expect(mockWhere.mock.invocationCallOrder[0]).toBeLessThan(mockDeprovision.mock.invocationCallOrder[0]);
+    });
+
+    it('does not deprovision when detaching fails', async () => {
+        mockWhere.mockRejectedValue(new Error('db down'));
+
+        await expect(unlinkInstallation('int-1', 42)).rejects.toThrow('db down');
+
+        expect(mockDeprovision).not.toHaveBeenCalled();
+    });
+
+    it('unlinks, deprovisions and logs', async () => {
         await unlinkInstallation('int-1', 42);
 
         expect(mockDeprovision).toHaveBeenCalledWith('int-1', 42);
@@ -59,7 +75,10 @@ describe('unlinkInstallation', () => {
 
         await unlinkInstallation('int-1', 42);
 
-        expect(mockLoggerError).toHaveBeenCalled();
+        expect(mockLoggerError).toHaveBeenCalledWith(
+            'Failed to deprovision webhooks',
+            expect.objectContaining({integrationId: 'int-1', installationId: 42, error: expect.any(Error)}),
+        );
         expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({integrationId: null}));
         expect(mockCreateEventLogEntry).toHaveBeenCalled();
     });
