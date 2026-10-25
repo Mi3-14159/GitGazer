@@ -6,9 +6,9 @@ import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {notificationRules} from '@gitgazer/db/schema';
-import {NotificationRuleChannelType, WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
-import {and, eq, or, sql} from 'drizzle-orm';
+import {notificationRuleDestinations, notificationRules, webhookHandleDetails} from '@gitgazer/db/schema';
+import {WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import {and, eq, inArray, or, sql} from 'drizzle-orm';
 
 type AlertContext = {
     ownerLogin: string;
@@ -80,11 +80,14 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
         verdict,
     };
 
-    for (const rule of matching) {
-        const body = buildSlackAlert({...alertInput, details: rule.include_log_details ? details : null});
-        for (const webhookUrl of getSlackWebhookUrls(rule)) {
-            await sendSlackNotification(webhookUrl, body, {...logIds, ruleId: rule.id}, logger);
-        }
+    const targets = await loadHandleTargets(workflowJob.integrationId, matching);
+    if (targets.length === 0) {
+        logger.warn('Matching notification rules have no destinations', logIds);
+    }
+
+    for (const target of targets) {
+        const body = buildSlackAlert({...alertInput, details: target.includeLogDetails ? details : null});
+        await sendSlackNotification(target.url, body, {...logIds, handleId: target.handleId}, logger);
     }
 
     try {
@@ -200,14 +203,42 @@ async function findMatchingNotificationRules(workflowJob: WorkflowJobWithRelatio
 
 type MatchingRule = Awaited<ReturnType<typeof findMatchingNotificationRules>>[number];
 
-function getSlackWebhookUrls(rule: MatchingRule): string[] {
-    return rule.channels.filter((channel) => channel.type === NotificationRuleChannelType.SLACK).map((channel) => channel.webhook_url);
+type HandleTarget = {handleId: string; url: string; includeLogDetails: boolean};
+
+async function loadHandleTargets(integrationId: string, rules: MatchingRule[]): Promise<HandleTarget[]> {
+    const ruleIds = rules.map((rule) => rule.id);
+    if (ruleIds.length === 0) return [];
+
+    const rows = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: async (tx: RdsTransaction) =>
+            await tx
+                .select({ruleId: notificationRuleDestinations.ruleId, handleId: notificationRuleDestinations.handleId, url: webhookHandleDetails.url})
+                .from(notificationRuleDestinations)
+                .innerJoin(
+                    webhookHandleDetails,
+                    and(
+                        eq(webhookHandleDetails.integrationId, notificationRuleDestinations.integrationId),
+                        eq(webhookHandleDetails.handleId, notificationRuleDestinations.handleId),
+                    ),
+                )
+                .where(and(eq(notificationRuleDestinations.integrationId, integrationId), inArray(notificationRuleDestinations.ruleId, ruleIds))),
+    });
+
+    const optedIn = new Set(rules.filter((rule) => rule.include_log_details).map((rule) => rule.id));
+    const targets = new Map<string, HandleTarget>();
+    for (const row of rows) {
+        const target = targets.get(row.handleId) ?? {handleId: row.handleId, url: row.url, includeLogDetails: false};
+        target.includeLogDetails ||= optedIn.has(row.ruleId);
+        targets.set(row.handleId, target);
+    }
+    return [...targets.values()];
 }
 
 async function sendSlackNotification(
     webhookUrl: string,
     body: SlackPayload,
-    logContext: {integrationId: string; jobId: number; ruleId: string | undefined},
+    logContext: {integrationId: string; jobId: number; handleId: string},
     logger: ReturnType<typeof getLogger>,
 ) {
     try {
@@ -217,13 +248,12 @@ async function sendSlackNotification(
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
-            retries: 3,
         });
         if (!res.ok) {
             throw new Error(`Slack webhook failed with status ${res.status} and body ${await res.text()}`);
         }
-        logger.info(`Successfully sent alert to Slack for rule ${logContext.ruleId}`, logContext);
+        logger.info(`Successfully sent alert to Slack handle ${logContext.handleId}`, logContext);
     } catch (error) {
-        logger.error(`Failed to send Slack notification for rule ${logContext.ruleId}`, {...logContext, error});
+        logger.error(`Failed to send Slack notification to handle ${logContext.handleId}`, {...logContext, error});
     }
 }
