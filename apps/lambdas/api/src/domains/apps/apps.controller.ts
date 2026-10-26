@@ -72,15 +72,11 @@ export const findSlackTeamId = async (tx: RdsTransaction, integrationId: string)
     return settings?.teamId;
 };
 
-const loadSlackApp = async (tx: RdsTransaction, integrationId: string) => {
+type SlackMembers = {teamId: string; githubIds: number[]; memberCount: number};
+
+const loadSlackMembers = async (tx: RdsTransaction, integrationId: string): Promise<SlackMembers | null> => {
     const teamId = await findSlackTeamId(tx, integrationId);
     if (!teamId) return null;
-
-    const [workspace] = await db
-        .select({teamName: slackWorkspaces.teamName, disconnectedAt: slackWorkspaces.disconnectedAt})
-        .from(slackWorkspaces)
-        .where(eq(slackWorkspaces.teamId, teamId));
-    if (!workspace) return null;
 
     const members = await tx
         .select({githubId: users.githubId})
@@ -88,6 +84,15 @@ const loadSlackApp = async (tx: RdsTransaction, integrationId: string) => {
         .innerJoin(users, eq(users.id, userAssignments.userId))
         .where(eq(userAssignments.integrationId, integrationId));
     const githubIds = members.flatMap((m) => (m.githubId === null ? [] : [m.githubId]));
+    return {teamId, githubIds, memberCount: members.length};
+};
+
+const loadSlackApp = async ({teamId, githubIds, memberCount}: SlackMembers) => {
+    const [workspace] = await db
+        .select({teamName: slackWorkspaces.teamName, disconnectedAt: slackWorkspaces.disconnectedAt})
+        .from(slackWorkspaces)
+        .where(eq(slackWorkspaces.teamId, teamId));
+    if (!workspace) return null;
 
     const [linked] =
         githubIds.length === 0
@@ -102,7 +107,7 @@ const loadSlackApp = async (tx: RdsTransaction, integrationId: string) => {
     return {
         workspace: {teamId, teamName: workspace.teamName, disconnected: workspace.disconnectedAt !== null},
         linkedMemberCount: Number(linked.count),
-        memberCount: members.length,
+        memberCount,
     };
 };
 
@@ -150,7 +155,7 @@ export const loadHandles = async (tx: RdsTransaction, integrationId: string, can
     }));
 };
 
-const loadApps = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean): Promise<IntegrationApp[]> => {
+const loadTenantApps = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean) => {
     const apps = await tx
         .select({appId: integrationApps.appId, type: integrationApps.type, createdAt: integrationApps.createdAt})
         .from(integrationApps)
@@ -158,36 +163,40 @@ const loadApps = async (tx: RdsTransaction, integrationId: string, canSeeSecrets
         .orderBy(integrationApps.createdAt);
 
     const handles = await loadHandles(tx, integrationId, canSeeSecrets);
+    const githubSettings = apps.some((a) => a.type === 'github') ? await getGithubSettings(tx, integrationId) : undefined;
+    const slackMembers = apps.some((a) => a.type === 'slack') ? await loadSlackMembers(tx, integrationId) : null;
+    return {apps, handles, githubSettings, slackMembers};
+};
+
+export const listApps = async (params: Scope & {canSeeSecrets: boolean}): Promise<IntegrationApp[]> => {
+    const {integrationId, integrationIds, canSeeSecrets} = params;
+    const {apps, handles, githubSettings, slackMembers} = await withRlsTransaction({
+        integrationIds,
+        callback: (tx: RdsTransaction) => loadTenantApps(tx, integrationId, canSeeSecrets),
+    });
+
+    // The pool has a single connection, so the master db can only be used once the RLS transaction has committed
+    const slack = slackMembers ? await loadSlackApp(slackMembers) : null;
 
     const result: IntegrationApp[] = [];
     for (const app of apps) {
         const createdAt = app.createdAt.toISOString();
         if (app.type === 'github') {
-            const settings = await getGithubSettings(tx, integrationId);
-            if (!settings) continue;
+            if (!githubSettings) continue;
             result.push({
                 appId: app.appId,
                 type: 'github',
                 createdAt,
-                settings: {secret: canSeeSecrets ? settings.secret : null, orgSyncDefaultRole: settings.orgSyncDefaultRole},
+                settings: {secret: canSeeSecrets ? githubSettings.secret : null, orgSyncDefaultRole: githubSettings.orgSyncDefaultRole},
             });
         } else if (app.type === 'webhook') {
             result.push({appId: app.appId, type: 'webhook', createdAt, handles: handles.filter((h) => h.appId === app.appId)});
         } else if (app.type === 'slack') {
-            const slack = await loadSlackApp(tx, integrationId);
             if (!slack) continue;
             result.push({appId: app.appId, type: 'slack', createdAt, ...slack, handles: handles.filter((h) => h.appId === app.appId)});
         }
     }
     return result;
-};
-
-export const listApps = async (params: Scope & {canSeeSecrets: boolean}): Promise<IntegrationApp[]> => {
-    const {integrationId, integrationIds, canSeeSecrets} = params;
-    return await withRlsTransaction({
-        integrationIds,
-        callback: (tx: RdsTransaction) => loadApps(tx, integrationId, canSeeSecrets),
-    });
 };
 
 export const installApp = async (params: Scope & {type: IntegrationAppType}): Promise<IntegrationApp> => {
@@ -197,7 +206,7 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
         throw new BadRequestError('Slack is installed through Slack');
     }
 
-    const app = await withRlsTransaction({
+    await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
@@ -214,12 +223,10 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
             } else {
                 await tx.insert(integrationApps).values({integrationId, type});
             }
-
-            const apps = await loadApps(tx, integrationId, true);
-            return apps.find((a) => a.type === type);
         },
     });
 
+    const app = (await listApps({integrationId, integrationIds, canSeeSecrets: true})).find((a) => a.type === type);
     if (!app) {
         throw new NotFoundError('App not found');
     }

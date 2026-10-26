@@ -14,6 +14,16 @@ const orderByArgs: unknown[][] = [];
 const queryLog: string[] = [];
 const deleteWhere: unknown[] = [];
 const deleteReturningQueue: unknown[][] = [];
+// The real pool holds one connection, so touching the master db (or nesting a transaction) inside a callback deadlocks
+let transactionOpen = false;
+const connectionViolations: string[] = [];
+const masterDb = <T>(op: string, run: () => T): T => {
+    if (transactionOpen) {
+        connectionViolations.push(op);
+        throw new Error(`master db ${op} used while an RLS transaction is open`);
+    }
+    return run();
+};
 
 const chain = (result: unknown[]) => {
     const c: any = {
@@ -66,8 +76,8 @@ const mockWithRlsTransaction = vi.fn();
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: (...args: unknown[]) => mockWithRlsTransaction(...args),
     db: {
-        select: () => mockTx.select(),
-        delete: (table: unknown) => mockTx.delete(table),
+        select: () => masterDb('select', () => mockTx.select()),
+        delete: (table: unknown) => masterDb('delete', () => mockTx.delete(table)),
     },
 }));
 
@@ -126,12 +136,25 @@ describe('apps controller', () => {
         queryLog.length = 0;
         deleteWhere.length = 0;
         deleteReturningQueue.length = 0;
+        transactionOpen = false;
+        connectionViolations.length = 0;
         mockDecryptToken.mockResolvedValue(BOT_TOKEN);
         mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: BOT_TOKEN, disconnected: false});
         mockListChannels.mockResolvedValue([{id: 'C1', name: 'ops', isPrivate: false}]);
         mockGetChannel.mockResolvedValue({id: 'C1', name: 'ops', isPrivate: false});
         mockRevokeToken.mockResolvedValue(undefined);
-        mockWithRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
+        mockWithRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => {
+            if (transactionOpen) {
+                connectionViolations.push('withRlsTransaction');
+                throw new Error('withRlsTransaction nested inside an open RLS transaction');
+            }
+            transactionOpen = true;
+            try {
+                return await params.callback(mockTx);
+            } finally {
+                transactionOpen = false;
+            }
+        });
         mockGetGithubSettings.mockResolvedValue({appId: 'app-g', secret: SECRET, orgSyncDefaultRole: 'member'});
         mockCreateEventLogEntry.mockResolvedValue({});
         controller = await import('./apps.controller');
@@ -176,30 +199,64 @@ describe('apps controller', () => {
     });
 
     describe('listApps (slack)', () => {
-        it('returns the workspace, its channel handles and how many members are linked', async () => {
+        const slackApp = {
+            appId: 'app-s',
+            type: 'slack',
+            createdAt: CREATED.toISOString(),
+            workspace: {teamId: 'T1', teamName: 'Acme', disconnected: false},
+            handles: [{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops', ruleCount: 0}],
+            linkedMemberCount: 1,
+            memberCount: 3,
+        };
+
+        // Tenant rows come from the RLS transaction; slack_workspaces and slack_user_links from the master db after it
+        const queueSlackList = (apps: unknown[], workspace: unknown[] = [{teamName: 'Acme', disconnectedAt: null}]) =>
             selectQueue.push(
-                [{appId: 'app-s', type: 'slack', createdAt: CREATED}],
+                apps,
                 [{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops'}],
                 [],
                 [{teamId: 'T1'}],
-                [{teamName: 'Acme', disconnectedAt: null}],
                 [{githubId: 1}, {githubId: 2}, {githubId: null}],
+                workspace,
                 [{count: 1}],
             );
 
+        it('returns the workspace, its channel handles and how many members are linked', async () => {
+            queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}]);
+
             const apps = await controller.listApps({...base, canSeeSecrets: false});
 
-            expect(apps).toEqual([
-                {
-                    appId: 'app-s',
-                    type: 'slack',
-                    createdAt: CREATED.toISOString(),
-                    workspace: {teamId: 'T1', teamName: 'Acme', disconnected: false},
-                    handles: [{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops', ruleCount: 0}],
-                    linkedMemberCount: 1,
-                    memberCount: 3,
-                },
+            expect(apps).toEqual([slackApp]);
+        });
+
+        it('never uses the master db while the RLS transaction is open', async () => {
+            queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}]);
+
+            const apps = await controller.listApps({...base, canSeeSecrets: false});
+
+            expect(connectionViolations).toEqual([]);
+            expect(apps).toEqual([slackApp]);
+        });
+
+        it('skips the Slack app when its workspace row is gone', async () => {
+            queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}], []);
+
+            await expect(controller.listApps({...base, canSeeSecrets: false})).resolves.toEqual([]);
+            expect(connectionViolations).toEqual([]);
+        });
+
+        it('installApp loads the new app without using the master db inside the write transaction', async () => {
+            selectQueue.push([]);
+            queueSlackList([
+                {appId: 'app-s', type: 'slack', createdAt: CREATED},
+                {appId: 'app-w', type: 'webhook', createdAt: CREATED},
             ]);
+
+            const app = await controller.installApp({...base, type: 'webhook'});
+
+            expect(connectionViolations).toEqual([]);
+            expect(app).toEqual({appId: 'app-w', type: 'webhook', createdAt: CREATED.toISOString(), handles: []});
+            expect(insertedValues).toEqual([{table: integrationApps, values: {integrationId: 'int-1', type: 'webhook'}}]);
         });
     });
 
