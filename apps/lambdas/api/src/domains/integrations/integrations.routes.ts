@@ -15,8 +15,9 @@ import {getLogger} from '@gitgazer/backend-core/logger';
 import {ConflictError} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, ForbiddenError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {db} from '@gitgazer/db/client';
+import {users} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq, isNull} from 'drizzle-orm';
@@ -155,6 +156,17 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
 
     if (!installation) {
         throw new BadRequestError('Installation not found. The GitHub App may not have been installed yet.');
+    }
+
+    // Installation ids are guessable, so only the GitHub user who installed it may claim it
+    const userId = reqCtx.appContext?.userId!;
+    const [user] = await db.select({githubId: users.githubId}).from(users).where(eq(users.id, userId));
+    const githubId = user?.githubId;
+    const installedByUser =
+        githubId != null && (githubId === installation.senderId || (installation.accountType === 'User' && githubId === installation.accountId));
+    if (!installedByUser) {
+        logger.warn('Rejected linking a GitHub App installation the user did not install', {integrationId, installationId, userId});
+        throw new ForbiddenError('Only the GitHub user who installed the GitHub App can link this installation');
     }
 
     if (installation.integrationId) {

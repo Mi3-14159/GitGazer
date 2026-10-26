@@ -25,6 +25,8 @@ The GitHub App is the simplest way to connect — it handles webhook configurati
 
 GitGazer immediately starts receiving webhook events from your selected repositories.
 
+Only the GitHub user who installed the GitHub App can link the installation. For an installation on a personal account, the account owner can link it too.
+
 ### Option B: Manual Webhook
 
 If you prefer to manage webhooks yourself (e.g., for a single repository):
