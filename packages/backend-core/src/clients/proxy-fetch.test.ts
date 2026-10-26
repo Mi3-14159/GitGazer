@@ -122,4 +122,14 @@ describe('proxyFetch', () => {
 
         await expect(proxyFetch('https://api.github.com/user')).rejects.toThrow('Proxy Lambda error: something bad happened');
     });
+
+    it.each([204, 205, 304])('returns a %i response although the proxy relays an empty body', async (statusCode) => {
+        mockConfigGet.mockReturnValue('gitgazer-http-proxy-default');
+        mockSend.mockResolvedValue({Payload: Buffer.from(JSON.stringify({statusCode, headers: {}, body: ''}))});
+
+        const result = await proxyFetch('https://api.github.com/orgs/acme/hooks/1', {method: 'DELETE'});
+
+        expect(result.status).toBe(statusCode);
+        expect(await result.text()).toBe('');
+    });
 });
