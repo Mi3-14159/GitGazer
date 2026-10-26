@@ -3,6 +3,7 @@
     import {APP_INFO} from '@/components/apps/appCatalog';
     import DeleteHandleDialog from '@/components/apps/DeleteHandleDialog.vue';
     import HandleDialog from '@/components/apps/HandleDialog.vue';
+    import MoveWebhooksOffer from '@/components/apps/MoveWebhooksOffer.vue';
     import Button from '@/components/ui/Button.vue';
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import {useIntegrationApps} from '@/composables/useIntegrationApps';
@@ -14,6 +15,7 @@
     const props = defineProps<{
         integrationId: string;
         app: Extract<IntegrationApp, {type: 'webhook'}>;
+        slackApp?: Extract<IntegrationApp, {type: 'slack'}>;
         canManage: boolean;
     }>();
 
@@ -129,6 +131,14 @@
         >
             This app holds the maximum of {{ MAX_WEBHOOK_HANDLES }} handles. Delete one to add another.
         </p>
+
+        <MoveWebhooksOffer
+            v-if="canManage && slackApp && !slackApp.workspace.disconnected"
+            :integration-id="integrationId"
+            :slack-app-id="slackApp.appId"
+            @changed="emit('changed')"
+            @remove-webhook="emit('remove')"
+        />
 
         <p
             v-if="app.handles.length === 0"

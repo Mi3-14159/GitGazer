@@ -261,6 +261,7 @@
                     <WebhookAppPanel
                         :integration-id="integration.integrationId"
                         :app="webhookApp"
+                        :slack-app="slackApp?.type === 'slack' ? slackApp : undefined"
                         :can-manage="canManage"
                         @changed="loadApps"
                         @remove="confirmUninstall('webhook')"
