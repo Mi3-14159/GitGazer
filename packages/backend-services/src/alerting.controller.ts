@@ -304,14 +304,16 @@ async function findMatchingRulesAndTargets(
     const targets = new Map<string, HandleTarget>();
     for (const row of rows) {
         if (row.handleId === null) continue;
-        const target: HandleTarget | null =
-            targets.get(row.handleId) ??
-            (row.url !== null
-                ? {kind: 'webhook', handleId: row.handleId, url: row.url, includeLogDetails: false}
-                : row.channelId !== null
-                  ? {kind: 'slack', handleId: row.handleId, channelId: row.channelId, includeLogDetails: false}
-                  : null);
-        if (!target) continue;
+        let target = targets.get(row.handleId);
+        if (!target) {
+            if (row.url !== null) {
+                target = {kind: 'webhook', handleId: row.handleId, url: row.url, includeLogDetails: false};
+            } else if (row.channelId !== null) {
+                target = {kind: 'slack', handleId: row.handleId, channelId: row.channelId, includeLogDetails: false};
+            } else {
+                continue;
+            }
+        }
         target.includeLogDetails ||= row.includeLogDetails;
         targets.set(row.handleId, target);
     }
