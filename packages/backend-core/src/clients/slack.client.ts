@@ -79,13 +79,13 @@ export const exchangeInstallCode = async (code: string) => {
     const body = await slackCall<{
         access_token: string;
         bot_user_id: string;
-        team: {id: string; name: string};
+        team: {id: string; name: string} | null;
         is_enterprise_install?: boolean;
     }>('oauth.v2.access', {form: oauthForm(code, config.get('slackApp.installRedirectUri'))});
 
     return {
-        teamId: body.team.id,
-        teamName: body.team.name,
+        teamId: body.team?.id ?? '',
+        teamName: body.team?.name ?? '',
         botUserId: body.bot_user_id,
         botToken: body.access_token,
         isEnterpriseInstall: body.is_enterprise_install ?? false,

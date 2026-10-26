@@ -89,6 +89,14 @@ describe('exchangeInstallCode', () => {
         expect(result).toEqual({teamId: 'T1', teamName: 'Acme', botUserId: 'UBOT', botToken: 'xoxb-1', isEnterpriseInstall: false});
     });
 
+    it('returns isEnterpriseInstall for org-wide installs where team is null', async () => {
+        proxyFetch.mockResolvedValue(reply({ok: true, access_token: 'xoxb-1', bot_user_id: 'UBOT', team: null, is_enterprise_install: true}));
+
+        const result = await exchangeInstallCode('the-code');
+
+        expect(result.isEnterpriseInstall).toBe(true);
+    });
+
     it('maps ok:false to SlackApiError without leaking the code', async () => {
         proxyFetch.mockResolvedValue(reply({ok: false, error: 'invalid_code'}));
         const error = await exchangeInstallCode('secret-code').catch((e) => e);
