@@ -35,6 +35,8 @@
 
     const webhookUrl = computed(() => `${IMPORT_URL_BASE}/${props.integration.integrationId}`);
     const installations = computed(() => props.integration.githubAppInstallations ?? []);
+    // GitHub hands state back on the setup redirect, so the link dialog can preselect this integration
+    const installUrl = computed(() => `${GITHUB_APP_INSTALL_URL}?state=${encodeURIComponent(props.integration.integrationId)}`);
     const eventEditor = useTemplateRef<InstanceType<typeof WebhookEventEditor>>('eventEditor');
 
     const actionError = shallowRef<string | null>(null);
@@ -182,7 +184,7 @@
                 <p>No GitHub App installation is linked yet.</p>
                 <a
                     v-if="canManage"
-                    :href="GITHUB_APP_INSTALL_URL"
+                    :href="installUrl"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
