@@ -45,10 +45,43 @@ const linkEvent = (): APIGatewayProxyEventV2 =>
         isBase64Encoded: false,
     }) as unknown as APIGatewayProxyEventV2;
 
+const installation = {installationId: 42, integrationId: null, accountLogin: 'acme', accountType: 'Organization', accountId: 500, senderId: 7};
+
+// The route reads the installation first, then the requesting user's GitHub id
+const givenLink = (inst: Record<string, unknown>, githubId: number | null) => {
+    mocks.where.mockReset().mockResolvedValueOnce([inst]).mockResolvedValueOnce([{githubId}]);
+};
+
 describe('POST /api/integrations/:integrationId/github-app', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.where.mockResolvedValue([{installationId: 42, integrationId: null, accountLogin: 'acme', accountType: 'Organization'}]);
+        givenLink(installation, 7);
+    });
+
+    it.each([
+        ['another GitHub user', 8],
+        ['a user without a GitHub id', null],
+    ])('rejects with 403 and writes nothing when %s did not install it', async (_, githubId) => {
+        givenLink(installation, githubId);
+        const router = (await import('@/domains/integrations/integrations.routes')).default;
+
+        const res = await router.resolve(linkEvent(), {} as Context);
+
+        expect(res.statusCode).toBe(403);
+        expect(mocks.transaction).not.toHaveBeenCalled();
+        expect(mocks.provisionWebhooks).not.toHaveBeenCalled();
+    });
+
+    it('lets the owner of a personal account link an installation someone else created on it', async () => {
+        givenLink({...installation, accountType: 'User'}, 500);
+        mocks.getGithubSettings.mockResolvedValue({appId: 'app-g', secret: 's', orgSyncDefaultRole: 'viewer'});
+        mocks.returning.mockResolvedValue([{installationId: 42}]);
+        mocks.provisionWebhooks.mockResolvedValue(1);
+        const router = (await import('@/domains/integrations/integrations.routes')).default;
+
+        const res = await router.resolve(linkEvent(), {} as Context);
+
+        expect(res.statusCode).toBe(200);
     });
 
     it('rejects with 409 and writes nothing when the integration has no GitHub app', async () => {

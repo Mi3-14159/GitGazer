@@ -63,7 +63,8 @@ resource "aws_cognito_user_pool_client" "this" {
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["email", "openid", "profile", "aws.cognito.signin.user.admin"]
+  # No aws.cognito.signin.user.admin: it lets users edit their own attributes, and authorization trusts custom:github_id
+  allowed_oauth_scopes = ["email", "openid", "profile"]
 }
 
 # Public (PKCE, no secret) app client for MCP clients (VS Code, etc.) to obtain access tokens
