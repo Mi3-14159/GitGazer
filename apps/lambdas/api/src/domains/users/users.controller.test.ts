@@ -28,6 +28,17 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: vi.fn(), info: vi.fn(), warn: vi.fn()}),
 }));
 
+// The real linkAtLogin loads emails only when the user has a linkable Slack workspace
+vi.mock('@gitgazer/db/client', () => {
+    const chain = {
+        from: () => chain,
+        innerJoin: () => chain,
+        leftJoin: () => chain,
+        where: () => Promise.resolve([{teamId: 'T1', botTokenCiphertext: 'cipher', source: null, autoLinkBlocked: null}]),
+    };
+    return {db: {selectDistinct: () => chain}};
+});
+
 const mockLinkAtLogin = vi.fn();
 vi.mock('@gitgazer/backend-services/slack/login-links', () => ({
     linkAtLogin: (...args: any[]) => mockLinkAtLogin(...args),
