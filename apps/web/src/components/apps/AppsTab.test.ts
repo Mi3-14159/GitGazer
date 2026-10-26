@@ -32,6 +32,7 @@ async function mountTab(role: MemberRole, path = '/integrations/int-1/apps', app
         role,
         createdAt: '',
         githubAppInstallations: [],
+        apps: [],
     } as unknown as IntegrationWithRole;
     const wrapper = mount(AppsTab, {
         props: {integration},
