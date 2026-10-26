@@ -145,8 +145,21 @@ describe('linkAtLogin', () => {
 
         await linkAtLogin(42, async () => []);
 
-        expect(mockDb.selectDistinct).not.toHaveBeenCalled();
+        expect(mockLookupUserByEmail).not.toHaveBeenCalled();
         expect(mockSaveLookupResult).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['no connected workspace', []],
+        ['only workspaces it may not link', [workspace('T1', {source: 'slack_sign_in'}), workspace('T2', {autoLinkBlocked: true})]],
+    ])('loads no emails with %s', async (_case, rows) => {
+        workspaceRows.rows = rows;
+        const loadEmails = vi.fn(async () => ['a@example.com']);
+
+        await linkAtLogin(42, loadEmails);
+
+        expect(loadEmails).not.toHaveBeenCalled();
+        expect(mockDecryptToken).not.toHaveBeenCalled();
     });
 
     it('a failing workspace does not stop the others', async () => {
@@ -170,13 +183,15 @@ describe('linkAtLogin', () => {
     });
 
     it('never throws when loading the emails fails', async () => {
+        workspaceRows.rows = [workspace('T1')];
+
         await expect(
             linkAtLogin(42, async () => {
                 throw new Error('emails failed');
             }),
         ).resolves.toBeUndefined();
 
-        expect(mockDb.selectDistinct).not.toHaveBeenCalled();
+        expect(mockLookupUserByEmail).not.toHaveBeenCalled();
     });
 
     it('the time budget covers loading the emails', async () => {
@@ -187,8 +202,8 @@ describe('linkAtLogin', () => {
         await vi.advanceTimersByTimeAsync(LOGIN_LOOKUP_BUDGET_MS);
         await done;
 
-        expect(mockDb.selectDistinct).not.toHaveBeenCalled();
         expect(mockLookupUserByEmail).not.toHaveBeenCalled();
+        expect(mockLogger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({timedOut: true}));
     });
 
     it('login linking stops at the time budget', async () => {
