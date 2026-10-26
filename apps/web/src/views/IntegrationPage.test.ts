@@ -11,8 +11,8 @@ let role: MemberRole = 'owner';
 vi.mock('@/composables/useIntegration', () => ({
     useIntegration: () => ({
         getIntegrations: vi.fn(async () => [
-            {integrationId: 'int-1', label: 'Platform', role, createdAt: '', githubAppInstallations: []},
-            {integrationId: 'int-2', label: 'Payments', role, createdAt: '', githubAppInstallations: []},
+            {integrationId: 'int-1', label: 'Platform', role, createdAt: '', githubAppInstallations: [], apps: []},
+            {integrationId: 'int-2', label: 'Payments', role, createdAt: '', githubAppInstallations: [], apps: []},
         ]),
         isLoadingIntegrations: ref(false),
         createIntegration: vi.fn(),

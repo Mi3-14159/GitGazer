@@ -18,6 +18,7 @@ export const integrationsQueryRelations = {
             webhooks: true,
         },
     },
+    apps: {columns: {type: true}},
 } as const;
 
 export const workflowRunRelations = {
