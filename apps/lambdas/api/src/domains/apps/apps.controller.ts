@@ -362,8 +362,8 @@ export const loadSlackBotToken = async (params: Scope & {appId: string}): Promis
         throw new BadRequestError('Not a Slack app');
     }
     const workspace = await loadWorkspaceForIntegration(integrationId);
-    if (!workspace) {
-        throw new NotFoundError('Slack workspace not found');
+    if (!workspace || workspace.disconnected) {
+        throw new NotFoundError('Slack workspace not connected');
     }
     return workspace.botToken;
 };

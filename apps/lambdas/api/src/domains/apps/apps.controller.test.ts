@@ -344,9 +344,12 @@ describe('apps controller', () => {
             expect(mockListChannels).not.toHaveBeenCalled();
         });
 
-        it('listSlackChannels fails without a workspace', async () => {
+        it.each([
+            ['without a workspace', null],
+            ['with a disconnected workspace', {teamId: 'T1', botToken: '', disconnected: true}],
+        ])('listSlackChannels fails %s', async (_case, workspace) => {
             queueSlackApp();
-            mockLoadWorkspaceForIntegration.mockResolvedValue(null);
+            mockLoadWorkspaceForIntegration.mockResolvedValue(workspace);
 
             await expect(controller.listSlackChannels({...base, appId: 'app-s'})).rejects.toBeInstanceOf(NotFoundError);
             expect(mockListChannels).not.toHaveBeenCalled();
