@@ -5,6 +5,8 @@ import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
 
 const client = new LambdaClient({useDualstackEndpoint: true}); // Enable IPv6 for Lambda invocation
 
+const NULL_BODY_STATUSES = new Set([204, 205, 304]);
+
 /**
  * A fetch-compatible function that routes requests through the HTTP proxy Lambda.
  * Use for IPv4-only targets (GitHub, Slack) that aren't reachable from the VPC.
@@ -61,7 +63,9 @@ export async function proxyFetch(url: string | URL, init?: FetchRetryOptions): P
 
     const proxyResponse: ProxyResponse = JSON.parse(new TextDecoder().decode(result.Payload));
 
-    const response = new Response(proxyResponse.body, {
+    // The Response constructor throws on any body, even '', for these statuses (e.g. a 204 from a webhook DELETE)
+    const hasNullBody = NULL_BODY_STATUSES.has(proxyResponse.statusCode);
+    const response = new Response(hasNullBody ? null : proxyResponse.body, {
         status: proxyResponse.statusCode,
         headers: proxyResponse.headers,
     });
