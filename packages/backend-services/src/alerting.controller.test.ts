@@ -15,6 +15,7 @@ const tables = vi.hoisted(() => ({
     },
     notificationRuleDestinations: {integrationId: 'integration_id', ruleId: 'rule_id', handleId: 'handle_id'},
     webhookHandleDetails: {integrationId: 'integration_id', handleId: 'handle_id', url: 'url'},
+    slackHandleDetails: {integrationId: 'integration_id', handleId: 'handle_id', channelId: 'channel_id'},
     githubAppInstallations: {installationId: 'installation_id', integrationId: 'integration_id', accountLogin: 'account_login'},
     workflowRunPullRequests: {integrationId: 'integration_id', workflowRunId: 'workflow_run_id', pullRequestId: 'pull_request_id'},
     pullRequests: {integrationId: 'integration_id', id: 'id', number: 'number', title: 'title'},
@@ -26,18 +27,18 @@ const rowsByTable = new Map<object, unknown[]>();
 let joinedRows: unknown[] | null = null;
 const readTables: object[] = [];
 
-type JoinedRow = {ruleId: string; includeLogDetails: boolean; handleId: string | null; url: string | null};
+type JoinedRow = {ruleId: string; includeLogDetails: boolean; handleId: string | null; url: string | null; channelId: string | null};
 
-// Mirrors notification_rules LEFT JOIN destinations LEFT JOIN webhook_handle_details: a rule without a (live) handle yields one row with null handle.
+// Mirrors notification_rules LEFT JOIN destinations LEFT JOIN webhook/slack handle details: a rule without a (live) handle yields one row with null handle.
 const joinRulesAndDestinations = (): unknown[] => {
     if (joinedRows) return joinedRows;
     const rules = (rowsByTable.get(tables.notificationRules) ?? []) as {id: string; include_log_details: boolean}[];
-    const destinations = (rowsByTable.get(tables.notificationRuleDestinations) ?? []) as {ruleId: string; handleId: string; url: string}[];
+    const destinations = (rowsByTable.get(tables.notificationRuleDestinations) ?? []) as Omit<JoinedRow, 'includeLogDetails'>[];
     return rules.flatMap((r): JoinedRow[] => {
         const own = destinations.filter((d) => d.ruleId === r.id);
         return own.length === 0
-            ? [{ruleId: r.id, includeLogDetails: r.include_log_details, handleId: null, url: null}]
-            : own.map((d) => ({ruleId: r.id, includeLogDetails: r.include_log_details, handleId: d.handleId, url: d.url}));
+            ? [{ruleId: r.id, includeLogDetails: r.include_log_details, handleId: null, url: null, channelId: null}]
+            : own.map((d) => ({...d, includeLogDetails: r.include_log_details}));
     });
 };
 const fakeTx = {
@@ -88,6 +89,24 @@ vi.mock('@gitgazer/backend-core/clients/proxy-fetch', () => ({
     proxyFetch: (...args: any[]) => mockProxyFetch(...args),
 }));
 
+const mockLoadWorkspaceForIntegration = vi.fn();
+const mockMarkWorkspaceDisconnected = vi.fn();
+vi.mock('./slack/workspaces', () => ({
+    loadWorkspaceForIntegration: (...args: any[]) => mockLoadWorkspaceForIntegration(...args),
+    markWorkspaceDisconnected: (...args: any[]) => mockMarkWorkspaceDisconnected(...args),
+}));
+
+const mockResolveSlackUserId = vi.fn();
+vi.mock('./slack/links', () => ({
+    resolveSlackUserId: (...args: any[]) => mockResolveSlackUserId(...args),
+}));
+
+const mockPostMessage = vi.fn();
+vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-core/clients/slack.client')>()),
+    postMessage: (...args: any[]) => mockPostMessage(...args),
+}));
+
 const mockCreateEventLogEntry = vi.fn();
 vi.mock('./event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
@@ -110,6 +129,7 @@ vi.mock('./alerting/slack-payload', async (importOriginal) => {
 });
 
 import {sendWorkflowJobAlerts} from './alerting.controller';
+import {SlackApiError} from '@gitgazer/backend-core/clients/slack.client';
 
 const LOG = ['##[group]Run pnpm test', 'FAIL checkout.spec.ts', '##[error]Process completed with exit code 1.'].join('\n');
 const SUMMARY = 'Checkout tests time out waiting for the pay button.';
@@ -127,18 +147,21 @@ const job = {
     name: 'test',
     headBranch: 'main',
     repository: {name: 'app', owner: {login: 'acme'}, topics: [], defaultBranch: 'main'},
-    sender: {login: 'asmith'},
+    sender: {id: 5, login: 'asmith', type: 'User'},
     workflowRun: {event: 'push', headCommitMessage: 'fix cart'},
 } as unknown as WorkflowJobWithRelations;
 
 const rule = (id: string, includeLogDetails: boolean) => ({id, include_log_details: includeLogDetails});
 
-// Mirrors the destinations -> webhook details join: one row per (rule, handle) with the handle's URL.
-const destination = (ruleId: string, handleId: string, url = `https://hooks.slack.com/${handleId}`) => ({ruleId, handleId, url});
-const setDestinations = (...rows: ReturnType<typeof destination>[]) => rowsByTable.set(tables.notificationRuleDestinations, rows);
+// Mirrors the destinations -> handle details joins: one row per (rule, handle) with the handle's URL or channel.
+const destination = (ruleId: string, handleId: string, url = `https://hooks.slack.com/${handleId}`) => ({ruleId, handleId, url, channelId: null});
+const slackDestination = (ruleId: string, handleId: string, channelId = `C-${handleId}`) => ({ruleId, handleId, url: null, channelId});
+const setDestinations = (...rows: Omit<JoinedRow, 'includeLogDetails'>[]) => rowsByTable.set(tables.notificationRuleDestinations, rows);
 
 const postedBodies = (): string[] => mockProxyFetch.mock.calls.map(([, init]) => init.body as string);
 const slackInputs = () => spies.buildSlackAlert.mock.calls.map(([input]) => input);
+const postedChannels = (): string[] => mockPostMessage.mock.calls.map(([, channelId]) => channelId);
+const disconnectEntries = () => mockCreateEventLogEntry.mock.calls.filter(([entry]) => entry.title === 'Slack app disconnected');
 
 describe('sendWorkflowJobAlerts', () => {
     beforeEach(() => {
@@ -151,7 +174,16 @@ describe('sendWorkflowJobAlerts', () => {
         mockSummarizeFailure.mockResolvedValue(SUMMARY);
         mockDownloadJobLog.mockResolvedValue(LOG);
         mockProxyFetch.mockResolvedValue({ok: true, status: 200});
+        mockCreateEventLogEntry.mockReset();
         mockCreateEventLogEntry.mockResolvedValue(undefined);
+        mockLoadWorkspaceForIntegration.mockReset();
+        mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: 'xoxb-secret', disconnected: false});
+        mockMarkWorkspaceDisconnected.mockReset();
+        mockMarkWorkspaceDisconnected.mockResolvedValue([]);
+        mockResolveSlackUserId.mockReset();
+        mockResolveSlackUserId.mockResolvedValue('U123');
+        mockPostMessage.mockReset();
+        mockPostMessage.mockResolvedValue(undefined);
         rowsByTable.set(tables.notificationRules, [rule('rule-1', true)]);
         setDestinations(destination('rule-1', 'a'));
         rowsByTable.set(tables.githubAppInstallations, [{installationId: 123}]);
@@ -302,13 +334,14 @@ describe('sendWorkflowJobAlerts', () => {
         // A second read of destinations would find this stale pairing (rule-A -> handle-A with details) and must not be used.
         rowsByTable.set(tables.notificationRules, [rule('rule-A', true)]);
         setDestinations(destination('rule-A', 'handle-A'));
-        joinedRows = [{ruleId: 'rule-A', includeLogDetails: false, handleId: 'handle-B', url: 'https://hooks.slack.com/handle-B'}];
+        joinedRows = [{ruleId: 'rule-A', includeLogDetails: false, handleId: 'handle-B', url: 'https://hooks.slack.com/handle-B', channelId: null}];
 
         await sendWorkflowJobAlerts(job);
 
         expect(readTables.filter((table) => table === tables.notificationRules)).toHaveLength(1);
         expect(readTables).not.toContain(tables.notificationRuleDestinations);
         expect(readTables).not.toContain(tables.webhookHandleDetails);
+        expect(readTables).not.toContain(tables.slackHandleDetails);
         expect(mockProxyFetch.mock.calls.map(([url]) => url)).toEqual(['https://hooks.slack.com/handle-B']);
         expect(spies.loadLogDetails).not.toHaveBeenCalled();
         expect(slackInputs()).toEqual([expect.objectContaining({details: null})]);
@@ -359,10 +392,19 @@ describe('sendWorkflowJobAlerts', () => {
     // Alerts run while the worker ingests other records, so shared logger keys cannot identify the job.
     it('passes the job ids with every log line', async () => {
         rowsByTable.set(tables.notificationRules, [rule('rule-1', true)]);
-        setDestinations(destination('rule-1', 'a'), destination('rule-1', 'b'));
+        setDestinations(destination('rule-1', 'a'), destination('rule-1', 'b'), slackDestination('rule-1', 's1'), slackDestination('rule-1', 's2'));
         mockProxyFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
-        mockCreateEventLogEntry.mockRejectedValueOnce(new Error('db down'));
+        mockPostMessage.mockRejectedValueOnce(new SlackApiError('channel_not_found')).mockRejectedValueOnce(new SlackApiError('token_revoked'));
+        mockMarkWorkspaceDisconnected.mockResolvedValue(['int-1', 'int-2']);
+        mockCreateEventLogEntry.mockRejectedValue(new Error('db down'));
 
+        await sendWorkflowJobAlerts(job);
+        mockMarkWorkspaceDisconnected.mockRejectedValue(new Error('db down'));
+        mockPostMessage.mockRejectedValueOnce(new SlackApiError('token_revoked'));
+        await sendWorkflowJobAlerts(job);
+        mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: 'xoxb-secret', disconnected: true});
+        await sendWorkflowJobAlerts(job);
+        mockLoadWorkspaceForIntegration.mockRejectedValue(new Error('kms down'));
         await sendWorkflowJobAlerts(job);
         rowsByTable.set(tables.notificationRules, []);
         await sendWorkflowJobAlerts(job);
@@ -379,5 +421,174 @@ describe('sendWorkflowJobAlerts', () => {
 
         const actual = await vi.importActual<typeof import('./alerting/slack-payload')>('./alerting/slack-payload');
         expect(JSON.parse(postedBodies()[0])).toEqual(actual.buildSlackAlert(slackInputs()[0]));
+    });
+
+    describe('Slack app handles', () => {
+        it('mentions only on Slack handles', async () => {
+            setDestinations(destination('rule-1', 'a'), slackDestination('rule-1', 's'));
+
+            await sendWorkflowJobAlerts(job);
+
+            expect(mockResolveSlackUserId).toHaveBeenCalledTimes(1);
+            expect(mockResolveSlackUserId).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    teamId: 'T1',
+                    botToken: 'xoxb-secret',
+                    integrationId: 'int-1',
+                    githubUserId: 5,
+                    githubLogin: 'asmith',
+                    ownerLogin: 'acme',
+                }),
+            );
+            expect(slackInputs()).toEqual([expect.objectContaining({senderSlackUserId: null}), expect.objectContaining({senderSlackUserId: 'U123'})]);
+            expect(postedBodies()[0]).not.toContain('<@U123>');
+            expect(JSON.stringify(mockPostMessage.mock.calls[0][2])).toContain('<@U123>');
+        });
+
+        it('does not load the workspace or look up the sender without Slack handles', async () => {
+            await sendWorkflowJobAlerts(job);
+
+            expect(mockLoadWorkspaceForIntegration).not.toHaveBeenCalled();
+            expect(mockResolveSlackUserId).not.toHaveBeenCalled();
+            expect(slackInputs()).toEqual([expect.objectContaining({senderSlackUserId: null})]);
+        });
+
+        it('posts Slack handles with the bot token to the channel', async () => {
+            setDestinations(slackDestination('rule-1', 's1', 'C1'), slackDestination('rule-1', 's2', 'C2'));
+
+            await sendWorkflowJobAlerts(job);
+
+            expect(mockLoadWorkspaceForIntegration).toHaveBeenCalledTimes(1);
+            expect(mockLoadWorkspaceForIntegration).toHaveBeenCalledWith('int-1');
+            expect(mockProxyFetch).not.toHaveBeenCalled();
+            expect(mockPostMessage.mock.calls.map(([token, channel]) => [token, channel])).toEqual([
+                ['xoxb-secret', 'C1'],
+                ['xoxb-secret', 'C2'],
+            ]);
+            const actual = await vi.importActual<typeof import('./alerting/slack-payload')>('./alerting/slack-payload');
+            expect(mockPostMessage.mock.calls[0][2]).toEqual(actual.buildSlackAlert(slackInputs()[0]));
+        });
+
+        it('bot sender is not looked up', async () => {
+            setDestinations(slackDestination('rule-1', 's'));
+
+            await sendWorkflowJobAlerts({...job, sender: {id: 6, login: 'dependabot[bot]', type: 'Bot'}} as WorkflowJobWithRelations);
+
+            expect(mockResolveSlackUserId).not.toHaveBeenCalled();
+            expect(slackInputs()).toEqual([expect.objectContaining({senderSlackUserId: null})]);
+            expect(mockPostMessage).toHaveBeenCalledTimes(1);
+        });
+
+        it('missing sender is not looked up', async () => {
+            setDestinations(slackDestination('rule-1', 's'));
+
+            await sendWorkflowJobAlerts({...job, sender: null} as unknown as WorkflowJobWithRelations);
+            await sendWorkflowJobAlerts({...job, sender: {login: 'ghost', type: 'User'}} as unknown as WorkflowJobWithRelations);
+
+            expect(mockResolveSlackUserId).not.toHaveBeenCalled();
+            expect(mockPostMessage).toHaveBeenCalledTimes(2);
+        });
+
+        it('a slow sender lookup sends the alert without a mention', async () => {
+            vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']});
+            try {
+                setDestinations(slackDestination('rule-1', 's'));
+                mockResolveSlackUserId.mockReturnValue(new Promise(() => {}));
+
+                const sending = sendWorkflowJobAlerts(job);
+                await vi.advanceTimersByTimeAsync(3000);
+                await sending;
+
+                expect(slackInputs()).toEqual([expect.objectContaining({senderSlackUserId: null})]);
+                expect(mockPostMessage).toHaveBeenCalledTimes(1);
+                expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                    expect.objectContaining({metadata: expect.objectContaining({mentioned: false})}),
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('revoked token marks the workspace disconnected and logs once per integration', async () => {
+            setDestinations(slackDestination('rule-1', 's1'), destination('rule-1', 'a'), slackDestination('rule-1', 's2'));
+            mockPostMessage.mockRejectedValueOnce(new SlackApiError('token_revoked'));
+            mockMarkWorkspaceDisconnected.mockResolvedValue(['int-1', 'int-2']);
+
+            await sendWorkflowJobAlerts(job);
+
+            expect(mockMarkWorkspaceDisconnected).toHaveBeenCalledTimes(1);
+            expect(mockMarkWorkspaceDisconnected).toHaveBeenCalledWith('T1');
+            expect(postedChannels()).toEqual(['C-s1']);
+            expect(mockProxyFetch).toHaveBeenCalledTimes(1);
+            expect(disconnectEntries().map(([entry]) => entry)).toEqual([
+                expect.objectContaining({integrationId: 'int-1', category: 'integration', type: 'warning', title: 'Slack app disconnected'}),
+                expect.objectContaining({integrationId: 'int-2', category: 'integration', type: 'warning', title: 'Slack app disconnected'}),
+            ]);
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({category: 'notification', type: 'alert'}));
+        });
+
+        it('writes no disconnect entry when another alert already disconnected the workspace', async () => {
+            setDestinations(slackDestination('rule-1', 's1'), slackDestination('rule-1', 's2'));
+            mockPostMessage.mockRejectedValueOnce(new SlackApiError('invalid_auth'));
+
+            await sendWorkflowJobAlerts(job);
+
+            expect(mockMarkWorkspaceDisconnected).toHaveBeenCalledTimes(1);
+            expect(postedChannels()).toEqual(['C-s1']);
+            expect(disconnectEntries()).toEqual([]);
+        });
+
+        it('disconnected workspace skips Slack without calling Slack', async () => {
+            setDestinations(destination('rule-1', 'a'), slackDestination('rule-1', 's'));
+            mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: 'xoxb-secret', disconnected: true});
+
+            await sendWorkflowJobAlerts(job);
+            mockLoadWorkspaceForIntegration.mockResolvedValue(null);
+            await sendWorkflowJobAlerts(job);
+            mockLoadWorkspaceForIntegration.mockRejectedValue(new Error('kms down'));
+            await sendWorkflowJobAlerts(job);
+
+            expect(mockPostMessage).not.toHaveBeenCalled();
+            expect(mockResolveSlackUserId).not.toHaveBeenCalled();
+            expect(mockProxyFetch).toHaveBeenCalledTimes(3);
+            expect(slackInputs()).toHaveLength(3);
+        });
+
+        it('one failing Slack handle does not stop others', async () => {
+            setDestinations(slackDestination('rule-1', 's1'), slackDestination('rule-1', 's2'), destination('rule-1', 'a'));
+            mockPostMessage.mockRejectedValueOnce(new SlackApiError('channel_not_found'));
+
+            await sendWorkflowJobAlerts(job);
+
+            expect(postedChannels()).toEqual(['C-s1', 'C-s2']);
+            expect(mockProxyFetch).toHaveBeenCalledTimes(1);
+            expect(mockMarkWorkspaceDisconnected).not.toHaveBeenCalled();
+            expect(logger.error).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({handleId: 's1', reason: 'channel_not_found'}));
+            const logged = [logger.debug, logger.info, logger.warn, logger.error].flatMap((level) => level.mock.calls);
+            expect(JSON.stringify(logged)).not.toContain('xoxb-secret');
+            expect(JSON.stringify(logged)).not.toContain('U123');
+        });
+
+        it('records mentioned in the event log', async () => {
+            const mentioned = () => mockCreateEventLogEntry.mock.lastCall?.[0].metadata.mentioned;
+
+            setDestinations(slackDestination('rule-1', 's'));
+            await sendWorkflowJobAlerts(job);
+            expect(mentioned()).toBe(true);
+
+            mockResolveSlackUserId.mockResolvedValue(null);
+            await sendWorkflowJobAlerts(job);
+            expect(mentioned()).toBe(false);
+
+            mockResolveSlackUserId.mockResolvedValue('U123');
+            setDestinations(destination('rule-1', 'a'));
+            await sendWorkflowJobAlerts(job);
+            expect(mentioned()).toBe(false);
+
+            setDestinations(slackDestination('rule-1', 's'));
+            mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: 'xoxb-secret', disconnected: true});
+            await sendWorkflowJobAlerts(job);
+            expect(mentioned()).toBe(false);
+        });
     });
 });

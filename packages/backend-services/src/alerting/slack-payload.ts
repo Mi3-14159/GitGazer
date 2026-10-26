@@ -1,4 +1,4 @@
-import type {SlackBlock, SlackButton, SlackPayload, SlackText, VerdictKind} from '@gitgazer/db/types';
+import {isSlackUserId, type SlackBlock, type SlackButton, type SlackPayload, type SlackText, type VerdictKind} from '@gitgazer/db/types';
 import type {Verdict} from './verdict';
 
 export type SlackAlertInput = {
@@ -12,6 +12,7 @@ export type SlackAlertInput = {
     runAttempt: number;
     event: string | null;
     senderLogin: string;
+    senderSlackUserId: string | null;
     pullRequestNumber: number | null;
     verdict: Verdict;
     details: {summary: string | null; excerpt: string | null} | null;
@@ -42,6 +43,8 @@ export const buildSlackAlert = (input: SlackAlertInput): SlackPayload => {
     const runUrl = `${repoUrl}/actions/runs/${runId}`;
     const title = `${escapeMrkdwn(input.workflowName)} / ${escapeMrkdwn(input.jobName)}`;
     const branch = input.branch ? ` · ${escapeMrkdwn(input.branch)}` : '';
+    // Only a checked ID becomes a mention, and it is added after escaping and neutralising.
+    const mention = isSlackUserId(input.senderSlackUserId) ? `<@${input.senderSlackUserId}>` : null;
 
     const blocks: SlackBlock[] = [{type: 'section', text: mrkdwn(`*${title} failed* · <${repoUrl}|${escapeMrkdwn(repository)}>${branch}`)}];
 
@@ -61,7 +64,7 @@ export const buildSlackAlert = (input: SlackAlertInput): SlackPayload => {
     const event = input.event ? ` · ${escapeMrkdwn(input.event)}` : '';
     blocks.push({
         type: 'context',
-        elements: [mrkdwn(`by ${escapeMrkdwn(input.senderLogin)}${event} · <${runUrl}|run #${runId}> · attempt ${input.runAttempt}`)],
+        elements: [mrkdwn(`by ${mention ?? escapeMrkdwn(input.senderLogin)}${event} · <${runUrl}|run #${runId}> · attempt ${input.runAttempt}`)],
     });
 
     const buttons = [button('Open failed step', `${runUrl}/job/${jobId}`)];
@@ -71,7 +74,7 @@ export const buildSlackAlert = (input: SlackAlertInput): SlackPayload => {
     blocks.push({type: 'actions', elements: buttons});
 
     return {
-        text: neutralizeMentions(`${title} failed on ${escapeMrkdwn(repository)}`),
+        text: neutralizeMentions(`${title} failed on ${escapeMrkdwn(repository)}`) + (mention ? ` · ${mention}` : ''),
         attachments: [{color: COLORS[verdict.kind], blocks}],
     };
 };
