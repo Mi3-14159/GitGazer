@@ -1,5 +1,5 @@
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockProxyFetch = vi.fn();
 vi.mock('@gitgazer/backend-core/clients/proxy-fetch', () => ({
@@ -130,6 +130,7 @@ describe('assertCognitoCaller', () => {
 describe('fetchGitHubUser', () => {
     beforeEach(() => {
         mockProxyFetch.mockReset();
+        mockLinkAtLogin.mockReset();
     });
 
     it('returns the user profile with a sub claim on success', async () => {
@@ -165,6 +166,21 @@ describe('fetchGitHubUser', () => {
             headers: {'Cache-Control': 'no-cache, no-store, max-age=0', 'Content-Type': 'application/json'},
         });
     };
+    const useRealLinkAtLogin = async () => {
+        const actual = await vi.importActual<typeof import('@gitgazer/backend-services/slack/login-links')>(
+            '@gitgazer/backend-services/slack/login-links',
+        );
+        mockLinkAtLogin.mockImplementation(actual.linkAtLogin);
+        return actual;
+    };
+    const loadedEmails = async (): Promise<string[]> => {
+        expect(mockLinkAtLogin).toHaveBeenCalledWith(4242, expect.any(Function));
+        return mockLinkAtLogin.mock.calls[0][1]();
+    };
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
 
     it('fetchGitHubUser links verified emails at login', async () => {
         mockProxyFetch.mockResolvedValueOnce(userResponse()).mockResolvedValueOnce(
@@ -178,13 +194,12 @@ describe('fetchGitHubUser', () => {
             ),
         );
 
-        const result = await fetchGitHubUser('Bearer gho_user_token');
+        expectUnchangedUserResult(await fetchGitHubUser('Bearer gho_user_token'));
 
-        expectUnchangedUserResult(result);
+        expect(await loadedEmails()).toEqual(['primary@example.com', 'second@example.com']);
         const [url, init] = mockProxyFetch.mock.calls[1];
         expect(url).toBe('https://api.github.com/user/emails');
         expect(init.headers.authorization).toBe('Bearer gho_user_token');
-        expect(mockLinkAtLogin).toHaveBeenCalledWith(4242, ['primary@example.com', 'second@example.com']);
     });
 
     it('ignores unverified emails', async () => {
@@ -199,21 +214,39 @@ describe('fetchGitHubUser', () => {
             ),
         );
 
-        const result = await fetchGitHubUser('Bearer gho_user_token');
+        expectUnchangedUserResult(await fetchGitHubUser('Bearer gho_user_token'));
 
-        expectUnchangedUserResult(result);
-        expect(mockLinkAtLogin).toHaveBeenCalledWith(4242, ['verified@example.com']);
+        expect(await loadedEmails()).toEqual(['verified@example.com']);
     });
 
     it('email fetch failure still returns the user', async () => {
-        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockResolvedValueOnce(res(404, {}, JSON.stringify({message: 'Not Found'})));
+        await useRealLinkAtLogin();
 
+        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockResolvedValueOnce(res(404, {}, JSON.stringify({message: 'Not Found'})));
         expectUnchangedUserResult(await fetchGitHubUser('Bearer gho_user_token'));
 
         mockProxyFetch.mockResolvedValueOnce(userResponse()).mockRejectedValueOnce(new Error('proxy failed'));
-
         expectUnchangedUserResult(await fetchGitHubUser('Bearer gho_user_token'));
-        expect(mockLinkAtLogin).not.toHaveBeenCalled();
+
+        expect(mockProxyFetch).toHaveBeenCalledTimes(4);
+    });
+
+    it('a hanging email fetch is cut off at the login budget', async () => {
+        const {LOGIN_LOOKUP_BUDGET_MS} = await useRealLinkAtLogin();
+        vi.useFakeTimers();
+        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockReturnValueOnce(new Promise(() => {}));
+
+        let result: Awaited<ReturnType<typeof fetchGitHubUser>> | undefined;
+        const done = fetchGitHubUser('Bearer gho_user_token').then((r) => (result = r));
+
+        await vi.advanceTimersByTimeAsync(LOGIN_LOOKUP_BUDGET_MS - 1);
+        expect(result).toBeUndefined();
+        await vi.advanceTimersByTimeAsync(1);
+        await done;
+
+        expectUnchangedUserResult(result!);
+        // Only /user and /user/emails: no Slack lookup happened.
+        expect(mockProxyFetch).toHaveBeenCalledTimes(2);
     });
 
     it('no lookup when /user fails', async () => {

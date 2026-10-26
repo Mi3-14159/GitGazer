@@ -12,16 +12,15 @@ export const LOGIN_LOOKUP_BUDGET_MS = 2000;
 
 /**
  * Links the user to their Slack account in every connected workspace of their integrations, by their verified emails.
- * Runs inside the login request, so it is time-boxed and never throws; whatever does not finish is retried next login.
+ * Runs inside the login request, so loading the emails and the lookups share one time budget, and it never throws;
+ * whatever does not finish is retried at the next login.
  */
-export const linkAtLogin = async (githubUserId: number, emails: string[]): Promise<void> => {
-    if (emails.length === 0) return;
-
+export const linkAtLogin = async (githubUserId: number, loadEmails: () => Promise<string[]>): Promise<void> => {
     const logger = getLogger();
     const counts = {workspaces: 0, linked: 0, notFound: 0, failed: 0};
     let budgetExpired = false;
 
-    const linkWorkspace = async (teamId: string, botTokenCiphertext: string) => {
+    const linkWorkspace = async (emails: string[], teamId: string, botTokenCiphertext: string) => {
         try {
             const token = await decryptToken(botTokenCiphertext);
             let slackUserId: string | null = null;
@@ -39,6 +38,9 @@ export const linkAtLogin = async (githubUserId: number, emails: string[]): Promi
     };
 
     const linkAll = async () => {
+        const emails = await loadEmails();
+        if (emails.length === 0) return;
+
         const workspaces = await db
             .selectDistinct({
                 teamId: slackWorkspaces.teamId,
@@ -55,7 +57,7 @@ export const linkAtLogin = async (githubUserId: number, emails: string[]): Promi
 
         const linkable = workspaces.filter((w) => !w.autoLinkBlocked && w.source !== 'slack_sign_in');
         counts.workspaces = linkable.length;
-        await Promise.all(linkable.map((w) => linkWorkspace(w.teamId, w.botTokenCiphertext)));
+        await Promise.all(linkable.map((w) => linkWorkspace(emails, w.teamId, w.botTokenCiphertext)));
     };
 
     try {

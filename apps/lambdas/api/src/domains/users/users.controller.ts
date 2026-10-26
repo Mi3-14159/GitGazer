@@ -155,8 +155,8 @@ export const fetchGitHubUser = async (authorizationHeader: string): Promise<{sta
 
     const user = await response.json();
 
-    // Slack linking is best effort: it must never change or fail the response Cognito gets.
-    try {
+    // Best effort and time-boxed: linkAtLogin never throws, so the response to Cognito stays unchanged.
+    await linkAtLogin(user.id, async () => {
         const emailsResponse = await proxyFetch('https://api.github.com/user/emails', {
             method: 'GET',
             headers: {
@@ -164,20 +164,16 @@ export const fetchGitHubUser = async (authorizationHeader: string): Promise<{sta
                 accept: 'application/json',
             },
         });
-        if (emailsResponse.ok) {
-            const emails = (await emailsResponse.json()) as {email: string; primary: boolean; verified: boolean}[];
-            const verified = emails
-                .filter((e) => e.verified)
-                .sort((a, b) => Number(b.primary) - Number(a.primary))
-                .map((e) => e.email.toLowerCase());
-            await linkAtLogin(user.id, verified);
-        } else {
+        if (!emailsResponse.ok) {
             getLogger().warn('Failed to fetch GitHub user emails', {status: emailsResponse.status});
+            return [];
         }
-    } catch {
-        // No error details: they could carry upstream response data.
-        getLogger().warn('Failed to fetch GitHub user emails');
-    }
+        const emails = (await emailsResponse.json()) as {email: string; primary: boolean; verified: boolean}[];
+        return emails
+            .filter((e) => e.verified)
+            .sort((a, b) => Number(b.primary) - Number(a.primary))
+            .map((e) => e.email.toLowerCase());
+    });
 
     return {
         status: response.status,

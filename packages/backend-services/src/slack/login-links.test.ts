@@ -77,7 +77,7 @@ describe('linkAtLogin', () => {
         workspaceRows.rows = [workspace('T1'), workspace('T2')];
         mockLookupUserByEmail.mockImplementation(async (token: string) => (token === 'token-T1' ? 'U1' : 'U2'));
 
-        await linkAtLogin(42, ['a@example.com']);
+        await linkAtLogin(42, async () => ['a@example.com']);
 
         const {params} = dialect.sqlToQuery(whereArgs[0] as SQL);
         expect(params).toContain(42);
@@ -103,7 +103,7 @@ describe('linkAtLogin', () => {
             email === 'b@example.com' ? 'UB' : email === 'c@example.com' ? 'UC' : null,
         );
 
-        await linkAtLogin(42, ['a@example.com', 'b@example.com', 'c@example.com']);
+        await linkAtLogin(42, async () => ['a@example.com', 'b@example.com', 'c@example.com']);
 
         expect(mockLookupUserByEmail.mock.calls).toEqual([
             ['token-T1', 'a@example.com'],
@@ -115,14 +115,14 @@ describe('linkAtLogin', () => {
     it('stores not found when no email matches', async () => {
         workspaceRows.rows = [workspace('T1')];
 
-        await linkAtLogin(42, ['a@example.com', 'b@example.com']);
+        await linkAtLogin(42, async () => ['a@example.com', 'b@example.com']);
 
         expect(mockLookupUserByEmail).toHaveBeenCalledTimes(2);
         expect(mockSaveLookupResult).toHaveBeenCalledWith(expect.objectContaining({teamId: 'T1', slackUserId: null, source: 'gitgazer_email'}));
     });
 
     it('skips disconnected workspaces', async () => {
-        await linkAtLogin(42, ['a@example.com']);
+        await linkAtLogin(42, async () => ['a@example.com']);
 
         expect(dialect.sqlToQuery(whereArgs[0] as SQL).sql).toMatch(/"slack_workspaces"\."disconnected_at" is null/);
     });
@@ -134,7 +134,7 @@ describe('linkAtLogin', () => {
             workspace('T3'),
         ];
 
-        await linkAtLogin(42, ['a@example.com']);
+        await linkAtLogin(42, async () => ['a@example.com']);
 
         expect(mockDecryptToken).toHaveBeenCalledTimes(1);
         expect(savedTeams()).toEqual(['T3']);
@@ -143,7 +143,7 @@ describe('linkAtLogin', () => {
     it('does nothing without emails', async () => {
         workspaceRows.rows = [workspace('T1')];
 
-        await linkAtLogin(42, []);
+        await linkAtLogin(42, async () => []);
 
         expect(mockDb.selectDistinct).not.toHaveBeenCalled();
         expect(mockSaveLookupResult).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe('linkAtLogin', () => {
             return 'U2';
         });
 
-        await expect(linkAtLogin(42, ['a@example.com'])).resolves.toBeUndefined();
+        await expect(linkAtLogin(42, async () => ['a@example.com'])).resolves.toBeUndefined();
 
         expect(savedTeams()).toEqual(['T2']);
     });
@@ -166,7 +166,29 @@ describe('linkAtLogin', () => {
             throw new Error('db down');
         });
 
-        await expect(linkAtLogin(42, ['a@example.com'])).resolves.toBeUndefined();
+        await expect(linkAtLogin(42, async () => ['a@example.com'])).resolves.toBeUndefined();
+    });
+
+    it('never throws when loading the emails fails', async () => {
+        await expect(
+            linkAtLogin(42, async () => {
+                throw new Error('emails failed');
+            }),
+        ).resolves.toBeUndefined();
+
+        expect(mockDb.selectDistinct).not.toHaveBeenCalled();
+    });
+
+    it('the time budget covers loading the emails', async () => {
+        vi.useFakeTimers();
+        workspaceRows.rows = [workspace('T1')];
+
+        const done = linkAtLogin(42, () => new Promise(() => {}));
+        await vi.advanceTimersByTimeAsync(LOGIN_LOOKUP_BUDGET_MS);
+        await done;
+
+        expect(mockDb.selectDistinct).not.toHaveBeenCalled();
+        expect(mockLookupUserByEmail).not.toHaveBeenCalled();
     });
 
     it('login linking stops at the time budget', async () => {
@@ -177,7 +199,7 @@ describe('linkAtLogin', () => {
         );
 
         let finished = false;
-        const done = linkAtLogin(42, ['a@example.com']).then(() => {
+        const done = linkAtLogin(42, async () => ['a@example.com']).then(() => {
             finished = true;
         });
 
@@ -201,7 +223,7 @@ describe('linkAtLogin', () => {
             return token === 'token-T1' ? 'U1' : null;
         });
 
-        await linkAtLogin(42, ['secret.person@example.com']);
+        await linkAtLogin(42, async () => ['secret.person@example.com']);
 
         const logCalls = [
             ...mockLogger.debug.mock.calls,
