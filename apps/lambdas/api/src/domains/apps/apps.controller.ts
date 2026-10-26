@@ -106,7 +106,7 @@ const loadSlackApp = async (tx: RdsTransaction, integrationId: string) => {
     };
 };
 
-const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean): Promise<NotificationHandle[]> => {
+export const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean): Promise<NotificationHandle[]> => {
     const handles = await tx
         .select({
             handleId: notificationHandles.handleId,
@@ -368,6 +368,28 @@ export const listSlackChannels = async (params: Scope & {appId: string}): Promis
     return await listChannels(workspace.botToken);
 };
 
+// Locks the Slack app row so concurrent creates can't outrun the handle limit
+export const insertSlackHandle = async (
+    tx: RdsTransaction,
+    params: {integrationId: string; appId: string; name: string; channelId: string; channelName: string},
+): Promise<NotificationHandle> => {
+    const {integrationId, appId, name, channelId, channelName} = params;
+    await findApp(tx, integrationId, appId, 'update');
+
+    const [{count: existing}] = await tx
+        .select({count: count()})
+        .from(notificationHandles)
+        .where(and(eq(notificationHandles.integrationId, integrationId), eq(notificationHandles.appId, appId)));
+    if (Number(existing) >= MAX_SLACK_HANDLES) {
+        throw new BadRequestError(`A Slack app holds at most ${MAX_SLACK_HANDLES} handles`);
+    }
+
+    const [handle] = await tx.insert(notificationHandles).values({integrationId, appId, name}).returning({handleId: notificationHandles.handleId});
+    await tx.insert(slackHandleDetails).values({integrationId, handleId: handle.handleId, channelId, channelName});
+
+    return {handleId: handle.handleId, appId, name, url: null, channelName, ruleCount: 0};
+};
+
 const createSlackHandle = async (params: Scope & {appId: string; name?: string; channelId: string}): Promise<NotificationHandle> => {
     const {integrationId, integrationIds, appId, channelId} = params;
 
@@ -382,25 +404,7 @@ const createSlackHandle = async (params: Scope & {appId: string; name?: string; 
     return await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
-        callback: async (tx: RdsTransaction) => {
-            await findApp(tx, integrationId, appId, 'update');
-
-            const [{count: existing}] = await tx
-                .select({count: count()})
-                .from(notificationHandles)
-                .where(and(eq(notificationHandles.integrationId, integrationId), eq(notificationHandles.appId, appId)));
-            if (Number(existing) >= MAX_SLACK_HANDLES) {
-                throw new BadRequestError(`A Slack app holds at most ${MAX_SLACK_HANDLES} handles`);
-            }
-
-            const [handle] = await tx
-                .insert(notificationHandles)
-                .values({integrationId, appId, name})
-                .returning({handleId: notificationHandles.handleId});
-            await tx.insert(slackHandleDetails).values({integrationId, handleId: handle.handleId, channelId, channelName: channel.name});
-
-            return {handleId: handle.handleId, appId, name, url: null, channelName: channel.name, ruleCount: 0};
-        },
+        callback: (tx: RdsTransaction) => insertSlackHandle(tx, {integrationId, appId, name, channelId, channelName: channel.name}),
     });
 };
 

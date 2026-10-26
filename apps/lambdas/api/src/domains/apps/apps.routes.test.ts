@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
     listSlackChannels: vi.fn(),
     createHandle: vi.fn(),
     buildSlackInstallRedirect: vi.fn(),
+    listMoveCandidates: vi.fn(),
+    moveWebhookHandles: vi.fn(),
 }));
 
 vi.mock('@/domains/apps/apps.controller', () => ({
@@ -18,6 +20,7 @@ vi.mock('@/domains/apps/apps.controller', () => ({
     deleteHandle: vi.fn(),
     listSlackChannels: mocks.listSlackChannels,
 }));
+vi.mock('@/domains/apps/slack-move', () => ({listMoveCandidates: mocks.listMoveCandidates, moveWebhookHandles: mocks.moveWebhookHandles}));
 vi.mock('@/domains/apps/slack-install', () => ({buildSlackInstallRedirect: mocks.buildSlackInstallRedirect}));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
     addUserIntegrationsToCtx: async ({reqCtx, next}: {reqCtx: {appContext?: unknown}; next: () => Promise<void>}) => {
@@ -120,5 +123,54 @@ describe('Slack routes', () => {
 
         expect(res.statusCode).toBe(201);
         expect(mocks.createHandle).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], appId: 'a1', channelId: 'C1', name: undefined});
+    });
+
+    it('move candidates and move are admin only', async () => {
+        mocks.role = 'member';
+        const router = (await import('@/domains/apps/apps.routes')).default;
+        const body = JSON.stringify({moves: []});
+
+        const list = await router.resolve(routeEvent('GET', '/api/integrations/i1/apps/slack/move-candidates'), {} as Context);
+        const move = await router.resolve(routeEvent('POST', '/api/integrations/i1/apps/slack/move', {body}), {} as Context);
+
+        expect([list.statusCode, move.statusCode]).toEqual([403, 403]);
+        expect(mocks.listMoveCandidates).not.toHaveBeenCalled();
+        expect(mocks.moveWebhookHandles).not.toHaveBeenCalled();
+    });
+
+    it('move passes the picked channels to the controller', async () => {
+        mocks.role = 'admin';
+        mocks.moveWebhookHandles.mockResolvedValue({moved: ['w1'], failed: [], webhookAppEmpty: true});
+        const router = (await import('@/domains/apps/apps.routes')).default;
+        const moves = [{webhookHandleId: 'w1', channelId: 'C1'}];
+
+        const res = await router.resolve(routeEvent('POST', '/api/integrations/i1/apps/slack/move', {body: JSON.stringify({moves})}), {} as Context);
+
+        expect(res.statusCode).toBe(200);
+        expect(mocks.moveWebhookHandles).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], moves});
+    });
+
+    it('move rejects malformed moves', async () => {
+        mocks.role = 'admin';
+        const router = (await import('@/domains/apps/apps.routes')).default;
+
+        const res = await router.resolve(
+            routeEvent('POST', '/api/integrations/i1/apps/slack/move', {body: JSON.stringify({moves: [{webhookHandleId: 'w1'}]})}),
+            {} as Context,
+        );
+
+        expect(res.statusCode).toBe(400);
+        expect(mocks.moveWebhookHandles).not.toHaveBeenCalled();
+    });
+
+    it('move candidates are listed for admins', async () => {
+        mocks.role = 'admin';
+        mocks.listMoveCandidates.mockResolvedValue([{handleId: 'w1', name: 'x', ruleCount: 1}]);
+        const router = (await import('@/domains/apps/apps.routes')).default;
+
+        const res = await router.resolve(routeEvent('GET', '/api/integrations/i1/apps/slack/move-candidates'), {} as Context);
+
+        expect(res.statusCode).toBe(200);
+        expect(mocks.listMoveCandidates).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1']});
     });
 });
