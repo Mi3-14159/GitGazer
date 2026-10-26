@@ -123,7 +123,7 @@ _Requires **admin** role or higher._
 
 ### Link or Unlink a GitHub App Installation
 
-If no installation is linked yet, click **Install the GitHub App** in the GitHub app. Webhook events, org sync, and installations appear once an installation is linked.
+If no installation is linked yet, click **Install on GitHub** in the GitHub app. Webhook events, org sync, and installations appear once an installation is linked.
 
 To disconnect an installation from the integration:
 

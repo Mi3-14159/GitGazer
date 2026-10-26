@@ -187,7 +187,7 @@
                     rel="noopener noreferrer"
                     class="inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    Install the GitHub App
+                    Install on GitHub
                     <ExternalLink
                         class="size-3"
                         aria-hidden="true"
