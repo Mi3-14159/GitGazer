@@ -60,8 +60,6 @@ An **app** is a piece of GitGazer you install into an integration. The **Apps** 
 | **Webhook** | Holds named Slack incoming webhooks that notification rules can send alerts to.                      |
 | **Slack**   | Sends alerts to Slack channels and mentions the person behind a failure. See [Slack App](slack-app). |
 
-GitLab and Jira appear in the catalog as **coming later**.
-
 New integrations include the GitHub app automatically. Open an app to see and change its settings.
 
 :::info[Who can see what]

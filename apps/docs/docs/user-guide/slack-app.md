@@ -25,8 +25,8 @@ Several integrations can install the app into the same workspace. They share the
 Rules send alerts to **handles**. For the Slack app, a handle is a channel.
 
 1. Open the **Slack** app on the **Apps** tab.
-2. Click **Add channel** and pick a channel from the list.
-3. The handle name defaults to `#channel-name`. Change it if you like, then save.
+2. Click **Add channel**, pick a channel from the list, and click **Add channel** again.
+3. The handle is named `#channel-name`. To change the name, rename the handle afterwards.
 
 Public channels work right away. A private channel appears in the list only after someone runs `/invite @GitGazer` in it. An app holds up to 20 handles.
 

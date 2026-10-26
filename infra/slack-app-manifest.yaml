@@ -1,4 +1,5 @@
 # Slack: Create app > From a manifest, paste this file (replace the domain), then put the client id and secret into the encrypted tfvars.
+# Then activate public distribution under Manage Distribution in the app settings, so other workspaces can install it.
 display_information:
   name: GitGazer
 features:
