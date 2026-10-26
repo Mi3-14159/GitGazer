@@ -275,6 +275,7 @@
                         :can-manage="canManage"
                         @changed="loadApps"
                         @reinstall="install('slack')"
+                        @remove-webhook="confirmUninstall('webhook')"
                         @remove="confirmUninstall('slack')"
                     />
                 </div>

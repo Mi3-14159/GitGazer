@@ -7,9 +7,11 @@ const listSlackChannels = vi.fn();
 const createSlackHandle = vi.fn();
 const updateHandle = vi.fn();
 const deleteHandle = vi.fn();
+const listMoveCandidates = vi.fn();
+const moveWebhookHandles = vi.fn();
 
 vi.mock('@/composables/useIntegrationApps', () => ({
-    useIntegrationApps: () => ({listSlackChannels, createSlackHandle, updateHandle, deleteHandle}),
+    useIntegrationApps: () => ({listSlackChannels, createSlackHandle, updateHandle, deleteHandle, listMoveCandidates, moveWebhookHandles}),
 }));
 
 type SlackApp = Extract<IntegrationApp, {type: 'slack'}>;
@@ -52,6 +54,7 @@ function buttonByText(wrapper: ReturnType<typeof mountPanel>, text: string) {
 describe('SlackAppPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        listMoveCandidates.mockResolvedValue([]);
     });
 
     it('shows workspace and handles', () => {
@@ -127,5 +130,36 @@ describe('SlackAppPanel', () => {
         expect(buttonByText(wrapper, 'Reinstall')).toBeUndefined();
         expect(buttonByText(wrapper, 'Remove Slack app')).toBeUndefined();
         expect(wrapper.find('.dropdown-menu').exists()).toBe(false);
+    });
+
+    it('offers the move only while candidates exist', async () => {
+        listMoveCandidates.mockResolvedValueOnce([{handleId: 'w-1', name: 'Deploys', ruleCount: 2}]).mockResolvedValueOnce([]);
+        listSlackChannels.mockResolvedValue([{id: 'C1', name: 'deploys', isPrivate: false}]);
+        moveWebhookHandles.mockResolvedValue({moved: ['w-1'], failed: [], webhookAppEmpty: true});
+        const wrapper = mountPanel({app: makeApp(), canManage: true});
+        await flushPromises();
+
+        expect(listMoveCandidates).toHaveBeenCalledWith('int-1');
+        expect(wrapper.text()).toContain('1 Webhook handle posts to this workspace');
+
+        await buttonByText(wrapper, 'Move to channels')!.trigger('click');
+        await flushPromises();
+        await wrapper.find('select#move-w-1').setValue('C1');
+        await wrapper.find('form').trigger('submit');
+        await flushPromises();
+
+        expect(wrapper.emitted('changed')).toHaveLength(1);
+        expect(buttonByText(wrapper, 'Move to channels')).toBeUndefined();
+
+        await buttonByText(wrapper, 'Remove Webhook app')!.trigger('click');
+        expect(wrapper.emitted('remove-webhook')).toHaveLength(1);
+    });
+
+    it('does not look for move candidates without admin rights or while disconnected', async () => {
+        mountPanel({app: makeApp(), canManage: false});
+        mountPanel({app: makeApp({workspace: {teamId: 'T1', teamName: 'Acme', disconnected: true}}), canManage: true});
+        await flushPromises();
+
+        expect(listMoveCandidates).not.toHaveBeenCalled();
     });
 });

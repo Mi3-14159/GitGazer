@@ -6,6 +6,9 @@ const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
 const JSON_HEADERS = {'Content-Type': 'application/json'};
 
+export type MoveCandidate = {handleId: string; name: string; ruleCount: number};
+export type MoveResult = {moved: string[]; failed: string[]; webhookAppEmpty: boolean};
+
 // The API explains 400 and 409 responses (invalid URL, handle limit, app already installed) in `message`.
 async function failure(response: Response, fallback: string): Promise<Error> {
     const body = await response.json().catch(() => null);
@@ -85,6 +88,26 @@ export const useIntegrationApps = () => {
         return parseApiResponse<NotificationHandle>(response);
     };
 
+    const listMoveCandidates = async (integrationId: string): Promise<MoveCandidate[]> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/slack/move-candidates`);
+        if (!response.ok) {
+            throw await failure(response, 'Failed to load Webhook handles to move');
+        }
+        return parseApiResponse<MoveCandidate[]>(response);
+    };
+
+    const moveWebhookHandles = async (integrationId: string, moves: {webhookHandleId: string; channelId: string}[]): Promise<MoveResult> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/slack/move`, {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify({moves}),
+        });
+        if (!response.ok) {
+            throw await failure(response, 'Failed to move Webhook handles');
+        }
+        return parseApiResponse<MoveResult>(response);
+    };
+
     const updateHandle = async (integrationId: string, handleId: string, input: {name?: string; url?: string}): Promise<NotificationHandle> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/handles/${handleId}`, {
             method: 'PATCH',
@@ -115,5 +138,7 @@ export const useIntegrationApps = () => {
         slackConnectUrl,
         listSlackChannels,
         createSlackHandle,
+        listMoveCandidates,
+        moveWebhookHandles,
     };
 };
