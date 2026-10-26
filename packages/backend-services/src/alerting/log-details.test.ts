@@ -1,4 +1,6 @@
 import type {WorkflowJobWithRelations} from '@gitgazer/db/types';
+import type {SQL} from 'drizzle-orm';
+import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const tables = vi.hoisted(() => ({
@@ -9,6 +11,7 @@ const tables = vi.hoisted(() => ({
 vi.mock('@gitgazer/db/schema', () => tables);
 
 const rowsByTable = new Map<object, unknown[] | Error>();
+const whereArgs: unknown[] = [];
 const fakeTx = {
     select: () => {
         let table: object;
@@ -18,7 +21,10 @@ const fakeTx = {
                 return builder;
             },
             innerJoin: () => builder,
-            where: () => builder,
+            where: (condition: unknown) => {
+                whereArgs.push(condition);
+                return builder;
+            },
             orderBy: () => builder,
             limit: () => builder,
             then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) => {
@@ -78,6 +84,7 @@ const verdict = {kind: 'real' as const, evidence: 'passed 5× in a row on main b
 describe('log-details', () => {
     beforeEach(() => {
         rowsByTable.clear();
+        whereArgs.length = 0;
         mockWithRlsTransaction.mockImplementation(async (p: {callback: (tx: typeof fakeTx) => unknown}) => p.callback(fakeTx));
         mockWithTimeout.mockImplementation((p: Promise<unknown>) => p);
     });
@@ -92,6 +99,15 @@ describe('log-details', () => {
 
         it('returns null when the integration has no installation', async () => {
             await expect(findInstallationId('int-1', 'acme')).resolves.toBeNull();
+        });
+
+        it('returns any installation of the integration without an owner', async () => {
+            rowsByTable.set(tables.githubAppInstallations, [{installationId: 123}]);
+
+            await expect(findInstallationId('int-1', null)).resolves.toBe(123);
+            const {sql, params} = new PgDialect().sqlToQuery(whereArgs[0] as SQL);
+            expect(sql).not.toContain('lower');
+            expect(params).toContain('int-1');
         });
     });
 

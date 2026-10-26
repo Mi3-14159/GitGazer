@@ -1,4 +1,4 @@
-import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
 import {integrationApps, notificationHandles, slackHandleDetails, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {MAX_SLACK_HANDLES, MAX_WEBHOOK_HANDLES} from '@gitgazer/db/types';
@@ -93,6 +93,11 @@ vi.mock('@gitgazer/backend-core/helpers/token-crypto', () => ({
     decryptToken: (...args: unknown[]) => mockDecryptToken(...args),
 }));
 
+const mockLoadWorkspaceForIntegration = vi.fn();
+vi.mock('@gitgazer/backend-services/slack/workspaces', () => ({
+    loadWorkspaceForIntegration: (...args: unknown[]) => mockLoadWorkspaceForIntegration(...args),
+}));
+
 const mockListChannels = vi.fn();
 const mockRevokeToken = vi.fn();
 vi.mock('@gitgazer/backend-core/clients/slack.client', () => ({
@@ -119,6 +124,7 @@ describe('apps controller', () => {
         deleteWhere.length = 0;
         deleteReturningQueue.length = 0;
         mockDecryptToken.mockResolvedValue(BOT_TOKEN);
+        mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: BOT_TOKEN, disconnected: false});
         mockListChannels.mockResolvedValue([{id: 'C1', name: 'ops', isPrivate: false}]);
         mockRevokeToken.mockResolvedValue(undefined);
         mockWithRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
@@ -317,13 +323,13 @@ describe('apps controller', () => {
     });
 
     describe('Slack channels and handles', () => {
-        const queueSlackApp = () => selectQueue.push([{appId: 'app-s', type: 'slack'}], [{teamId: 'T1'}], [{botTokenCiphertext: 'cipher'}]);
+        const queueSlackApp = () => selectQueue.push([{appId: 'app-s', type: 'slack'}]);
 
         it('listSlackChannels lists the channels with the workspace bot token', async () => {
             queueSlackApp();
 
             await expect(controller.listSlackChannels({...base, appId: 'app-s'})).resolves.toEqual([{id: 'C1', name: 'ops', isPrivate: false}]);
-            expect(mockDecryptToken).toHaveBeenCalledWith('cipher');
+            expect(mockLoadWorkspaceForIntegration).toHaveBeenCalledWith('int-1');
             expect(mockListChannels).toHaveBeenCalledWith(BOT_TOKEN);
         });
 
@@ -331,6 +337,14 @@ describe('apps controller', () => {
             selectQueue.push([{appId: 'app-w', type: 'webhook'}]);
 
             await expect(controller.listSlackChannels({...base, appId: 'app-w'})).rejects.toBeInstanceOf(BadRequestError);
+            expect(mockListChannels).not.toHaveBeenCalled();
+        });
+
+        it('listSlackChannels fails without a workspace', async () => {
+            queueSlackApp();
+            mockLoadWorkspaceForIntegration.mockResolvedValue(null);
+
+            await expect(controller.listSlackChannels({...base, appId: 'app-s'})).rejects.toBeInstanceOf(NotFoundError);
             expect(mockListChannels).not.toHaveBeenCalled();
         });
 
