@@ -1,6 +1,6 @@
-import {findSlackTeamId, insertSlackHandle, listSlackChannels, loadHandles} from '@/domains/apps/apps.controller';
+import {findSlackTeamId, insertSlackHandle, loadHandles, loadSlackBotToken} from '@/domains/apps/apps.controller';
 import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
-import {slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
+import {getChannel, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
@@ -98,14 +98,14 @@ export const moveWebhookHandles = async (
         throw new BadRequestError('The Slack app is not installed');
     }
 
-    // Resolved once, before any transaction, so no row lock is held across the Slack call
-    const channels = await listSlackChannels({integrationId, integrationIds, appId: slackApp.appId});
+    const botToken = await loadSlackBotToken({integrationId, integrationIds, appId: slackApp.appId});
 
     const moved: string[] = [];
     const failed: string[] = [];
     for (const {webhookHandleId, channelId} of moves) {
         try {
-            const channel = channels.find((c) => c.id === channelId);
+            // Resolved before the transaction so no row lock is held across the Slack call
+            const channel = await getChannel(botToken, channelId);
             if (!channel) {
                 throw new BadRequestError('Unknown channel');
             }

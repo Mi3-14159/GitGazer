@@ -118,13 +118,26 @@ export const listChannels = async (token: string): Promise<SlackChannel[]> => {
             response_metadata?: {next_cursor?: string};
         }>('conversations.list', {
             token,
-            query: {types: 'public_channel,private_channel', exclude_archived: 'true', limit: '200', ...(cursor && {cursor})},
+            query: {types: 'public_channel,private_channel', exclude_archived: 'true', limit: '1000', ...(cursor && {cursor})},
         });
         channels.push(...page.channels.map((c) => ({id: c.id, name: c.name, isPrivate: c.is_private})));
         cursor = page.response_metadata?.next_cursor ?? '';
     } while (cursor);
 
     return channels.sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const getChannel = async (token: string, channelId: string): Promise<SlackChannel | null> => {
+    try {
+        const {channel} = await slackCall<{channel: {id: string; name: string; is_private: boolean; is_archived: boolean}}>('conversations.info', {
+            token,
+            query: {channel: channelId},
+        });
+        return channel.is_archived ? null : {id: channel.id, name: channel.name, isPrivate: channel.is_private};
+    } catch (error) {
+        if (error instanceof SlackApiError && error.code === 'channel_not_found') return null;
+        throw error;
+    }
 };
 
 export const postMessage = async (token: string, channelId: string, payload: SlackPayload): Promise<void> => {

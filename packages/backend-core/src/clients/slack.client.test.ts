@@ -19,6 +19,7 @@ import {
     buildSignInUrl,
     exchangeInstallCode,
     exchangeSignInCode,
+    getChannel,
     isRevokedSlackError,
     listChannels,
     lookupUserByEmail,
@@ -165,7 +166,7 @@ describe('listChannels', () => {
         expect(Object.fromEntries(urls[0].searchParams)).toEqual({
             types: 'public_channel,private_channel',
             exclude_archived: 'true',
-            limit: '200',
+            limit: '1000',
         });
         expect(urls[1].searchParams.get('cursor')).toBe('abc');
         expect(proxyFetch.mock.calls[0][1].headers.Authorization).toBe('Bearer xoxb-1');
@@ -173,6 +174,32 @@ describe('listChannels', () => {
             {id: 'C1', name: 'alpha', isPrivate: true},
             {id: 'C2', name: 'zeta', isPrivate: false},
         ]);
+    });
+});
+
+describe('getChannel', () => {
+    it('reads one channel with conversations.info', async () => {
+        proxyFetch.mockResolvedValue(reply({ok: true, channel: {id: 'C1', name: 'ops', is_private: true, is_archived: false}}));
+
+        await expect(getChannel('xoxb-1', 'C1')).resolves.toEqual({id: 'C1', name: 'ops', isPrivate: true});
+        const [url, init] = lastCall();
+        expect(new URL(url).pathname).toBe('/api/conversations.info');
+        expect(new URL(url).searchParams.get('channel')).toBe('C1');
+        expect(init.headers.Authorization).toBe('Bearer xoxb-1');
+    });
+
+    it('treats an unknown or archived channel as not found', async () => {
+        proxyFetch.mockResolvedValueOnce(reply({ok: false, error: 'channel_not_found'}));
+        proxyFetch.mockResolvedValueOnce(reply({ok: true, channel: {id: 'C1', name: 'old', is_private: false, is_archived: true}}));
+
+        await expect(getChannel('xoxb-1', 'C9')).resolves.toBeNull();
+        await expect(getChannel('xoxb-1', 'C1')).resolves.toBeNull();
+    });
+
+    it('throws other Slack errors', async () => {
+        proxyFetch.mockResolvedValue(reply({ok: false, error: 'invalid_auth'}));
+
+        await expect(getChannel('xoxb-1', 'C1')).rejects.toMatchObject({code: 'invalid_auth'});
     });
 });
 

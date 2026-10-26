@@ -2,7 +2,7 @@ import {getGithubSettings, installGithubApp} from '@/domains/apps/github-setting
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
 import {ConflictError} from '@/shared/errors';
 import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
-import {listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
+import {getChannel, listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
@@ -355,7 +355,7 @@ const loadHandle = async (tx: RdsTransaction, integrationId: string, handleId: s
     return handle;
 };
 
-export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> => {
+export const loadSlackBotToken = async (params: Scope & {appId: string}): Promise<string> => {
     const {integrationId, integrationIds, appId} = params;
     const app = await withRlsTransaction({integrationIds, callback: (tx: RdsTransaction) => findApp(tx, integrationId, appId)});
     if (app.type !== 'slack') {
@@ -365,8 +365,11 @@ export const listSlackChannels = async (params: Scope & {appId: string}): Promis
     if (!workspace) {
         throw new NotFoundError('Slack workspace not found');
     }
-    return await listChannels(workspace.botToken);
+    return workspace.botToken;
 };
+
+export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> =>
+    await listChannels(await loadSlackBotToken(params));
 
 // Locks the Slack app row so concurrent creates can't outrun the handle limit
 export const insertSlackHandle = async (
@@ -394,8 +397,7 @@ const createSlackHandle = async (params: Scope & {appId: string; name?: string; 
     const {integrationId, integrationIds, appId, channelId} = params;
 
     // Resolved before the write transaction so the app row lock is never held across a Slack call
-    const channels = await listSlackChannels({integrationId, integrationIds, appId});
-    const channel = channels.find((c) => c.id === channelId);
+    const channel = await getChannel(await loadSlackBotToken({integrationId, integrationIds, appId}), channelId);
     if (!channel) {
         throw new BadRequestError('Unknown channel');
     }
