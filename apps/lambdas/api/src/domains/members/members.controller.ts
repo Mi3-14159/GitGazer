@@ -1,3 +1,4 @@
+import {findSlackTeamId} from '@/domains/apps/apps.controller';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {sendInvitationEmail} from '@/shared/clients/ses.client';
 import config from '@gitgazer/backend-core/config';
@@ -6,10 +7,10 @@ import {BadRequestError, ForbiddenError, NotFoundError} from '@aws-lambda-powert
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {invitationQueryRelations, memberQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {integrationAppSlackSettings, integrationInvitations, slackUserLinks, users} from '@gitgazer/db/schema/gitgazer';
+import {integrationInvitations, slackUserLinks, users} from '@gitgazer/db/schema/gitgazer';
 import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {MEMBER_ROLES, type CreateInvitationInput, type IntegrationInvitation, type IntegrationMember, type MemberRole} from '@gitgazer/db/types';
-import {and, eq, gt, isNotNull} from 'drizzle-orm';
+import {and, eq, gt, inArray, isNotNull} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -23,29 +24,39 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
 
     logger.info(`Getting members for integration ${integrationId}`);
 
-    const {members, linked} = await withRlsTransaction({
+    const {members, teamId, memberGithubIds} = await withRlsTransaction({
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             const members = await tx.query.userAssignments.findMany({
                 where: {integrationId},
                 with: memberQueryRelations,
             });
-            // Only the member IDs come back, never the Slack IDs; an integration without a Slack app matches nothing
-            const linked = await tx
-                .select({userId: userAssignments.userId})
-                .from(userAssignments)
-                .innerJoin(users, eq(users.id, userAssignments.userId))
-                .innerJoin(integrationAppSlackSettings, eq(integrationAppSlackSettings.integrationId, userAssignments.integrationId))
-                .innerJoin(
-                    slackUserLinks,
-                    and(eq(slackUserLinks.teamId, integrationAppSlackSettings.teamId), eq(slackUserLinks.githubUserId, users.githubId)),
-                )
-                .where(and(eq(userAssignments.integrationId, integrationId), isNotNull(slackUserLinks.slackUserId)));
-            return {members, linked};
+            const teamId = await findSlackTeamId(tx, integrationId);
+            const memberGithubIds = teamId
+                ? await tx
+                      .select({userId: userAssignments.userId, githubId: users.githubId})
+                      .from(userAssignments)
+                      .innerJoin(users, eq(users.id, userAssignments.userId))
+                      .where(eq(userAssignments.integrationId, integrationId))
+                : [];
+            return {members, teamId, memberGithubIds};
         },
     });
 
-    const linkedUserIds = new Set(linked.map((l) => l.userId));
+    const githubIds = memberGithubIds.flatMap((m) => (m.githubId === null ? [] : [m.githubId]));
+    // slack_user_links is global (no RLS grants), so only the master connection reads it; Slack IDs never leave here
+    const links =
+        teamId && githubIds.length > 0
+            ? await db
+                  .select({githubUserId: slackUserLinks.githubUserId})
+                  .from(slackUserLinks)
+                  .where(
+                      and(eq(slackUserLinks.teamId, teamId), inArray(slackUserLinks.githubUserId, githubIds), isNotNull(slackUserLinks.slackUserId)),
+                  )
+            : [];
+    const linkedGithubIds = new Set(links.map((l) => l.githubUserId));
+    const linkedUserIds = new Set(memberGithubIds.filter((m) => m.githubId !== null && linkedGithubIds.has(m.githubId)).map((m) => m.userId));
+
     return members.map((member) => ({...member, slackLinked: linkedUserIds.has(member.userId)}));
 };
 
