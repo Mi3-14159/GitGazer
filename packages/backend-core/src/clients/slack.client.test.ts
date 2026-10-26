@@ -223,9 +223,11 @@ describe('lookupUserByEmail', () => {
     it('returns the user id', async () => {
         proxyFetch.mockResolvedValue(reply({ok: true, user: {id: 'U1', deleted: false, is_bot: false}}));
         await expect(lookupUserByEmail('xoxb-1', 'a+b@example.com')).resolves.toBe('U1');
-        const url = new URL(lastCall()[0]);
-        expect(url.pathname).toBe('/api/users.lookupByEmail');
-        expect(url.searchParams.get('email')).toBe('a+b@example.com');
+        const [url, init] = lastCall();
+        expect(url).toBe('https://slack.com/api/users.lookupByEmail');
+        expect(init.method).toBe('POST');
+        expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+        expect(new URLSearchParams(init.body).get('email')).toBe('a+b@example.com');
     });
 
     it('returns null for users_not_found', async () => {
@@ -250,12 +252,11 @@ describe('lookupUserByEmail', () => {
 });
 
 describe('rate limiting', () => {
-    it('maps HTTP 429 to ratelimited with retryAfterMs', async () => {
+    it('maps HTTP 429 to ratelimited', async () => {
         proxyFetch.mockResolvedValue(new Response('', {status: 429, headers: {'Retry-After': '7'}}));
         const error = await postMessage('xoxb-1', 'C1', {} as never).catch((e) => e);
         expect(error).toBeInstanceOf(SlackApiError);
         expect(error.code).toBe('ratelimited');
-        expect(error.retryAfterMs).toBe(7000);
     });
 });
 

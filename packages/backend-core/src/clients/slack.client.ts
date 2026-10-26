@@ -9,10 +9,7 @@ export const SLACK_BOT_SCOPES = ['chat:write', 'chat:write.public', 'channels:re
 const REVOKED_ERROR_CODES = ['invalid_auth', 'token_revoked', 'account_inactive', 'not_authed', 'token_expired'];
 
 export class SlackApiError extends Error {
-    constructor(
-        readonly code: string,
-        readonly retryAfterMs?: number,
-    ) {
+    constructor(readonly code: string) {
         super(`Slack API error: ${code}`);
         this.name = 'SlackApiError';
     }
@@ -41,7 +38,7 @@ const slackCall = async <T>(method: string, {token, query, form, json}: SlackCal
     });
 
     if (response.status === 429) {
-        throw new SlackApiError('ratelimited', Number(response.headers.get('Retry-After') ?? 1) * 1000);
+        throw new SlackApiError('ratelimited');
     }
     if (!response.ok) {
         throw new SlackApiError(`http_${response.status}`);
@@ -148,7 +145,7 @@ export const lookupUserByEmail = async (token: string, email: string): Promise<s
     try {
         const {user} = await slackCall<{user: {id: string; deleted?: boolean; is_bot?: boolean}}>('users.lookupByEmail', {
             token,
-            query: {email},
+            form: {email},
         });
         return user.deleted || user.is_bot ? null : user.id;
     } catch (error) {
