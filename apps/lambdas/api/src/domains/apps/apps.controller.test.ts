@@ -380,15 +380,6 @@ describe('apps controller', () => {
             expect(handle).toEqual({handleId: 'handle-new', appId: 'app-s', name: '#ops', url: null, channelName: 'ops', ruleCount: 0});
         });
 
-        it('createHandle keeps a given name for a channel handle', async () => {
-            queueSlackApp();
-            selectQueue.push([{appId: 'app-s', type: 'slack'}], [{count: 0}]);
-
-            const handle = await controller.createHandle({...base, appId: 'app-s', channelId: 'C1', name: ' Alerts '});
-
-            expect(handle.name).toBe('Alerts');
-        });
-
         it('createHandle rejects a channel handle beyond the maximum', async () => {
             queueSlackApp();
             selectQueue.push([{appId: 'app-s', type: 'slack'}], [{count: MAX_SLACK_HANDLES}]);

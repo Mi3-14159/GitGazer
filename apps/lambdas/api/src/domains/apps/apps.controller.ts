@@ -393,7 +393,7 @@ export const insertSlackHandle = async (
     return {handleId: handle.handleId, appId, name, url: null, channelName, ruleCount: 0};
 };
 
-const createSlackHandle = async (params: Scope & {appId: string; name?: string; channelId: string}): Promise<NotificationHandle> => {
+const createSlackHandle = async (params: Scope & {appId: string; channelId: string}): Promise<NotificationHandle> => {
     const {integrationId, integrationIds, appId, channelId} = params;
 
     // Resolved before the write transaction so the app row lock is never held across a Slack call
@@ -401,17 +401,17 @@ const createSlackHandle = async (params: Scope & {appId: string; name?: string; 
     if (!channel) {
         throw new BadRequestError('Unknown channel');
     }
-    const name = normalizeName(params.name ?? `#${channel.name}`);
 
     return await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
-        callback: (tx: RdsTransaction) => insertSlackHandle(tx, {integrationId, appId, name, channelId, channelName: channel.name}),
+        callback: (tx: RdsTransaction) =>
+            insertSlackHandle(tx, {integrationId, appId, name: `#${channel.name}`, channelId, channelName: channel.name}),
     });
 };
 
 export const createHandle = async (
-    params: Scope & {appId: string} & ({name: string; url: string} | {name?: string; channelId: string}),
+    params: Scope & {appId: string} & ({name: string; url: string} | {channelId: string}),
 ): Promise<NotificationHandle> => {
     if ('channelId' in params) {
         return await createSlackHandle(params);

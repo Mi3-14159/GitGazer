@@ -84,11 +84,7 @@ export const useIntegrationApps = () => {
         return parseApiResponse<SlackChannel[]>(response);
     };
 
-    const createSlackHandle = async (
-        integrationId: string,
-        appId: string,
-        input: {channelId: string; name?: string},
-    ): Promise<NotificationHandle> => {
+    const createSlackHandle = async (integrationId: string, appId: string, input: {channelId: string}): Promise<NotificationHandle> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}/handles`, {
             method: 'POST',
             headers: JSON_HEADERS,
