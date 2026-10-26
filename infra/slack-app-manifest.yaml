@@ -1,0 +1,25 @@
+# Slack: Create app > From a manifest, paste this file (replace the domain), then put the client id and secret into the encrypted tfvars.
+display_information:
+  name: GitGazer
+features:
+  bot_user:
+    display_name: GitGazer
+    always_online: false
+oauth_config:
+  redirect_urls:
+    - https://<your-gitgazer-domain>/api/slack/oauth/callback
+    - https://<your-gitgazer-domain>/api/slack/sign-in/callback
+  scopes:
+    user:
+      - openid
+    bot:
+      - chat:write
+      - chat:write.public
+      - channels:read
+      - groups:read
+      - users:read
+      - users:read.email
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
