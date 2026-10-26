@@ -2,7 +2,8 @@ import {findInstallationId} from '../alerting/log-details';
 import {getLink, saveLookupResult, type SlackUserLink} from './link-store';
 import {loadWorkspaceForIntegration} from './workspaces';
 import {getInstallationOctokit} from '@gitgazer/backend-core/clients/github-app.client';
-import {lookupUserByEmail, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
+import {lookupUserByEmail, SlackApiError, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
+import {withTimeout} from '@gitgazer/backend-core/helpers/async';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {withRlsTransaction} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
@@ -12,11 +13,13 @@ import {eq} from 'drizzle-orm';
 export const PROFILE_LINK_REFRESH_MS = 7 * 24 * 3600_000;
 export const NOT_FOUND_REFRESH_MS = 24 * 3600_000;
 // Runs in the shared webhook worker; a long sweep would time out the batch and send co-batched events to the DLQ.
-export const LINK_MEMBERS_BUDGET_MS = 60_000;
+export const LINK_MEMBERS_BUDGET_MS = 20_000;
+export const MEMBER_LOOKUP_TIMEOUT_MS = 3000;
 
 /**
- * Finds the Slack user for a GitHub account by its public profile email. Never throws: a failed lookup
- * falls back to the stored link and stores nothing, so a later alert tries again. The email is never kept.
+ * Finds the Slack user for a GitHub account by its public profile email. A failed lookup falls back to the stored link
+ * and stores nothing, so a later alert tries again; only a Slack rate limit is thrown, so a sweep can stop. The email is
+ * never kept.
  */
 export const resolveSlackUserId = async (params: {
     teamId: string;
@@ -45,6 +48,7 @@ export const resolveSlackUserId = async (params: {
         await saveLookupResult({teamId, githubUserId, slackUserId, source: 'github_profile_email', now});
         return slackUserId;
     } catch (error) {
+        if (error instanceof SlackApiError && error.code === 'ratelimited') throw error;
         getLogger().warn('Slack user lookup failed', {
             integrationId,
             reason: slackErrorReason(error),
@@ -81,14 +85,21 @@ export const linkIntegrationMembers = async (teamId: string, integrationId: stri
             getLogger().warn('Slack member lookup stopped early, budget used up', {integrationId, ...counts});
             return counts;
         }
-        const slackUserId = await resolveSlackUserId({
-            teamId,
-            botToken: workspace.botToken,
-            integrationId,
-            githubUserId: githubId,
-            githubLogin,
-            ownerLogin: null,
-        });
+        let slackUserId: string | null;
+        try {
+            slackUserId = await withTimeout(
+                resolveSlackUserId({teamId, botToken: workspace.botToken, integrationId, githubUserId: githubId, githubLogin, ownerLogin: null}),
+                MEMBER_LOOKUP_TIMEOUT_MS,
+            );
+        } catch (error) {
+            const reason = slackErrorReason(error);
+            if (reason === 'ratelimited') {
+                getLogger().warn('Slack member lookup stopped early, rate limited', {integrationId, reason, ...counts});
+                return counts;
+            }
+            getLogger().warn('Slack member lookup gave up on a member', {integrationId, reason});
+            continue;
+        }
         counts.checked++;
         if (slackUserId) counts.linked++;
     }
