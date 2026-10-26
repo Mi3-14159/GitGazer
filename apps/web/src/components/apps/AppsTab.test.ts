@@ -23,7 +23,10 @@ async function mountTab(role: MemberRole, path = '/integrations/int-1/apps', app
     listApps.mockResolvedValue(apps);
     const router = createRouter({
         history: createMemoryHistory(),
-        routes: [{path: '/integrations/:integrationId/:tab', name: 'integration', component: {template: '<div />'}}],
+        routes: [
+            {path: '/integrations/:integrationId/:tab', name: 'integration', component: {template: '<div />'}},
+            {path: '/integrations/:integrationId/:tab(apps)/:app', name: 'integration-app', component: {template: '<div />'}},
+        ],
     });
     await router.push(path);
     const integration = {
@@ -141,5 +144,32 @@ describe('AppsTab', () => {
         await flushPromises();
 
         expect(wrapper.find('[role="dialog"]').text()).toContain('Remove Webhook app?');
+    });
+
+    it('puts the selected app in the URL and clears it when the app is closed', async () => {
+        const {wrapper, router} = await mountTab('admin');
+        const card = wrapper.find('button[aria-controls="app-panel-github"]');
+
+        await card.trigger('click');
+        await flushPromises();
+        expect(router.currentRoute.value.path).toBe('/integrations/int-1/apps/github');
+        expect(wrapper.findComponent({name: 'GithubAppPanel'}).exists()).toBe(true);
+
+        await card.trigger('click');
+        await flushPromises();
+        expect(router.currentRoute.value.path).toBe('/integrations/int-1/apps');
+        expect(wrapper.findComponent({name: 'GithubAppPanel'}).exists()).toBe(false);
+    });
+
+    it('opens the app named in a shared URL', async () => {
+        const {wrapper} = await mountTab('viewer', '/integrations/int-1/apps/github');
+
+        expect(wrapper.findComponent({name: 'GithubAppPanel'}).exists()).toBe(true);
+    });
+
+    it('opens the Slack app in the URL after it was installed', async () => {
+        const {router} = await mountTab('admin', '/integrations/int-1/apps?slack=installed');
+
+        expect(router.currentRoute.value.path).toBe('/integrations/int-1/apps/slack');
     });
 });

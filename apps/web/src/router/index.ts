@@ -59,6 +59,13 @@ const router = createRouter({
                     component: () => import('@/views/IntegrationPage.vue'),
                     meta: {title: 'Integration'},
                 },
+                {
+                    // A separate route, so switching tabs by name drops the app instead of inheriting it
+                    path: 'integrations/:integrationId/:tab(apps)/:app(github|webhook|slack)',
+                    name: 'integration-app',
+                    component: () => import('@/views/IntegrationPage.vue'),
+                    meta: {title: 'Integration'},
+                },
 
                 {
                     path: '',
