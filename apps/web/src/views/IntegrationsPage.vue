@@ -10,7 +10,7 @@
     import {formatDate, formatTimeSince} from '@/utils/formatDate';
     import {hasRole, type IntegrationWithRole} from '@common/types';
     import {ChevronRight, Plug, Plus} from '@lucide/vue';
-    import {onMounted} from 'vue';
+    import {onMounted, shallowRef} from 'vue';
     import {RouterLink, useRoute, useRouter} from 'vue-router';
 
     const route = useRoute();
@@ -29,6 +29,8 @@
         handleCreateAndLink,
         refreshIntegrations,
     } = useIntegrationCrud();
+
+    const callbackIntegrationId = shallowRef<string | null>(null);
 
     const ROLE_LABELS = {owner: 'Owner', admin: 'Admin', member: 'Member', viewer: 'Viewer'} as const;
 
@@ -56,6 +58,7 @@
         const setupAction = route.query.setup_action;
         if (installationIdParam && (setupAction === 'install' || setupAction === 'update')) {
             callbackInstallationId.value = Number(installationIdParam);
+            callbackIntegrationId.value = typeof route.query.state === 'string' ? route.query.state : null;
             showAppLinkDialog.value = true;
             router.replace({path: route.path, query: {}});
         }
@@ -134,6 +137,7 @@
         <GitHubAppLinkDialog
             :open="showAppLinkDialog"
             :installation-id="callbackInstallationId"
+            :preselected-integration-id="callbackIntegrationId"
             :integrations="integrations.filter((i) => hasRole(i.role, 'admin'))"
             :error="appLinkError"
             @update:open="showAppLinkDialog = $event"

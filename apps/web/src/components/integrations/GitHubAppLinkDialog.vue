@@ -14,6 +14,7 @@
     const props = defineProps<{
         open: boolean;
         installationId: number | null;
+        preselectedIntegrationId?: string | null;
         integrations: Integration[];
         error?: string;
     }>();
@@ -39,7 +40,8 @@
         (isOpen) => {
             if (isOpen) {
                 linkMode.value = availableIntegrations.value.length > 0 ? 'existing' : 'new';
-                selectedIntegrationId.value = '';
+                const preselected = availableIntegrations.value.find((int) => int.integrationId === props.preselectedIntegrationId);
+                selectedIntegrationId.value = preselected?.integrationId ?? '';
                 newIntegrationLabel.value = '';
             }
         },

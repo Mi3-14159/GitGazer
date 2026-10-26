@@ -14,16 +14,17 @@ An **integration** connects GitGazer to a GitHub organization or user account. I
 
 The GitHub App is the simplest way to connect — it handles webhook configuration automatically.
 
-1. Go to the **Integrations** page.
-2. Click **Install GitHub App** in the header. This opens GitHub in a new tab.
-3. Choose the organization or account to install on.
-4. Select **All repositories** or choose specific repositories.
-5. Click **Install**. You're redirected back to GitGazer.
-6. In the dialog that appears, choose:
-    - **Create new integration** — enter a label and click **Create and Link**.
-    - **Link to existing integration** — select an unlinked integration from the dropdown.
+1. Go to the **Integrations** page, click **New Integration**, enter a label and click **Create**.
+2. Open the new integration, go to the **Apps** tab, and open the **GitHub** app.
+3. Click **Install on GitHub**. This opens GitHub in a new tab.
+4. Choose the organization or account to install on.
+5. Select **All repositories** or choose specific repositories.
+6. Click **Install**. You're redirected back to GitGazer.
+7. In the dialog that appears, your integration is already selected. Click **Link to Integration**.
 
 GitGazer immediately starts receiving webhook events from your selected repositories.
+
+The dialog also lets you link the installation to another integration that has the GitHub app and no linked installation, or create a new integration for it.
 
 Only the GitHub user who installed the GitHub App can link the installation. For an installation on a personal account, the account owner can link it too.
 
@@ -123,7 +124,7 @@ _Requires **admin** role or higher._
 
 ### Link or Unlink a GitHub App Installation
 
-If no installation is linked yet, click **Install the GitHub App** in the GitHub app. Webhook events, org sync, and installations appear once an installation is linked.
+If no installation is linked yet, click **Install on GitHub** in the GitHub app. Webhook events, org sync, and installations appear once an installation is linked.
 
 To disconnect an installation from the integration:
 
