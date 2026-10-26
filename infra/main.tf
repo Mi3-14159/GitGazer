@@ -39,6 +39,7 @@ locals {
   frontend_failover_sub_path = "fe-failover"
   github_oauth_scopes        = join(" ", distinct(concat(["openid"], var.github_oauth_scopes)))
   websocket_api_stage_name   = "prod"
+  app_domain                 = try(var.custom_domain_config.domain_name, aws_cloudfront_distribution.this.domain_name)
   lambda_layers = flatten([
     "arn:aws:lambda:eu-central-1:187925254637:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21",
     var.enable_lambda_tracing ? [

@@ -67,15 +67,15 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       clientSecret = aws_cognito_user_pool_client.this.client_secret
       mcpClientId  = aws_cognito_user_pool_client.mcp.id
       domain       = "${aws_cognito_user_pool_domain.this.domain}.auth.${var.aws_region}.amazoncognito.com"
-      redirectUri  = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/auth/callback"
+      redirectUri  = "https://${local.app_domain}/api/auth/callback"
     }
     websocket = {
       apiDomainName = replace(aws_apigatewayv2_api.websocket.api_endpoint, "wss://", "")
       apiStage      = aws_apigatewayv2_stage.websocket_ws.name
     }
     uiBucketName            = module.ui_bucket.s3_bucket_id
-    importUrlBase           = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : format("%s.execute-api.%s.amazonaws.com", aws_apigatewayv2_api.this.id, var.aws_region)}/api/import"
-    mcpServerUrl            = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/mcp"
+    importUrlBase           = "https://${local.app_domain}/api/import"
+    mcpServerUrl            = "https://${local.app_domain}/api/mcp"
     mcpAllowedRedirectHosts = var.mcp_allowed_redirect_hosts
     mcpQuota = {
       maxQuerySeconds = local.mcp_query_timeout_seconds
@@ -95,8 +95,8 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
     slackApp = {
       clientId           = data.aws_kms_secrets.this.plaintext["slack_app_client_id"]
       clientSecret       = data.aws_kms_secrets.this.plaintext["slack_app_client_secret"]
-      installRedirectUri = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/slack/oauth/callback"
-      signInRedirectUri  = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/slack/sign-in/callback"
+      installRedirectUri = "https://${local.app_domain}/api/slack/oauth/callback"
+      signInRedirectUri  = "https://${local.app_domain}/api/slack/sign-in/callback"
     }
     tokenKmsKeyId         = aws_kms_key.this.arn
     wsTokenSecret         = random_password.ws_token_secret.result
