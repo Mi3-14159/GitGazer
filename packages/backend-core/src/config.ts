@@ -121,6 +121,39 @@ const config = convict({
             sensitive: true,
         },
     },
+    slackApp: {
+        clientId: {
+            doc: 'Slack app client ID',
+            format: String,
+            default: '',
+            env: 'SLACK_APP_CLIENT_ID',
+        },
+        clientSecret: {
+            doc: 'Slack app client secret',
+            format: String,
+            default: '',
+            env: 'SLACK_APP_CLIENT_SECRET',
+            sensitive: true,
+        },
+        installRedirectUri: {
+            doc: 'OAuth redirect URI registered with the Slack app for workspace installs',
+            format: String,
+            default: '',
+            env: 'SLACK_APP_INSTALL_REDIRECT_URI',
+        },
+        signInRedirectUri: {
+            doc: 'OAuth redirect URI registered with the Slack app for Sign in with Slack',
+            format: String,
+            default: '',
+            env: 'SLACK_APP_SIGN_IN_REDIRECT_URI',
+        },
+    },
+    tokenKmsKeyId: {
+        doc: 'KMS key ID or ARN used to encrypt Slack bot tokens at rest',
+        format: String,
+        default: '',
+        env: 'TOKEN_KMS_KEY_ID',
+    },
     alerts: {
         bedrockModelId: {
             doc: 'Bedrock model or inference profile ID used to summarize failed job logs',
