@@ -58,6 +58,9 @@ export const useIntegrationApps = () => {
     const slackInstallUrl = (integrationId: string, redirectUrl: string): string =>
         `${API_ENDPOINT}/integrations/${integrationId}/apps/slack/install?redirect_url=${encodeURIComponent(redirectUrl)}`;
 
+    const slackConnectUrl = (integrationId: string, redirectUrl: string): string =>
+        `${API_ENDPOINT}/integrations/${integrationId}/slack/connect?redirect_url=${encodeURIComponent(redirectUrl)}`;
+
     const listSlackChannels = async (integrationId: string, appId: string): Promise<SlackChannel[]> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}/slack/channels`);
         if (!response.ok) {
@@ -101,5 +104,16 @@ export const useIntegrationApps = () => {
         }
     };
 
-    return {listApps, installApp, uninstallApp, createHandle, updateHandle, deleteHandle, slackInstallUrl, listSlackChannels, createSlackHandle};
+    return {
+        listApps,
+        installApp,
+        uninstallApp,
+        createHandle,
+        updateHandle,
+        deleteHandle,
+        slackInstallUrl,
+        slackConnectUrl,
+        listSlackChannels,
+        createSlackHandle,
+    };
 };

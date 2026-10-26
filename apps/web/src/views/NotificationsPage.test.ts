@@ -88,6 +88,24 @@ describe('NotificationsPage', () => {
         expect(wrapper.text()).toContain('Team Alpha');
     });
 
+    it('notifications page names Slack handles', async () => {
+        listApps.mockResolvedValue([
+            {
+                appId: 's',
+                type: 'slack',
+                createdAt: '',
+                workspace: {teamId: 'T1', teamName: 'Acme', disconnected: false},
+                handles: [{handleId: 'h-1', appId: 's', name: 'CI alerts', url: null, channelName: 'ci', ruleCount: 1}],
+                linkedMemberCount: 0,
+                memberCount: 1,
+            },
+        ]);
+        const wrapper = mount(NotificationsPage, {global: {stubs: {PageHeader: true, Dialog: true, DeleteNotificationDialog: true}}});
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('CI alerts');
+    });
+
     it('shows the handle name on a rule saved for an integration without prior rules', async () => {
         getNotifications.mockResolvedValueOnce([]);
         listApps.mockResolvedValue([]);

@@ -7,11 +7,14 @@
     import InviteUserDialog from '@/components/users/InviteUserDialog.vue';
     import PendingInvitationCard from '@/components/users/PendingInvitationCard.vue';
     import UserCard from '@/components/users/UserCard.vue';
+    import {useAuth} from '@/composables/useAuth';
+    import {useIntegrationApps} from '@/composables/useIntegrationApps';
     import {useMembers} from '@/composables/useMembers';
     import type {Invitation, TeamMember, UserInviteFormData, UserRole} from '@/types/user';
     import {hasRole, type MemberRole} from '@common/types';
     import {Clock, Loader2, Search, UserPlus, Users} from '@lucide/vue';
     import {computed, onMounted, ref} from 'vue';
+    import {useRoute, useRouter} from 'vue-router';
 
     const props = defineProps<{
         integrationId: string;
@@ -26,7 +29,12 @@
         createInvitation,
         revokeInvitation: apiRevokeInvitation,
         resendInvitation: apiResendInvitation,
+        disconnectSlack,
     } = useMembers();
+    const {listApps, slackConnectUrl} = useIntegrationApps();
+    const {getUserAttributes, refreshSession} = useAuth();
+    const route = useRoute();
+    const router = useRouter();
 
     const integrationId = computed(() => props.integrationId);
     const canManageMembers = computed(() => hasRole(props.role, 'admin'));
@@ -42,13 +50,29 @@
     const members = ref<TeamMember[]>([]);
     const invitations = ref<Invitation[]>([]);
 
+    const selfId = ref<string | null>(null);
+    const hasSlackApp = ref(false);
+    const slackBusy = ref(false);
+    const slackNotice = ref<string | null>(null);
+
+    const SLACK_CONNECT_ERRORS: Record<string, string> = {
+        workspace_mismatch: 'You signed in to a different Slack workspace. Connect again and pick the workspace this integration uses.',
+    };
+
     const APP_ORIGIN = window.location.origin;
 
     async function loadData() {
         loading.value = true;
         error.value = null;
         try {
-            const [apiMembers, apiInvitations] = await Promise.all([fetchMembers(integrationId.value), fetchInvitations(integrationId.value)]);
+            const [apiMembers, apiInvitations, apps, self] = await Promise.all([
+                fetchMembers(integrationId.value),
+                fetchInvitations(integrationId.value),
+                listApps(integrationId.value).catch(() => []),
+                getUserAttributes().catch(() => null),
+            ]);
+            hasSlackApp.value = apps.some((app) => app.type === 'slack' && !app.workspace.disconnected);
+            selfId.value = self?.userId === undefined ? null : String(self.userId);
 
             members.value = apiMembers.map((m) => ({
                 id: String(m.userId),
@@ -60,6 +84,7 @@
                 status: 'active' as const,
                 joinedAt: String(m.createdAt),
                 lastActiveAt: m.user.lastActiveAt ? String(m.user.lastActiveAt) : undefined,
+                slackLinked: m.slackLinked,
                 integrationIds: [],
             }));
 
@@ -83,7 +108,48 @@
         }
     }
 
-    onMounted(loadData);
+    function showSlackConnectOutcome() {
+        const {slack, slack_error: slackError, ...query} = route.query;
+        if (slack === undefined && slackError === undefined) return;
+        if (slack === 'connected') {
+            slackNotice.value = 'Slack account connected.';
+        } else if (slackError !== undefined) {
+            error.value = SLACK_CONNECT_ERRORS[String(slackError)] ?? 'Connecting your Slack account failed. Try again.';
+        }
+        router.replace({query});
+    }
+
+    onMounted(() => {
+        // loadData clears `error` synchronously, so the outcome is read after it starts
+        loadData();
+        showSlackConnectOutcome();
+    });
+
+    async function connectSlack() {
+        slackBusy.value = true;
+        try {
+            // A long Slack consent screen can outlast the access token the callback needs.
+            await refreshSession();
+            // Always return to the Members tab: the Apps tab reads the same query params as install outcomes.
+            const membersPath = router.resolve({name: 'integration', params: {integrationId: integrationId.value, tab: 'members'}}).href;
+            window.location.assign(slackConnectUrl(integrationId.value, window.location.origin + membersPath));
+        } finally {
+            slackBusy.value = false;
+        }
+    }
+
+    async function handleDisconnectSlack() {
+        slackBusy.value = true;
+        try {
+            await disconnectSlack(integrationId.value);
+            const self = members.value.find((m) => m.id === selfId.value);
+            if (self) self.slackLinked = false;
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Failed to disconnect Slack';
+        } finally {
+            slackBusy.value = false;
+        }
+    }
 
     const filteredMembers = computed(() => {
         if (!search.value) return members.value;
@@ -193,10 +259,18 @@
         <!-- Error Banner -->
         <div
             v-if="error"
+            role="alert"
             class="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
             {{ error }}
         </div>
+        <p
+            v-if="slackNotice"
+            role="status"
+            class="text-sm text-muted-foreground"
+        >
+            {{ slackNotice }}
+        </p>
 
         <!-- Loading State -->
         <div
@@ -258,8 +332,12 @@
                         :user="member"
                         :readonly="!canManageMembers"
                         :caller-role="role"
+                        :slack-actions="hasSlackApp && member.id === selfId"
+                        :slack-busy="slackBusy"
                         @change-role="handleChangeRole"
                         @remove="handleRemoveUser"
+                        @connect-slack="connectSlack"
+                        @disconnect-slack="handleDisconnectSlack"
                     />
                 </div>
                 <EmptyState

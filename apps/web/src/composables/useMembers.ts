@@ -95,6 +95,15 @@ export const useMembers = () => {
         }
     };
 
+    const disconnectSlack = async (integrationId: string): Promise<void> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/slack/connection`, {
+            method: 'DELETE',
+        });
+        if (response.status !== 204) {
+            throw new Error(`Failed to disconnect Slack: ${response.status}`);
+        }
+    };
+
     return {
         getMembers,
         changeRole,
@@ -105,5 +114,6 @@ export const useMembers = () => {
         resendInvitation,
         acceptInvitation,
         leaveIntegration,
+        disconnectSlack,
     };
 };

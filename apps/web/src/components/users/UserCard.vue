@@ -7,7 +7,7 @@
     import type {TeamMember, UserRole} from '@/types/user';
     import {formatCalendarDate, formatTimeSince} from '@/utils/formatDate';
     import {MEMBER_ROLES, ROLE_RANK} from '@common/types';
-    import {Crown, Eye, MoreHorizontal, Shield, Trash2, UserCog} from '@lucide/vue';
+    import {Crown, Eye, MessageSquare, MoreHorizontal, Shield, Trash2, UserCog} from '@lucide/vue';
     import {DropdownMenuItem, DropdownMenuSeparator} from 'radix-vue';
     import {computed, ref} from 'vue';
 
@@ -15,11 +15,15 @@
         user: TeamMember;
         readonly?: boolean;
         callerRole?: UserRole;
+        slackActions?: boolean;
+        slackBusy?: boolean;
     }>();
 
     const emit = defineEmits<{
         changeRole: [userId: string, newRole: UserRole];
         remove: [userId: string];
+        connectSlack: [];
+        disconnectSlack: [];
     }>();
 
     const ASSIGNABLE_ROLES: {value: UserRole; label: string}[] = MEMBER_ROLES.map((r) => ({value: r, label: r.charAt(0).toUpperCase() + r.slice(1)}));
@@ -123,6 +127,17 @@
                                 <Badge :variant="statusBadgeVariant">
                                     {{ user.status }}
                                 </Badge>
+                                <Badge
+                                    v-if="user.slackLinked"
+                                    variant="secondary"
+                                    class="gap-1"
+                                >
+                                    <MessageSquare
+                                        class="h-3 w-3"
+                                        aria-hidden="true"
+                                    />
+                                    Slack<span class="sr-only"> linked</span>
+                                </Badge>
                             </div>
                         </div>
 
@@ -136,6 +151,16 @@
                                 <span>Invited {{ formatCalendarDate(user.invitedAt) }}</span>
                             </template>
                         </div>
+
+                        <Button
+                            v-if="slackActions"
+                            variant="outline"
+                            size="sm"
+                            :loading="slackBusy"
+                            @click="user.slackLinked ? emit('disconnectSlack') : emit('connectSlack')"
+                        >
+                            {{ user.slackLinked ? 'Disconnect Slack' : 'Connect Slack' }}
+                        </Button>
                     </div>
                 </div>
 

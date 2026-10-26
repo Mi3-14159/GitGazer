@@ -11,6 +11,7 @@ export interface TeamMember {
     invitedAt?: string;
     joinedAt?: string;
     lastActiveAt?: string;
+    slackLinked?: boolean;
     integrationIds: string[];
 }
 

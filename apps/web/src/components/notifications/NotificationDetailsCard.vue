@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import {APP_INFO} from '@/components/apps/appCatalog';
     import Button from '@/components/ui/Button.vue';
     import Checkbox from '@/components/ui/Checkbox.vue';
     import Input from '@/components/ui/Input.vue';
@@ -68,7 +69,7 @@
     );
 
     const handleApps = computed(() =>
-        apps.value.flatMap((app) => (app.type === 'webhook' && app.handles.length > 0 ? [{appId: app.appId, handles: app.handles}] : [])),
+        apps.value.flatMap((app) => ('handles' in app && app.handles.length > 0 ? [{appId: app.appId, type: app.type, handles: app.handles}] : [])),
     );
     const handlesOfSelectedApp = computed<NotificationHandle[]>(
         () => handleApps.value.find((app) => app.appId === selectedAppId.value)?.handles ?? [],
@@ -362,7 +363,7 @@
                                         :key="app.appId"
                                         :value="app.appId"
                                     >
-                                        Webhook
+                                        {{ APP_INFO[app.type].name }}
                                     </option>
                                 </select>
                                 <ChevronDown class="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
