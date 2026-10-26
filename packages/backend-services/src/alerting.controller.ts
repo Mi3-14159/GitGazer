@@ -1,5 +1,5 @@
 import {findPullRequest, loadLogDetails, type DetailsSkipReason, type LogDetails} from './alerting/log-details';
-import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
+import {buildSlackAlert, type SlackAlertInput} from './alerting/slack-payload';
 import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
 import {resolveSlackUserId} from './slack/links';
@@ -11,7 +11,7 @@ import {withTimeout} from '@gitgazer/backend-core/helpers/async';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRuleDestinations, notificationRules, slackHandleDetails, webhookHandleDetails} from '@gitgazer/db/schema';
-import {WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import {WorkflowConclusion, WorkflowJobWithRelations, type SlackPayload} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
 type AlertContext = {

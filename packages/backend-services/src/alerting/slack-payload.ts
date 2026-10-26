@@ -18,8 +18,6 @@ export type SlackAlertInput = {
     details: {summary: string | null; excerpt: string | null} | null;
 };
 
-export type {SlackBlock, SlackPayload};
-
 const MAX_MRKDWN_LENGTH = 3000;
 const COLORS: Record<VerdictKind, string> = {real: '#e01e5a', flaky: '#ecb22e', unknown: '#9e9e9e'};
 const VERDICT_LABELS: Record<Exclude<VerdictKind, 'unknown'>, string> = {flaky: 'Probably flaky', real: 'Likely a real failure'};
