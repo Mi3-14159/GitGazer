@@ -2,14 +2,34 @@ import {getGithubSettings, installGithubApp} from '@/domains/apps/github-setting
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
 import {ConflictError} from '@/shared/errors';
 import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
+import {listChannels, revokeToken} from '@gitgazer/backend-core/clients/slack.client';
+import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
-import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
+import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {integrationApps, notificationHandles, notificationRuleDestinations, webhookHandleDetails} from '@gitgazer/db/schema/gitgazer';
-import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
-import {isAllowedWebhookUrl, MAX_WEBHOOK_HANDLES, type IntegrationApp, type IntegrationAppType, type NotificationHandle} from '@gitgazer/db/types';
-import {and, count, eq} from 'drizzle-orm';
+import {
+    integrationAppSlackSettings,
+    integrationApps,
+    notificationHandles,
+    notificationRuleDestinations,
+    slackHandleDetails,
+    slackUserLinks,
+    slackWorkspaces,
+    users,
+    webhookHandleDetails,
+} from '@gitgazer/db/schema/gitgazer';
+import {githubAppInstallations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {
+    isAllowedWebhookUrl,
+    MAX_SLACK_HANDLES,
+    MAX_WEBHOOK_HANDLES,
+    type IntegrationApp,
+    type IntegrationAppType,
+    type NotificationHandle,
+    type SlackChannel,
+} from '@gitgazer/db/types';
+import {and, count, eq, inArray, isNotNull, sql} from 'drizzle-orm';
 
 const MAX_HANDLE_NAME_LENGTH = 100;
 
@@ -42,6 +62,70 @@ const findApp = async (tx: RdsTransaction, integrationId: string, appId: string,
     return app;
 };
 
+// One Slack app per integration (unique type), so the integration alone identifies its workspace.
+export const findSlackTeamId = async (tx: RdsTransaction, integrationId: string): Promise<string | undefined> => {
+    const [settings] = await tx
+        .select({teamId: integrationAppSlackSettings.teamId})
+        .from(integrationAppSlackSettings)
+        .where(eq(integrationAppSlackSettings.integrationId, integrationId));
+    return settings?.teamId;
+};
+
+const loadSlackBotToken = async (params: Scope & {appId: string}): Promise<string> => {
+    const {integrationId, integrationIds, appId} = params;
+    const teamId = await withRlsTransaction({
+        integrationIds,
+        callback: async (tx: RdsTransaction) => {
+            const app = await findApp(tx, integrationId, appId);
+            if (app.type !== 'slack') {
+                throw new BadRequestError('Not a Slack app');
+            }
+            return await findSlackTeamId(tx, integrationId);
+        },
+    });
+    const [workspace] = teamId
+        ? await db.select({botTokenCiphertext: slackWorkspaces.botTokenCiphertext}).from(slackWorkspaces).where(eq(slackWorkspaces.teamId, teamId))
+        : [];
+    if (!workspace) {
+        throw new NotFoundError('Slack workspace not found');
+    }
+    return await decryptToken(workspace.botTokenCiphertext);
+};
+
+const loadSlackApp = async (tx: RdsTransaction, integrationId: string) => {
+    const teamId = await findSlackTeamId(tx, integrationId);
+    if (!teamId) return null;
+
+    const [workspace] = await db
+        .select({teamName: slackWorkspaces.teamName, disconnectedAt: slackWorkspaces.disconnectedAt})
+        .from(slackWorkspaces)
+        .where(eq(slackWorkspaces.teamId, teamId));
+    if (!workspace) return null;
+
+    const members = await tx
+        .select({githubId: users.githubId})
+        .from(userAssignments)
+        .innerJoin(users, eq(users.id, userAssignments.userId))
+        .where(eq(userAssignments.integrationId, integrationId));
+    const githubIds = members.flatMap((m) => (m.githubId === null ? [] : [m.githubId]));
+
+    const [linked] =
+        githubIds.length === 0
+            ? [{count: 0}]
+            : await db
+                  .select({count: count()})
+                  .from(slackUserLinks)
+                  .where(
+                      and(eq(slackUserLinks.teamId, teamId), inArray(slackUserLinks.githubUserId, githubIds), isNotNull(slackUserLinks.slackUserId)),
+                  );
+
+    return {
+        workspace: {teamId, teamName: workspace.teamName, disconnected: workspace.disconnectedAt !== null},
+        linkedMemberCount: Number(linked.count),
+        memberCount: members.length,
+    };
+};
+
 const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean): Promise<NotificationHandle[]> => {
     const handles = await tx
         .select({
@@ -49,6 +133,7 @@ const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecr
             appId: notificationHandles.appId,
             name: notificationHandles.name,
             url: webhookHandleDetails.url,
+            channelName: slackHandleDetails.channelName,
         })
         .from(notificationHandles)
         .leftJoin(
@@ -56,6 +141,13 @@ const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecr
             and(
                 eq(webhookHandleDetails.integrationId, notificationHandles.integrationId),
                 eq(webhookHandleDetails.handleId, notificationHandles.handleId),
+            ),
+        )
+        .leftJoin(
+            slackHandleDetails,
+            and(
+                eq(slackHandleDetails.integrationId, notificationHandles.integrationId),
+                eq(slackHandleDetails.handleId, notificationHandles.handleId),
             ),
         )
         .where(eq(notificationHandles.integrationId, integrationId))
@@ -73,7 +165,7 @@ const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecr
         appId: h.appId,
         name: h.name,
         url: canSeeSecrets ? h.url : null,
-        channelName: null,
+        channelName: h.channelName,
         ruleCount: ruleCounts.get(h.handleId) ?? 0,
     }));
 };
@@ -101,6 +193,10 @@ const loadApps = async (tx: RdsTransaction, integrationId: string, canSeeSecrets
             });
         } else if (app.type === 'webhook') {
             result.push({appId: app.appId, type: 'webhook', createdAt, handles: handles.filter((h) => h.appId === app.appId)});
+        } else if (app.type === 'slack') {
+            const slack = await loadSlackApp(tx, integrationId);
+            if (!slack) continue;
+            result.push({appId: app.appId, type: 'slack', createdAt, ...slack, handles: handles.filter((h) => h.appId === app.appId)});
         }
     }
     return result;
@@ -118,7 +214,7 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
     const {integrationId, integrationIds, type} = params;
 
     if (type === 'slack') {
-        throw new BadRequestError('The Slack app cannot be installed yet');
+        throw new BadRequestError('Slack is installed through Slack');
     }
 
     const app = await withRlsTransaction({
@@ -148,6 +244,12 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
         throw new NotFoundError('App not found');
     }
 
+    await logAppInstalled(integrationId, type);
+
+    return app;
+};
+
+export const logAppInstalled = async (integrationId: string, type: IntegrationAppType): Promise<void> => {
     try {
         await createEventLogEntry({
             integrationId,
@@ -160,8 +262,6 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
     } catch (error) {
         getLogger().error('Failed to create event log entry for app install', {error, integrationId, appType: type});
     }
-
-    return app;
 };
 
 const MAX_DELETE_ATTEMPTS = 3;
@@ -210,20 +310,46 @@ const deleteAppRow = async (params: Scope & {appId: string; type: IntegrationApp
     }
 };
 
+// Revoking the bot token removes the bot from every channel, so only the last integration using the workspace releases it.
+const releaseWorkspaceIfUnused = async (integrationId: string, teamId: string): Promise<void> => {
+    const [released] = await db
+        .delete(slackWorkspaces)
+        .where(
+            and(
+                eq(slackWorkspaces.teamId, teamId),
+                sql`not exists (select 1 from ${integrationAppSlackSettings} where ${integrationAppSlackSettings.teamId} = ${teamId})`,
+            ),
+        )
+        .returning({botTokenCiphertext: slackWorkspaces.botTokenCiphertext});
+    if (!released) return;
+
+    getLogger().info('Slack workspace released', {integrationId});
+    try {
+        await revokeToken(await decryptToken(released.botTokenCiphertext));
+    } catch (error) {
+        getLogger().error('Failed to revoke the Slack bot token', {error, integrationId});
+    }
+};
+
 export const uninstallApp = async (params: Scope & {appId: string}): Promise<void> => {
     const {integrationId, integrationIds, appId} = params;
 
-    const {app, installations} = await withRlsTransaction({
+    const {app, installations, slackTeamId} = await withRlsTransaction({
         integrationIds,
         callback: async (tx: RdsTransaction) => {
             const found = await findApp(tx, integrationId, appId);
             const linked = found.type === 'github' ? await findLinkedInstallations(tx, integrationId) : [];
-            return {app: found, installations: linked};
+            // Read now: the settings row goes with the app row
+            const teamId = found.type === 'slack' ? await findSlackTeamId(tx, integrationId) : undefined;
+            return {app: found, installations: linked, slackTeamId: teamId};
         },
     });
 
     await unlinkAll(integrationId, installations);
     await deleteAppRow({integrationId, integrationIds, appId, type: app.type});
+    if (slackTeamId) {
+        await releaseWorkspaceIfUnused(integrationId, slackTeamId);
+    }
 
     getLogger().info('App uninstalled', {integrationId, appId, appType: app.type});
 
@@ -249,7 +375,51 @@ const loadHandle = async (tx: RdsTransaction, integrationId: string, handleId: s
     return handle;
 };
 
-export const createHandle = async (params: Scope & {appId: string; name: string; url: string}): Promise<NotificationHandle> => {
+export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> =>
+    await listChannels(await loadSlackBotToken(params));
+
+const createSlackHandle = async (params: Scope & {appId: string; name?: string; channelId: string}): Promise<NotificationHandle> => {
+    const {integrationId, integrationIds, appId, channelId} = params;
+
+    // Resolved before the write transaction so the app row lock is never held across a Slack call
+    const channels = await listSlackChannels({integrationId, integrationIds, appId});
+    const channel = channels.find((c) => c.id === channelId);
+    if (!channel) {
+        throw new BadRequestError('Unknown channel');
+    }
+    const name = normalizeName(params.name ?? `#${channel.name}`);
+
+    return await withRlsTransaction({
+        integrationIds,
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            await findApp(tx, integrationId, appId, 'update');
+
+            const [{count: existing}] = await tx
+                .select({count: count()})
+                .from(notificationHandles)
+                .where(and(eq(notificationHandles.integrationId, integrationId), eq(notificationHandles.appId, appId)));
+            if (Number(existing) >= MAX_SLACK_HANDLES) {
+                throw new BadRequestError(`A Slack app holds at most ${MAX_SLACK_HANDLES} handles`);
+            }
+
+            const [handle] = await tx
+                .insert(notificationHandles)
+                .values({integrationId, appId, name})
+                .returning({handleId: notificationHandles.handleId});
+            await tx.insert(slackHandleDetails).values({integrationId, handleId: handle.handleId, channelId, channelName: channel.name});
+
+            return {handleId: handle.handleId, appId, name, url: null, channelName: channel.name, ruleCount: 0};
+        },
+    });
+};
+
+export const createHandle = async (
+    params: Scope & {appId: string} & ({name: string; url: string} | {name?: string; channelId: string}),
+): Promise<NotificationHandle> => {
+    if ('channelId' in params) {
+        return await createSlackHandle(params);
+    }
     const {integrationId, integrationIds, appId} = params;
     const name = normalizeName(params.name);
     const url = assertWebhookUrl(params.url);
@@ -296,7 +466,10 @@ export const updateHandle = async (params: Scope & {handleId: string; name?: str
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            await loadHandle(tx, integrationId, handleId);
+            const handle = await loadHandle(tx, integrationId, handleId);
+            if (url !== undefined && handle.url === null) {
+                throw new BadRequestError('Only Webhook handles have a URL');
+            }
 
             if (name !== undefined) {
                 await tx

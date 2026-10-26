@@ -109,6 +109,15 @@ describe('redactHandleRouteResult', () => {
         expect(response.body).toContain(SLACK_URL);
     });
 
+    it('drops the Slack channel list, which names private channels', () => {
+        const logged = redactHandleRouteResult(
+            event('GET', '/api/integrations/i-1/apps/a-1/slack/channels'),
+            result([{id: 'C1', name: 'secret-project', isPrivate: true}]),
+        );
+
+        expect(logged.body).toBe('[REDACTED]');
+    });
+
     it.each([
         ['GET', '/api/integrations/i-1/rules'],
         ['DELETE', '/api/integrations/i-1/handles/h-1'],

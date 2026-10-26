@@ -1,9 +1,11 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import {createHandle, deleteHandle, installApp, listApps, uninstallApp, updateHandle} from '@/domains/apps/apps.controller';
+import {createHandle, deleteHandle, installApp, listApps, listSlackChannels, uninstallApp, updateHandle} from '@/domains/apps/apps.controller';
+import {buildSlackInstallRedirect} from '@/domains/apps/slack-install';
 import {requireRole} from '@/shared/middleware/require-role';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
 import {hasRole, isIntegrationAppType} from '@gitgazer/db/types';
+import {APIGatewayProxyEventV2} from 'aws-lambda';
 
 const router = new Router();
 
@@ -50,6 +52,32 @@ router.post('/api/integrations/:integrationId/apps', [addUserIntegrationsToCtx, 
     return json(app, HttpStatusCodes.CREATED);
 });
 
+router.get(
+    '/api/integrations/:integrationId/apps/slack/install',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const {location, stateCookie} = buildSlackInstallRedirect({
+            integrationId: reqCtx.params.integrationId,
+            userId: reqCtx.appContext!.userId,
+            redirectUrl: (reqCtx.event as APIGatewayProxyEventV2).queryStringParameters?.redirect_url,
+        });
+        return new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: location, 'Set-Cookie': stateCookie}});
+    },
+);
+
+router.get(
+    '/api/integrations/:integrationId/apps/:appId/slack/channels',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const channels = await listSlackChannels({
+            integrationId: reqCtx.params.integrationId,
+            integrationIds: reqCtx.appContext?.integrations ?? [],
+            appId: reqCtx.params.appId,
+        });
+        return json(channels);
+    },
+);
+
 router.delete('/api/integrations/:integrationId/apps/:appId', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
     await uninstallApp({
         integrationId: reqCtx.params.integrationId,
@@ -64,16 +92,23 @@ router.post(
     [addUserIntegrationsToCtx, requireRole('admin')],
     async (reqCtx: AppRequestContext) => {
         const body = await readBody(reqCtx);
-        if (typeof body.name !== 'string' || typeof body.url !== 'string') {
-            throw new BadRequestError('name and url are required');
-        }
-        const handle = await createHandle({
+        const scope = {
             integrationId: reqCtx.params.integrationId,
             integrationIds: reqCtx.appContext?.integrations ?? [],
             appId: reqCtx.params.appId,
-            name: body.name,
-            url: body.url,
-        });
+        };
+        let handle;
+        if (typeof body.channelId === 'string') {
+            if (body.name !== undefined && typeof body.name !== 'string') {
+                throw new BadRequestError('name must be a string');
+            }
+            handle = await createHandle({...scope, channelId: body.channelId, name: body.name as string | undefined});
+        } else {
+            if (typeof body.name !== 'string' || typeof body.url !== 'string') {
+                throw new BadRequestError('name and url are required');
+            }
+            handle = await createHandle({...scope, name: body.name, url: body.url});
+        }
         return json(handle, HttpStatusCodes.CREATED);
     },
 );

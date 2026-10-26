@@ -15,6 +15,8 @@ const APP_RESULT_ROUTES: Route[] = [
     {method: 'POST', path: /^\/api\/integrations\/[^/]+\/apps\/?$/},
 ];
 
+const REDACTED_RESULT_ROUTES: Route[] = [{method: 'GET', path: /^\/api\/integrations\/[^/]+\/apps\/[^/]+\/slack\/channels\/?$/}];
+
 const RESULT_SECRET_KEYS = new Set(['url', 'secret']);
 
 const matchesRoute = (event: APIGatewayProxyEventV2, routes: Route[]): boolean => {
@@ -43,6 +45,8 @@ const redactResultBody = (body: string, isBase64Encoded: boolean): string => {
 
 // App and handle responses carry Slack webhook URLs (and the GitHub secret) for admins; the generic redactor misses `url`.
 export const redactHandleRouteResult = <T extends {body?: string; isBase64Encoded?: boolean}>(event: APIGatewayProxyEventV2, result: T): T => {
+    // Channel lists name private channels and hold nothing needed to debug a request
+    if (matchesRoute(event, REDACTED_RESULT_ROUTES) && result.body) return {...result, body: REDACTED, isBase64Encoded: false};
     if (!matchesRoute(event, APP_RESULT_ROUTES) || !result.body) return result;
     return {...result, body: redactResultBody(result.body, result.isBase64Encoded === true), isBase64Encoded: false};
 };
