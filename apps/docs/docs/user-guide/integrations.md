@@ -22,9 +22,9 @@ The GitHub App is the simplest way to connect — it handles webhook configurati
 6. Click **Install**. You're redirected back to GitGazer.
 7. In the dialog that appears, your integration is already selected. Click **Link to Integration**.
 
-The dialog also lets you link the installation to another integration that has the GitHub app and no linked installation, or create a new integration for it.
-
 GitGazer immediately starts receiving webhook events from your selected repositories.
+
+The dialog also lets you link the installation to another integration that has the GitHub app and no linked installation, or create a new integration for it.
 
 Only the GitHub user who installed the GitHub App can link the installation. For an installation on a personal account, the account owner can link it too.
 
