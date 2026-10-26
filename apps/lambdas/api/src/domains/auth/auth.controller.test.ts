@@ -27,7 +27,7 @@ vi.mock('@gitgazer/backend-core/config', () => ({
     },
 }));
 
-import {buildLoginRedirect, handleOAuthCallback, mintStateToken, verifyStateToken} from './auth.controller';
+import {buildLoginRedirect, handleOAuthCallback, mintSignedState, mintStateToken, verifySignedState, verifyStateToken} from './auth.controller';
 
 const ALLOWED_ORIGIN = 'https://app.example.com';
 
@@ -137,6 +137,23 @@ describe('mintStateToken / verifyStateToken', () => {
             vi.setSystemTime(new Date('2026-01-01T00:09:59Z'));
             expect(verifyStateToken(token, nonce)).not.toBeNull();
         });
+    });
+});
+
+describe('mintSignedState / verifySignedState', () => {
+    const payload = {purpose: 'slack_install', integrationId: 'int-1', userId: 7, redirect_url: ALLOWED_ORIGIN};
+
+    it('round-trips any payload against its nonce', () => {
+        const {token, nonce} = mintSignedState(payload);
+
+        expect(verifySignedState<typeof payload>(token, nonce)).toMatchObject(payload);
+        expect(verifySignedState(token, 'a-different-nonce')).toBeNull();
+    });
+
+    it('verifyStateToken rejects a state minted for another purpose', () => {
+        const {token, nonce} = mintSignedState(payload);
+
+        expect(verifyStateToken(token, nonce)).toBeNull();
     });
 });
 

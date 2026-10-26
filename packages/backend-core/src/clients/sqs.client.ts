@@ -27,6 +27,12 @@ export interface OrgMemberSyncTask {
     accountLogin: string;
 }
 
+export interface SlackLookupTask {
+    taskType: 'slack_lookup';
+    teamId: string;
+    integrationId: string;
+}
+
 export const sendWebhookEvent = async (queueUrl: string, message: WebhookMessage): Promise<void> => {
     await client.send(
         new SendMessageCommand({
@@ -44,6 +50,17 @@ export const sendOrgMemberSyncTask = async (queueUrl: string, task: OrgMemberSyn
             QueueUrl: queueUrl,
             MessageBody: JSON.stringify(task),
             MessageGroupId: `org-sync-${task.installationId}`,
+            MessageDeduplicationId: randomUUID(),
+        }),
+    );
+};
+
+export const sendSlackLookupTask = async (queueUrl: string, task: SlackLookupTask): Promise<void> => {
+    await client.send(
+        new SendMessageCommand({
+            QueueUrl: queueUrl,
+            MessageBody: JSON.stringify(task),
+            MessageGroupId: `slack-lookup-${task.teamId}`,
             MessageDeduplicationId: randomUUID(),
         }),
     );

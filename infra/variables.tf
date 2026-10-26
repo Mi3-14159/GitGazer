@@ -67,6 +67,18 @@ variable "gh_oauth_app_client_secret_encrypted" {
   description = "GitHub OAuth app client secret, encrypted with KMS"
 }
 
+variable "slack_app_client_id_encrypted" {
+  type        = string
+  sensitive   = true
+  description = "Slack app client id, encrypted with KMS"
+}
+
+variable "slack_app_client_secret_encrypted" {
+  type        = string
+  sensitive   = true
+  description = "Slack app client secret, encrypted with KMS"
+}
+
 variable "gh_app" {
   type = object({
     id                       = string

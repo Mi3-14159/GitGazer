@@ -31,6 +31,30 @@ locals {
     "integrations/{integrationId}/apps/{appId}" = {
       methods = ["DELETE"]
     },
+    "integrations/{integrationId}/apps/slack/install" = {
+      methods = ["GET"]
+    },
+    "integrations/{integrationId}/apps/slack/move-candidates" = {
+      methods = ["GET"]
+    },
+    "integrations/{integrationId}/apps/slack/move" = {
+      methods = ["POST"]
+    },
+    "integrations/{integrationId}/apps/{appId}/slack/channels" = {
+      methods = ["GET"]
+    },
+    "integrations/{integrationId}/slack/connect" = {
+      methods = ["GET"]
+    },
+    "integrations/{integrationId}/slack/connection" = {
+      methods = ["DELETE"]
+    },
+    "slack/oauth/callback" = {
+      methods = ["GET"]
+    },
+    "slack/sign-in/callback" = {
+      methods = ["GET"]
+    },
     "integrations/{integrationId}/apps/{appId}/handles" = {
       methods = ["POST"]
     },
@@ -209,6 +233,18 @@ resource "aws_apigatewayv2_stage" "this" {
 
   route_settings {
     route_key              = "GET /api/auth/cognito/user"
+    throttling_rate_limit  = var.auth_relay_throttling.rate_limit
+    throttling_burst_limit = var.auth_relay_throttling.burst_limit
+  }
+
+  route_settings {
+    route_key              = "GET /api/slack/oauth/callback"
+    throttling_rate_limit  = var.auth_relay_throttling.rate_limit
+    throttling_burst_limit = var.auth_relay_throttling.burst_limit
+  }
+
+  route_settings {
+    route_key              = "GET /api/slack/sign-in/callback"
     throttling_rate_limit  = var.auth_relay_throttling.rate_limit
     throttling_burst_limit = var.auth_relay_throttling.burst_limit
   }

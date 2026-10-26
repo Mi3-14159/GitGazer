@@ -132,11 +132,11 @@ const constantTimeEqual = (a: string, b: string): boolean => {
 };
 
 /**
- * Mint a signed, single-use OAuth `state` token bound to a random nonce.
- * Returns the token (placed in the Cognito `state` parameter) and the nonce
+ * Mint a signed, single-use OAuth `state` token carrying `payload`, bound to a random nonce.
+ * Returns the token (placed in the provider's `state` parameter) and the nonce
  * (stored in a short-lived httpOnly cookie for callback verification).
  */
-export const mintStateToken = (params: {redirect_url: string}): {token: string; nonce: string} => {
+export const mintSignedState = <T extends object>(payload: T): {token: string; nonce: string} => {
     const stateSecret = config.get('stateSecret');
     if (!stateSecret) {
         // Fail closed: an empty secret makes the state signature forgeable, silently voiding
@@ -146,15 +146,11 @@ export const mintStateToken = (params: {redirect_url: string}): {token: string; 
     }
 
     const nonce = randomBytes(16).toString('hex');
-    const statePayload: StateTokenPayload = {
-        redirect_url: params.redirect_url,
-        nonce,
-        exp: Math.floor(Date.now() / 1000) + STATE_TOKEN_TTL_SECONDS,
-    };
+    const statePayload = {...payload, nonce, exp: Math.floor(Date.now() / 1000) + STATE_TOKEN_TTL_SECONDS};
 
-    const payload = Buffer.from(JSON.stringify(statePayload)).toString('base64url');
-    const signature = createHmac('sha256', stateSecret).update(payload).digest('base64url');
-    return {token: `${payload}.${signature}`, nonce};
+    const encoded = Buffer.from(JSON.stringify(statePayload)).toString('base64url');
+    const signature = createHmac('sha256', stateSecret).update(encoded).digest('base64url');
+    return {token: `${encoded}.${signature}`, nonce};
 };
 
 /**
@@ -162,7 +158,7 @@ export const mintStateToken = (params: {redirect_url: string}): {token: string; 
  * cookie. Returns the decoded payload when the signature, expiry and nonce all
  * check out, otherwise null. All comparisons are constant-time.
  */
-export const verifyStateToken = (token: string | undefined, nonceFromCookie: string | null): StateTokenPayload | null => {
+export const verifySignedState = <T>(token: string | undefined, nonceFromCookie: string | null): (T & {nonce: string; exp: number}) | null => {
     if (!token || !nonceFromCookie) {
         return null;
     }
@@ -185,9 +181,9 @@ export const verifyStateToken = (token: string | undefined, nonceFromCookie: str
         return null;
     }
 
-    let decoded: StateTokenPayload;
+    let decoded: T & {nonce: string; exp: number};
     try {
-        decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as StateTokenPayload;
+        decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as T & {nonce: string; exp: number};
     } catch {
         return null;
     }
@@ -201,6 +197,14 @@ export const verifyStateToken = (token: string | undefined, nonceFromCookie: str
     }
 
     return decoded;
+};
+
+export const mintStateToken = (params: {redirect_url: string}): {token: string; nonce: string} => mintSignedState(params);
+
+// Slack states share the nonce cookie; one carrying a purpose must never complete a login.
+export const verifyStateToken = (token: string | undefined, nonceFromCookie: string | null): StateTokenPayload | null => {
+    const decoded = verifySignedState<StateTokenPayload>(token, nonceFromCookie);
+    return decoded && !('purpose' in decoded) ? decoded : null;
 };
 
 /**

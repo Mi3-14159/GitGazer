@@ -49,6 +49,17 @@ describe('sendOrgMemberSyncTask', () => {
     });
 });
 
+describe('sendSlackLookupTask', () => {
+    it('sends with MessageGroupId = slack-lookup-<teamId>', async () => {
+        await sqs.sendSlackLookupTask('https://queue', {taskType: 'slack_lookup', teamId: 'T1', integrationId: 'int-1'});
+
+        const {input} = mockSend.mock.calls[0][0];
+        expect(input.MessageGroupId).toBe('slack-lookup-T1');
+        expect(JSON.parse(input.MessageBody)).toEqual({taskType: 'slack_lookup', teamId: 'T1', integrationId: 'int-1'});
+        expect(typeof input.MessageDeduplicationId).toBe('string');
+    });
+});
+
 describe('sendMessageBatch', () => {
     it('chunks messages into batches of 10 with per-chunk string Ids', async () => {
         const messages = Array.from({length: 23}, (_, i) => ({body: `m${i}`}));

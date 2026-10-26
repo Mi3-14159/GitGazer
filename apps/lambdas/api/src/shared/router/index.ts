@@ -8,6 +8,7 @@ import membersRoutes from '@/domains/members/members.routes';
 import metricsRoutes from '@/domains/metrics/metrics.routes';
 import notificationsRoutes from '@/domains/notifications/notifications.routes';
 import overviewRoutes from '@/domains/overview/overview.routes';
+import slackRoutes from '@/domains/slack/slack.routes';
 import usersRoutes from '@/domains/users/users.routes';
 import importRoutes from '@/domains/webhooks/webhooks.routes';
 import workflowsRoutes from '@/domains/workflows/workflows.routes';
@@ -51,6 +52,7 @@ export const createApp = (): Router => {
     app.includeRouter(overviewRoutes);
     app.includeRouter(integrationsRoutes);
     app.includeRouter(appsRoutes);
+    app.includeRouter(slackRoutes);
     app.includeRouter(membersRoutes);
     app.includeRouter(metricsRoutes);
     app.includeRouter(mcpRoutes);

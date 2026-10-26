@@ -10,6 +10,16 @@ data "aws_kms_secrets" "this" {
   }
 
   secret {
+    name    = "slack_app_client_id"
+    payload = var.slack_app_client_id_encrypted
+  }
+
+  secret {
+    name    = "slack_app_client_secret"
+    payload = var.slack_app_client_secret_encrypted
+  }
+
+  secret {
     name    = "gh_app_private_key"
     payload = var.gh_app.private_key_encrypted
   }
@@ -82,6 +92,13 @@ resource "aws_secretsmanager_secret_version" "lambda_config" {
       clientId     = data.aws_kms_secrets.this.plaintext["gh_oauth_app_client_id"]
       clientSecret = data.aws_kms_secrets.this.plaintext["gh_oauth_app_client_secret"]
     }
+    slackApp = {
+      clientId           = data.aws_kms_secrets.this.plaintext["slack_app_client_id"]
+      clientSecret       = data.aws_kms_secrets.this.plaintext["slack_app_client_secret"]
+      installRedirectUri = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/slack/oauth/callback"
+      signInRedirectUri  = "https://${var.custom_domain_config != null ? var.custom_domain_config.domain_name : aws_cloudfront_distribution.this.domain_name}/api/slack/sign-in/callback"
+    }
+    tokenKmsKeyId         = aws_kms_key.this.arn
     wsTokenSecret         = random_password.ws_token_secret.result
     stateSecret           = random_password.state_secret.result
     webhookQueueUrl       = aws_sqs_queue.webhook_events.url
