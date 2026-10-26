@@ -62,6 +62,18 @@ The `state` parameter is not just an opaque redirect hint — it is a signed tok
 - **Fail closed** — if `stateSecret` is not configured, login initiation and callback both fail loudly rather than silently accepting forgeable tokens.
 - **Short-lived & single-use** — the token expires after 10 minutes (matching the cookie `Max-Age`), and the nonce cookie is cleared once the callback completes.
 
+### Slack Callbacks
+
+The Slack app adds two redirect routes that Slack calls through the user's browser: `/api/slack/oauth/callback` (install) and `/api/slack/sign-in/callback` (Connect Slack). Unlike the Cognito callback, they are **not** public routes. They go through the normal `authenticate` middleware, so the user's session cookies must be present.
+
+- **Signed state with purpose** — the state token reuses the signed-state mechanism above and additionally carries a `purpose` (`slack_install` or `slack_sign_in`), the integration ID, and the user ID. A callback rejects a token whose purpose or user ID doesn't match.
+- **Nonce cookie** — the nonce is bound to the browser through the same `oauthStateNonce` cookie and cleared after the callback.
+- **Fixed redirect URIs** — the redirect URIs are fixed API routes, never taken from the request.
+
+### GitHub Email Scope
+
+The GitHub OAuth app requests the `user:email` scope. At login, the user attribute endpoint reads the user's verified emails from GitHub and looks them up in the Slack workspaces of the user's integrations, to link the GitHub account to a Slack user. The step has a short time limit and never blocks or fails the login. Email addresses are only held in memory during the lookup and are never stored or logged; only the resulting Slack user ID is kept.
+
 ### GitHub Identity Mapping
 
 Cognito maps GitHub profile attributes to user pool claims:

@@ -161,16 +161,16 @@ describe('SlackAppPanel', () => {
         await flushPromises();
 
         expect(listMoveCandidates).toHaveBeenCalledWith('int-1');
-        expect(wrapper.text()).toContain('1 Webhook handle posts to this workspace');
+        expect(wrapper.text()).toContain('1 Webhook handle posts to the Slack workspace');
 
-        await buttonByText(wrapper, 'Move to channels')!.trigger('click');
+        await buttonByText(wrapper, 'Move to Slack channels')!.trigger('click');
         await flushPromises();
         await wrapper.find('select#move-w-1').setValue('C1');
         await wrapper.find('form').trigger('submit');
         await flushPromises();
 
         expect(wrapper.emitted('changed')).toHaveLength(1);
-        expect(buttonByText(wrapper, 'Move to channels')).toBeUndefined();
+        expect(buttonByText(wrapper, 'Move to Slack channels')).toBeUndefined();
 
         await buttonByText(wrapper, 'Remove Webhook app')!.trigger('click');
         expect(wrapper.emitted('remove-webhook')).toHaveLength(1);

@@ -12,8 +12,8 @@ export const LOGIN_LOOKUP_BUDGET_MS = 2000;
 
 /**
  * Links the user to their Slack account in every connected workspace of their integrations, by their verified emails.
- * Runs inside the login request, so loading the emails and the lookups share one time budget, and it never throws;
- * whatever does not finish is retried at the next login.
+ * Runs inside the login request, so the workspace query, loading the emails and the lookups share one time budget, and
+ * it never throws; whatever does not finish is retried at the next login.
  */
 export const linkAtLogin = async (githubUserId: number, loadEmails: () => Promise<string[]>): Promise<void> => {
     const logger = getLogger();
@@ -38,9 +38,6 @@ export const linkAtLogin = async (githubUserId: number, loadEmails: () => Promis
     };
 
     const linkAll = async () => {
-        const emails = await loadEmails();
-        if (emails.length === 0) return;
-
         const workspaces = await db
             .selectDistinct({
                 teamId: slackWorkspaces.teamId,
@@ -57,6 +54,10 @@ export const linkAtLogin = async (githubUserId: number, loadEmails: () => Promis
 
         const linkable = workspaces.filter((w) => !w.autoLinkBlocked && w.source !== 'slack_sign_in');
         counts.workspaces = linkable.length;
+        if (linkable.length === 0) return;
+
+        const emails = await loadEmails();
+        if (emails.length === 0) return;
         await Promise.all(linkable.map((w) => linkWorkspace(emails, w.teamId, w.botTokenCiphertext)));
     };
 

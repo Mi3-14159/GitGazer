@@ -1,5 +1,6 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {deprovisionAllWebhooks, RecordedWebhook, updateWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
+import {findSlackTeamId, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {getGithubSettings, installGithubApp} from '@/domains/apps/github-settings';
 import {ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -159,14 +160,20 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
             }
         }
 
-        await withRlsTransaction({
+        const slackTeamId = await withRlsTransaction({
             integrationIds,
             userName: gitgazerWriter.name,
             callback: async (tx: RdsTransaction) => {
+                // Read now: the Slack settings row goes with the integration
+                const teamId = await findSlackTeamId(tx, id);
                 // Delete integration (cascades to user-assignments and notification-rules via foreign key)
                 await tx.delete(integrations).where(and(eq(integrations.integrationId, id), eq(integrations.ownerId, userId)));
+                return teamId;
             },
         });
+        if (slackTeamId) {
+            await releaseWorkspaceIfUnused(id, slackTeamId);
+        }
 
         // Note: event log entry is not persisted because event_log_entries cascade-deletes with the integration.
         // The log line below serves as the audit trail.

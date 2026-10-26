@@ -2,7 +2,7 @@ import {getGithubSettings, installGithubApp} from '@/domains/apps/github-setting
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
 import {ConflictError} from '@/shared/errors';
 import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
-import {listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
+import {getChannel, listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
@@ -291,7 +291,7 @@ const deleteAppRow = async (params: Scope & {appId: string; type: IntegrationApp
 };
 
 // Revoking the bot token removes the bot from every channel, so only the last integration using the workspace releases it.
-const releaseWorkspaceIfUnused = async (integrationId: string, teamId: string): Promise<void> => {
+export const releaseWorkspaceIfUnused = async (integrationId: string, teamId: string): Promise<void> => {
     const [released] = await db
         .delete(slackWorkspaces)
         .where(
@@ -355,18 +355,21 @@ const loadHandle = async (tx: RdsTransaction, integrationId: string, handleId: s
     return handle;
 };
 
-export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> => {
+export const loadSlackBotToken = async (params: Scope & {appId: string}): Promise<string> => {
     const {integrationId, integrationIds, appId} = params;
     const app = await withRlsTransaction({integrationIds, callback: (tx: RdsTransaction) => findApp(tx, integrationId, appId)});
     if (app.type !== 'slack') {
         throw new BadRequestError('Not a Slack app');
     }
     const workspace = await loadWorkspaceForIntegration(integrationId);
-    if (!workspace) {
-        throw new NotFoundError('Slack workspace not found');
+    if (!workspace || workspace.disconnected) {
+        throw new NotFoundError('Slack workspace not connected');
     }
-    return await listChannels(workspace.botToken);
+    return workspace.botToken;
 };
+
+export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> =>
+    await listChannels(await loadSlackBotToken(params));
 
 // Locks the Slack app row so concurrent creates can't outrun the handle limit
 export const insertSlackHandle = async (
@@ -390,26 +393,25 @@ export const insertSlackHandle = async (
     return {handleId: handle.handleId, appId, name, url: null, channelName, ruleCount: 0};
 };
 
-const createSlackHandle = async (params: Scope & {appId: string; name?: string; channelId: string}): Promise<NotificationHandle> => {
+const createSlackHandle = async (params: Scope & {appId: string; channelId: string}): Promise<NotificationHandle> => {
     const {integrationId, integrationIds, appId, channelId} = params;
 
     // Resolved before the write transaction so the app row lock is never held across a Slack call
-    const channels = await listSlackChannels({integrationId, integrationIds, appId});
-    const channel = channels.find((c) => c.id === channelId);
+    const channel = await getChannel(await loadSlackBotToken({integrationId, integrationIds, appId}), channelId);
     if (!channel) {
         throw new BadRequestError('Unknown channel');
     }
-    const name = normalizeName(params.name ?? `#${channel.name}`);
 
     return await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
-        callback: (tx: RdsTransaction) => insertSlackHandle(tx, {integrationId, appId, name, channelId, channelName: channel.name}),
+        callback: (tx: RdsTransaction) =>
+            insertSlackHandle(tx, {integrationId, appId, name: `#${channel.name}`, channelId, channelName: channel.name}),
     });
 };
 
 export const createHandle = async (
-    params: Scope & {appId: string} & ({name: string; url: string} | {name?: string; channelId: string}),
+    params: Scope & {appId: string} & ({name: string; url: string} | {channelId: string}),
 ): Promise<NotificationHandle> => {
     if ('channelId' in params) {
         return await createSlackHandle(params);

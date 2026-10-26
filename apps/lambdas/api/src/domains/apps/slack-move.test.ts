@@ -50,7 +50,8 @@ const mocks = vi.hoisted(() => ({
     findSlackTeamId: vi.fn(),
     loadHandles: vi.fn(),
     insertSlackHandle: vi.fn(),
-    listSlackChannels: vi.fn(),
+    loadSlackBotToken: vi.fn(),
+    getChannel: vi.fn(),
     error: vi.fn(),
 }));
 
@@ -59,7 +60,11 @@ vi.mock('@/domains/apps/apps.controller', () => ({
     findSlackTeamId: mocks.findSlackTeamId,
     loadHandles: mocks.loadHandles,
     insertSlackHandle: mocks.insertSlackHandle,
-    listSlackChannels: mocks.listSlackChannels,
+    loadSlackBotToken: mocks.loadSlackBotToken,
+}));
+vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-core/clients/slack.client')>()),
+    getChannel: mocks.getChannel,
 }));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: mocks.error, warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
@@ -76,10 +81,12 @@ describe('slack-move', () => {
         deleteWhere.length = 0;
         updatedTables.length = 0;
         mocks.withRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
-        mocks.listSlackChannels.mockResolvedValue([
+        mocks.loadSlackBotToken.mockResolvedValue('xoxb-1');
+        const channels = [
             {id: 'C1', name: 'ops', isPrivate: false},
             {id: 'C2', name: 'dev', isPrivate: false},
-        ]);
+        ];
+        mocks.getChannel.mockImplementation(async (_token: string, channelId: string) => channels.find((c) => c.id === channelId) ?? null);
         mocks.insertSlackHandle.mockResolvedValue({handleId: 'slack-new'});
         move = await import('./slack-move');
     });
@@ -135,7 +142,8 @@ describe('slack-move', () => {
             });
             expect(updatedTables).toEqual([notificationRuleDestinations]);
             expect(deletedTables).toEqual([notificationRuleDestinations, notificationHandles]);
-            expect(mocks.listSlackChannels).toHaveBeenCalledTimes(1);
+            expect(mocks.loadSlackBotToken).toHaveBeenCalledWith({...base, appId: 'app-s'});
+            expect(mocks.getChannel).toHaveBeenCalledWith('xoxb-1', 'C1');
         });
 
         it('a failing move leaves that handle untouched and others moved', async () => {
@@ -171,6 +179,10 @@ describe('slack-move', () => {
             });
 
             expect(result).toEqual({moved: [], failed: ['gone', 'w2'], webhookAppEmpty: false});
+            expect(mocks.getChannel.mock.calls).toEqual([
+                ['xoxb-1', 'C1'],
+                ['xoxb-1', 'C-unknown'],
+            ]);
             expect(mocks.insertSlackHandle).not.toHaveBeenCalled();
         });
 

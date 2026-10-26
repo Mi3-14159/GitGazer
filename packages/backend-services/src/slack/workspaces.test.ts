@@ -65,11 +65,12 @@ describe('workspaces', () => {
             expect(mockDecryptToken).toHaveBeenCalledWith('cipher');
         });
 
-        it('reports a disconnected workspace', async () => {
+        it('reports a disconnected workspace without decrypting its token', async () => {
             rowsByTable.set(integrationAppSlackSettings, [{teamId: 'T1'}]);
             rowsByTable.set(slackWorkspaces, [{botTokenCiphertext: 'cipher', disconnectedAt: new Date()}]);
 
-            await expect(loadWorkspaceForIntegration('int-1')).resolves.toEqual({teamId: 'T1', botToken: 'xoxb-1', disconnected: true});
+            await expect(loadWorkspaceForIntegration('int-1')).resolves.toEqual({teamId: 'T1', botToken: '', disconnected: true});
+            expect(mockDecryptToken).not.toHaveBeenCalled();
         });
 
         it('returns null without a Slack app', async () => {

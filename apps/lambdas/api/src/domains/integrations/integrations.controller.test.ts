@@ -47,6 +47,13 @@ vi.mock('@/domains/github-app/webhook-provisioning', () => ({
     updateWebhookSecrets: vi.fn(),
 }));
 
+const mockFindSlackTeamId = vi.fn();
+const mockReleaseWorkspaceIfUnused = vi.fn();
+vi.mock('@/domains/apps/apps.controller', () => ({
+    findSlackTeamId: (...args: any[]) => mockFindSlackTeamId(...args),
+    releaseWorkspaceIfUnused: (...args: any[]) => mockReleaseWorkspaceIfUnused(...args),
+}));
+
 let controller: typeof import('./integrations.controller');
 
 describe('integrations controller', () => {
@@ -220,6 +227,48 @@ describe('integrations controller', () => {
             mockWithRlsTransaction.mockImplementation(async (params) => params.callback(settingsUpdateTx([])));
 
             await expect(controller.rotateSecret({integrationId: 'int-1', integrationIds: ['int-1']})).rejects.toThrow('GitHub app not installed');
+        });
+    });
+
+    describe('deleteIntegration', () => {
+        const order: string[] = [];
+        const deleteTx = {
+            select: () => ({from: () => ({where: () => ({groupBy: () => Promise.resolve([])})})}),
+            delete: () => ({
+                where: () => {
+                    order.push('delete');
+                    return Promise.resolve();
+                },
+            }),
+        };
+
+        beforeEach(() => {
+            order.length = 0;
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(deleteTx));
+            mockReleaseWorkspaceIfUnused.mockImplementation(async () => {
+                order.push('release');
+            });
+        });
+
+        it('reads the Slack workspace before the delete and releases it afterwards', async () => {
+            mockFindSlackTeamId.mockImplementation(async () => {
+                order.push('team');
+                return 'T1';
+            });
+
+            await controller.deleteIntegration('int-1', ['int-1'], 7);
+
+            expect(order).toEqual(['team', 'delete', 'release']);
+            expect(mockReleaseWorkspaceIfUnused).toHaveBeenCalledWith('int-1', 'T1');
+        });
+
+        it('releases nothing without a Slack app', async () => {
+            mockFindSlackTeamId.mockResolvedValue(undefined);
+
+            await controller.deleteIntegration('int-1', ['int-1'], 7);
+
+            expect(order).toEqual(['delete']);
+            expect(mockReleaseWorkspaceIfUnused).not.toHaveBeenCalled();
         });
     });
 });

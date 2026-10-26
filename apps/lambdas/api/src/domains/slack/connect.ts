@@ -1,5 +1,5 @@
 import {findSlackTeamId} from '@/domains/apps/apps.controller';
-import {mintSlackState, outcomeRedirect, verifySlackState} from '@/domains/apps/slack-install';
+import {mintSlackState, outcomeRedirect, verifySlackState} from '@/domains/slack/oauth-state';
 import {NotFoundError} from '@aws-lambda-powertools/event-handler/http';
 import {buildSignInUrl, exchangeSignInCode, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';

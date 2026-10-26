@@ -9,10 +9,7 @@ export const SLACK_BOT_SCOPES = ['chat:write', 'chat:write.public', 'channels:re
 const REVOKED_ERROR_CODES = ['invalid_auth', 'token_revoked', 'account_inactive', 'not_authed', 'token_expired'];
 
 export class SlackApiError extends Error {
-    constructor(
-        readonly code: string,
-        readonly retryAfterMs?: number,
-    ) {
+    constructor(readonly code: string) {
         super(`Slack API error: ${code}`);
         this.name = 'SlackApiError';
     }
@@ -41,7 +38,7 @@ const slackCall = async <T>(method: string, {token, query, form, json}: SlackCal
     });
 
     if (response.status === 429) {
-        throw new SlackApiError('ratelimited', Number(response.headers.get('Retry-After') ?? 1) * 1000);
+        throw new SlackApiError('ratelimited');
     }
     if (!response.ok) {
         throw new SlackApiError(`http_${response.status}`);
@@ -118,13 +115,26 @@ export const listChannels = async (token: string): Promise<SlackChannel[]> => {
             response_metadata?: {next_cursor?: string};
         }>('conversations.list', {
             token,
-            query: {types: 'public_channel,private_channel', exclude_archived: 'true', limit: '200', ...(cursor && {cursor})},
+            query: {types: 'public_channel,private_channel', exclude_archived: 'true', limit: '1000', ...(cursor && {cursor})},
         });
         channels.push(...page.channels.map((c) => ({id: c.id, name: c.name, isPrivate: c.is_private})));
         cursor = page.response_metadata?.next_cursor ?? '';
     } while (cursor);
 
     return channels.sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const getChannel = async (token: string, channelId: string): Promise<SlackChannel | null> => {
+    try {
+        const {channel} = await slackCall<{channel: {id: string; name: string; is_private: boolean; is_archived: boolean}}>('conversations.info', {
+            token,
+            query: {channel: channelId},
+        });
+        return channel.is_archived ? null : {id: channel.id, name: channel.name, isPrivate: channel.is_private};
+    } catch (error) {
+        if (error instanceof SlackApiError && error.code === 'channel_not_found') return null;
+        throw error;
+    }
 };
 
 export const postMessage = async (token: string, channelId: string, payload: SlackPayload): Promise<void> => {
@@ -135,7 +145,7 @@ export const lookupUserByEmail = async (token: string, email: string): Promise<s
     try {
         const {user} = await slackCall<{user: {id: string; deleted?: boolean; is_bot?: boolean}}>('users.lookupByEmail', {
             token,
-            query: {email},
+            form: {email},
         });
         return user.deleted || user.is_bot ? null : user.id;
     } catch (error) {

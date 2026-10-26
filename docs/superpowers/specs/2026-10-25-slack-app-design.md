@@ -110,9 +110,12 @@ installation belongs to the **workspace**, not to an integration:
 - **Switching workspace:** not allowed while a Slack app is installed in the integration; remove it first.
 - **Remove in GitGazer:** deletes the integration's Slack app; its handles and their rule destinations go with it
   (cascade), like removing the Webhook app. If no other integration still uses the workspace installation, GitGazer
-  also revokes the bot token (`auth.revoke`) and deletes the installation and its links. Otherwise the token stays.
-- **Removed or revoked in Slack:** GitGazer has no Events API, so it notices on the next call that fails with a
-  revoked/invalid-auth error. It marks the workspace installation as disconnected, which affects every integration
+  also revokes the bot token (`auth.revoke`) and deletes the installation and its links, including people's
+  "Disconnect" choices. After a later reinstall, automatic matching may link them again until they disconnect again.
+  Otherwise the token and the links stay.
+- **Removed or revoked in Slack:** GitGazer has no Events API, so it notices only when an alert post fails with a
+  revoked/invalid-auth error. Other failing calls (channel listing, lookups) just fail with an error and don't change
+  the state. The failed alert post marks the workspace installation as disconnected, which affects every integration
   using it: their Slack cards show "Disconnected — reinstall", and each writes one event-log entry. Reinstalling from
   any of those integrations reconnects the workspace for all of them, keeping handles and links. Private channels may
   need a new `/invite`, since Slack removed the bot from them.
@@ -195,7 +198,9 @@ For people the automatic lookup misses (their Slack email differs):
   integration. On return, GitGazer checks that the Slack workspace is the integration's installed workspace and links
   the user's GitHub account (from their GitGazer login) to the returned Slack user ID with source `slack_sign_in`.
 - **Disconnect:** the same place offers "Disconnect". It removes the link and keeps a marker so automatic lookup does
-  not link that GitHub account again until the person connects again.
+  not link that GitHub account again until the person connects again. The marker lives with the workspace's links, so
+  when the last integration using the workspace removes its Slack app, the marker is deleted too; after a later
+  reinstall, automatic matching may link the person again until they disconnect again.
 - Only the person themselves can connect or disconnect; admins can't link others.
 
 ### Visibility
@@ -216,7 +221,7 @@ Taken over from the parked design, applied only to Slack-app handles:
 
 ## Moving Webhook handles
 
-Offered right after install (and from the Webhook app's settings while both apps exist), to admins and owners:
+Offered right after install, in the Slack app's settings, and in the Webhook app's settings (the last two while the integration has a connected Slack app and movable handles), to admins and owners:
 
 1. GitGazer lists the integration's Webhook handles whose URL points to the installed workspace (the `T…` segment of
    `hooks.slack.com/services/T…/…` matches the installed team ID). Handles for other workspaces are not offered.
@@ -234,7 +239,8 @@ Offered right after install (and from the Webhook app's settings while both apps
 - **Apps tab:** Slack moves from "coming later" to installable. Its card shows the workspace name, number of channel
   handles and linked people, and a "Disconnected" state.
 - **Slack app settings:** workspace, handles (channel name, rule count, add/remove), the move offer while Webhook
-  handles for this workspace exist, linked-people count ("4 of 9 members linked; the others are asked to connect"),
+  handles for this workspace exist (the Webhook app's settings show the same offer while the integration has a
+  connected Slack app), linked-people count ("4 of 9 members linked; the others are asked to connect"),
   the current user's "Connect Slack", and "Remove app".
 - **Connect prompt:** the unlinked-member prompt on the integration page (see "Connect Slack" link).
 - **Members tab:** Slack badge per member; the signed-in user's row has Connect/Disconnect.
@@ -277,13 +283,13 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
 - All verified GitHub emails count, primary first (work addresses are often secondary).
 - A disconnected workspace writes one event-log entry per affected integration, in addition to the card state.
 - People who never log into GitGazer can be linked and pinged but have no opt-out in this version.
-- Disconnects are detected lazily on the next failed call, since there is no Events API.
+- Disconnects are detected lazily, on the next alert post that fails with a revoked token, since there is no Events API.
 - Login lookups get about 2 seconds and never block login; `gitgazer_email` links refresh only at login.
 - Send-time refresh: 7 days for a `github_profile_email` link, 24 hours for "not found"; lookup failures send the alert
   without a mention.
 - The connect prompt can be dismissed per browser.
 - Members see only whether someone is linked, never the Slack ID.
-- A disconnect sticks (no automatic re-link until the person connects again).
+- A disconnect sticks (no automatic re-link until the person connects again), unless the workspace's links are deleted.
 - Removing the Slack app deletes the integration's handles; the token is revoked and the workspace's links deleted
-  only when the last integration using the workspace removes it.
+  (including disconnect choices) only when the last integration using the workspace removes it.
 - The move runs per handle in its own transaction and skips handles for other workspaces.

@@ -4,14 +4,15 @@
     import ChannelPickerDialog from '@/components/apps/ChannelPickerDialog.vue';
     import DeleteHandleDialog from '@/components/apps/DeleteHandleDialog.vue';
     import HandleDialog from '@/components/apps/HandleDialog.vue';
-    import MoveWebhooksDialog from '@/components/apps/MoveWebhooksDialog.vue';
+    import MoveWebhooksOffer from '@/components/apps/MoveWebhooksOffer.vue';
     import Button from '@/components/ui/Button.vue';
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import {useAuth} from '@/composables/useAuth';
-    import {useIntegrationApps, type MoveCandidate} from '@/composables/useIntegrationApps';
+    import {useConnectSlack} from '@/composables/useConnectSlack';
+    import {useIntegrationApps} from '@/composables/useIntegrationApps';
     import {useMembers} from '@/composables/useMembers';
     import {MAX_SLACK_HANDLES, type IntegrationApp, type NotificationHandle} from '@common/types';
-    import {ArrowRightLeft, MoreHorizontal, Pencil, Plus, Trash2, TriangleAlert} from '@lucide/vue';
+    import {MoreHorizontal, Pencil, Plus, Trash2, TriangleAlert} from '@lucide/vue';
     import {DropdownMenuItem} from 'radix-vue';
     import {computed, onMounted, shallowRef} from 'vue';
 
@@ -28,7 +29,7 @@
         'remove-webhook': [];
     }>();
 
-    const {createSlackHandle, updateHandle, deleteHandle, listMoveCandidates, connectSlack} = useIntegrationApps();
+    const {createSlackHandle, updateHandle, deleteHandle} = useIntegrationApps();
     const {getMembers} = useMembers();
     const {getUserAttributes} = useAuth();
 
@@ -49,20 +50,8 @@
     const deleting = shallowRef(false);
     const deleteError = shallowRef<string | null>(null);
 
-    const moveCandidates = shallowRef<MoveCandidate[]>([]);
-    const moveOpen = shallowRef(false);
-
-    async function loadMoveCandidates() {
-        try {
-            moveCandidates.value = await listMoveCandidates(props.integrationId);
-        } catch {
-            // Only an offer: without its data it stays hidden.
-        }
-    }
-
     const selfUnlinked = shallowRef(false);
-    const connecting = shallowRef(false);
-    const connectError = shallowRef<string | null>(null);
+    const {connecting, connectError, connect} = useConnectSlack(() => props.integrationId);
 
     async function loadSelfLink() {
         try {
@@ -75,26 +64,8 @@
 
     onMounted(() => {
         if (disconnected.value) return;
-        if (props.canManage) loadMoveCandidates();
         loadSelfLink();
     });
-
-    async function connect() {
-        connecting.value = true;
-        connectError.value = null;
-        try {
-            await connectSlack(props.integrationId);
-        } catch (e) {
-            connectError.value = e instanceof Error ? e.message : 'Failed to connect Slack';
-        } finally {
-            connecting.value = false;
-        }
-    }
-
-    function onMoved() {
-        loadMoveCandidates();
-        emit('changed');
-    }
 
     function openPicker() {
         addError.value = null;
@@ -224,29 +195,13 @@
             This app holds the maximum of {{ MAX_SLACK_HANDLES }} handles. Delete one to add another.
         </p>
 
-        <div
-            v-if="moveCandidates.length > 0"
-            class="mt-4 flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center"
-        >
-            <ArrowRightLeft
-                class="hidden size-4 shrink-0 text-muted-foreground sm:block"
-                aria-hidden="true"
-            />
-            <div class="min-w-0 flex-1">
-                <p class="font-semibold">
-                    {{ moveCandidates.length }} Webhook {{ moveCandidates.length === 1 ? 'handle posts' : 'handles post' }} to this workspace
-                </p>
-                <p class="text-muted-foreground">Move them to channels here so their alerts can mention people.</p>
-            </div>
-            <Button
-                variant="outline"
-                size="sm"
-                class="w-full shrink-0 sm:w-auto"
-                @click="moveOpen = true"
-            >
-                Move to channels
-            </Button>
-        </div>
+        <MoveWebhooksOffer
+            v-if="canManage && !disconnected"
+            :integration-id="integrationId"
+            :slack-app-id="app.appId"
+            @changed="emit('changed')"
+            @remove-webhook="emit('remove-webhook')"
+        />
 
         <p
             v-if="app.handles.length === 0"
@@ -359,15 +314,6 @@
             :error="addError"
             @update:open="pickerOpen = $event"
             @submit="add"
-        />
-        <MoveWebhooksDialog
-            :open="moveOpen"
-            :integration-id="integrationId"
-            :app-id="app.appId"
-            :candidates="moveCandidates"
-            @update:open="moveOpen = $event"
-            @moved="onMoved"
-            @remove-webhook-app="emit('remove-webhook')"
         />
         <HandleDialog
             :open="renameOpen"

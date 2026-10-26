@@ -22,12 +22,9 @@ export const loadWorkspaceForIntegration = async (
         .from(slackWorkspaces)
         .where(eq(slackWorkspaces.teamId, settings.teamId));
     if (!workspace) return null;
+    if (workspace.disconnectedAt !== null) return {teamId: settings.teamId, botToken: '', disconnected: true};
 
-    return {
-        teamId: settings.teamId,
-        botToken: await decryptToken(workspace.botTokenCiphertext),
-        disconnected: workspace.disconnectedAt !== null,
-    };
+    return {teamId: settings.teamId, botToken: await decryptToken(workspace.botTokenCiphertext), disconnected: false};
 };
 
 /** Returns the integrations using the workspace, but only to the caller that actually disconnected it. */

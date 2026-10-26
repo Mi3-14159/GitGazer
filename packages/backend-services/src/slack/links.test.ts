@@ -1,4 +1,5 @@
 import {SlackApiError} from '@gitgazer/backend-core/clients/slack.client';
+import {TimeoutError} from '@gitgazer/backend-core/helpers/async';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const {mockLogger, memberRows} = vi.hoisted(() => ({
@@ -24,6 +25,12 @@ vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) =>
     lookupUserByEmail: (...args: unknown[]) => mockLookupUserByEmail(...args),
 }));
 
+const mockWithTimeout = vi.fn();
+vi.mock('@gitgazer/backend-core/helpers/async', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-core/helpers/async')>()),
+    withTimeout: (...args: unknown[]) => mockWithTimeout(...args),
+}));
+
 const mockRequest = vi.fn();
 const mockGetInstallationOctokit = vi.fn();
 vi.mock('@gitgazer/backend-core/clients/github-app.client', () => ({
@@ -47,7 +54,14 @@ vi.mock('./workspaces', () => ({
     loadWorkspaceForIntegration: (...args: unknown[]) => mockLoadWorkspaceForIntegration(...args),
 }));
 
-import {LINK_MEMBERS_BUDGET_MS, linkIntegrationMembers, NOT_FOUND_REFRESH_MS, PROFILE_LINK_REFRESH_MS, resolveSlackUserId} from './links';
+import {
+    LINK_MEMBERS_BUDGET_MS,
+    linkIntegrationMembers,
+    MEMBER_LOOKUP_TIMEOUT_MS,
+    NOT_FOUND_REFRESH_MS,
+    PROFILE_LINK_REFRESH_MS,
+    resolveSlackUserId,
+} from './links';
 
 const now = new Date('2026-10-26T10:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms);
@@ -88,6 +102,7 @@ describe('links', () => {
         mockLookupUserByEmail.mockResolvedValue('U2');
         mockWithRlsTransaction.mockImplementation(async (p: {callback: (tx: typeof memberTx) => unknown}) => p.callback(memberTx));
         mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: 'xoxb-1', disconnected: false});
+        mockWithTimeout.mockImplementation((promise: Promise<unknown>) => promise);
     });
 
     it('refreshes profile links after 7 days and not-found after 24 hours', () => {
@@ -174,12 +189,19 @@ describe('links', () => {
         });
 
         it('lookup failure neither mentions nor caches', async () => {
-            mockLookupUserByEmail.mockRejectedValue(new SlackApiError('ratelimited', 1000));
+            mockLookupUserByEmail.mockRejectedValue(new SlackApiError('internal_error'));
 
             await expect(resolveSlackUserId(params)).resolves.toBeNull();
             expect(mockSaveLookupResult).not.toHaveBeenCalled();
             expect(mockLogger.warn).toHaveBeenCalled();
             expect(containsEmail([mockLogger.info.mock.calls, mockLogger.warn.mock.calls, mockLogger.error.mock.calls])).toBe(false);
+        });
+
+        it('passes a rate limit on to the caller and caches nothing', async () => {
+            mockLookupUserByEmail.mockRejectedValue(new SlackApiError('ratelimited'));
+
+            await expect(resolveSlackUserId(params)).rejects.toMatchObject({code: 'ratelimited'});
+            expect(mockSaveLookupResult).not.toHaveBeenCalled();
         });
 
         it('a failing GitHub profile read keeps the stored link and writes nothing', async () => {
@@ -241,9 +263,34 @@ describe('links', () => {
             });
 
             await expect(linkIntegrationMembers('T1', 'int-1')).resolves.toEqual({linked: 1, checked: 1});
-            expect(LINK_MEMBERS_BUDGET_MS).toBe(60_000);
+            expect(LINK_MEMBERS_BUDGET_MS).toBe(20_000);
             expect(mockRequest.mock.calls.map(([, p]) => p.username)).toEqual(['one']);
             expect(mockLogger.warn).toHaveBeenCalledWith(expect.any(String), {integrationId: 'int-1', linked: 1, checked: 1});
+        });
+
+        it('gives up on a member after the lookup timeout and goes on with the next', async () => {
+            memberRows.rows = [
+                {githubId: 1, githubLogin: 'one'},
+                {githubId: 2, githubLogin: 'two'},
+            ];
+            mockWithTimeout.mockRejectedValueOnce(new TimeoutError(MEMBER_LOOKUP_TIMEOUT_MS));
+
+            await expect(linkIntegrationMembers('T1', 'int-1')).resolves.toEqual({linked: 1, checked: 1});
+            expect(MEMBER_LOOKUP_TIMEOUT_MS).toBe(3000);
+            expect(mockWithTimeout).toHaveBeenCalledTimes(2);
+            expect(mockWithTimeout).toHaveBeenCalledWith(expect.any(Promise), MEMBER_LOOKUP_TIMEOUT_MS);
+        });
+
+        it('stops at the first rate limit', async () => {
+            memberRows.rows = [
+                {githubId: 1, githubLogin: 'one'},
+                {githubId: 2, githubLogin: 'two'},
+            ];
+            mockLookupUserByEmail.mockRejectedValue(new SlackApiError('ratelimited'));
+
+            await expect(linkIntegrationMembers('T1', 'int-1')).resolves.toEqual({linked: 0, checked: 0});
+            expect(mockRequest.mock.calls.map(([, p]) => p.username)).toEqual(['one']);
+            expect(mockLogger.warn).toHaveBeenCalledWith(expect.any(String), {integrationId: 'int-1', reason: 'ratelimited', linked: 0, checked: 0});
         });
 
         it.each([

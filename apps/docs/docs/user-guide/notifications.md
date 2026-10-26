@@ -41,9 +41,12 @@ The new rule appears as a card on the Notifications page.
 
 ## Destinations
 
-A rule doesn't hold a Slack URL itself. It sends to a **handle**: a named Slack incoming webhook that an admin added to the integration's **Webhook** app. In the rule editor, pick the **App**, then one of its **Handle**s.
+A rule doesn't hold a Slack URL itself. It sends to a **handle** that an admin added to one of the integration's apps. In the rule editor, pick the **App**, then one of its **Handle**s:
 
-If the integration has no handles yet, the editor links to the **Apps** tab, where an admin can add one. See [Webhook App Settings](integrations#webhook-app-settings).
+- **Slack** app: a Slack channel. Alerts also mention the person behind the failure when they're linked to a Slack user. See [Slack App](slack-app).
+- **Webhook** app: a named Slack incoming webhook. See [Webhook App Settings](integrations#webhook-app-settings).
+
+If the integration has no handles yet, the editor links to the **Apps** tab, where an admin can add one.
 
 If a handle is deleted, the rules that used it stay but show **No destination** and send nothing until you pick another handle.
 

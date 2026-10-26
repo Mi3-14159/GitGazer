@@ -54,12 +54,11 @@ The **Integrations** page lists all integrations you belong to. Click one to ope
 
 An **app** is a piece of GitGazer you install into an integration. The **Apps** tab shows the installed apps first, then a catalog.
 
-| App         | What It Does                                                                    |
-| ----------- | ------------------------------------------------------------------------------- |
-| **GitHub**  | Receives workflow runs, jobs, and pull requests from GitHub.                    |
-| **Webhook** | Holds named Slack incoming webhooks that notification rules can send alerts to. |
-
-Slack, GitLab, and Jira appear in the catalog as **coming later**.
+| App         | What It Does                                                                                         |
+| ----------- | ---------------------------------------------------------------------------------------------------- |
+| **GitHub**  | Receives workflow runs, jobs, and pull requests from GitHub.                                         |
+| **Webhook** | Holds named Slack incoming webhooks that notification rules can send alerts to.                      |
+| **Slack**   | Sends alerts to Slack channels and mentions the person behind a failure. See [Slack App](slack-app). |
 
 New integrations include the GitHub app automatically. Open an app to see and change its settings.
 
@@ -151,6 +150,10 @@ The **Webhook** app holds **handles**. A handle is a name plus a Slack incoming 
 4. Save.
 
 An app holds up to 20 handles. To get a Slack webhook URL, see [Setting Up a Slack Webhook](notifications#setting-up-a-slack-webhook).
+
+### Move Handles to Slack Channels
+
+If the integration also has a connected [Slack app](slack-app), the Webhook app's settings offer **Move to Slack channels** while handles for that workspace exist. It is the same offer as in the Slack app's settings; see [Move From Webhooks](slack-app#move-from-webhooks).
 
 ### Edit or Delete a Handle
 

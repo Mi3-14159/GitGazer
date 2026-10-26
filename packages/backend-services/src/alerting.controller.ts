@@ -1,5 +1,5 @@
 import {findPullRequest, loadLogDetails, type DetailsSkipReason, type LogDetails} from './alerting/log-details';
-import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
+import {buildSlackAlert, type SlackAlertInput} from './alerting/slack-payload';
 import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
 import {resolveSlackUserId} from './slack/links';
@@ -11,7 +11,7 @@ import {withTimeout} from '@gitgazer/backend-core/helpers/async';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {notificationRuleDestinations, notificationRules, slackHandleDetails, webhookHandleDetails} from '@gitgazer/db/schema';
-import {WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
+import {WorkflowConclusion, WorkflowJobWithRelations, type SlackPayload} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
 type AlertContext = {
@@ -67,27 +67,10 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
     }
     const targets = workspace ? matchedTargets : matchedTargets.filter((target) => target.kind === 'webhook');
 
-    const sender = workflowJob.sender;
     const [verdict, pullRequest, senderSlackUserId] = await Promise.all([
         computeVerdict(workflowJob),
         findPullRequest(workflowJob),
-        workspace && sender?.id && sender.type === 'User'
-            ? withTimeout(
-                  resolveSlackUserId({
-                      teamId: workspace.teamId,
-                      botToken: workspace.botToken,
-                      integrationId: workflowJob.integrationId,
-                      githubUserId: sender.id,
-                      githubLogin: sender.login,
-                      // An empty owner would match no installation; null lets the lookup use any of them.
-                      ownerLogin: context.ownerLogin || null,
-                  }),
-                  SENDER_LOOKUP_TIMEOUT_MS,
-              ).catch((error) => {
-                  logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: slackErrorReason(error)});
-                  return null;
-              })
-            : null,
+        findSenderSlackUserId(workflowJob, workspace, context.ownerLogin, logIds, logger),
     ]);
     let slackAttempted = false;
 
@@ -304,14 +287,16 @@ async function findMatchingRulesAndTargets(
     const targets = new Map<string, HandleTarget>();
     for (const row of rows) {
         if (row.handleId === null) continue;
-        const target: HandleTarget | null =
-            targets.get(row.handleId) ??
-            (row.url !== null
-                ? {kind: 'webhook', handleId: row.handleId, url: row.url, includeLogDetails: false}
-                : row.channelId !== null
-                  ? {kind: 'slack', handleId: row.handleId, channelId: row.channelId, includeLogDetails: false}
-                  : null);
-        if (!target) continue;
+        let target = targets.get(row.handleId);
+        if (!target) {
+            if (row.url !== null) {
+                target = {kind: 'webhook', handleId: row.handleId, url: row.url, includeLogDetails: false};
+            } else if (row.channelId !== null) {
+                target = {kind: 'slack', handleId: row.handleId, channelId: row.channelId, includeLogDetails: false};
+            } else {
+                continue;
+            }
+        }
         target.includeLogDetails ||= row.includeLogDetails;
         targets.set(row.handleId, target);
     }
@@ -338,6 +323,34 @@ async function sendSlackNotification(
         logger.info(`Successfully sent alert to Slack handle ${logContext.handleId}`, logContext);
     } catch (error) {
         logger.error(`Failed to send Slack notification to handle ${logContext.handleId}`, {...logContext, error});
+    }
+}
+
+async function findSenderSlackUserId(
+    workflowJob: WorkflowJobWithRelations,
+    workspace: {teamId: string; botToken: string} | null,
+    ownerLogin: string,
+    logIds: {integrationId: string; jobId: number},
+    logger: ReturnType<typeof getLogger>,
+): Promise<string | null> {
+    const sender = workflowJob.sender;
+    if (!workspace || !sender?.id || sender.type !== 'User') return null;
+    try {
+        return await withTimeout(
+            resolveSlackUserId({
+                teamId: workspace.teamId,
+                botToken: workspace.botToken,
+                integrationId: workflowJob.integrationId,
+                githubUserId: sender.id,
+                githubLogin: sender.login,
+                // An empty owner would match no installation; null lets the lookup use any of them.
+                ownerLogin: ownerLogin || null,
+            }),
+            SENDER_LOOKUP_TIMEOUT_MS,
+        );
+    } catch (error) {
+        logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: slackErrorReason(error)});
+        return null;
     }
 }
 

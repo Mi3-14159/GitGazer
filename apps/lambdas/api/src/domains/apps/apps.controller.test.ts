@@ -99,10 +99,12 @@ vi.mock('@gitgazer/backend-services/slack/workspaces', () => ({
 }));
 
 const mockListChannels = vi.fn();
+const mockGetChannel = vi.fn();
 const mockRevokeToken = vi.fn();
 vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@gitgazer/backend-core/clients/slack.client')>()),
     listChannels: (...args: unknown[]) => mockListChannels(...args),
+    getChannel: (...args: unknown[]) => mockGetChannel(...args),
     revokeToken: (...args: unknown[]) => mockRevokeToken(...args),
 }));
 
@@ -127,6 +129,7 @@ describe('apps controller', () => {
         mockDecryptToken.mockResolvedValue(BOT_TOKEN);
         mockLoadWorkspaceForIntegration.mockResolvedValue({teamId: 'T1', botToken: BOT_TOKEN, disconnected: false});
         mockListChannels.mockResolvedValue([{id: 'C1', name: 'ops', isPrivate: false}]);
+        mockGetChannel.mockResolvedValue({id: 'C1', name: 'ops', isPrivate: false});
         mockRevokeToken.mockResolvedValue(undefined);
         mockWithRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
         mockGetGithubSettings.mockResolvedValue({appId: 'app-g', secret: SECRET, orgSyncDefaultRole: 'member'});
@@ -341,9 +344,12 @@ describe('apps controller', () => {
             expect(mockListChannels).not.toHaveBeenCalled();
         });
 
-        it('listSlackChannels fails without a workspace', async () => {
+        it.each([
+            ['without a workspace', null],
+            ['with a disconnected workspace', {teamId: 'T1', botToken: '', disconnected: true}],
+        ])('listSlackChannels fails %s', async (_case, workspace) => {
             queueSlackApp();
-            mockLoadWorkspaceForIntegration.mockResolvedValue(null);
+            mockLoadWorkspaceForIntegration.mockResolvedValue(workspace);
 
             await expect(controller.listSlackChannels({...base, appId: 'app-s'})).rejects.toBeInstanceOf(NotFoundError);
             expect(mockListChannels).not.toHaveBeenCalled();
@@ -351,8 +357,10 @@ describe('apps controller', () => {
 
         it('createHandle rejects an unknown channel', async () => {
             queueSlackApp();
+            mockGetChannel.mockResolvedValue(null);
 
             await expect(controller.createHandle({...base, appId: 'app-s', channelId: 'C9'})).rejects.toBeInstanceOf(BadRequestError);
+            expect(mockGetChannel).toHaveBeenCalledWith(BOT_TOKEN, 'C9');
             expect(insertedValues).toHaveLength(0);
         });
 
@@ -362,6 +370,9 @@ describe('apps controller', () => {
 
             const handle = await controller.createHandle({...base, appId: 'app-s', channelId: 'C1'});
 
+            expect(mockGetChannel).toHaveBeenCalledWith(BOT_TOKEN, 'C1');
+            expect(mockListChannels).not.toHaveBeenCalled();
+
             expect(insertedValues.find((i) => i.table === notificationHandles)?.values).toMatchObject({name: '#ops', appId: 'app-s'});
             expect(insertedValues.find((i) => i.table === slackHandleDetails)?.values).toEqual({
                 integrationId: 'int-1',
@@ -370,15 +381,6 @@ describe('apps controller', () => {
                 channelName: 'ops',
             });
             expect(handle).toEqual({handleId: 'handle-new', appId: 'app-s', name: '#ops', url: null, channelName: 'ops', ruleCount: 0});
-        });
-
-        it('createHandle keeps a given name for a channel handle', async () => {
-            queueSlackApp();
-            selectQueue.push([{appId: 'app-s', type: 'slack'}], [{count: 0}]);
-
-            const handle = await controller.createHandle({...base, appId: 'app-s', channelId: 'C1', name: ' Alerts '});
-
-            expect(handle.name).toBe('Alerts');
         });
 
         it('createHandle rejects a channel handle beyond the maximum', async () => {

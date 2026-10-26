@@ -132,19 +132,13 @@ router.post(
             integrationIds: reqCtx.appContext?.integrations ?? [],
             appId: reqCtx.params.appId,
         };
-        let handle;
         if (typeof body.channelId === 'string') {
-            if (body.name !== undefined && typeof body.name !== 'string') {
-                throw new BadRequestError('name must be a string');
-            }
-            handle = await createHandle({...scope, channelId: body.channelId, name: body.name as string | undefined});
-        } else {
-            if (typeof body.name !== 'string' || typeof body.url !== 'string') {
-                throw new BadRequestError('name and url are required');
-            }
-            handle = await createHandle({...scope, name: body.name, url: body.url});
+            return json(await createHandle({...scope, channelId: body.channelId}), HttpStatusCodes.CREATED);
         }
-        return json(handle, HttpStatusCodes.CREATED);
+        if (typeof body.name !== 'string' || typeof body.url !== 'string') {
+            throw new BadRequestError('name and url are required');
+        }
+        return json(await createHandle({...scope, name: body.name, url: body.url}), HttpStatusCodes.CREATED);
     },
 );
 

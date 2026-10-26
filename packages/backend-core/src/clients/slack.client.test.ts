@@ -19,6 +19,7 @@ import {
     buildSignInUrl,
     exchangeInstallCode,
     exchangeSignInCode,
+    getChannel,
     isRevokedSlackError,
     listChannels,
     lookupUserByEmail,
@@ -165,7 +166,7 @@ describe('listChannels', () => {
         expect(Object.fromEntries(urls[0].searchParams)).toEqual({
             types: 'public_channel,private_channel',
             exclude_archived: 'true',
-            limit: '200',
+            limit: '1000',
         });
         expect(urls[1].searchParams.get('cursor')).toBe('abc');
         expect(proxyFetch.mock.calls[0][1].headers.Authorization).toBe('Bearer xoxb-1');
@@ -173,6 +174,32 @@ describe('listChannels', () => {
             {id: 'C1', name: 'alpha', isPrivate: true},
             {id: 'C2', name: 'zeta', isPrivate: false},
         ]);
+    });
+});
+
+describe('getChannel', () => {
+    it('reads one channel with conversations.info', async () => {
+        proxyFetch.mockResolvedValue(reply({ok: true, channel: {id: 'C1', name: 'ops', is_private: true, is_archived: false}}));
+
+        await expect(getChannel('xoxb-1', 'C1')).resolves.toEqual({id: 'C1', name: 'ops', isPrivate: true});
+        const [url, init] = lastCall();
+        expect(new URL(url).pathname).toBe('/api/conversations.info');
+        expect(new URL(url).searchParams.get('channel')).toBe('C1');
+        expect(init.headers.Authorization).toBe('Bearer xoxb-1');
+    });
+
+    it('treats an unknown or archived channel as not found', async () => {
+        proxyFetch.mockResolvedValueOnce(reply({ok: false, error: 'channel_not_found'}));
+        proxyFetch.mockResolvedValueOnce(reply({ok: true, channel: {id: 'C1', name: 'old', is_private: false, is_archived: true}}));
+
+        await expect(getChannel('xoxb-1', 'C9')).resolves.toBeNull();
+        await expect(getChannel('xoxb-1', 'C1')).resolves.toBeNull();
+    });
+
+    it('throws other Slack errors', async () => {
+        proxyFetch.mockResolvedValue(reply({ok: false, error: 'invalid_auth'}));
+
+        await expect(getChannel('xoxb-1', 'C1')).rejects.toMatchObject({code: 'invalid_auth'});
     });
 });
 
@@ -196,9 +223,11 @@ describe('lookupUserByEmail', () => {
     it('returns the user id', async () => {
         proxyFetch.mockResolvedValue(reply({ok: true, user: {id: 'U1', deleted: false, is_bot: false}}));
         await expect(lookupUserByEmail('xoxb-1', 'a+b@example.com')).resolves.toBe('U1');
-        const url = new URL(lastCall()[0]);
-        expect(url.pathname).toBe('/api/users.lookupByEmail');
-        expect(url.searchParams.get('email')).toBe('a+b@example.com');
+        const [url, init] = lastCall();
+        expect(url).toBe('https://slack.com/api/users.lookupByEmail');
+        expect(init.method).toBe('POST');
+        expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+        expect(new URLSearchParams(init.body).get('email')).toBe('a+b@example.com');
     });
 
     it('returns null for users_not_found', async () => {
@@ -223,12 +252,11 @@ describe('lookupUserByEmail', () => {
 });
 
 describe('rate limiting', () => {
-    it('maps HTTP 429 to ratelimited with retryAfterMs', async () => {
+    it('maps HTTP 429 to ratelimited', async () => {
         proxyFetch.mockResolvedValue(new Response('', {status: 429, headers: {'Retry-After': '7'}}));
         const error = await postMessage('xoxb-1', 'C1', {} as never).catch((e) => e);
         expect(error).toBeInstanceOf(SlackApiError);
         expect(error.code).toBe('ratelimited');
-        expect(error.retryAfterMs).toBe(7000);
     });
 });
 

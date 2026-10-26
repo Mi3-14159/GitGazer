@@ -122,7 +122,7 @@ describe('Slack routes', () => {
         const res = await router.resolve(event, {} as Context);
 
         expect(res.statusCode).toBe(201);
-        expect(mocks.createHandle).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], appId: 'a1', channelId: 'C1', name: undefined});
+        expect(mocks.createHandle).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], appId: 'a1', channelId: 'C1'});
     });
 
     it('move candidates and move are admin only', async () => {

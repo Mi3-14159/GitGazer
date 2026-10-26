@@ -10,8 +10,10 @@ const mocks = vi.hoisted(() => ({
     sendSlackLookupTask: vi.fn(),
     findSlackTeamId: vi.fn(),
     logAppInstalled: vi.fn(),
+    releaseWorkspaceIfUnused: vi.fn(),
     withRlsTransaction: vi.fn(),
     inserted: [] as {table: unknown; values: unknown}[],
+    storedWorkspaces: [] as unknown[],
     upserts: [] as {table: unknown; values: unknown; set: unknown}[],
 }));
 
@@ -31,7 +33,11 @@ vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) =>
 }));
 vi.mock('@gitgazer/backend-core/helpers/token-crypto', () => ({encryptToken: mocks.encryptToken}));
 vi.mock('@gitgazer/backend-core/clients/sqs.client', () => ({sendSlackLookupTask: mocks.sendSlackLookupTask}));
-vi.mock('@/domains/apps/apps.controller', () => ({findSlackTeamId: mocks.findSlackTeamId, logAppInstalled: mocks.logAppInstalled}));
+vi.mock('@/domains/apps/apps.controller', () => ({
+    findSlackTeamId: mocks.findSlackTeamId,
+    logAppInstalled: mocks.logAppInstalled,
+    releaseWorkspaceIfUnused: mocks.releaseWorkspaceIfUnused,
+}));
 vi.mock('@gitgazer/db/client', () => {
     const insert = (table: unknown) => ({
         values: (values: unknown) => {
@@ -45,7 +51,8 @@ vi.mock('@gitgazer/db/client', () => {
             });
         },
     });
-    return {db: {insert}, withRlsTransaction: (params: {callback: (tx: unknown) => unknown}) => mocks.withRlsTransaction(params, {insert})};
+    const select = () => ({from: () => ({where: () => Promise.resolve(mocks.storedWorkspaces)})});
+    return {db: {insert, select}, withRlsTransaction: (params: {callback: (tx: unknown) => unknown}) => mocks.withRlsTransaction(params, {insert})};
 });
 
 import {mintSignedState, verifySignedState} from '@/domains/auth/auth.controller';
@@ -104,6 +111,7 @@ describe('completeSlackInstall', () => {
         vi.clearAllMocks();
         mocks.inserted.length = 0;
         mocks.upserts.length = 0;
+        mocks.storedWorkspaces = [];
         mocks.exchangeInstallCode.mockResolvedValue(installation);
         mocks.encryptToken.mockResolvedValue('ciphertext');
         mocks.findSlackTeamId.mockResolvedValue(undefined);
@@ -150,7 +158,7 @@ describe('completeSlackInstall', () => {
         expect(mocks.inserted).toHaveLength(0);
     });
 
-    it('callback rejects a second workspace for the same integration', async () => {
+    it('callback rejects a second workspace for the same integration and revokes its unused token', async () => {
         mocks.findSlackTeamId.mockResolvedValue('T-OTHER');
 
         const {redirectUrl} = await callback();
@@ -158,6 +166,16 @@ describe('completeSlackInstall', () => {
         expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'workspace_mismatch'});
         expect(mocks.upserts).toHaveLength(0);
         expect(mocks.inserted).toHaveLength(0);
+        expect(mocks.revokeToken).toHaveBeenCalledWith(BOT_TOKEN);
+    });
+
+    it('callback keeps the token on a workspace mismatch when GitGazer already holds that workspace', async () => {
+        mocks.findSlackTeamId.mockResolvedValue('T-OTHER');
+        mocks.storedWorkspaces = [{teamId: 'T1'}];
+
+        const {redirectUrl} = await callback();
+
+        expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'workspace_mismatch'});
         expect(mocks.revokeToken).not.toHaveBeenCalled();
     });
 
@@ -189,6 +207,19 @@ describe('completeSlackInstall', () => {
         expect(redirectParams(redirectUrl)).toMatchObject({slack: 'installed'});
         expect(mocks.upserts[0].set).toMatchObject({botTokenCiphertext: 'ciphertext', disconnectedAt: null});
         expect(mocks.inserted.map((i) => i.table)).toEqual([slackWorkspaces]);
+        expect(mocks.logAppInstalled).not.toHaveBeenCalled();
+    });
+
+    it('callback releases the workspace when the app cannot be added', async () => {
+        mocks.withRlsTransaction.mockImplementation((params: {userName?: string; callback: (tx: unknown) => unknown}, tx: unknown) =>
+            params.userName ? Promise.reject(new Error('insert failed')) : params.callback(tx),
+        );
+
+        const {redirectUrl} = await callback();
+
+        expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'failed'});
+        expect(mocks.upserts).toHaveLength(1);
+        expect(mocks.releaseWorkspaceIfUnused).toHaveBeenCalledWith('int-1', 'T1');
         expect(mocks.logAppInstalled).not.toHaveBeenCalled();
     });
 
