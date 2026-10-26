@@ -1,6 +1,7 @@
 import {useAuth} from '@/composables/useAuth';
 import {parseApiResponse} from '@/utils/apiResponse';
 import type {IntegrationApp, IntegrationAppType, NotificationHandle, SlackChannel} from '@common/types';
+import {useRouter} from 'vue-router';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
@@ -17,7 +18,8 @@ async function failure(response: Response, fallback: string): Promise<Error> {
 }
 
 export const useIntegrationApps = () => {
-    const {fetchWithAuth} = useAuth();
+    const {fetchWithAuth, refreshSession} = useAuth();
+    const router = useRouter();
 
     const listApps = async (integrationId: string): Promise<IntegrationApp[]> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps`);
@@ -63,6 +65,16 @@ export const useIntegrationApps = () => {
 
     const slackConnectUrl = (integrationId: string, redirectUrl: string): string =>
         `${API_ENDPOINT}/integrations/${integrationId}/slack/connect?redirect_url=${encodeURIComponent(redirectUrl)}`;
+
+    const connectSlack = async (integrationId: string): Promise<void> => {
+        // A long Slack consent screen can outlast the access token the callback needs.
+        if (!(await refreshSession())) {
+            throw new Error('Your session expired. Sign in again to connect Slack.');
+        }
+        // Always return to the Members tab: the Apps tab reads the same query params as install outcomes.
+        const membersPath = router.resolve({name: 'integration', params: {integrationId, tab: 'members'}}).href;
+        window.location.assign(slackConnectUrl(integrationId, window.location.origin + membersPath));
+    };
 
     const listSlackChannels = async (integrationId: string, appId: string): Promise<SlackChannel[]> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}/slack/channels`);
@@ -135,7 +147,7 @@ export const useIntegrationApps = () => {
         updateHandle,
         deleteHandle,
         slackInstallUrl,
-        slackConnectUrl,
+        connectSlack,
         listSlackChannels,
         createSlackHandle,
         listMoveCandidates,

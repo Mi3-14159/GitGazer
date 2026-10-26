@@ -7,7 +7,9 @@
     import MoveWebhooksDialog from '@/components/apps/MoveWebhooksDialog.vue';
     import Button from '@/components/ui/Button.vue';
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
+    import {useAuth} from '@/composables/useAuth';
     import {useIntegrationApps, type MoveCandidate} from '@/composables/useIntegrationApps';
+    import {useMembers} from '@/composables/useMembers';
     import {MAX_SLACK_HANDLES, type IntegrationApp, type NotificationHandle} from '@common/types';
     import {ArrowRightLeft, MoreHorizontal, Pencil, Plus, Trash2, TriangleAlert} from '@lucide/vue';
     import {DropdownMenuItem} from 'radix-vue';
@@ -26,7 +28,9 @@
         'remove-webhook': [];
     }>();
 
-    const {createSlackHandle, updateHandle, deleteHandle, listMoveCandidates} = useIntegrationApps();
+    const {createSlackHandle, updateHandle, deleteHandle, listMoveCandidates, connectSlack} = useIntegrationApps();
+    const {getMembers} = useMembers();
+    const {getUserAttributes} = useAuth();
 
     const disconnected = computed(() => props.app.workspace.disconnected);
     const atLimit = computed(() => props.app.handles.length >= MAX_SLACK_HANDLES);
@@ -56,9 +60,36 @@
         }
     }
 
+    const selfUnlinked = shallowRef(false);
+    const connecting = shallowRef(false);
+    const connectError = shallowRef<string | null>(null);
+
+    async function loadSelfLink() {
+        try {
+            const [members, self] = await Promise.all([getMembers(props.integrationId), getUserAttributes()]);
+            selfUnlinked.value = members.find((member) => member.userId === self?.userId)?.slackLinked === false;
+        } catch {
+            // Without its data the Connect button stays hidden; the Members tab still offers it.
+        }
+    }
+
     onMounted(() => {
-        if (props.canManage && !disconnected.value) loadMoveCandidates();
+        if (disconnected.value) return;
+        if (props.canManage) loadMoveCandidates();
+        loadSelfLink();
     });
+
+    async function connect() {
+        connecting.value = true;
+        connectError.value = null;
+        try {
+            await connectSlack(props.integrationId);
+        } catch (e) {
+            connectError.value = e instanceof Error ? e.message : 'Failed to connect Slack';
+        } finally {
+            connecting.value = false;
+        }
+    }
 
     function onMoved() {
         loadMoveCandidates();
@@ -282,9 +313,28 @@
             </li>
         </ul>
 
-        <p class="mt-4 text-sm text-muted-foreground">
-            <span class="font-semibold text-foreground">{{ app.linkedMemberCount }}</span>
-            of {{ app.memberCount }} {{ app.memberCount === 1 ? 'member' : 'members' }} linked
+        <div class="mt-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-muted-foreground">
+                <span class="font-semibold text-foreground">{{ app.linkedMemberCount }}</span>
+                of {{ app.memberCount }} {{ app.memberCount === 1 ? 'member' : 'members' }} linked
+            </p>
+            <Button
+                v-if="selfUnlinked && !disconnected"
+                variant="outline"
+                size="sm"
+                class="w-full sm:w-auto"
+                :loading="connecting"
+                @click="connect"
+            >
+                Connect Slack
+            </Button>
+        </div>
+        <p
+            v-if="connectError"
+            role="alert"
+            class="mt-2 text-sm text-destructive"
+        >
+            {{ connectError }}
         </p>
 
         <div

@@ -31,8 +31,8 @@
         resendInvitation: apiResendInvitation,
         disconnectSlack,
     } = useMembers();
-    const {listApps, slackConnectUrl} = useIntegrationApps();
-    const {getUserAttributes, refreshSession} = useAuth();
+    const {listApps, connectSlack} = useIntegrationApps();
+    const {getUserAttributes} = useAuth();
     const route = useRoute();
     const router = useRouter();
 
@@ -125,14 +125,12 @@
         showSlackConnectOutcome();
     });
 
-    async function connectSlack() {
+    async function handleConnectSlack() {
         slackBusy.value = true;
         try {
-            // A long Slack consent screen can outlast the access token the callback needs.
-            await refreshSession();
-            // Always return to the Members tab: the Apps tab reads the same query params as install outcomes.
-            const membersPath = router.resolve({name: 'integration', params: {integrationId: integrationId.value, tab: 'members'}}).href;
-            window.location.assign(slackConnectUrl(integrationId.value, window.location.origin + membersPath));
+            await connectSlack(integrationId.value);
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Failed to connect Slack';
         } finally {
             slackBusy.value = false;
         }
@@ -336,7 +334,7 @@
                         :slack-busy="slackBusy"
                         @change-role="handleChangeRole"
                         @remove="handleRemoveUser"
-                        @connect-slack="connectSlack"
+                        @connect-slack="handleConnectSlack"
                         @disconnect-slack="handleDisconnectSlack"
                     />
                 </div>

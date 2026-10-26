@@ -9,10 +9,30 @@ const updateHandle = vi.fn();
 const deleteHandle = vi.fn();
 const listMoveCandidates = vi.fn();
 const moveWebhookHandles = vi.fn();
+const connectSlack = vi.fn();
+const getMembers = vi.fn();
 
 vi.mock('@/composables/useIntegrationApps', () => ({
-    useIntegrationApps: () => ({listSlackChannels, createSlackHandle, updateHandle, deleteHandle, listMoveCandidates, moveWebhookHandles}),
+    useIntegrationApps: () => ({
+        listSlackChannels,
+        createSlackHandle,
+        updateHandle,
+        deleteHandle,
+        listMoveCandidates,
+        moveWebhookHandles,
+        connectSlack,
+    }),
 }));
+
+vi.mock('@/composables/useMembers', () => ({
+    useMembers: () => ({getMembers}),
+}));
+
+vi.mock('@/composables/useAuth', () => ({
+    useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1}))}),
+}));
+
+const selfMember = (slackLinked: boolean) => [{userId: 1, slackLinked}];
 
 type SlackApp = Extract<IntegrationApp, {type: 'slack'}>;
 
@@ -55,6 +75,7 @@ describe('SlackAppPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         listMoveCandidates.mockResolvedValue([]);
+        getMembers.mockResolvedValue(selfMember(true));
     });
 
     it('shows workspace and handles', () => {
@@ -161,5 +182,24 @@ describe('SlackAppPanel', () => {
         await flushPromises();
 
         expect(listMoveCandidates).not.toHaveBeenCalled();
+    });
+
+    it('offers the signed-in user Connect Slack until they are linked', async () => {
+        getMembers.mockResolvedValue(selfMember(false));
+        connectSlack.mockRejectedValue(new Error('Your session expired. Sign in again to connect Slack.'));
+        const wrapper = mountPanel({app: makeApp(), canManage: false});
+        await flushPromises();
+
+        expect(getMembers).toHaveBeenCalledWith('int-1');
+        await buttonByText(wrapper, 'Connect Slack')!.trigger('click');
+        await flushPromises();
+
+        expect(connectSlack).toHaveBeenCalledWith('int-1');
+        expect(wrapper.find('[role="alert"]').text()).toContain('Sign in again');
+
+        getMembers.mockResolvedValue(selfMember(true));
+        const linked = mountPanel({app: makeApp(), canManage: false});
+        await flushPromises();
+        expect(buttonByText(linked, 'Connect Slack')).toBeUndefined();
     });
 });

@@ -5,20 +5,19 @@
     import {useMembers} from '@/composables/useMembers';
     import {MessageSquare} from '@lucide/vue';
     import {onMounted, shallowRef} from 'vue';
-    import {useRouter} from 'vue-router';
 
     const props = defineProps<{
         integrationId: string;
     }>();
 
-    const {listApps, slackConnectUrl} = useIntegrationApps();
+    const {listApps, connectSlack} = useIntegrationApps();
     const {getMembers} = useMembers();
-    const {getUserAttributes, refreshSession} = useAuth();
-    const router = useRouter();
+    const {getUserAttributes} = useAuth();
 
     const dismissedKey = `gitgazer:slack-prompt-dismissed:${props.integrationId}`;
     const visible = shallowRef(false);
     const connecting = shallowRef(false);
+    const connectError = shallowRef<string | null>(null);
 
     function isDismissed(): boolean {
         try {
@@ -51,12 +50,11 @@
 
     async function connect() {
         connecting.value = true;
+        connectError.value = null;
         try {
-            // A long Slack consent screen can outlast the access token the callback needs.
-            await refreshSession();
-            // Always return to the Members tab: the Apps tab reads the same query params as install outcomes.
-            const membersPath = router.resolve({name: 'integration', params: {integrationId: props.integrationId, tab: 'members'}}).href;
-            window.location.assign(slackConnectUrl(props.integrationId, window.location.origin + membersPath));
+            await connectSlack(props.integrationId);
+        } catch (e) {
+            connectError.value = e instanceof Error ? e.message : 'Failed to connect Slack';
         } finally {
             connecting.value = false;
         }
@@ -68,13 +66,22 @@
         v-if="visible"
         class="flex flex-col gap-3 rounded-lg border p-3 text-sm sm:flex-row sm:items-center"
     >
-        <p class="flex min-w-0 flex-1 items-center gap-2">
-            <MessageSquare
-                class="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-            />
-            Connect your Slack account to get pinged on your failures.
-        </p>
+        <div class="min-w-0 flex-1">
+            <p class="flex items-center gap-2">
+                <MessageSquare
+                    class="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                />
+                Connect your Slack account to get pinged on your failures.
+            </p>
+            <p
+                v-if="connectError"
+                role="alert"
+                class="mt-1 text-destructive"
+            >
+                {{ connectError }}
+            </p>
+        </div>
         <div class="flex gap-2">
             <Button
                 size="sm"

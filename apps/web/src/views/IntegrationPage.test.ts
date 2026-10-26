@@ -50,14 +50,13 @@ const slackApp = {
 };
 
 const listApps = vi.fn(async (): Promise<unknown[]> => []);
-const slackConnectUrl = vi.fn((integrationId: string, redirectUrl: string) => `https://api.test/${integrationId}/slack/connect?r=${redirectUrl}`);
+const connectSlack = vi.fn();
 vi.mock('@/composables/useIntegrationApps', () => ({
-    useIntegrationApps: () => ({listApps, installApp: vi.fn(), uninstallApp: vi.fn(), slackConnectUrl}),
+    useIntegrationApps: () => ({listApps, installApp: vi.fn(), uninstallApp: vi.fn(), connectSlack}),
 }));
 
-const refreshSession = vi.fn(async () => true);
 vi.mock('@/composables/useAuth', () => ({
-    useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1})), refreshSession, fetchWithAuth: vi.fn()}),
+    useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1})), fetchWithAuth: vi.fn()}),
 }));
 
 const PROMPT = 'Connect your Slack account to get pinged on your failures';
@@ -149,7 +148,7 @@ describe('IntegrationPage', () => {
     describe('Connect Slack prompt', () => {
         it('prompts unlinked members to connect Slack when the integration has a Slack app', async () => {
             listApps.mockResolvedValue([slackApp]);
-            const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+            connectSlack.mockRejectedValueOnce(new Error('Your session expired. Sign in again to connect Slack.'));
             const {wrapper} = await mountAt('/integrations/int-1/settings');
 
             expect(wrapper.text()).toContain(PROMPT);
@@ -159,11 +158,8 @@ describe('IntegrationPage', () => {
                 .trigger('click');
             await flushPromises();
 
-            const redirectUrl = `${window.location.origin}/integrations/int-1/members`;
-            expect(refreshSession).toHaveBeenCalled();
-            expect(slackConnectUrl).toHaveBeenCalledWith('int-1', redirectUrl);
-            expect(assign).toHaveBeenCalledWith(`https://api.test/int-1/slack/connect?r=${redirectUrl}`);
-            assign.mockRestore();
+            expect(connectSlack).toHaveBeenCalledWith('int-1');
+            expect(wrapper.find('[role="alert"]').text()).toContain('Sign in again');
         });
 
         it('no prompt when linked or without a Slack app', async () => {

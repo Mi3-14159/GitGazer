@@ -24,19 +24,18 @@ const slackApp = {
 const getMembers = vi.fn();
 const disconnectSlack = vi.fn();
 const listApps = vi.fn();
-const slackConnectUrl = vi.fn((integrationId: string, redirectUrl: string) => `https://api.test/${integrationId}/slack/connect?r=${redirectUrl}`);
-const refreshSession = vi.fn(async () => true);
+const connectSlack = vi.fn();
 
 vi.mock('@/composables/useMembers', () => ({
     useMembers: () => ({getMembers, getInvitations: vi.fn(async () => []), disconnectSlack}),
 }));
 
 vi.mock('@/composables/useIntegrationApps', () => ({
-    useIntegrationApps: () => ({listApps, slackConnectUrl}),
+    useIntegrationApps: () => ({listApps, connectSlack}),
 }));
 
 vi.mock('@/composables/useAuth', () => ({
-    useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1})), refreshSession}),
+    useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1}))}),
 }));
 
 async function mountMembers(path = '/integrations/int-1/members') {
@@ -80,18 +79,23 @@ describe('IntegrationMembers Slack', () => {
         expect(buttonNamed(wrapper, 'Connect Slack')).toBeUndefined();
     });
 
-    it('Connect Slack navigates to the connect URL and returns to the Members tab', async () => {
-        const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+    it('Connect Slack starts the Slack connect flow', async () => {
         const {wrapper} = await mountMembers();
 
         await buttonNamed(wrapper, 'Connect Slack')!.trigger('click');
         await flushPromises();
 
-        const redirectUrl = `${window.location.origin}/integrations/int-1/members`;
-        expect(refreshSession).toHaveBeenCalled();
-        expect(slackConnectUrl).toHaveBeenCalledWith('int-1', redirectUrl);
-        expect(assign).toHaveBeenCalledWith(`https://api.test/int-1/slack/connect?r=${redirectUrl}`);
-        assign.mockRestore();
+        expect(connectSlack).toHaveBeenCalledWith('int-1');
+    });
+
+    it('shows why Connect Slack failed', async () => {
+        connectSlack.mockRejectedValue(new Error('Your session expired. Sign in again to connect Slack.'));
+        const {wrapper} = await mountMembers();
+
+        await buttonNamed(wrapper, 'Connect Slack')!.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[role="alert"]').text()).toContain('Sign in again');
     });
 
     it('Disconnect Slack removes the link of the signed-in user', async () => {
