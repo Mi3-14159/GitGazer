@@ -54,12 +54,13 @@ The **Integrations** page lists all integrations you belong to. Click one to ope
 
 An **app** is a piece of GitGazer you install into an integration. The **Apps** tab shows the installed apps first, then a catalog.
 
-| App         | What It Does                                                                    |
-| ----------- | ------------------------------------------------------------------------------- |
-| **GitHub**  | Receives workflow runs, jobs, and pull requests from GitHub.                    |
-| **Webhook** | Holds named Slack incoming webhooks that notification rules can send alerts to. |
+| App         | What It Does                                                                                         |
+| ----------- | ---------------------------------------------------------------------------------------------------- |
+| **GitHub**  | Receives workflow runs, jobs, and pull requests from GitHub.                                         |
+| **Webhook** | Holds named Slack incoming webhooks that notification rules can send alerts to.                      |
+| **Slack**   | Sends alerts to Slack channels and mentions the person behind a failure. See [Slack App](slack-app). |
 
-Slack, GitLab, and Jira appear in the catalog as **coming later**.
+GitLab and Jira appear in the catalog as **coming later**.
 
 New integrations include the GitHub app automatically. Open an app to see and change its settings.
 

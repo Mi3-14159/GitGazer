@@ -123,6 +123,12 @@ To set the default role for auto-synced members:
 
 _Requires **admin** role or higher._ See [Setting Up Integrations](integrations#org-sync-default-role) for details.
 
+## Slack Link
+
+If the integration has the [Slack app](slack-app) installed, each member shows a **Slack** badge when their GitHub account is linked to a Slack user. You see whether someone is linked, never their Slack ID.
+
+On your own row, click **Connect Slack** to link yourself, or **Disconnect** to remove the link. Only you can do this for your own account. While you aren't linked, the integration page also shows a prompt with a **Connect Slack** button.
+
 ## Searching Members
 
 Use the search bar at the top of the **Members** tab to filter:
