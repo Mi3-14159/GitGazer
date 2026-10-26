@@ -8,6 +8,7 @@
     import Button from '@/components/ui/Button.vue';
     import DropdownMenu from '@/components/ui/DropdownMenu.vue';
     import {useAuth} from '@/composables/useAuth';
+    import {useConnectSlack} from '@/composables/useConnectSlack';
     import {useIntegrationApps} from '@/composables/useIntegrationApps';
     import {useMembers} from '@/composables/useMembers';
     import {MAX_SLACK_HANDLES, type IntegrationApp, type NotificationHandle} from '@common/types';
@@ -28,7 +29,7 @@
         'remove-webhook': [];
     }>();
 
-    const {createSlackHandle, updateHandle, deleteHandle, connectSlack} = useIntegrationApps();
+    const {createSlackHandle, updateHandle, deleteHandle} = useIntegrationApps();
     const {getMembers} = useMembers();
     const {getUserAttributes} = useAuth();
 
@@ -50,8 +51,7 @@
     const deleteError = shallowRef<string | null>(null);
 
     const selfUnlinked = shallowRef(false);
-    const connecting = shallowRef(false);
-    const connectError = shallowRef<string | null>(null);
+    const {connecting, connectError, connect} = useConnectSlack(() => props.integrationId);
 
     async function loadSelfLink() {
         try {
@@ -66,18 +66,6 @@
         if (disconnected.value) return;
         loadSelfLink();
     });
-
-    async function connect() {
-        connecting.value = true;
-        connectError.value = null;
-        try {
-            await connectSlack(props.integrationId);
-        } catch (e) {
-            connectError.value = e instanceof Error ? e.message : 'Failed to connect Slack';
-        } finally {
-            connecting.value = false;
-        }
-    }
 
     function openPicker() {
         addError.value = null;

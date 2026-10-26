@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import Button from '@/components/ui/Button.vue';
     import {useAuth} from '@/composables/useAuth';
+    import {useConnectSlack} from '@/composables/useConnectSlack';
     import {useIntegrationApps} from '@/composables/useIntegrationApps';
     import {useMembers} from '@/composables/useMembers';
     import {MessageSquare} from '@lucide/vue';
@@ -10,14 +11,13 @@
         integrationId: string;
     }>();
 
-    const {listApps, connectSlack} = useIntegrationApps();
+    const {listApps} = useIntegrationApps();
     const {getMembers} = useMembers();
     const {getUserAttributes} = useAuth();
 
     const dismissedKey = `gitgazer:slack-prompt-dismissed:${props.integrationId}`;
     const visible = shallowRef(false);
-    const connecting = shallowRef(false);
-    const connectError = shallowRef<string | null>(null);
+    const {connecting, connectError, connect} = useConnectSlack(() => props.integrationId);
 
     function isDismissed(): boolean {
         try {
@@ -45,18 +45,6 @@
             localStorage.setItem(dismissedKey, '1');
         } catch {
             // Storage blocked: the prompt comes back on the next visit.
-        }
-    }
-
-    async function connect() {
-        connecting.value = true;
-        connectError.value = null;
-        try {
-            await connectSlack(props.integrationId);
-        } catch (e) {
-            connectError.value = e instanceof Error ? e.message : 'Failed to connect Slack';
-        } finally {
-            connecting.value = false;
         }
     }
 </script>
