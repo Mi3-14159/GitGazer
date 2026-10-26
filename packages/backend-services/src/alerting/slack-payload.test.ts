@@ -12,9 +12,15 @@ const base: SlackAlertInput = {
     runAttempt: 2,
     event: 'push',
     senderLogin: 'octocat',
+    senderSlackUserId: null,
     pullRequestNumber: null,
     verdict: {kind: 'real', evidence: 'failed 5 times in a row on main'},
     details: {summary: 'The cart test failed.', excerpt: 'AssertionError: expected 41 to be 42'},
+};
+
+const byLine = (input: SlackAlertInput): string => {
+    const blocks = buildSlackAlert(input).attachments[0].blocks as any[];
+    return blocks.flatMap((b) => b.elements ?? []).find((e: any) => e.text?.startsWith('by '))!.text;
 };
 
 const actionUrls = (input: SlackAlertInput) => {
@@ -111,5 +117,29 @@ describe('slack-payload', () => {
         const payload = buildSlackAlert({...base, workflowName: '@channel', jobName: '@here'});
         expect(payload.text).not.toMatch(/@(here|channel)\b/);
         expect(payload.text).toBe('@\u200bchannel / @\u200bhere failed on app');
+    });
+
+    it('renders a mention instead of the login', () => {
+        expect(byLine({...base, senderSlackUserId: 'U012AB3CD'})).toMatch(/^by <@U012AB3CD> · push · /);
+        expect(byLine({...base, senderSlackUserId: 'U012AB3CD'})).not.toContain('octocat');
+    });
+
+    it('ignores an ID of the wrong shape', () => {
+        for (const id of ['<!here>', 'u123', 'U1 <!channel>', 'C123', '']) {
+            const payload = buildSlackAlert({...base, senderSlackUserId: id});
+            expect(byLine({...base, senderSlackUserId: id})).toMatch(/^by octocat · /);
+            expect(payload.text).toBe('CI / test failed on app');
+        }
+    });
+
+    it('adds the mention to the fallback text', () => {
+        expect(buildSlackAlert({...base, senderSlackUserId: 'W99'}).text).toBe('CI / test failed on app · <@W99>');
+    });
+
+    it('mention survives verbatim and neutralising', () => {
+        const payload = buildSlackAlert({...base, jobName: '@here', senderSlackUserId: 'U1'});
+        expect(payload.text).toBe('CI / @\u200bhere failed on app · <@U1>');
+        const context = (payload.attachments[0].blocks as any[]).flatMap((b) => b.elements ?? []).find((e: any) => e.text?.startsWith('by '));
+        expect(context).toEqual({type: 'mrkdwn', text: expect.stringContaining('by <@U1> · '), verbatim: true});
     });
 });

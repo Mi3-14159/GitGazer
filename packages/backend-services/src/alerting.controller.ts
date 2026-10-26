@@ -2,11 +2,15 @@ import {findPullRequest, loadLogDetails, type DetailsSkipReason, type LogDetails
 import {buildSlackAlert, type SlackAlertInput, type SlackPayload} from './alerting/slack-payload';
 import {computeVerdict} from './alerting/verdict';
 import {createEventLogEntry} from './event-log.controller';
+import {resolveSlackUserId} from './slack/links';
+import {loadWorkspaceForIntegration, markWorkspaceDisconnected} from './slack/workspaces';
 import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
+import {isRevokedSlackError, postMessage, SlackApiError} from '@gitgazer/backend-core/clients/slack.client';
 import config from '@gitgazer/backend-core/config';
+import {withTimeout} from '@gitgazer/backend-core/helpers/async';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {notificationRuleDestinations, notificationRules, webhookHandleDetails} from '@gitgazer/db/schema';
+import {notificationRuleDestinations, notificationRules, slackHandleDetails, webhookHandleDetails} from '@gitgazer/db/schema';
 import {WorkflowConclusion, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import {and, eq, or, sql} from 'drizzle-orm';
 
@@ -23,6 +27,8 @@ type AlertContext = {
 
 type AlertOptions = {getRemainingTimeMs?: () => number};
 
+const SENDER_LOOKUP_TIMEOUT_MS = 3000;
+
 export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelations, options?: AlertOptions): Promise<void> {
     const logger = getLogger();
     // Passed on every line: alerts run while the worker ingests other records, so shared logger keys would name the wrong job.
@@ -38,7 +44,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
     }
 
     const context = getAlertContext(workflowJob);
-    const {ruleIds, targets} = await findMatchingRulesAndTargets(workflowJob, context);
+    const {ruleIds, targets: matchedTargets} = await findMatchingRulesAndTargets(workflowJob, context);
 
     if (ruleIds.length === 0) {
         logger.info(`No matching notification rules for integration ${workflowJob.integrationId}`, logIds);
@@ -50,7 +56,40 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
         ruleIds,
     });
 
-    const [verdict, pullRequest] = await Promise.all([computeVerdict(workflowJob), findPullRequest(workflowJob)]);
+    let workspace: Awaited<ReturnType<typeof loadWorkspaceForIntegration>> = null;
+    if (matchedTargets.some((target) => target.kind === 'slack')) {
+        workspace = await loadWorkspaceForIntegration(workflowJob.integrationId).catch((error) => {
+            logger.error('Failed to load the Slack workspace', {...logIds, error});
+            return null;
+        });
+        if (workspace?.disconnected) workspace = null;
+        if (!workspace) logger.warn('Skipping Slack handles: the Slack app is not connected', logIds);
+    }
+    const targets = workspace ? matchedTargets : matchedTargets.filter((target) => target.kind === 'webhook');
+
+    const sender = workflowJob.sender;
+    const [verdict, pullRequest, senderSlackUserId] = await Promise.all([
+        computeVerdict(workflowJob),
+        findPullRequest(workflowJob),
+        workspace && sender?.id && sender.type === 'User'
+            ? withTimeout(
+                  resolveSlackUserId({
+                      teamId: workspace.teamId,
+                      botToken: workspace.botToken,
+                      integrationId: workflowJob.integrationId,
+                      githubUserId: sender.id,
+                      githubLogin: sender.login,
+                      // An empty owner would match no installation; null lets the lookup use any of them.
+                      ownerLogin: context.ownerLogin || null,
+                  }),
+                  SENDER_LOOKUP_TIMEOUT_MS,
+              ).catch((error) => {
+                  logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: errorReason(error)});
+                  return null;
+              })
+            : null,
+    ]);
+    let slackAttempted = false;
 
     let details: LogDetails | null = null;
     if (targets.length === 0) {
@@ -70,7 +109,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
             skipReason: skipReason ?? undefined,
         });
 
-        const alertInput: Omit<SlackAlertInput, 'details'> = {
+        const alertInput: Omit<SlackAlertInput, 'details' | 'senderSlackUserId'> = {
             owner: context.ownerLogin,
             repository: context.repositoryName,
             branch: context.headBranch,
@@ -86,8 +125,31 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
         };
 
         for (const target of targets) {
-            const body = buildSlackAlert({...alertInput, details: target.includeLogDetails ? details : null});
-            await sendSlackNotification(target.url, body, {...logIds, handleId: target.handleId}, logger);
+            const targetDetails = target.includeLogDetails ? details : null;
+            if (target.kind === 'webhook') {
+                const body = buildSlackAlert({...alertInput, senderSlackUserId: null, details: targetDetails});
+                await sendSlackNotification(target.url, body, {...logIds, handleId: target.handleId}, logger);
+                continue;
+            }
+            // Cleared after a revoked token so the remaining Slack handles of this alert are skipped.
+            if (!workspace) continue;
+
+            slackAttempted = true;
+            const body = buildSlackAlert({...alertInput, senderSlackUserId, details: targetDetails});
+            try {
+                await postMessage(workspace.botToken, target.channelId, body);
+                logger.info(`Successfully sent alert to Slack handle ${target.handleId}`, {...logIds, handleId: target.handleId});
+            } catch (error) {
+                logger.error(`Failed to send Slack message to handle ${target.handleId}`, {
+                    ...logIds,
+                    handleId: target.handleId,
+                    reason: errorReason(error),
+                });
+                if (isRevokedSlackError(error)) {
+                    await disconnectWorkspace(workspace.teamId, logIds, logger);
+                    workspace = null;
+                }
+            }
         }
     }
 
@@ -110,6 +172,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
                 verdict: verdict.kind,
                 // Counted by the daily summary cap, so only true when a summary was actually produced.
                 aiSummary: Boolean(details?.summary),
+                mentioned: Boolean(senderSlackUserId) && slackAttempted,
             },
         });
     } catch (error) {
@@ -143,7 +206,9 @@ function getAlertContext(workflowJob: WorkflowJobWithRelations): AlertContext {
     };
 }
 
-type HandleTarget = {handleId: string; url: string; includeLogDetails: boolean};
+type HandleTarget =
+    | {kind: 'webhook'; handleId: string; url: string; includeLogDetails: boolean}
+    | {kind: 'slack'; handleId: string; channelId: string; includeLogDetails: boolean};
 
 // Rules and their handles come from one statement so a concurrent rule edit cannot pair old filters or log settings with a new destination.
 async function findMatchingRulesAndTargets(
@@ -205,8 +270,9 @@ async function findMatchingRulesAndTargets(
                 .select({
                     ruleId: notificationRules.id,
                     includeLogDetails: notificationRules.include_log_details,
-                    handleId: webhookHandleDetails.handleId,
+                    handleId: notificationRuleDestinations.handleId,
                     url: webhookHandleDetails.url,
+                    channelId: slackHandleDetails.channelId,
                 })
                 .from(notificationRules)
                 .leftJoin(
@@ -223,6 +289,13 @@ async function findMatchingRulesAndTargets(
                         eq(webhookHandleDetails.handleId, notificationRuleDestinations.handleId),
                     ),
                 )
+                .leftJoin(
+                    slackHandleDetails,
+                    and(
+                        eq(slackHandleDetails.integrationId, notificationRuleDestinations.integrationId),
+                        eq(slackHandleDetails.handleId, notificationRuleDestinations.handleId),
+                    ),
+                )
                 .where(and(...conditions));
         },
     });
@@ -230,8 +303,15 @@ async function findMatchingRulesAndTargets(
     const ruleIds = [...new Set(rows.map((row) => row.ruleId))];
     const targets = new Map<string, HandleTarget>();
     for (const row of rows) {
-        if (row.handleId === null || row.url === null) continue;
-        const target = targets.get(row.handleId) ?? {handleId: row.handleId, url: row.url, includeLogDetails: false};
+        if (row.handleId === null) continue;
+        const target: HandleTarget | null =
+            targets.get(row.handleId) ??
+            (row.url !== null
+                ? {kind: 'webhook', handleId: row.handleId, url: row.url, includeLogDetails: false}
+                : row.channelId !== null
+                  ? {kind: 'slack', handleId: row.handleId, channelId: row.channelId, includeLogDetails: false}
+                  : null);
+        if (!target) continue;
         target.includeLogDetails ||= row.includeLogDetails;
         targets.set(row.handleId, target);
     }
@@ -258,5 +338,29 @@ async function sendSlackNotification(
         logger.info(`Successfully sent alert to Slack handle ${logContext.handleId}`, logContext);
     } catch (error) {
         logger.error(`Failed to send Slack notification to handle ${logContext.handleId}`, {...logContext, error});
+    }
+}
+
+// Slack errors carry only Slack's code; other errors may embed request data, so only their name is logged.
+const errorReason = (error: unknown): string => (error instanceof SlackApiError ? error.code : error instanceof Error ? error.name : 'UnknownError');
+
+async function disconnectWorkspace(teamId: string, logIds: {integrationId: string; jobId: number}, logger: ReturnType<typeof getLogger>) {
+    try {
+        const integrationIds = await markWorkspaceDisconnected(teamId);
+        logger.warn('Slack app disconnected: token revoked, skipping the remaining Slack handles', {
+            ...logIds,
+            affectedIntegrations: integrationIds.length,
+        });
+        for (const integrationId of integrationIds) {
+            await createEventLogEntry({
+                integrationId,
+                category: 'integration',
+                type: 'warning',
+                title: 'Slack app disconnected',
+                message: 'Slack revoked GitGazer access to the workspace. Reinstall the Slack app to send alerts to Slack again.',
+            }).catch((error) => logger.error('Failed to create event log entry', {...logIds, error}));
+        }
+    } catch (error) {
+        logger.error('Failed to mark the Slack workspace disconnected', {...logIds, error});
     }
 }
