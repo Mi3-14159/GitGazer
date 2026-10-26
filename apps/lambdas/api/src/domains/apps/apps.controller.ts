@@ -291,7 +291,7 @@ const deleteAppRow = async (params: Scope & {appId: string; type: IntegrationApp
 };
 
 // Revoking the bot token removes the bot from every channel, so only the last integration using the workspace releases it.
-const releaseWorkspaceIfUnused = async (integrationId: string, teamId: string): Promise<void> => {
+export const releaseWorkspaceIfUnused = async (integrationId: string, teamId: string): Promise<void> => {
     const [released] = await db
         .delete(slackWorkspaces)
         .where(

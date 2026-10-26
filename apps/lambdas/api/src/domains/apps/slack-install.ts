@@ -1,4 +1,4 @@
-import {findSlackTeamId, logAppInstalled} from '@/domains/apps/apps.controller';
+import {findSlackTeamId, logAppInstalled, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {mintSignedState, verifySignedState} from '@/domains/auth/auth.controller';
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {buildStateCookie} from '@/shared/helpers/cookies';
@@ -94,14 +94,19 @@ const install = async (params: {code: string; integrationId: string; userId: num
 
     // An app already on this workspace is a reinstall, which only refreshes the workspace's token
     if (!currentTeamId) {
-        await withRlsTransaction({
-            integrationIds,
-            userName: gitgazerWriter.name,
-            callback: async (tx: RdsTransaction) => {
-                const [app] = await tx.insert(integrationApps).values({integrationId, type: 'slack'}).returning({appId: integrationApps.appId});
-                await tx.insert(integrationAppSlackSettings).values({integrationId, appId: app.appId, teamId});
-            },
-        });
+        try {
+            await withRlsTransaction({
+                integrationIds,
+                userName: gitgazerWriter.name,
+                callback: async (tx: RdsTransaction) => {
+                    const [app] = await tx.insert(integrationApps).values({integrationId, type: 'slack'}).returning({appId: integrationApps.appId});
+                    await tx.insert(integrationAppSlackSettings).values({integrationId, appId: app.appId, teamId});
+                },
+            });
+        } catch (error) {
+            await releaseWorkspaceIfUnused(integrationId, teamId);
+            throw error;
+        }
         await logAppInstalled(integrationId, 'slack');
     }
 

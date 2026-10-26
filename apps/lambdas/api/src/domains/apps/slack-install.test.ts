@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     sendSlackLookupTask: vi.fn(),
     findSlackTeamId: vi.fn(),
     logAppInstalled: vi.fn(),
+    releaseWorkspaceIfUnused: vi.fn(),
     withRlsTransaction: vi.fn(),
     inserted: [] as {table: unknown; values: unknown}[],
     upserts: [] as {table: unknown; values: unknown; set: unknown}[],
@@ -31,7 +32,11 @@ vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) =>
 }));
 vi.mock('@gitgazer/backend-core/helpers/token-crypto', () => ({encryptToken: mocks.encryptToken}));
 vi.mock('@gitgazer/backend-core/clients/sqs.client', () => ({sendSlackLookupTask: mocks.sendSlackLookupTask}));
-vi.mock('@/domains/apps/apps.controller', () => ({findSlackTeamId: mocks.findSlackTeamId, logAppInstalled: mocks.logAppInstalled}));
+vi.mock('@/domains/apps/apps.controller', () => ({
+    findSlackTeamId: mocks.findSlackTeamId,
+    logAppInstalled: mocks.logAppInstalled,
+    releaseWorkspaceIfUnused: mocks.releaseWorkspaceIfUnused,
+}));
 vi.mock('@gitgazer/db/client', () => {
     const insert = (table: unknown) => ({
         values: (values: unknown) => {
@@ -189,6 +194,19 @@ describe('completeSlackInstall', () => {
         expect(redirectParams(redirectUrl)).toMatchObject({slack: 'installed'});
         expect(mocks.upserts[0].set).toMatchObject({botTokenCiphertext: 'ciphertext', disconnectedAt: null});
         expect(mocks.inserted.map((i) => i.table)).toEqual([slackWorkspaces]);
+        expect(mocks.logAppInstalled).not.toHaveBeenCalled();
+    });
+
+    it('callback releases the workspace when the app cannot be added', async () => {
+        mocks.withRlsTransaction.mockImplementation((params: {userName?: string; callback: (tx: unknown) => unknown}, tx: unknown) =>
+            params.userName ? Promise.reject(new Error('insert failed')) : params.callback(tx),
+        );
+
+        const {redirectUrl} = await callback();
+
+        expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'failed'});
+        expect(mocks.upserts).toHaveLength(1);
+        expect(mocks.releaseWorkspaceIfUnused).toHaveBeenCalledWith('int-1', 'T1');
         expect(mocks.logAppInstalled).not.toHaveBeenCalled();
     });
 
