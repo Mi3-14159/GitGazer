@@ -64,7 +64,7 @@ jobs:
           cache: true
 
       - name: Derive affected SHAs
-        uses: nrwl/nx-set-shas@v5.0.1
+        uses: nrwl/nx-set-shas@v5.1.0
 
       - name: Checks
         run: pnpm nx affected --nxBail -t pretty:check lint typecheck test:unit test:run --no-tui
