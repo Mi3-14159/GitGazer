@@ -11,6 +11,8 @@ import {eq} from 'drizzle-orm';
 
 export const PROFILE_LINK_REFRESH_MS = 7 * 24 * 3600_000;
 export const NOT_FOUND_REFRESH_MS = 24 * 3600_000;
+// Runs in the shared webhook worker; a long sweep would time out the batch and send co-batched events to the DLQ.
+export const LINK_MEMBERS_BUDGET_MS = 60_000;
 
 /**
  * Finds the Slack user for a GitHub account by its public profile email. Never throws: a failed lookup
@@ -39,9 +41,7 @@ export const resolveSlackUserId = async (params: {
         if (installationId === null) return link?.slackUserId ?? null;
 
         const {data} = await getInstallationOctokit(installationId).request('GET /users/{username}', {username: githubLogin});
-        if (!data.email) return link?.slackUserId ?? null;
-
-        const slackUserId = await lookupUserByEmail(botToken, data.email);
+        const slackUserId = data.email ? await lookupUserByEmail(botToken, data.email) : null;
         await saveLookupResult({teamId, githubUserId, slackUserId, source: 'github_profile_email', now});
         return slackUserId;
     } catch (error) {
@@ -56,6 +56,7 @@ export const resolveSlackUserId = async (params: {
 /** Runs the send-time lookup once for every member of the integration, right after the Slack app is installed. */
 export const linkIntegrationMembers = async (teamId: string, integrationId: string): Promise<{linked: number; checked: number}> => {
     const counts = {linked: 0, checked: 0};
+    const startedAt = Date.now();
     const workspace = await loadWorkspaceForIntegration(integrationId);
     // The app may have been removed or reinstalled into another workspace since the task was queued.
     if (!workspace || workspace.disconnected || workspace.teamId !== teamId) {
@@ -76,6 +77,10 @@ export const linkIntegrationMembers = async (teamId: string, integrationId: stri
 
     for (const {githubId, githubLogin} of members) {
         if (githubId === null || githubLogin === null) continue;
+        if (Date.now() - startedAt >= LINK_MEMBERS_BUDGET_MS) {
+            getLogger().warn('Slack member lookup stopped early, budget used up', {integrationId, ...counts});
+            return counts;
+        }
         const slackUserId = await resolveSlackUserId({
             teamId,
             botToken: workspace.botToken,

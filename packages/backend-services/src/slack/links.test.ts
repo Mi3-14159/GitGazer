@@ -1,5 +1,5 @@
 import {SlackApiError} from '@gitgazer/backend-core/clients/slack.client';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const {mockLogger, memberRows} = vi.hoisted(() => ({
     mockLogger: {debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()},
@@ -47,7 +47,7 @@ vi.mock('./workspaces', () => ({
     loadWorkspaceForIntegration: (...args: unknown[]) => mockLoadWorkspaceForIntegration(...args),
 }));
 
-import {linkIntegrationMembers, NOT_FOUND_REFRESH_MS, PROFILE_LINK_REFRESH_MS, resolveSlackUserId} from './links';
+import {LINK_MEMBERS_BUDGET_MS, linkIntegrationMembers, NOT_FOUND_REFRESH_MS, PROFILE_LINK_REFRESH_MS, resolveSlackUserId} from './links';
 
 const now = new Date('2026-10-26T10:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms);
@@ -145,13 +145,19 @@ describe('links', () => {
             expectNoLookup();
         });
 
-        it('writes nothing when the profile has no public email', async () => {
+        it('stores not-found when the profile has no public email', async () => {
             mockGetLink.mockResolvedValue(link({slackUserId: 'U1', source: 'github_profile_email', checkedAt: ago(8 * DAY)}));
             mockRequest.mockResolvedValue({data: {email: null}});
 
-            await expect(resolveSlackUserId(params)).resolves.toBe('U1');
+            await expect(resolveSlackUserId(params)).resolves.toBeNull();
             expect(mockLookupUserByEmail).not.toHaveBeenCalled();
-            expect(mockSaveLookupResult).not.toHaveBeenCalled();
+            expect(mockSaveLookupResult).toHaveBeenCalledWith({
+                teamId: 'T1',
+                githubUserId: 42,
+                slackUserId: null,
+                source: 'github_profile_email',
+                now,
+            });
         });
 
         it('stores not-found when no email matches', async () => {
@@ -200,6 +206,10 @@ describe('links', () => {
     });
 
     describe('linkIntegrationMembers', () => {
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
         it('looks up every member with a GitHub account through any installation', async () => {
             memberRows.rows = [
                 {githubId: 1, githubLogin: 'one'},
@@ -217,6 +227,23 @@ describe('links', () => {
                 [1, 'U1'],
                 [2, null],
             ]);
+        });
+
+        it('stops looking up members once the budget is used up', async () => {
+            vi.useFakeTimers({toFake: ['Date']});
+            memberRows.rows = [
+                {githubId: 1, githubLogin: 'one'},
+                {githubId: 2, githubLogin: 'two'},
+            ];
+            mockLookupUserByEmail.mockImplementation(async () => {
+                vi.advanceTimersByTime(LINK_MEMBERS_BUDGET_MS);
+                return 'U1';
+            });
+
+            await expect(linkIntegrationMembers('T1', 'int-1')).resolves.toEqual({linked: 1, checked: 1});
+            expect(LINK_MEMBERS_BUDGET_MS).toBe(60_000);
+            expect(mockRequest.mock.calls.map(([, p]) => p.username)).toEqual(['one']);
+            expect(mockLogger.warn).toHaveBeenCalledWith(expect.any(String), {integrationId: 'int-1', linked: 1, checked: 1});
         });
 
         it.each([
