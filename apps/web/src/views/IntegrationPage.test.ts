@@ -196,12 +196,12 @@ describe('IntegrationPage', () => {
 
         it('still prompts when browser storage throws', async () => {
             listApps.mockResolvedValue([slackApp]);
-            const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            const denied = () => {
                 throw new Error('denied');
-            });
-            const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-                throw new Error('denied');
-            });
+            };
+            const getItem = vi.fn(denied);
+            const setItem = vi.fn(denied);
+            vi.stubGlobal('localStorage', {getItem, setItem});
             const {wrapper} = await mountAt('/integrations/int-1/settings');
             expect(wrapper.text()).toContain(PROMPT);
 
@@ -210,8 +210,9 @@ describe('IntegrationPage', () => {
                 .find((b) => b.text() === 'Dismiss')!
                 .trigger('click');
             expect(wrapper.text()).not.toContain(PROMPT);
-            getItem.mockRestore();
-            setItem.mockRestore();
+            expect(getItem).toHaveBeenCalled();
+            expect(setItem).toHaveBeenCalled();
+            vi.unstubAllGlobals();
         });
     });
 });
