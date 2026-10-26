@@ -48,7 +48,7 @@
     const installable = computed(() => INTEGRATION_APP_TYPES.filter((type) => !apps.value.some((app) => app.type === type)));
     const githubApp = computed(() => apps.value.find((app) => app.type === 'github'));
     const webhookApp = computed(() => apps.value.find((app) => app.type === 'webhook'));
-    const slackApp = computed(() => apps.value.find((app) => app.type === 'slack'));
+    const slackApp = computed(() => apps.value.find((app): app is Extract<IntegrationApp, {type: 'slack'}> => app.type === 'slack'));
 
     const ROLE_LABELS = {viewer: 'Viewer', member: 'Member', admin: 'Admin'} as const;
 
@@ -261,14 +261,14 @@
                     <WebhookAppPanel
                         :integration-id="integration.integrationId"
                         :app="webhookApp"
-                        :slack-app="slackApp?.type === 'slack' ? slackApp : undefined"
+                        :slack-app="slackApp"
                         :can-manage="canManage"
                         @changed="loadApps"
                         @remove="confirmUninstall('webhook')"
                     />
                 </div>
                 <div
-                    v-if="selectedType === 'slack' && slackApp?.type === 'slack'"
+                    v-if="selectedType === 'slack' && slackApp"
                     :id="panelId('slack')"
                     class="mt-4"
                 >
