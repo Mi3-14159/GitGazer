@@ -19,8 +19,8 @@ vi.mock('@/composables/useAuth', () => ({
     useAuth: () => ({refreshSession}),
 }));
 
-async function mountTab(role: MemberRole, path = '/integrations/int-1/apps') {
-    listApps.mockResolvedValue(githubOnly);
+async function mountTab(role: MemberRole, path = '/integrations/int-1/apps', apps: IntegrationApp[] = githubOnly) {
+    listApps.mockResolvedValue(apps);
     const router = createRouter({
         history: createMemoryHistory(),
         routes: [{path: '/integrations/:integrationId/:tab', name: 'integration', component: {template: '<div />'}}],
@@ -105,5 +105,27 @@ describe('AppsTab', () => {
         const unknown = await mountTab('admin', '/integrations/int-1/apps?slack=other');
         expect(unknown.wrapper.find('[role="alert"]').exists()).toBe(false);
         expect(unknown.wrapper.find('[role="status"]').exists()).toBe(false);
+    });
+
+    it('the Slack panel can ask to remove the Webhook app', async () => {
+        const apps = [
+            ...githubOnly,
+            {appId: 'app-w', type: 'webhook', createdAt: '', handles: []},
+            {
+                appId: 'app-s',
+                type: 'slack',
+                createdAt: '',
+                workspace: {teamId: 'T1', teamName: 'Acme', disconnected: false},
+                handles: [],
+                linkedMemberCount: 0,
+                memberCount: 1,
+            },
+        ] as IntegrationApp[];
+        const {wrapper} = await mountTab('admin', '/integrations/int-1/apps?slack=installed', apps);
+
+        wrapper.findComponent({name: 'SlackAppPanel'}).vm.$emit('remove-webhook');
+        await flushPromises();
+
+        expect(wrapper.find('[role="dialog"]').text()).toContain('Remove Webhook app?');
     });
 });
