@@ -1,6 +1,7 @@
 import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {linkAtLogin} from '@gitgazer/backend-services/slack/login-links';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {createHash, timingSafeEqual} from 'crypto';
 
@@ -153,6 +154,30 @@ export const fetchGitHubUser = async (authorizationHeader: string): Promise<{sta
     }
 
     const user = await response.json();
+
+    // Slack linking is best effort: it must never change or fail the response Cognito gets.
+    try {
+        const emailsResponse = await proxyFetch('https://api.github.com/user/emails', {
+            method: 'GET',
+            headers: {
+                authorization: authorizationHeader,
+                accept: 'application/json',
+            },
+        });
+        if (emailsResponse.ok) {
+            const emails = (await emailsResponse.json()) as {email: string; primary: boolean; verified: boolean}[];
+            const verified = emails
+                .filter((e) => e.verified)
+                .sort((a, b) => Number(b.primary) - Number(a.primary))
+                .map((e) => e.email.toLowerCase());
+            await linkAtLogin(user.id, verified);
+        } else {
+            getLogger().warn('Failed to fetch GitHub user emails', {status: emailsResponse.status});
+        }
+    } catch {
+        // No error details: they could carry upstream response data.
+        getLogger().warn('Failed to fetch GitHub user emails');
+    }
 
     return {
         status: response.status,

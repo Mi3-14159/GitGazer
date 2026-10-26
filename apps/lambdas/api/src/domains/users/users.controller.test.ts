@@ -28,6 +28,11 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
     getLogger: () => ({error: vi.fn(), info: vi.fn(), warn: vi.fn()}),
 }));
 
+const mockLinkAtLogin = vi.fn();
+vi.mock('@gitgazer/backend-services/slack/login-links', () => ({
+    linkAtLogin: (...args: any[]) => mockLinkAtLogin(...args),
+}));
+
 import {assertCognitoCaller, exchangeGitHubOAuthToken, fetchGitHubUser, parseOAuthTokenBody} from './users.controller';
 
 const res = (status: number, headers: Record<string, string> = {}, body = ''): Response => new Response(body || null, {status, headers});
@@ -150,6 +155,74 @@ describe('fetchGitHubUser', () => {
         expect(result.status).toBe(403);
         expect(result.body).not.toContain(upstreamDetail);
         expect(JSON.parse(result.body)).toEqual({error: 'Failed to fetch user info from GitHub'});
+    });
+
+    const userResponse = () => res(200, {}, JSON.stringify({id: 4242, login: 'octocat'}));
+    const expectUnchangedUserResult = (result: Awaited<ReturnType<typeof fetchGitHubUser>>) => {
+        expect(result).toEqual({
+            status: 200,
+            body: JSON.stringify({sub: 4242, id: 4242, login: 'octocat'}),
+            headers: {'Cache-Control': 'no-cache, no-store, max-age=0', 'Content-Type': 'application/json'},
+        });
+    };
+
+    it('fetchGitHubUser links verified emails at login', async () => {
+        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockResolvedValueOnce(
+            res(
+                200,
+                {},
+                JSON.stringify([
+                    {email: 'Second@Example.com', primary: false, verified: true, visibility: null},
+                    {email: 'Primary@Example.com', primary: true, verified: true, visibility: 'private'},
+                ]),
+            ),
+        );
+
+        const result = await fetchGitHubUser('Bearer gho_user_token');
+
+        expectUnchangedUserResult(result);
+        const [url, init] = mockProxyFetch.mock.calls[1];
+        expect(url).toBe('https://api.github.com/user/emails');
+        expect(init.headers.authorization).toBe('Bearer gho_user_token');
+        expect(mockLinkAtLogin).toHaveBeenCalledWith(4242, ['primary@example.com', 'second@example.com']);
+    });
+
+    it('ignores unverified emails', async () => {
+        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockResolvedValueOnce(
+            res(
+                200,
+                {},
+                JSON.stringify([
+                    {email: 'unverified@example.com', primary: true, verified: false, visibility: null},
+                    {email: 'verified@example.com', primary: false, verified: true, visibility: null},
+                ]),
+            ),
+        );
+
+        const result = await fetchGitHubUser('Bearer gho_user_token');
+
+        expectUnchangedUserResult(result);
+        expect(mockLinkAtLogin).toHaveBeenCalledWith(4242, ['verified@example.com']);
+    });
+
+    it('email fetch failure still returns the user', async () => {
+        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockResolvedValueOnce(res(404, {}, JSON.stringify({message: 'Not Found'})));
+
+        expectUnchangedUserResult(await fetchGitHubUser('Bearer gho_user_token'));
+
+        mockProxyFetch.mockResolvedValueOnce(userResponse()).mockRejectedValueOnce(new Error('proxy failed'));
+
+        expectUnchangedUserResult(await fetchGitHubUser('Bearer gho_user_token'));
+        expect(mockLinkAtLogin).not.toHaveBeenCalled();
+    });
+
+    it('no lookup when /user fails', async () => {
+        mockProxyFetch.mockResolvedValue(res(401, {}, JSON.stringify({message: 'Bad credentials'})));
+
+        await fetchGitHubUser('Bearer revoked');
+
+        expect(mockProxyFetch).toHaveBeenCalledTimes(1);
+        expect(mockLinkAtLogin).not.toHaveBeenCalled();
     });
 });
 

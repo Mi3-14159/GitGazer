@@ -86,7 +86,7 @@ variable "callback_urls" {
 variable "github_oauth_scopes" {
   type        = list(string)
   description = "List of additional GitHub OAuth scopes to request"
-  default     = []
+  default     = ["user:email"]
 }
 
 variable "enable_http_proxy" {
