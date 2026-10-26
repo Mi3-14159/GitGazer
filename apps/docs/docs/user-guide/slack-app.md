@@ -61,13 +61,13 @@ If your Slack email differs from your GitHub emails, link yourself:
 
 The button and the prompt are hidden while the Slack app is disconnected.
 
-You sign in with Slack and pick the workspace the integration uses. Connecting to a different workspace is rejected. To undo it, click **Disconnect** in the same places. A disconnect sticks: GitGazer won't link you again automatically until you connect again.
+You sign in with Slack and pick the workspace the integration uses. Connecting to a different workspace is rejected. To undo it, click **Disconnect** in the same places. A disconnect sticks: GitGazer won't link you again automatically until you connect again. The exception is removing the Slack app from the last integration that uses the workspace: that deletes the workspace's links, including your disconnect. If the app is reinstalled later, automatic matching may link you again until you disconnect again.
 
 Only you can connect or disconnect your own account; admins can't link other people. The Slack app's settings show how many members are linked.
 
 ## Move From Webhooks
 
-If the integration has Webhook handles for the same Slack workspace, the Slack app's settings offer **Move to channels** (also offered right after the install).
+If the integration has Webhook handles for the same Slack workspace, both the Slack app's settings and the Webhook app's settings offer **Move to channels** (also offered right after the install). The Webhook app only offers it while the integration has a connected Slack app.
 
 1. GitGazer lists the Webhook handles whose URL points to the installed workspace. Handles for other workspaces aren't offered.
 2. A webhook URL doesn't reveal its channel, so pick the target channel for each handle, or skip it.
@@ -86,13 +86,13 @@ _Requires **admin** role or higher._
 
 ## Remove the App
 
-Click **Remove Slack app** in the Slack app's settings and confirm. Its channel handles are deleted, and their rules show **No destination**. If no other integration uses the workspace, GitGazer also revokes its Slack access and deletes the links.
+Click **Remove Slack app** in the Slack app's settings and confirm. Its channel handles are deleted, and their rules show **No destination**. If no other integration uses the workspace, GitGazer also revokes its Slack access and deletes the workspace's links, including everyone's **Disconnect** choice. If you reinstall the app later, automatic matching may link people again until they disconnect again.
 
 _Requires **admin** role or higher._
 
 ## Disconnected State
 
-If the app is removed or revoked in Slack, GitGazer notices when a call fails. The card then shows **Disconnected — reinstall** for every integration using that workspace, and each writes an event log entry. Alerts to its channels fail meanwhile. Reinstalling the app from any of them reconnects all, keeping handles and links. Private channels may need a new `/invite @GitGazer`.
+If the app is removed or revoked in Slack, GitGazer notices when an alert post fails because the token is no longer valid. Other failing calls, such as loading the channel list, just show an error and don't mark the workspace. The card then shows **Disconnected — reinstall** for every integration using that workspace, and each writes an event log entry. Alerts to its channels fail meanwhile. Reinstalling the app from any of them reconnects all, keeping handles and links. Private channels may need a new `/invite @GitGazer`.
 
 ## What's Next
 

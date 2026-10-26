@@ -151,6 +151,10 @@ The **Webhook** app holds **handles**. A handle is a name plus a Slack incoming 
 
 An app holds up to 20 handles. To get a Slack webhook URL, see [Setting Up a Slack Webhook](notifications#setting-up-a-slack-webhook).
 
+### Move Handles to Slack Channels
+
+If the integration also has a connected [Slack app](slack-app), the Webhook app's settings offer **Move to channels** while handles for that workspace exist. It is the same offer as in the Slack app's settings; see [Move From Webhooks](slack-app#move-from-webhooks).
+
 ### Edit or Delete a Handle
 
 Use the actions menu on a handle to change its name or URL, or to delete it. If rules use the handle, the dialog warns you before deleting. Those rules keep existing but show **No destination** and send nothing until you pick another handle.
