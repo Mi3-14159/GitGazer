@@ -25,7 +25,8 @@ const errorFields = (error: unknown) => ({
     status: typeof (error as {status?: unknown})?.status === 'number' ? (error as {status: number}).status : undefined,
 });
 
-export const findInstallationId = async (integrationId: string, ownerLogin: string): Promise<number | null> => {
+/** Without an owner, any installation of the integration will do. */
+export const findInstallationId = async (integrationId: string, ownerLogin: string | null): Promise<number | null> => {
     const [row] = await withRlsTransaction({
         integrationIds: [integrationId],
         readOnly: true,
@@ -36,7 +37,7 @@ export const findInstallationId = async (integrationId: string, ownerLogin: stri
                 .where(
                     and(
                         eq(githubAppInstallations.integrationId, integrationId),
-                        sql`lower(${githubAppInstallations.accountLogin}) = lower(${ownerLogin})`,
+                        ownerLogin === null ? undefined : sql`lower(${githubAppInstallations.accountLogin}) = lower(${ownerLogin})`,
                     ),
                 )
                 .limit(1),

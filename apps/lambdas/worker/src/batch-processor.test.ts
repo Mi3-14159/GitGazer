@@ -5,11 +5,15 @@ const logger = vi.hoisted(() => ({debug: vi.fn(), info: vi.fn(), warn: vi.fn(), 
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => logger}));
 
 const mockSyncOrgMembers = vi.fn();
+const mockLinkIntegrationMembers = vi.fn();
 const mockInsertEvent = vi.fn();
 const mockPostToConnections = vi.fn();
 
 vi.mock('@gitgazer/backend-services/org-member-sync', () => ({
     syncOrgMembers: (...args: any[]) => mockSyncOrgMembers(...args),
+}));
+vi.mock('@gitgazer/backend-services/slack/links', () => ({
+    linkIntegrationMembers: (...args: any[]) => mockLinkIntegrationMembers(...args),
 }));
 vi.mock('@gitgazer/github-import/index', () => ({
     insertEvent: (...args: any[]) => mockInsertEvent(...args),
@@ -24,6 +28,7 @@ const makeRecord = (body: unknown): SQSRecord => ({body: JSON.stringify(body)}) 
 
 beforeEach(async () => {
     mockSyncOrgMembers.mockReset().mockResolvedValue(undefined);
+    mockLinkIntegrationMembers.mockReset().mockResolvedValue({linked: 1, checked: 2});
     mockInsertEvent.mockReset().mockResolvedValue({data: {}, stale: false});
     mockPostToConnections.mockReset().mockResolvedValue(undefined);
     batchProcessor = await import('./batch-processor');
@@ -43,6 +48,15 @@ describe('processRecord', () => {
         expect(mockSyncOrgMembers).toHaveBeenCalledWith(42, 'acme');
         expect(mockInsertEvent).not.toHaveBeenCalled();
         expect(mockPostToConnections).not.toHaveBeenCalled();
+        expect(result).toBeNull();
+    });
+
+    it('routes a slack_lookup task to linkIntegrationMembers and skips the importer', async () => {
+        const result = await batchProcessor.processRecord(makeRecord({taskType: 'slack_lookup', teamId: 'T1', integrationId: 'int-1'}));
+
+        expect(mockLinkIntegrationMembers).toHaveBeenCalledWith('T1', 'int-1');
+        expect(mockSyncOrgMembers).not.toHaveBeenCalled();
+        expect(mockInsertEvent).not.toHaveBeenCalled();
         expect(result).toBeNull();
     });
 

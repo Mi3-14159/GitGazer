@@ -6,6 +6,7 @@ import {listChannels, revokeToken} from '@gitgazer/backend-core/clients/slack.cl
 import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
+import {loadWorkspaceForIntegration} from '@gitgazer/backend-services/slack/workspaces';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {
@@ -69,27 +70,6 @@ export const findSlackTeamId = async (tx: RdsTransaction, integrationId: string)
         .from(integrationAppSlackSettings)
         .where(eq(integrationAppSlackSettings.integrationId, integrationId));
     return settings?.teamId;
-};
-
-const loadSlackBotToken = async (params: Scope & {appId: string}): Promise<string> => {
-    const {integrationId, integrationIds, appId} = params;
-    const teamId = await withRlsTransaction({
-        integrationIds,
-        callback: async (tx: RdsTransaction) => {
-            const app = await findApp(tx, integrationId, appId);
-            if (app.type !== 'slack') {
-                throw new BadRequestError('Not a Slack app');
-            }
-            return await findSlackTeamId(tx, integrationId);
-        },
-    });
-    const [workspace] = teamId
-        ? await db.select({botTokenCiphertext: slackWorkspaces.botTokenCiphertext}).from(slackWorkspaces).where(eq(slackWorkspaces.teamId, teamId))
-        : [];
-    if (!workspace) {
-        throw new NotFoundError('Slack workspace not found');
-    }
-    return await decryptToken(workspace.botTokenCiphertext);
 };
 
 const loadSlackApp = async (tx: RdsTransaction, integrationId: string) => {
@@ -375,8 +355,18 @@ const loadHandle = async (tx: RdsTransaction, integrationId: string, handleId: s
     return handle;
 };
 
-export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> =>
-    await listChannels(await loadSlackBotToken(params));
+export const listSlackChannels = async (params: Scope & {appId: string}): Promise<SlackChannel[]> => {
+    const {integrationId, integrationIds, appId} = params;
+    const app = await withRlsTransaction({integrationIds, callback: (tx: RdsTransaction) => findApp(tx, integrationId, appId)});
+    if (app.type !== 'slack') {
+        throw new BadRequestError('Not a Slack app');
+    }
+    const workspace = await loadWorkspaceForIntegration(integrationId);
+    if (!workspace) {
+        throw new NotFoundError('Slack workspace not found');
+    }
+    return await listChannels(workspace.botToken);
+};
 
 const createSlackHandle = async (params: Scope & {appId: string; name?: string; channelId: string}): Promise<NotificationHandle> => {
     const {integrationId, integrationIds, appId, channelId} = params;

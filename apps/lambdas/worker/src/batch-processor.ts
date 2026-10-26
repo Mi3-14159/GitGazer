@@ -1,7 +1,8 @@
 import {syncOrgMembers} from '@gitgazer/backend-services/org-member-sync';
+import {linkIntegrationMembers} from '@gitgazer/backend-services/slack/links';
 import {insertEvent} from '@gitgazer/github-import/index';
 import {postToConnections} from '@gitgazer/backend-services/webhooks.controller';
-import {type OrgMemberSyncTask} from '@gitgazer/backend-core/clients/sqs.client';
+import {type OrgMemberSyncTask, type SlackLookupTask} from '@gitgazer/backend-core/clients/sqs.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {EventPayloadMap, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
@@ -16,10 +17,14 @@ type WebhookMessage = {
     source?: 'backfill';
 };
 
-type SQSMessage = WebhookMessage | OrgMemberSyncTask;
+type SQSMessage = WebhookMessage | OrgMemberSyncTask | SlackLookupTask;
 
 const isOrgMemberSyncTask = (message: SQSMessage): message is OrgMemberSyncTask => {
     return 'taskType' in message && message.taskType === 'org_member_sync';
+};
+
+const isSlackLookupTask = (message: SQSMessage): message is SlackLookupTask => {
+    return 'taskType' in message && message.taskType === 'slack_lookup';
 };
 
 export const processRecord = async (record: SQSRecord): Promise<WorkflowJobWithRelations | null> => {
@@ -27,6 +32,11 @@ export const processRecord = async (record: SQSRecord): Promise<WorkflowJobWithR
 
     if (isOrgMemberSyncTask(message)) {
         await syncOrgMembers(message.installationId, message.accountLogin);
+        return null;
+    }
+
+    if (isSlackLookupTask(message)) {
+        await linkIntegrationMembers(message.teamId, message.integrationId);
         return null;
     }
 
