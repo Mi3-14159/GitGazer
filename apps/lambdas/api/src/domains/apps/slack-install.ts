@@ -3,7 +3,7 @@ import {mintSignedState, verifySignedState} from '@/domains/auth/auth.controller
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {buildStateCookie} from '@/shared/helpers/cookies';
 import {BadRequestError, ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
-import {buildInstallUrl, exchangeInstallCode, revokeToken} from '@gitgazer/backend-core/clients/slack.client';
+import {buildInstallUrl, exchangeInstallCode, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {sendSlackLookupTask} from '@gitgazer/backend-core/clients/sqs.client';
 import config from '@gitgazer/backend-core/config';
 import {encryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
@@ -68,7 +68,7 @@ const install = async (params: {code: string; integrationId: string; userId: num
         try {
             await revokeToken(installation.botToken);
         } catch (error) {
-            logger.error('Failed to revoke the token of a rejected org-wide Slack install', {error, integrationId});
+            logger.error('Failed to revoke the token of a rejected org-wide Slack install', {reason: slackErrorReason(error), integrationId});
         }
         return 'enterprise';
     }
@@ -144,7 +144,7 @@ export const completeSlackInstall = async (params: {
         try {
             outcome = await install({code, integrationId, userId, integrationIds});
         } catch (error) {
-            logger.error('Slack install failed', {error, integrationId});
+            logger.error('Slack install failed', {reason: slackErrorReason(error), integrationId});
             outcome = 'failed';
         }
     }

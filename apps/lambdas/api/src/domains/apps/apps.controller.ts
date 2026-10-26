@@ -2,7 +2,7 @@ import {getGithubSettings, installGithubApp} from '@/domains/apps/github-setting
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
 import {ConflictError} from '@/shared/errors';
 import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
-import {listChannels, revokeToken} from '@gitgazer/backend-core/clients/slack.client';
+import {listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
@@ -307,7 +307,7 @@ const releaseWorkspaceIfUnused = async (integrationId: string, teamId: string): 
     try {
         await revokeToken(await decryptToken(released.botTokenCiphertext));
     } catch (error) {
-        getLogger().error('Failed to revoke the Slack bot token', {error, integrationId});
+        getLogger().error('Failed to revoke the Slack bot token', {reason: slackErrorReason(error), integrationId});
     }
 };
 

@@ -100,7 +100,8 @@ vi.mock('@gitgazer/backend-services/slack/workspaces', () => ({
 
 const mockListChannels = vi.fn();
 const mockRevokeToken = vi.fn();
-vi.mock('@gitgazer/backend-core/clients/slack.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-core/clients/slack.client')>()),
     listChannels: (...args: unknown[]) => mockListChannels(...args),
     revokeToken: (...args: unknown[]) => mockRevokeToken(...args),
 }));

@@ -2,7 +2,7 @@ import {findInstallationId} from '../alerting/log-details';
 import {getLink, saveLookupResult, type SlackUserLink} from './link-store';
 import {loadWorkspaceForIntegration} from './workspaces';
 import {getInstallationOctokit} from '@gitgazer/backend-core/clients/github-app.client';
-import {lookupUserByEmail, SlackApiError} from '@gitgazer/backend-core/clients/slack.client';
+import {lookupUserByEmail, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {withRlsTransaction} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
@@ -47,7 +47,7 @@ export const resolveSlackUserId = async (params: {
     } catch (error) {
         getLogger().warn('Slack user lookup failed', {
             integrationId,
-            reason: error instanceof SlackApiError ? error.code : error instanceof Error ? error.name : 'UnknownError',
+            reason: slackErrorReason(error),
         });
         return link?.slackUserId ?? null;
     }

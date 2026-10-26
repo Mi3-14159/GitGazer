@@ -1,4 +1,5 @@
 import {BadRequestError, ForbiddenError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
+import {inspect} from 'node:util';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -16,7 +17,8 @@ vi.mock('@gitgazer/backend-core/config', () => ({
     },
 }));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => mocks.logger}));
-vi.mock('@gitgazer/backend-core/clients/slack.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-core/clients/slack.client')>()),
     buildSignInUrl: (state: string, nonce: string) => `https://slack.com/openid/connect/authorize?${new URLSearchParams({state, nonce})}`,
     exchangeSignInCode: mocks.exchangeSignInCode,
 }));
@@ -54,6 +56,12 @@ const callback = (overrides: {purpose?: string; stateUserId?: number; roles?: Re
 };
 
 const redirectParams = (redirectUrl: string) => Object.fromEntries(new URL(redirectUrl).searchParams);
+// inspect, not JSON.stringify: a raw Error stringifies to {} and would hide its message
+const logged = () =>
+    inspect(
+        Object.values(mocks.logger).map((fn) => fn.mock.calls),
+        {depth: 10},
+    );
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -93,9 +101,16 @@ describe('completeSlackSignIn', () => {
         expect(mocks.findSlackTeamId).toHaveBeenCalledWith(expect.anything(), 'int-1');
         expect(mocks.saveSignInLink).toHaveBeenCalledWith('T1', 4242, SLACK_USER_ID, expect.any(Date));
 
-        const logged = JSON.stringify(Object.values(mocks.logger).map((fn) => fn.mock.calls));
-        expect(logged).not.toContain(SLACK_USER_ID);
-        expect(logged).not.toContain(CODE);
+        expect(logged()).not.toContain(SLACK_USER_ID);
+        expect(logged()).not.toContain(CODE);
+    });
+
+    it('callback never logs the Slack user ID from a failed write', async () => {
+        mocks.saveSignInLink.mockRejectedValue(new Error(`Failed query: insert into slack_user_links\nparams: T1,4242,${SLACK_USER_ID}`));
+
+        expect(redirectParams((await callback()).redirectUrl)).toMatchObject({slack_error: 'failed'});
+        expect(mocks.logger.error).toHaveBeenCalled();
+        expect(logged()).not.toContain(SLACK_USER_ID);
     });
 
     it('callback rejects another workspace', async () => {

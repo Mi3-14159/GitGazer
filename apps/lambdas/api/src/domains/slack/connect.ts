@@ -1,7 +1,7 @@
 import {findSlackTeamId} from '@/domains/apps/apps.controller';
 import {mintSlackState, outcomeRedirect, verifySlackState} from '@/domains/apps/slack-install';
 import {NotFoundError} from '@aws-lambda-powertools/event-handler/http';
-import {buildSignInUrl, exchangeSignInCode} from '@gitgazer/backend-core/clients/slack.client';
+import {buildSignInUrl, exchangeSignInCode, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {blockAutoLink, saveSignInLink} from '@gitgazer/backend-services/slack/link-store';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
@@ -76,7 +76,7 @@ export const completeSlackSignIn = async (params: {
         try {
             outcome = await connect({code, integrationId, integrationIds, userId});
         } catch (error) {
-            logger.error('Slack sign-in failed', {error, integrationId});
+            logger.error('Slack sign-in failed', {reason: slackErrorReason(error), integrationId});
             outcome = 'failed';
         }
     }

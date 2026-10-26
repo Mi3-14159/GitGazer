@@ -26,6 +26,7 @@ import {
     revokeToken,
     SLACK_BOT_SCOPES,
     SlackApiError,
+    slackErrorReason,
 } from './slack.client';
 
 const reply = (body: unknown, init?: ResponseInit) => new Response(JSON.stringify(body), init);
@@ -34,6 +35,16 @@ const lastCall = () =>
 
 beforeEach(() => {
     proxyFetch.mockReset();
+});
+
+describe('slackErrorReason', () => {
+    it('reduces an error to a reason without its message', () => {
+        const queryError = Object.assign(new Error('Failed query: insert …\nparams: T1,4242,U0SECRET1'), {name: 'DrizzleQueryError'});
+
+        expect(slackErrorReason(new SlackApiError('invalid_auth'))).toBe('invalid_auth');
+        expect(slackErrorReason(queryError)).toBe('DrizzleQueryError');
+        expect(slackErrorReason('U0SECRET1')).toBe('UnknownError');
+    });
 });
 
 describe('URL builders', () => {

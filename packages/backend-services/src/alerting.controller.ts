@@ -5,7 +5,7 @@ import {createEventLogEntry} from './event-log.controller';
 import {resolveSlackUserId} from './slack/links';
 import {loadWorkspaceForIntegration, markWorkspaceDisconnected} from './slack/workspaces';
 import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
-import {isRevokedSlackError, postMessage, SlackApiError} from '@gitgazer/backend-core/clients/slack.client';
+import {isRevokedSlackError, postMessage, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import config from '@gitgazer/backend-core/config';
 import {withTimeout} from '@gitgazer/backend-core/helpers/async';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -59,7 +59,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
     let workspace: Awaited<ReturnType<typeof loadWorkspaceForIntegration>> = null;
     if (matchedTargets.some((target) => target.kind === 'slack')) {
         workspace = await loadWorkspaceForIntegration(workflowJob.integrationId).catch((error) => {
-            logger.error('Failed to load the Slack workspace', {...logIds, error});
+            logger.error('Failed to load the Slack workspace', {...logIds, reason: slackErrorReason(error)});
             return null;
         });
         if (workspace?.disconnected) workspace = null;
@@ -84,7 +84,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
                   }),
                   SENDER_LOOKUP_TIMEOUT_MS,
               ).catch((error) => {
-                  logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: errorReason(error)});
+                  logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: slackErrorReason(error)});
                   return null;
               })
             : null,
@@ -143,7 +143,7 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
                 logger.error(`Failed to send Slack message to handle ${target.handleId}`, {
                     ...logIds,
                     handleId: target.handleId,
-                    reason: errorReason(error),
+                    reason: slackErrorReason(error),
                 });
                 if (isRevokedSlackError(error)) {
                     await disconnectWorkspace(workspace.teamId, logIds, logger);
@@ -340,9 +340,6 @@ async function sendSlackNotification(
         logger.error(`Failed to send Slack notification to handle ${logContext.handleId}`, {...logContext, error});
     }
 }
-
-// Slack errors carry only Slack's code; other errors may embed request data, so only their name is logged.
-const errorReason = (error: unknown): string => (error instanceof SlackApiError ? error.code : error instanceof Error ? error.name : 'UnknownError');
 
 async function disconnectWorkspace(teamId: string, logIds: {integrationId: string; jobId: number}, logger: ReturnType<typeof getLogger>) {
     try {
