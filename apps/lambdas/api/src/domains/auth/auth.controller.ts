@@ -112,7 +112,7 @@ export const generateWsToken = (params: {userId: number; username: string; email
 };
 
 const STATE_TOKEN_TTL_SECONDS = 600; // 10 minutes — must match the state cookie Max-Age
-const COGNITO_OAUTH_SCOPE = 'email openid profile aws.cognito.signin.user.admin';
+const COGNITO_OAUTH_SCOPE = 'email openid profile';
 
 /**
  * Decoded payload carried inside the signed OAuth `state` token. `nonce` is also
