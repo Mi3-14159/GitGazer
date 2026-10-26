@@ -64,8 +64,11 @@ This supersedes the parked design on local branch `slack-mentions/design` (typed
 - The Webhook app stays available.
 - Several integrations may install the Slack app into the same workspace (the usual company setup). The installation
   and the links are shared per workspace (see "Shared workspaces").
-- GitGazer reads the signed-in user's verified GitHub email addresses for matching. The product owner added the email
-  permission to the GitHub login app.
+- GitGazer reads the signed-in user's verified GitHub email addresses at login for matching, but **never stores email
+  addresses**: it looks them up in Slack during that login and keeps only the resulting Slack user IDs. The product
+  owner added the email permission to the GitHub login app.
+- Unlinked members are prompted to connect their Slack account in one click, so they don't have to wait for their next
+  login.
 
 ## Slack app registration
 
@@ -141,41 +144,41 @@ installation belongs to the **workspace**, not to an integration:
 A link table per workspace (see "Shared workspaces"): GitHub user ID → Slack user ID, plus `source` and
 `checked_at`. Sources, defined once as an `as const` tuple:
 
-- `gitgazer_email` — a verified email of a GitGazer user, whose `users.githubId` is the GitHub account. Read at login
-  from GitHub's `/user/emails` (verified addresses only, primary first) and stored for this lookup only; never shown
-  in the UI or logged. Today login requests only `openid` (`infra/main.tf`, `var.github_oauth_scopes`) and stores just
-  the public profile email; the builder adds the `user:email` scope (or relies on the "Email addresses" permission,
-  depending on the kind of GitHub app used for login, which the builder checks) and extends the login attribute
-  endpoint. Existing users see GitHub's consent screen once more at their next login.
-- `github_profile_email` — the GitHub account's public profile email, for people who don't use GitGazer.
-- `commit_email` — the head commit's author email, used only when that commit's author is known to be the same GitHub
-  account.
+- `gitgazer_email` — found at login from one of the GitGazer user's verified GitHub emails (see "At login"). Today
+  login requests only `openid` (`infra/main.tf`, `var.github_oauth_scopes`); the login app is a GitHub OAuth App, so
+  the builder adds `user:email` to that variable and extends the login attribute endpoint to read `/user/emails`.
+  Existing users see GitHub's consent screen once more at their next login.
+- `github_profile_email` — the GitHub account's public profile email, read when needed, for people who don't use
+  GitGazer.
 - `slack_sign_in` — the person connected themselves through Sign in with Slack.
+
+Email addresses are never stored, cached or logged; they exist only in memory during the lookup. (A commit-email source
+was considered and dropped: GitGazer stores no commit emails and can't tie a commit's author to the sender's account.)
 
 A "not found" result is also stored (no Slack user, `checked_at` set) so the next alert doesn't ask Slack again.
 Automatic lookups never overwrite a `slack_sign_in` link.
 
 ### Automatic lookup
 
-For a GitHub account, try the sources in this order and stop at the first email that Slack's `users.lookupByEmail`
-resolves in the installed workspace:
+Deactivated Slack users and bots never count as matches.
 
-1. The verified emails of the GitGazer user with that `githubId`, if any, primary first.
-2. The public email from `GET /users/{login}`, read with a GitHub App installation token. Integrations without a GitHub
-   App installation (manual webhook only) skip this source.
-3. The head commit's author email from the run, only if it is not a `users.noreply.github.com` address and the commit's
-   author is that same GitHub account. GitGazer doesn't store commit emails today (only `head_commit_author_name`); if
-   the builder can't establish the author's GitHub account reliably from what GitHub sends, this source is dropped.
+**At login** (GitGazer users). The login attribute endpoint has the user's GitHub token for a moment. It reads the
+verified emails (`/user/emails`, verified only, primary first) and, for every Slack workspace used by an integration
+the user belongs to, asks `users.lookupByEmail` until one email resolves. It stores the Slack user ID with source
+`gitgazer_email`, or a "not found" for that workspace. The whole step has a time limit of about 2 seconds and never
+fails or blocks the login; anything not finished in time is simply tried again at the next login. Sessions require a
+full login at least every 7 days (`refresh_token_validity`), so an active user is linked within a week at worst.
 
-Deactivated Slack users and bots don't count as matches.
+**At send time** (everyone, for the person on the alert). If there is no usable link, read the public email from
+`GET /users/{login}` with a GitHub App installation token (integrations without a GitHub App installation skip this) and
+look it up. Store the Slack user ID with source `github_profile_email`, or "not found". A `github_profile_email` link is
+rechecked after 7 days and a "not found" after 24 hours. `gitgazer_email` links are only refreshed at the person's next
+login, and `slack_sign_in` links never automatically. A lookup that fails (timeout, rate limit) doesn't block the alert;
+it goes out without a mention, nothing is stored, and a later alert tries again.
 
-When lookups run (Claude's call):
-
-- At send time, for the person on the alert, if there is no link or the stored result is older than its refresh
-  interval: a found link is rechecked after 7 days, a "not found" after 24 hours. A lookup that fails (timeout, rate
-  limit) doesn't block the alert; it goes out without a mention and is retried on a later alert.
-- Right after install, for the integration's members not yet linked in that workspace.
-- When a member signs in to GitGazer, for that member.
+**Right after install.** For the integration's members not yet linked in that workspace, the send-time lookup (public
+profile email) runs once. Members whose public email doesn't match are linked at their next login or through the
+prompt below.
 
 Rate limits: lookups are few (one person per alert at most, cached), within `users.lookupByEmail`'s tier. The builder
 handles Slack's `429` with `Retry-After` by skipping the mention, not by waiting.
@@ -184,8 +187,10 @@ handles Slack's `429` with `Retry-After` by skipping the mention, not by waiting
 
 For people the automatic lookup misses (their Slack email differs):
 
-- **Where:** a "Connect Slack" button for the signed-in user on the integration's Members page (their own row) and on
-  the Slack app's settings. Copy explains it's for when the automatic match failed.
+- **Where:** when the integration has a Slack app and the signed-in user isn't linked in its workspace, a small prompt
+  on the integration page: "Connect your Slack account to get pinged on your failures", with a Connect Slack button
+  and a dismiss action (remembered in the browser). The same button sits on their own row on the Members page and in
+  the Slack app's settings.
 - **Flow:** Sign in with Slack (OpenID Connect) on the GitGazer Slack app, with `state` bound to the user's session and
   integration. On return, GitGazer checks that the Slack workspace is the integration's installed workspace and links
   the user's GitHub account (from their GitGazer login) to the returned Slack user ID with source `slack_sign_in`.
@@ -229,7 +234,9 @@ Offered right after install (and from the Webhook app's settings while both apps
 - **Apps tab:** Slack moves from "coming later" to installable. Its card shows the workspace name, number of channel
   handles and linked people, and a "Disconnected" state.
 - **Slack app settings:** workspace, handles (channel name, rule count, add/remove), the move offer while Webhook
-  handles for this workspace exist, linked-people count, the current user's "Connect Slack", and "Remove app".
+  handles for this workspace exist, linked-people count ("4 of 9 members linked; the others are asked to connect"),
+  the current user's "Connect Slack", and "Remove app".
+- **Connect prompt:** the unlinked-member prompt on the integration page (see "Connect Slack" link).
 - **Members tab:** Slack badge per member; the signed-in user's row has Connect/Disconnect.
 - **Rule editor:** unchanged apart from listing Slack handles under the Slack app.
 - Phone layout follows the Apps tab's existing patterns. Viewers and members see app and handle names; only admins and
@@ -251,8 +258,8 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
   tables are shared across tenants by design: no tenant policy, readable only by the app role, never granted to
   `gitgazer_mcp`, and only reachable through code paths that start from an integration whose Slack app points at
   that workspace.
-- Users' verified emails are personal data: stored only for matching, not granted to `gitgazer_mcp`, never exposed
-  through the API.
+- Email addresses (verified or public) are never stored, cached, queued or logged; they live only in memory during a
+  lookup.
 - No emails or Slack IDs in logs; log counts and booleans.
 
 ## Left to the builder
@@ -260,7 +267,6 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
 - Table and column names beyond those fixed above; whether Slack app settings and links are one table or several.
 - API route shapes for install, callbacks, channels, connect/disconnect and the move.
 - Token encryption mechanism within the constraints above.
-- Where users' verified emails are stored (column or table) and when they are refreshed (at each login is enough).
 - Exact refresh intervals if 7 days / 24 hours turn out to be awkward.
 - UI layout within the existing Apps and Members patterns.
 - Test layout, following existing tests in each package.
@@ -272,8 +278,10 @@ matched, Connect Slack, moving from webhooks, removing the app. The notification
 - A disconnected workspace writes one event-log entry per affected integration, in addition to the card state.
 - People who never log into GitGazer can be linked and pinged but have no opt-out in this version.
 - Disconnects are detected lazily on the next failed call, since there is no Events API.
-- Link refresh: 7 days for a found link, 24 hours for "not found"; lookup failures send the alert without a mention.
-- Lookup order: GitGazer email, then GitHub profile email, then commit email.
+- Login lookups get about 2 seconds and never block login; `gitgazer_email` links refresh only at login.
+- Send-time refresh: 7 days for a `github_profile_email` link, 24 hours for "not found"; lookup failures send the alert
+  without a mention.
+- The connect prompt can be dismissed per browser.
 - Members see only whether someone is linked, never the Slack ID.
 - A disconnect sticks (no automatic re-link until the person connects again).
 - Removing the Slack app deletes the integration's handles; the token is revoked and the workspace's links deleted
