@@ -99,6 +99,7 @@ describe('members controller', () => {
                     role: 'owner',
                     createdAt: new Date('2024-01-15'),
                     integrationId: 'int-1',
+                    slackLinked: false,
                     user: {
                         id: 1,
                         cognitoId: 'cog-1',
@@ -112,6 +113,7 @@ describe('members controller', () => {
                     role: 'member',
                     createdAt: new Date('2024-03-10'),
                     integrationId: 'int-1',
+                    slackLinked: false,
                     user: {
                         id: 2,
                         cognitoId: 'cog-2',

@@ -25,6 +25,7 @@
             'All handles and their webhook URLs are deleted. Notification rules that use them stop sending to them.',
             'The rules themselves are kept.',
         ],
+        slack: ['The Slack channels are removed from this integration.'],
     };
 </script>
 

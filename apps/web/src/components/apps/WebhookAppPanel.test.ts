@@ -18,7 +18,15 @@ function makeApp(handles: NotificationHandle[]): WebhookApp {
 }
 
 function handle(overrides: Partial<NotificationHandle>): NotificationHandle {
-    return {handleId: 'h-1', appId: 'app-w', name: '#ci-alerts', url: 'https://hooks.slack.com/services/T/B/X', ruleCount: 0, ...overrides};
+    return {
+        handleId: 'h-1',
+        appId: 'app-w',
+        name: '#ci-alerts',
+        url: 'https://hooks.slack.com/services/T/B/X',
+        channelName: null,
+        ruleCount: 0,
+        ...overrides,
+    };
 }
 
 function mountPanel(props: {app: WebhookApp; canManage: boolean}) {

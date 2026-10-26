@@ -1,4 +1,4 @@
-import type {VerdictKind} from '@gitgazer/db/types';
+import type {SlackBlock, SlackButton, SlackPayload, SlackText, VerdictKind} from '@gitgazer/db/types';
 import type {Verdict} from './verdict';
 
 export type SlackAlertInput = {
@@ -17,11 +17,7 @@ export type SlackAlertInput = {
     details: {summary: string | null; excerpt: string | null} | null;
 };
 
-type SlackText = {type: 'mrkdwn'; text: string; verbatim: true};
-type SlackButton = {type: 'button'; text: {type: 'plain_text'; text: string}; url: string};
-export type SlackBlock = {type: 'section'; text: SlackText} | {type: 'context'; elements: SlackText[]} | {type: 'actions'; elements: SlackButton[]};
-
-export type SlackPayload = {text: string; attachments: [{color: string; blocks: SlackBlock[]}]};
+export type {SlackBlock, SlackPayload};
 
 const MAX_MRKDWN_LENGTH = 3000;
 const COLORS: Record<VerdictKind, string> = {real: '#e01e5a', flaky: '#ecb22e', unknown: '#9e9e9e'};

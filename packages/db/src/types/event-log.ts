@@ -39,6 +39,7 @@ export type EventLogEntryMetadata = {
     newlyPending?: number;
     verdict?: VerdictKind;
     aiSummary?: boolean;
+    mentioned?: boolean;
 };
 
 export type EventLogEntryRow = typeof schema.eventLogEntries.$inferSelect;

@@ -38,7 +38,8 @@
     const installed = computed(() =>
         INTEGRATION_APP_TYPES.flatMap((type) => apps.value.filter((app) => app.type === type)).map((app) => ({app, stats: statsFor(app)})),
     );
-    const installable = computed(() => INTEGRATION_APP_TYPES.filter((type) => !apps.value.some((app) => app.type === type)));
+    // Slack stays in COMING_LATER until its panel exists.
+    const installable = computed(() => INTEGRATION_APP_TYPES.filter((type) => type !== 'slack' && !apps.value.some((app) => app.type === type)));
     const githubApp = computed(() => apps.value.find((app) => app.type === 'github'));
     const webhookApp = computed(() => apps.value.find((app) => app.type === 'webhook'));
 

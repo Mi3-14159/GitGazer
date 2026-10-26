@@ -10,6 +10,7 @@ export * from './github-app';
 export * from './members';
 export * from './metrics';
 export * from './notifications';
+export * from './slack';
 export * from './workflow-filters';
 export * from './workflows';
 

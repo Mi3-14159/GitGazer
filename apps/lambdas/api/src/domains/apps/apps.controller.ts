@@ -73,6 +73,7 @@ const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecr
         appId: h.appId,
         name: h.name,
         url: canSeeSecrets ? h.url : null,
+        channelName: null,
         ruleCount: ruleCounts.get(h.handleId) ?? 0,
     }));
 };
@@ -98,7 +99,7 @@ const loadApps = async (tx: RdsTransaction, integrationId: string, canSeeSecrets
                 createdAt,
                 settings: {secret: canSeeSecrets ? settings.secret : null, orgSyncDefaultRole: settings.orgSyncDefaultRole},
             });
-        } else {
+        } else if (app.type === 'webhook') {
             result.push({appId: app.appId, type: 'webhook', createdAt, handles: handles.filter((h) => h.appId === app.appId)});
         }
     }
@@ -115,6 +116,10 @@ export const listApps = async (params: Scope & {canSeeSecrets: boolean}): Promis
 
 export const installApp = async (params: Scope & {type: IntegrationAppType}): Promise<IntegrationApp> => {
     const {integrationId, integrationIds, type} = params;
+
+    if (type === 'slack') {
+        throw new BadRequestError('The Slack app cannot be installed yet');
+    }
 
     const app = await withRlsTransaction({
         integrationIds,
@@ -273,7 +278,7 @@ export const createHandle = async (params: Scope & {appId: string; name: string;
                 .returning({handleId: notificationHandles.handleId});
             await tx.insert(webhookHandleDetails).values({integrationId, handleId: handle.handleId, url});
 
-            return {handleId: handle.handleId, appId, name, url, ruleCount: 0};
+            return {handleId: handle.handleId, appId, name, url, channelName: null, ruleCount: 0};
         },
     });
 };
