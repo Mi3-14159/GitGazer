@@ -1,25 +1,43 @@
 import {notificationHandles, notificationRuleDestinations} from '@gitgazer/db/schema/gitgazer';
+import {sql, type SQL} from 'drizzle-orm';
+import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const selectQueue: unknown[][] = [];
 const deletedTables: unknown[] = [];
+const deleteWhere: unknown[] = [];
 const updatedTables: unknown[] = [];
 
-const chain = (result: unknown[]) => {
+// getSQL lets drizzle embed the chain as a subquery, so its condition shows up in the rendered delete
+const chain = (result: unknown[], fields?: Record<string, unknown>) => {
+    let from: unknown;
+    let condition: unknown;
     const c: any = {
-        from: () => c,
+        from: (table: unknown) => {
+            from = table;
+            return c;
+        },
         innerJoin: () => c,
-        where: () => c,
+        where: (cond: unknown) => {
+            condition = cond;
+            return c;
+        },
+        getSQL: () => sql`(select ${Object.values(fields ?? {})[0]} from ${from} where ${condition})`,
         then: (resolve: (v: unknown[]) => unknown, reject: (e: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
     };
     return c;
 };
 
 const mockTx = {
-    select: () => chain(selectQueue.shift() ?? []),
+    select: (fields?: Record<string, unknown>) => chain(selectQueue.shift() ?? [], fields),
     delete: (table: unknown) => {
         deletedTables.push(table);
-        return {where: () => Promise.resolve(undefined)};
+        return {
+            where: (condition: unknown) => {
+                deleteWhere.push(condition);
+                return Promise.resolve(undefined);
+            },
+        };
     },
     update: (table: unknown) => {
         updatedTables.push(table);
@@ -55,6 +73,7 @@ describe('slack-move', () => {
         vi.clearAllMocks();
         selectQueue.length = 0;
         deletedTables.length = 0;
+        deleteWhere.length = 0;
         updatedTables.length = 0;
         mocks.withRlsTransaction.mockImplementation(async (params: {callback: (tx: unknown) => unknown}) => params.callback(mockTx));
         mocks.listSlackChannels.mockResolvedValue([
@@ -165,6 +184,15 @@ describe('slack-move', () => {
             expect(mocks.insertSlackHandle).not.toHaveBeenCalled();
             expect(deletedTables).toEqual([notificationRuleDestinations, notificationHandles]);
             expect(updatedTables).toEqual([notificationRuleDestinations]);
+
+            const {sql: text, params} = new PgDialect().sqlToQuery(deleteWhere[0] as SQL);
+            const col = (name: string) => `"gitgazer"."notification_rule_destinations"."${name}"`;
+            expect(text).toBe(
+                `((${col('integration_id')} = $1) and (${col('handle_id')} = $2) and (${col('rule_id')} in ` +
+                    `((select ${col('rule_id')} from "gitgazer"."notification_rule_destinations" where ` +
+                    `((${col('integration_id')} = $3) and (${col('handle_id')} = $4))))))`,
+            );
+            expect(params).toEqual(['int-1', 'w1', 'int-1', 'slack-existing']);
         });
 
         it('reports when the webhook app is empty', async () => {
