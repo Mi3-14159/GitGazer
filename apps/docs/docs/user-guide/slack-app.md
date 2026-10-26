@@ -67,7 +67,7 @@ Only you can connect or disconnect your own account; admins can't link other peo
 
 ## Move From Webhooks
 
-If the integration has Webhook handles for the same Slack workspace, both the Slack app's settings and the Webhook app's settings offer **Move to channels** (also offered right after the install). The Webhook app only offers it while the integration has a connected Slack app.
+If the integration has Webhook handles for the same Slack workspace, both the Slack app's settings and the Webhook app's settings offer **Move to Slack channels** (also offered right after the install). The Webhook app only offers it while the integration has a connected Slack app.
 
 1. GitGazer lists the Webhook handles whose URL points to the installed workspace. Handles for other workspaces aren't offered.
 2. A webhook URL doesn't reveal its channel, so pick the target channel for each handle, or skip it.

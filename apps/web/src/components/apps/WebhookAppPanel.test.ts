@@ -122,9 +122,9 @@ describe('WebhookAppPanel', () => {
             await flushPromises();
 
             expect(listMoveCandidates).toHaveBeenCalledWith('int-1');
-            expect(wrapper.text()).toContain('1 Webhook handle posts to this workspace');
+            expect(wrapper.text()).toContain('1 Webhook handle posts to the Slack workspace');
 
-            await buttonByText(wrapper, 'Move to channels')!.trigger('click');
+            await buttonByText(wrapper, 'Move to Slack channels')!.trigger('click');
             await flushPromises();
             await wrapper.find('select#move-h-1').setValue('C1');
             await wrapper.find('form').trigger('submit');
@@ -140,7 +140,7 @@ describe('WebhookAppPanel', () => {
             const wrapper = mountPanel({app: makeApp([handle({})]), canManage: true, slackApp: makeSlackApp()});
             await flushPromises();
 
-            expect(buttonByText(wrapper, 'Move to channels')).toBeUndefined();
+            expect(buttonByText(wrapper, 'Move to Slack channels')).toBeUndefined();
         });
 
         it.each([
@@ -153,7 +153,7 @@ describe('WebhookAppPanel', () => {
             await flushPromises();
 
             expect(listMoveCandidates).not.toHaveBeenCalled();
-            expect(buttonByText(wrapper, 'Move to channels')).toBeUndefined();
+            expect(buttonByText(wrapper, 'Move to Slack channels')).toBeUndefined();
         });
     });
 });

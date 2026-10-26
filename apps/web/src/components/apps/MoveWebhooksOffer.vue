@@ -47,9 +47,9 @@
         />
         <div class="min-w-0 flex-1">
             <p class="font-semibold">
-                {{ candidates.length }} Webhook {{ candidates.length === 1 ? 'handle posts' : 'handles post' }} to this workspace
+                {{ candidates.length }} Webhook {{ candidates.length === 1 ? 'handle posts' : 'handles post' }} to the Slack workspace
             </p>
-            <p class="text-muted-foreground">Move them to channels here so their alerts can mention people.</p>
+            <p class="text-muted-foreground">Move them to Slack channels so their alerts can mention people.</p>
         </div>
         <Button
             variant="outline"
@@ -57,7 +57,7 @@
             class="w-full shrink-0 sm:w-auto"
             @click="moveOpen = true"
         >
-            Move to channels
+            Move to Slack channels
         </Button>
     </div>
     <MoveWebhooksDialog

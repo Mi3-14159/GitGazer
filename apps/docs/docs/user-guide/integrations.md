@@ -153,7 +153,7 @@ An app holds up to 20 handles. To get a Slack webhook URL, see [Setting Up a Sla
 
 ### Move Handles to Slack Channels
 
-If the integration also has a connected [Slack app](slack-app), the Webhook app's settings offer **Move to channels** while handles for that workspace exist. It is the same offer as in the Slack app's settings; see [Move From Webhooks](slack-app#move-from-webhooks).
+If the integration also has a connected [Slack app](slack-app), the Webhook app's settings offer **Move to Slack channels** while handles for that workspace exist. It is the same offer as in the Slack app's settings; see [Move From Webhooks](slack-app#move-from-webhooks).
 
 ### Edit or Delete a Handle
 
