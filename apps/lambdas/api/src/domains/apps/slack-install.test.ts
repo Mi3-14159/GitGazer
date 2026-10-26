@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     releaseWorkspaceIfUnused: vi.fn(),
     withRlsTransaction: vi.fn(),
     inserted: [] as {table: unknown; values: unknown}[],
+    storedWorkspaces: [] as unknown[],
     upserts: [] as {table: unknown; values: unknown; set: unknown}[],
 }));
 
@@ -50,7 +51,8 @@ vi.mock('@gitgazer/db/client', () => {
             });
         },
     });
-    return {db: {insert}, withRlsTransaction: (params: {callback: (tx: unknown) => unknown}) => mocks.withRlsTransaction(params, {insert})};
+    const select = () => ({from: () => ({where: () => Promise.resolve(mocks.storedWorkspaces)})});
+    return {db: {insert, select}, withRlsTransaction: (params: {callback: (tx: unknown) => unknown}) => mocks.withRlsTransaction(params, {insert})};
 });
 
 import {mintSignedState, verifySignedState} from '@/domains/auth/auth.controller';
@@ -109,6 +111,7 @@ describe('completeSlackInstall', () => {
         vi.clearAllMocks();
         mocks.inserted.length = 0;
         mocks.upserts.length = 0;
+        mocks.storedWorkspaces = [];
         mocks.exchangeInstallCode.mockResolvedValue(installation);
         mocks.encryptToken.mockResolvedValue('ciphertext');
         mocks.findSlackTeamId.mockResolvedValue(undefined);
@@ -155,7 +158,7 @@ describe('completeSlackInstall', () => {
         expect(mocks.inserted).toHaveLength(0);
     });
 
-    it('callback rejects a second workspace for the same integration', async () => {
+    it('callback rejects a second workspace for the same integration and revokes its unused token', async () => {
         mocks.findSlackTeamId.mockResolvedValue('T-OTHER');
 
         const {redirectUrl} = await callback();
@@ -163,6 +166,16 @@ describe('completeSlackInstall', () => {
         expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'workspace_mismatch'});
         expect(mocks.upserts).toHaveLength(0);
         expect(mocks.inserted).toHaveLength(0);
+        expect(mocks.revokeToken).toHaveBeenCalledWith(BOT_TOKEN);
+    });
+
+    it('callback keeps the token on a workspace mismatch when GitGazer already holds that workspace', async () => {
+        mocks.findSlackTeamId.mockResolvedValue('T-OTHER');
+        mocks.storedWorkspaces = [{teamId: 'T1'}];
+
+        const {redirectUrl} = await callback();
+
+        expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'workspace_mismatch'});
         expect(mocks.revokeToken).not.toHaveBeenCalled();
     });
 

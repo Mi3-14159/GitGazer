@@ -12,6 +12,7 @@ import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationAppSlackSettings, integrationApps, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
 import {hasRole, type MemberRole} from '@gitgazer/db/types';
+import {eq} from 'drizzle-orm';
 
 export type SlackState = {purpose: 'slack_install' | 'slack_sign_in'; integrationId: string; userId: number; redirect_url: string};
 
@@ -59,23 +60,32 @@ export const buildSlackInstallRedirect = (params: {
     return {location: buildInstallUrl(token), stateCookie};
 };
 
+const revokeUnusedToken = async (botToken: string, integrationId: string): Promise<void> => {
+    try {
+        await revokeToken(botToken);
+    } catch (error) {
+        getLogger().error('Failed to revoke an unused Slack token', {reason: slackErrorReason(error), integrationId});
+    }
+};
+
 const install = async (params: {code: string; integrationId: string; userId: number; integrationIds: string[]}): Promise<InstallOutcome> => {
     const {code, integrationId, userId, integrationIds} = params;
     const logger = getLogger();
 
     const installation = await exchangeInstallCode(code);
     if (installation.isEnterpriseInstall) {
-        try {
-            await revokeToken(installation.botToken);
-        } catch (error) {
-            logger.error('Failed to revoke the token of a rejected org-wide Slack install', {reason: slackErrorReason(error), integrationId});
-        }
+        await revokeUnusedToken(installation.botToken, integrationId);
         return 'enterprise';
     }
 
     const {teamId} = installation;
     const currentTeamId = await withRlsTransaction({integrationIds, callback: (tx: RdsTransaction) => findSlackTeamId(tx, integrationId)});
     if (currentTeamId && currentTeamId !== teamId) {
+        // A workspace GitGazer already holds got its stored bot token back; revoking it would cut off every integration on it
+        const [stored] = await db.select({teamId: slackWorkspaces.teamId}).from(slackWorkspaces).where(eq(slackWorkspaces.teamId, teamId));
+        if (!stored) {
+            await revokeUnusedToken(installation.botToken, integrationId);
+        }
         return 'workspace_mismatch';
     }
 
