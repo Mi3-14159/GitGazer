@@ -67,27 +67,10 @@ export async function sendWorkflowJobAlerts(workflowJob: WorkflowJobWithRelation
     }
     const targets = workspace ? matchedTargets : matchedTargets.filter((target) => target.kind === 'webhook');
 
-    const sender = workflowJob.sender;
     const [verdict, pullRequest, senderSlackUserId] = await Promise.all([
         computeVerdict(workflowJob),
         findPullRequest(workflowJob),
-        workspace && sender?.id && sender.type === 'User'
-            ? withTimeout(
-                  resolveSlackUserId({
-                      teamId: workspace.teamId,
-                      botToken: workspace.botToken,
-                      integrationId: workflowJob.integrationId,
-                      githubUserId: sender.id,
-                      githubLogin: sender.login,
-                      // An empty owner would match no installation; null lets the lookup use any of them.
-                      ownerLogin: context.ownerLogin || null,
-                  }),
-                  SENDER_LOOKUP_TIMEOUT_MS,
-              ).catch((error) => {
-                  logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: slackErrorReason(error)});
-                  return null;
-              })
-            : null,
+        findSenderSlackUserId(workflowJob, workspace, context.ownerLogin, logIds, logger),
     ]);
     let slackAttempted = false;
 
@@ -340,6 +323,34 @@ async function sendSlackNotification(
         logger.info(`Successfully sent alert to Slack handle ${logContext.handleId}`, logContext);
     } catch (error) {
         logger.error(`Failed to send Slack notification to handle ${logContext.handleId}`, {...logContext, error});
+    }
+}
+
+async function findSenderSlackUserId(
+    workflowJob: WorkflowJobWithRelations,
+    workspace: {teamId: string; botToken: string} | null,
+    ownerLogin: string,
+    logIds: {integrationId: string; jobId: number},
+    logger: ReturnType<typeof getLogger>,
+): Promise<string | null> {
+    const sender = workflowJob.sender;
+    if (!workspace || !sender?.id || sender.type !== 'User') return null;
+    try {
+        return await withTimeout(
+            resolveSlackUserId({
+                teamId: workspace.teamId,
+                botToken: workspace.botToken,
+                integrationId: workflowJob.integrationId,
+                githubUserId: sender.id,
+                githubLogin: sender.login,
+                // An empty owner would match no installation; null lets the lookup use any of them.
+                ownerLogin: ownerLogin || null,
+            }),
+            SENDER_LOOKUP_TIMEOUT_MS,
+        );
+    } catch (error) {
+        logger.warn('Slack sender lookup gave up, sending without a mention', {...logIds, reason: slackErrorReason(error)});
+        return null;
     }
 }
 
