@@ -12,7 +12,7 @@
     import {useIntegrationApps} from '@/composables/useIntegrationApps';
     import {hasRole, INTEGRATION_APP_TYPES, type IntegrationApp, type IntegrationAppType, type IntegrationWithRole} from '@common/types';
     import {computed, onMounted, shallowRef} from 'vue';
-    import {useRoute, useRouter} from 'vue-router';
+    import {useRoute, useRouter, type RouteLocationNamedRaw} from 'vue-router';
 
     const props = defineProps<{
         integration: IntegrationWithRole;
@@ -30,7 +30,7 @@
     const apps = shallowRef<IntegrationApp[]>([]);
     const isLoading = shallowRef(true);
     const loadError = shallowRef<string | null>(null);
-    const selectedType = shallowRef<IntegrationAppType | null>(null);
+    const selectedType = computed(() => (route.params.app as IntegrationAppType | undefined) ?? null);
     const installing = shallowRef<IntegrationAppType | null>(null);
     const installError = shallowRef<string | null>(null);
     const installNotice = shallowRef<string | null>(null);
@@ -83,6 +83,18 @@
         ];
     }
 
+    // The open app lives in the URL so a panel can be linked to
+    function appLocation(type: IntegrationAppType | null): RouteLocationNamedRaw {
+        const integrationId = props.integration.integrationId;
+        return type
+            ? {name: 'integration-app', params: {integrationId, tab: 'apps', app: type}}
+            : {name: 'integration', params: {integrationId, tab: 'apps'}};
+    }
+
+    function selectApp(type: IntegrationAppType | null) {
+        router.push(appLocation(type));
+    }
+
     function panelId(type: IntegrationAppType): string {
         return `app-panel-${type}`;
     }
@@ -110,13 +122,14 @@
     function showSlackInstallOutcome() {
         const {slack, slack_error: slackError, ...query} = route.query;
         if (slack === undefined && slackError === undefined) return;
+        let app = selectedType.value;
         if (slack === 'installed') {
             installNotice.value = 'Slack app installed.';
-            selectedType.value = 'slack';
+            app = 'slack';
         } else if (slackError !== undefined) {
             installError.value = SLACK_INSTALL_ERRORS[String(slackError)] ?? 'Installing the Slack app failed. Try again.';
         }
-        router.replace({query});
+        router.replace({...appLocation(app), query});
     }
 
     onMounted(() => {
@@ -125,7 +138,7 @@
     });
 
     function toggle(type: IntegrationAppType) {
-        selectedType.value = selectedType.value === type ? null : type;
+        selectApp(selectedType.value === type ? null : type);
     }
 
     async function install(type: IntegrationAppType) {
@@ -143,7 +156,7 @@
             }
             await installApp(props.integration.integrationId, type);
             await loadApps();
-            selectedType.value = type;
+            selectApp(type);
         } catch (e) {
             installError.value = errorMessage(e, 'Failed to install the app');
         } finally {
@@ -165,7 +178,7 @@
         try {
             await uninstallApp(props.integration.integrationId, app.appId);
             showUninstall.value = false;
-            selectedType.value = null;
+            selectApp(null);
             await loadApps();
             if (app.type === 'github') emit('integration-changed');
         } catch (e) {
