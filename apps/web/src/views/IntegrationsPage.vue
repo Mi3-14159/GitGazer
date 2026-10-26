@@ -1,6 +1,4 @@
 <script setup lang="ts">
-    import {GITHUB_APP_INSTALL_URL} from '@/components/apps/appCatalog';
-    import GitHubIcon from '@/components/icons/GitHubIcon.vue';
     import GitHubAppLinkDialog from '@/components/integrations/GitHubAppLinkDialog.vue';
     import IntegrationDetailsCard from '@/components/integrations/IntegrationDetailsCard.vue';
     import PageHeader from '@/components/PageHeader.vue';
@@ -11,7 +9,7 @@
     import {useIntegrationCrud} from '@/composables/useIntegrationCrud';
     import {formatDate, formatTimeSince} from '@/utils/formatDate';
     import {hasRole, type IntegrationWithRole} from '@common/types';
-    import {ChevronRight, ExternalLink, Plug, Plus} from '@lucide/vue';
+    import {ChevronRight, Plug, Plus} from '@lucide/vue';
     import {onMounted} from 'vue';
     import {RouterLink, useRoute, useRouter} from 'vue-router';
 
@@ -70,16 +68,6 @@
         class="space-y-4 p-4"
     >
         <PageHeader description="Open an integration to manage its apps, members and settings">
-            <a
-                :href="GITHUB_APP_INSTALL_URL"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-xs font-medium h-8 border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-                <GitHubIcon class="h-4 w-4" />
-                Install GitHub App
-                <ExternalLink class="h-3 w-3" />
-            </a>
             <Button
                 size="sm"
                 @click="openCreate"

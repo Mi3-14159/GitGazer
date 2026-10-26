@@ -28,9 +28,9 @@
     const selectedIntegrationId = ref('');
     const newIntegrationLabel = ref('');
 
-    // Filter to integrations that don't already have a GitHub App linked
+    // The backend only links to an integration that has the GitHub app and no installation yet
     const availableIntegrations = computed(() =>
-        props.integrations.filter((int) => !int.githubAppInstallations || int.githubAppInstallations.length === 0),
+        props.integrations.filter((int) => int.apps.some((app) => app.type === 'github') && int.githubAppInstallations.length === 0),
     );
 
     // Reset state when dialog opens
@@ -154,7 +154,7 @@
                                     v-else
                                     class="text-sm text-muted-foreground pt-2"
                                 >
-                                    No available integrations. All existing integrations already have a GitHub App linked.
+                                    No available integrations. An integration needs the GitHub app and no linked installation.
                                 </p>
                             </div>
                         </div>

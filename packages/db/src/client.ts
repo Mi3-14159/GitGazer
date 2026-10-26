@@ -48,6 +48,8 @@ function initializeRdsProxy(): void {
         password: () => _signer!.getAuthToken(),
         ssl: {rejectUnauthorized: false},
         max: 1,
+        // Fail fast instead of hanging until the Lambda timeout when the only connection is held, e.g. by an open transaction
+        connectionTimeoutMillis: 5000,
         idleTimeoutMillis: 10 * 60 * 1000, // recycle idle connections before IAM token expiry (15 min)
     });
 

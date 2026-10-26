@@ -117,7 +117,7 @@ const createIntegration = async (label: string, ownerId: number): Promise<Integr
 
         // Fetch the created integration with relations
         const fullIntegrations = await getIntegrations({integrationIds: [insertedIntegration.integrationId]});
-        const created = fullIntegrations[0] ?? {...insertedIntegration, githubAppInstallations: []};
+        const created = fullIntegrations[0] ?? {...insertedIntegration, githubAppInstallations: [], apps: [{type: 'github' as const}]};
 
         await createEventLogEntry({
             integrationId: insertedIntegration.integrationId,
