@@ -1,6 +1,7 @@
 import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {linkAtLogin} from '@gitgazer/backend-services/slack/login-links';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
 import {createHash, timingSafeEqual} from 'crypto';
 
@@ -153,6 +154,26 @@ export const fetchGitHubUser = async (authorizationHeader: string): Promise<{sta
     }
 
     const user = await response.json();
+
+    // Best effort and time-boxed: linkAtLogin never throws, so the response to Cognito stays unchanged.
+    await linkAtLogin(user.id, async () => {
+        const emailsResponse = await proxyFetch('https://api.github.com/user/emails', {
+            method: 'GET',
+            headers: {
+                authorization: authorizationHeader,
+                accept: 'application/json',
+            },
+        });
+        if (!emailsResponse.ok) {
+            getLogger().warn('Failed to fetch GitHub user emails', {status: emailsResponse.status});
+            return [];
+        }
+        const emails = (await emailsResponse.json()) as {email: string; primary: boolean; verified: boolean}[];
+        return emails
+            .filter((e) => e.verified)
+            .sort((a, b) => Number(b.primary) - Number(a.primary))
+            .map((e) => e.email.toLowerCase());
+    });
 
     return {
         status: response.status,
