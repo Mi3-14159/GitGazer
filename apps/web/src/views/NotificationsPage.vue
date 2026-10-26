@@ -131,7 +131,7 @@
         for (const result of results) {
             if (result.status !== 'fulfilled') continue;
             for (const app of result.value) {
-                if (app.type !== 'webhook') continue;
+                if (!('handles' in app)) continue;
                 for (const handle of app.handles) names[handle.handleId] = handle.name;
             }
         }

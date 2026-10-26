@@ -23,9 +23,13 @@ vi.mock('@/composables/useIntegration', () => ({
     }),
 }));
 
+let selfLinked = false;
 vi.mock('@/composables/useMembers', () => ({
     useMembers: () => ({
-        getMembers: vi.fn(async () => [{userId: 1, role: 'owner', createdAt: '', user: {name: 'Ada', email: 'ada@example.com'}}]),
+        getMembers: vi.fn(async () => [
+            {userId: 1, role: 'owner', createdAt: '', slackLinked: selfLinked, user: {name: 'Ada', email: 'ada@example.com'}},
+            {userId: 2, role: 'member', createdAt: '', slackLinked: false, user: {name: 'Grace', email: 'grace@example.com'}},
+        ]),
         getInvitations: vi.fn(async () => []),
         leaveIntegration: vi.fn(),
     }),
@@ -35,10 +39,28 @@ vi.mock('@/composables/useGithubApp', () => ({
     useGithubApp: () => ({linkInstallation: vi.fn(), unlinkInstallation: vi.fn(), updateWebhookEvents: vi.fn()}),
 }));
 
-const listApps = vi.fn(async () => []);
+const slackApp = {
+    appId: 'app-s',
+    type: 'slack',
+    createdAt: '',
+    workspace: {teamId: 'T1', teamName: 'Acme', disconnected: false},
+    handles: [],
+    linkedMemberCount: 0,
+    memberCount: 2,
+};
+
+const listApps = vi.fn(async (): Promise<unknown[]> => []);
+const connectSlack = vi.fn();
 vi.mock('@/composables/useIntegrationApps', () => ({
-    useIntegrationApps: () => ({listApps, installApp: vi.fn(), uninstallApp: vi.fn()}),
+    useIntegrationApps: () => ({listApps, installApp: vi.fn(), uninstallApp: vi.fn(), connectSlack}),
 }));
+
+vi.mock('@/composables/useAuth', () => ({
+    useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1})), fetchWithAuth: vi.fn()}),
+}));
+
+const PROMPT = 'Connect your Slack account to get pinged on your failures';
+const DISMISSED_KEY = 'gitgazer:slack-prompt-dismissed:int-1';
 
 const DEFAULT_STUBS: Record<string, Component | boolean> = {AppsTab: true, IntegrationMembers: {template: '<div data-testid="members-tab" />'}};
 
@@ -59,6 +81,10 @@ async function mountAt(path: string, stubs: Record<string, Component | boolean> 
 describe('IntegrationPage', () => {
     beforeEach(() => {
         role = 'owner';
+        selfLinked = false;
+        listApps.mockReset();
+        listApps.mockResolvedValue([]);
+        localStorage.clear();
     });
 
     it('renders Apps, Members and Settings tabs and selects the tab from the route', async () => {
@@ -78,7 +104,11 @@ describe('IntegrationPage', () => {
     });
 
     it('reloads the apps when navigating to another integration', async () => {
-        const {router: memoryRouter} = await mountAt('/integrations/int-1/apps', {GithubAppPanel: true, WebhookAppPanel: true});
+        const {router: memoryRouter} = await mountAt('/integrations/int-1/apps', {
+            GithubAppPanel: true,
+            WebhookAppPanel: true,
+            ConnectSlackPrompt: true,
+        });
         expect(listApps.mock.calls).toEqual([['int-1']]);
 
         await memoryRouter.push('/integrations/int-2/apps');
@@ -113,5 +143,72 @@ describe('IntegrationPage', () => {
         expect(names).toContain('Rename');
         expect(names).toContain('Delete');
         expect(names).not.toContain('Leave');
+    });
+
+    describe('Connect Slack prompt', () => {
+        it('prompts unlinked members to connect Slack when the integration has a Slack app', async () => {
+            listApps.mockResolvedValue([slackApp]);
+            connectSlack.mockRejectedValueOnce(new Error('Your session expired. Sign in again to connect Slack.'));
+            const {wrapper} = await mountAt('/integrations/int-1/settings');
+
+            expect(wrapper.text()).toContain(PROMPT);
+            await wrapper
+                .findAll('button')
+                .find((b) => b.text() === 'Connect Slack')!
+                .trigger('click');
+            await flushPromises();
+
+            expect(connectSlack).toHaveBeenCalledWith('int-1');
+            expect(wrapper.find('[role="alert"]').text()).toContain('Sign in again');
+        });
+
+        it('no prompt when linked or without a Slack app', async () => {
+            const withoutApp = await mountAt('/integrations/int-1/settings');
+            expect(withoutApp.wrapper.text()).not.toContain(PROMPT);
+
+            listApps.mockResolvedValue([{...slackApp, workspace: {...slackApp.workspace, disconnected: true}}]);
+            const disconnected = await mountAt('/integrations/int-1/settings');
+            expect(disconnected.wrapper.text()).not.toContain(PROMPT);
+
+            listApps.mockResolvedValue([slackApp]);
+            selfLinked = true;
+            const linked = await mountAt('/integrations/int-1/settings');
+            expect(linked.wrapper.text()).not.toContain(PROMPT);
+        });
+
+        it('dismissing hides the prompt in this browser', async () => {
+            listApps.mockResolvedValue([slackApp]);
+            const first = await mountAt('/integrations/int-1/settings');
+            await first.wrapper
+                .findAll('button')
+                .find((b) => b.text() === 'Dismiss')!
+                .trigger('click');
+            expect(first.wrapper.text()).not.toContain(PROMPT);
+            expect(localStorage.getItem(DISMISSED_KEY)).toBe('1');
+
+            const again = await mountAt('/integrations/int-1/settings');
+            expect(again.wrapper.text()).not.toContain(PROMPT);
+        });
+
+        it('still prompts when browser storage throws', async () => {
+            listApps.mockResolvedValue([slackApp]);
+            const denied = () => {
+                throw new Error('denied');
+            };
+            const getItem = vi.fn(denied);
+            const setItem = vi.fn(denied);
+            vi.stubGlobal('localStorage', {getItem, setItem});
+            const {wrapper} = await mountAt('/integrations/int-1/settings');
+            expect(wrapper.text()).toContain(PROMPT);
+
+            await wrapper
+                .findAll('button')
+                .find((b) => b.text() === 'Dismiss')!
+                .trigger('click');
+            expect(wrapper.text()).not.toContain(PROMPT);
+            expect(getItem).toHaveBeenCalled();
+            expect(setItem).toHaveBeenCalled();
+            vi.unstubAllGlobals();
+        });
     });
 });

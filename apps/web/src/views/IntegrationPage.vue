@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import AppsTab from '@/components/apps/AppsTab.vue';
+    import ConnectSlackPrompt from '@/components/apps/ConnectSlackPrompt.vue';
     import DeleteIntegrationDialog from '@/components/integrations/DeleteIntegrationDialog.vue';
     import IntegrationSettings from '@/components/integrations/IntegrationSettings.vue';
     import LeaveIntegrationDialog from '@/components/integrations/LeaveIntegrationDialog.vue';
@@ -126,6 +127,11 @@
                 </nav>
                 <h1 class="sr-only">{{ integration.label }}</h1>
             </header>
+
+            <ConnectSlackPrompt
+                :key="integration.integrationId"
+                :integration-id="integration.integrationId"
+            />
 
             <!-- The router reuses this view across integrations; the keys below remount each tab so it loads the new one -->
             <Tabs

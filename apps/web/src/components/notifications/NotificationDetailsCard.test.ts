@@ -143,6 +143,38 @@ describe('NotificationDetailsCard handle selection', () => {
         expect(findSave(wrapper).attributes('disabled')).toBeDefined();
     });
 
+    it('rule editor lists Slack handles under the Slack app', async () => {
+        const slackApp = {
+            appId: 'app-s',
+            type: 'slack',
+            createdAt: '',
+            workspace: {teamId: 'T1', teamName: 'Acme', disconnected: false},
+            handles: [{handleId: 'h-s', appId: 'app-s', name: 'CI alerts', url: null, channelName: 'ci', ruleCount: 0}],
+            linkedMemberCount: 0,
+            memberCount: 1,
+        };
+        listApps.mockResolvedValue([webhookApp, slackApp]);
+        const onSave = vi.fn();
+        const wrapper = mountCard(undefined, onSave);
+        await wrapper.find('input[placeholder="e.g., Team Alpha CI alerts"]').setValue('Alerts');
+        await wrapper.find('select').setValue('int-1');
+        await flushPromises();
+
+        const appSelect = wrapper.find('select#notification-app');
+        expect(appSelect.findAll('option:not([disabled])').map((o) => o.text())).toEqual(['Webhook', 'Slack']);
+        await appSelect.setValue('app-s');
+        expect(
+            wrapper
+                .find('select#notification-handle')
+                .findAll('option:not([disabled])')
+                .map((o) => o.text()),
+        ).toEqual(['CI alerts']);
+
+        await wrapper.find('select#notification-handle').setValue('h-s');
+        await findSave(wrapper).trigger('click');
+        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({handleIds: ['h-s']}));
+    });
+
     it('warns when an existing rule lost its handles', async () => {
         const rule = {id: 'r1', integrationId: 'int-1', label: 'Old', rule: {topics: []}, handleIds: []} as unknown as NotificationRule;
         const wrapper = mountCard(rule);

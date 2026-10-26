@@ -11,6 +11,8 @@
         handle: NotificationHandle | null;
         saving: boolean;
         error: string | null;
+        /** Channel handles only have a name to edit. */
+        nameOnly?: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -26,7 +28,10 @@
     const urlInput = useTemplateRef<{$el: HTMLInputElement}>('urlInput');
 
     const isEditing = computed(() => props.handle !== null);
-    const title = computed(() => (isEditing.value ? 'Edit handle' : 'Add handle'));
+    const title = computed(() => {
+        if (props.nameOnly) return 'Rename handle';
+        return isEditing.value ? 'Edit handle' : 'Add handle';
+    });
 
     const touched = shallowRef(false);
 
@@ -45,7 +50,10 @@
 
     function validate(): boolean {
         nameError.value = name.value.trim() ? null : 'Enter a name.';
-        urlError.value = isAllowedWebhookUrl(url.value.trim()) ? null : 'Enter a Slack incoming webhook URL starting with https://hooks.slack.com/';
+        urlError.value =
+            props.nameOnly || isAllowedWebhookUrl(url.value.trim())
+                ? null
+                : 'Enter a Slack incoming webhook URL starting with https://hooks.slack.com/';
         return !nameError.value && !urlError.value;
     }
 
@@ -74,7 +82,13 @@
             @submit.prevent="submit"
         >
             <h3 class="text-lg font-semibold">{{ title }}</h3>
-            <p class="mt-1 text-sm text-muted-foreground">A handle is a named Slack incoming webhook that notification rules can send to.</p>
+            <p class="mt-1 text-sm text-muted-foreground">
+                {{
+                    nameOnly
+                        ? 'Notification rules list the handle by this name.'
+                        : 'A handle is a named Slack incoming webhook that notification rules can send to.'
+                }}
+            </p>
 
             <div class="mt-5 space-y-4">
                 <div class="space-y-2">
@@ -96,7 +110,10 @@
                         {{ nameError }}
                     </p>
                 </div>
-                <div class="space-y-2">
+                <div
+                    v-if="!nameOnly"
+                    class="space-y-2"
+                >
                     <Label for="handle-url">Slack webhook URL</Label>
                     <Input
                         id="handle-url"

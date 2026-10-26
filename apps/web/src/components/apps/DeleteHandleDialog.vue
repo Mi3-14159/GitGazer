@@ -24,7 +24,10 @@
     >
         <template #default="{close}">
             <h3 class="text-lg font-semibold">Delete handle “{{ handle?.name }}”?</h3>
-            <p class="mt-2 text-sm text-muted-foreground">GitGazer forgets this webhook URL. This cannot be undone.</p>
+            <p class="mt-2 text-sm text-muted-foreground">
+                {{ handle?.channelName ? `GitGazer stops posting to #${handle.channelName}.` : 'GitGazer forgets this webhook URL.' }} This cannot be
+                undone.
+            </p>
             <div
                 v-if="handle && handle.ruleCount > 0"
                 class="mt-4 flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm"
