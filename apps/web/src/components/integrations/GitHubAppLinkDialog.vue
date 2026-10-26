@@ -30,9 +30,13 @@
     const newIntegrationLabel = ref('');
 
     // The backend only links to an integration that has the GitHub app and no installation yet
-    const availableIntegrations = computed(() =>
-        props.integrations.filter((int) => int.apps.some((app) => app.type === 'github') && int.githubAppInstallations.length === 0),
-    );
+    const availableIntegrations = computed(() => {
+        const available = props.integrations.filter(
+            (int) => int.apps.some((app) => app.type === 'github') && int.githubAppInstallations.length === 0,
+        );
+        const isPreselected = (int: Integration) => int.integrationId === props.preselectedIntegrationId;
+        return [...available.filter(isPreselected), ...available.filter((int) => !isPreselected(int))];
+    });
 
     // Reset state when dialog opens
     watch(
