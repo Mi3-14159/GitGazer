@@ -1,9 +1,9 @@
 <script setup lang="ts">
+    import SlackChannelsState from '@/components/apps/SlackChannelsState.vue';
     import Button from '@/components/ui/Button.vue';
     import Dialog from '@/components/ui/Dialog.vue';
-    import Skeleton from '@/components/ui/Skeleton.vue';
     import {useIntegrationApps, type MoveCandidate, type MoveResult} from '@/composables/useIntegrationApps';
-    import type {SlackChannel} from '@common/types';
+    import {useSlackChannels} from '@/composables/useSlackChannels';
     import {ChevronDown, ExternalLink} from '@lucide/vue';
     import {computed, ref, shallowRef, watch} from 'vue';
 
@@ -22,11 +22,12 @@
 
     const SLACK_APP_MANAGEMENT_URL = 'https://slack.com/apps/manage';
 
-    const {listSlackChannels, moveWebhookHandles} = useIntegrationApps();
+    const {moveWebhookHandles} = useIntegrationApps();
+    const {channels, loading, loadError, load} = useSlackChannels(
+        () => props.integrationId,
+        () => props.appId,
+    );
 
-    const channels = shallowRef<SlackChannel[] | null>(null);
-    const loading = shallowRef(false);
-    const loadError = shallowRef<string | null>(null);
     // handleId → channelId; an empty value skips the handle
     const choices = ref<Record<string, string>>({});
     const moving = shallowRef(false);
@@ -52,18 +53,6 @@
 
     const movedNames = computed(() => result.value?.moved.map(handleName).join(', ') ?? '');
     const failedNames = computed(() => result.value?.failed.map(handleName).join(', ') ?? '');
-
-    async function load() {
-        loading.value = true;
-        loadError.value = null;
-        try {
-            channels.value = await listSlackChannels(props.integrationId, props.appId);
-        } catch (e) {
-            loadError.value = e instanceof Error ? e.message : 'Failed to load Slack channels';
-        } finally {
-            loading.value = false;
-        }
-    }
 
     watch(
         () => props.open,
@@ -187,76 +176,49 @@
                 in them.
             </p>
 
-            <div
-                v-if="loading"
-                class="mt-5 space-y-2"
-                aria-busy="true"
+            <SlackChannelsState
+                v-slot="{channels: list}"
+                :channels="channels"
+                :loading="loading"
+                :error="loadError"
+                @retry="load"
             >
-                <Skeleton class="h-9 w-full" />
-                <Skeleton class="h-9 w-full" />
-            </div>
-            <div
-                v-else-if="loadError"
-                class="mt-5 flex flex-col items-start gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-                <p
-                    role="alert"
-                    class="text-sm text-destructive"
-                >
-                    {{ loadError }}
-                </p>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    @click="load"
-                >
-                    Retry
-                </Button>
-            </div>
-            <p
-                v-else-if="channels?.length === 0"
-                class="mt-5 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground"
-            >
-                GitGazer sees no channels in this workspace yet.
-            </p>
-            <ul
-                v-else-if="channels"
-                class="mt-5 divide-y rounded-lg border"
-            >
-                <li
-                    v-for="candidate in candidates"
-                    :key="candidate.handleId"
-                    class="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
-                >
-                    <label
-                        :for="`move-${candidate.handleId}`"
-                        class="min-w-0 flex-1 text-sm"
+                <ul class="mt-5 divide-y rounded-lg border">
+                    <li
+                        v-for="candidate in candidates"
+                        :key="candidate.handleId"
+                        class="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
                     >
-                        <span class="block truncate font-medium">{{ candidate.name }}</span>
-                        <span class="text-muted-foreground">{{ candidate.ruleCount }} {{ candidate.ruleCount === 1 ? 'rule' : 'rules' }}</span>
-                    </label>
-                    <div class="relative sm:w-48">
-                        <select
-                            :id="`move-${candidate.handleId}`"
-                            v-model="choices[candidate.handleId]"
-                            class="flex h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-input-background px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        <label
+                            :for="`move-${candidate.handleId}`"
+                            class="min-w-0 flex-1 text-sm"
                         >
-                            <option value="">Skip</option>
-                            <option
-                                v-for="channel in channels"
-                                :key="channel.id"
-                                :value="channel.id"
+                            <span class="block truncate font-medium">{{ candidate.name }}</span>
+                            <span class="text-muted-foreground">{{ candidate.ruleCount }} {{ candidate.ruleCount === 1 ? 'rule' : 'rules' }}</span>
+                        </label>
+                        <div class="relative sm:w-48">
+                            <select
+                                :id="`move-${candidate.handleId}`"
+                                v-model="choices[candidate.handleId]"
+                                class="flex h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-input-background px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
-                                #{{ channel.name }}{{ channel.isPrivate ? ' (private)' : '' }}
-                            </option>
-                        </select>
-                        <ChevronDown
-                            class="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                    </div>
-                </li>
-            </ul>
+                                <option value="">Skip</option>
+                                <option
+                                    v-for="channel in list"
+                                    :key="channel.id"
+                                    :value="channel.id"
+                                >
+                                    #{{ channel.name }}{{ channel.isPrivate ? ' (private)' : '' }}
+                                </option>
+                            </select>
+                            <ChevronDown
+                                class="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                        </div>
+                    </li>
+                </ul>
+            </SlackChannelsState>
 
             <p
                 v-if="moveError"

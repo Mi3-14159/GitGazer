@@ -135,7 +135,9 @@
         try {
             if (type === 'slack') {
                 // A long Slack consent screen can outlast the access token the callback needs.
-                await refreshSession();
+                if (!(await refreshSession())) {
+                    throw new Error('Your session expired. Sign in again to install the Slack app.');
+                }
                 window.location.assign(slackInstallUrl(props.integration.integrationId, window.location.origin + window.location.pathname));
                 return;
             }

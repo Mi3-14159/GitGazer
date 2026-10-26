@@ -68,6 +68,7 @@ describe('MoveWebhooksDialog', () => {
         expect(wrapper.text()).toContain('Deploys → #deploys');
         expect(wrapper.find('[role="alert"]').text()).toContain('Nightly');
         expect(wrapper.emitted('moved')).toHaveLength(1);
+        expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('Remove Webhook app');
     });
 
     it('keeps the choices and shows the error when the move fails', async () => {

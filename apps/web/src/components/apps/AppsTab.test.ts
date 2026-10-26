@@ -87,6 +87,19 @@ describe('AppsTab', () => {
         assign.mockRestore();
     });
 
+    it('install stops with an error when the session cannot be refreshed', async () => {
+        refreshSession.mockResolvedValueOnce(false);
+        const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+        const {wrapper} = await mountTab('admin');
+
+        await wrapper.find('button[aria-label="Install Slack"]').trigger('click');
+        await flushPromises();
+
+        expect(assign).not.toHaveBeenCalled();
+        expect(wrapper.find('[role="alert"]').text()).toContain('Your session expired');
+        assign.mockRestore();
+    });
+
     it('shows installed/error feedback from the query', async () => {
         const installed = await mountTab('admin', '/integrations/int-1/apps?slack=installed&keep=1');
         expect(installed.wrapper.find('[role="status"]').text()).toContain('Slack app installed');
