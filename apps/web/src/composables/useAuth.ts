@@ -142,5 +142,6 @@ export const useAuth = () => {
         signIn,
         signOut,
         fetchWithAuth,
+        refreshSession,
     };
 };

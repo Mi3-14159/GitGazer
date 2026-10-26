@@ -36,13 +36,6 @@ export const APP_INFO: Record<IntegrationAppType, AppInfo> = {
     },
 };
 
-export const COMING_LATER: AppInfo[] = [
-    {
-        name: 'Slack',
-        description: 'Ping the person behind a failure',
-        icon: MessageSquare,
-        tone: {chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-400', border: 'border-amber-500/40'},
-    },
-];
+export const COMING_LATER: AppInfo[] = [];
 
 export const GITHUB_APP_INSTALL_URL = 'https://github.com/apps/gitgazer-integration/installations/new';

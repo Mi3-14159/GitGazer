@@ -1,6 +1,6 @@
 import {useAuth} from '@/composables/useAuth';
 import {parseApiResponse} from '@/utils/apiResponse';
-import type {IntegrationApp, IntegrationAppType, NotificationHandle} from '@common/types';
+import type {IntegrationApp, IntegrationAppType, NotificationHandle, SlackChannel} from '@common/types';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
 
@@ -55,6 +55,33 @@ export const useIntegrationApps = () => {
         return parseApiResponse<NotificationHandle>(response);
     };
 
+    const slackInstallUrl = (integrationId: string, redirectUrl: string): string =>
+        `${API_ENDPOINT}/integrations/${integrationId}/apps/slack/install?redirect_url=${encodeURIComponent(redirectUrl)}`;
+
+    const listSlackChannels = async (integrationId: string, appId: string): Promise<SlackChannel[]> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}/slack/channels`);
+        if (!response.ok) {
+            throw await failure(response, 'Failed to load Slack channels');
+        }
+        return parseApiResponse<SlackChannel[]>(response);
+    };
+
+    const createSlackHandle = async (
+        integrationId: string,
+        appId: string,
+        input: {channelId: string; name?: string},
+    ): Promise<NotificationHandle> => {
+        const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/apps/${appId}/handles`, {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify(input),
+        });
+        if (!response.ok) {
+            throw await failure(response, 'Failed to add channel');
+        }
+        return parseApiResponse<NotificationHandle>(response);
+    };
+
     const updateHandle = async (integrationId: string, handleId: string, input: {name?: string; url?: string}): Promise<NotificationHandle> => {
         const response = await fetchWithAuth(`${API_ENDPOINT}/integrations/${integrationId}/handles/${handleId}`, {
             method: 'PATCH',
@@ -74,5 +101,5 @@ export const useIntegrationApps = () => {
         }
     };
 
-    return {listApps, installApp, uninstallApp, createHandle, updateHandle, deleteHandle};
+    return {listApps, installApp, uninstallApp, createHandle, updateHandle, deleteHandle, slackInstallUrl, listSlackChannels, createSlackHandle};
 };
