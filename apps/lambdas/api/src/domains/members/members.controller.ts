@@ -6,10 +6,10 @@ import {BadRequestError, ForbiddenError, NotFoundError} from '@aws-lambda-powert
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {invitationQueryRelations, memberQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {integrationInvitations, users} from '@gitgazer/db/schema/gitgazer';
+import {integrationAppSlackSettings, integrationInvitations, slackUserLinks, users} from '@gitgazer/db/schema/gitgazer';
 import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {MEMBER_ROLES, type CreateInvitationInput, type IntegrationInvitation, type IntegrationMember, type MemberRole} from '@gitgazer/db/types';
-import {and, eq, gt} from 'drizzle-orm';
+import {and, eq, gt, isNotNull} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -23,17 +23,30 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
 
     logger.info(`Getting members for integration ${integrationId}`);
 
-    const results = await withRlsTransaction({
+    const {members, linked} = await withRlsTransaction({
         integrationIds,
         callback: async (tx: RdsTransaction) => {
-            return await tx.query.userAssignments.findMany({
+            const members = await tx.query.userAssignments.findMany({
                 where: {integrationId},
                 with: memberQueryRelations,
             });
+            // Only the member IDs come back, never the Slack IDs; an integration without a Slack app matches nothing
+            const linked = await tx
+                .select({userId: userAssignments.userId})
+                .from(userAssignments)
+                .innerJoin(users, eq(users.id, userAssignments.userId))
+                .innerJoin(integrationAppSlackSettings, eq(integrationAppSlackSettings.integrationId, userAssignments.integrationId))
+                .innerJoin(
+                    slackUserLinks,
+                    and(eq(slackUserLinks.teamId, integrationAppSlackSettings.teamId), eq(slackUserLinks.githubUserId, users.githubId)),
+                )
+                .where(and(eq(userAssignments.integrationId, integrationId), isNotNull(slackUserLinks.slackUserId)));
+            return {members, linked};
         },
     });
 
-    return results.map((member) => ({...member, slackLinked: false}));
+    const linkedUserIds = new Set(linked.map((l) => l.userId));
+    return members.map((member) => ({...member, slackLinked: linkedUserIds.has(member.userId)}));
 };
 
 export const changeRole = async (params: {
