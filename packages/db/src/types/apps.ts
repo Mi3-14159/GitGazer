@@ -1,6 +1,7 @@
 import type {OrgSyncDefaultRole} from './members';
+import type {SlackWorkspaceSummary} from './slack';
 
-export const INTEGRATION_APP_TYPES = ['github', 'webhook'] as const;
+export const INTEGRATION_APP_TYPES = ['github', 'webhook', 'slack'] as const;
 export type IntegrationAppType = (typeof INTEGRATION_APP_TYPES)[number];
 
 export const isIntegrationAppType = (value: unknown): value is IntegrationAppType =>
@@ -13,6 +14,7 @@ export type NotificationHandle = {
     appId: string;
     name: string;
     url: string | null;
+    channelName: string | null;
     ruleCount: number;
 };
 
@@ -23,4 +25,13 @@ export type GithubAppSettings = {
 
 export type IntegrationApp =
     | {appId: string; type: 'github'; createdAt: string; settings: GithubAppSettings}
-    | {appId: string; type: 'webhook'; createdAt: string; handles: NotificationHandle[]};
+    | {appId: string; type: 'webhook'; createdAt: string; handles: NotificationHandle[]}
+    | {
+          appId: string;
+          type: 'slack';
+          createdAt: string;
+          workspace: SlackWorkspaceSummary;
+          handles: NotificationHandle[];
+          linkedMemberCount: number;
+          memberCount: number;
+      };

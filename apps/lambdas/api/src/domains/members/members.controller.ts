@@ -33,7 +33,7 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
         },
     });
 
-    return results;
+    return results.map((member) => ({...member, slackLinked: false}));
 };
 
 export const changeRole = async (params: {

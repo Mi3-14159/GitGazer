@@ -19,6 +19,10 @@ export const dbRelations = defineRelations(schema, (r) => ({
             from: [r.integrationApps.integrationId, r.integrationApps.appId],
             to: [r.integrationAppGithubSettings.integrationId, r.integrationAppGithubSettings.appId],
         }),
+        slackSettings: r.one.integrationAppSlackSettings({
+            from: [r.integrationApps.integrationId, r.integrationApps.appId],
+            to: [r.integrationAppSlackSettings.integrationId, r.integrationAppSlackSettings.appId],
+        }),
         handles: r.many.notificationHandles({
             from: [r.integrationApps.integrationId, r.integrationApps.appId],
             to: [r.notificationHandles.integrationId, r.notificationHandles.appId],
@@ -28,6 +32,10 @@ export const dbRelations = defineRelations(schema, (r) => ({
         webhookDetails: r.one.webhookHandleDetails({
             from: [r.notificationHandles.integrationId, r.notificationHandles.handleId],
             to: [r.webhookHandleDetails.integrationId, r.webhookHandleDetails.handleId],
+        }),
+        slackDetails: r.one.slackHandleDetails({
+            from: [r.notificationHandles.integrationId, r.notificationHandles.handleId],
+            to: [r.slackHandleDetails.integrationId, r.slackHandleDetails.handleId],
         }),
         destinations: r.many.notificationRuleDestinations({
             from: [r.notificationHandles.integrationId, r.notificationHandles.handleId],

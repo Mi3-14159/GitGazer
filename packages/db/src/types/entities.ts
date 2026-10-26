@@ -34,4 +34,4 @@ export type WorkflowRunWithRelations = BuildQueryResult<Schema, Schema['workflow
 export type WorkflowJobWithRelations = BuildQueryResult<Schema, Schema['workflowJobs'], {with: typeof workflowJobRelations}>;
 export type Integration = BuildQueryResult<Schema, Schema['integrations'], {with: typeof integrationsQueryRelations}>;
 export type IntegrationWithRole = Integration & {role: MemberRole};
-export type IntegrationMember = BuildQueryResult<Schema, Schema['userAssignments'], {with: typeof memberQueryRelations}>;
+export type IntegrationMember = BuildQueryResult<Schema, Schema['userAssignments'], {with: typeof memberQueryRelations}> & {slackLinked: boolean};

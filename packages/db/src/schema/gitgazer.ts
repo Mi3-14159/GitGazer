@@ -7,6 +7,7 @@ import {
     INVITATION_STATUSES,
     MEMBER_ROLES,
     ORG_SYNC_DEFAULT_ROLES,
+    SLACK_LINK_SOURCES,
     WEBSOCKET_CHANNELS,
     type EventLogEntryMetadata,
     type NotificationRuleRule,
@@ -188,6 +189,44 @@ export const integrationAppGithubSettings = gitgazerSchema
     )
     .enableRLS();
 
+// Global (no tenant RLS): one install per Slack workspace, shared by every integration that connects it.
+// Not granted to the reader/mcp roles, the bot token ciphertext must stay out of their reach.
+export const slackWorkspaces = gitgazerSchema.table('slack_workspaces', {
+    teamId: varchar('team_id', {length: 32}).primaryKey().notNull(),
+    teamName: varchar('team_name', {length: 255}).notNull(),
+    botUserId: varchar('bot_user_id', {length: 32}).notNull(),
+    botTokenCiphertext: text('bot_token_ciphertext').notNull(),
+    installedBy: bigint('installed_by', {mode: 'number'}).references(() => users.id, {onDelete: 'set null'}),
+    installedAt: timestamp('installed_at', {withTimezone: true}).notNull().defaultNow(),
+    disconnectedAt: timestamp('disconnected_at', {withTimezone: true}),
+});
+
+export const integrationAppSlackSettings = gitgazerSchema
+    .table(
+        'integration_app_slack_settings',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            appId: uuid('app_id').notNull(),
+            teamId: varchar('team_id', {length: 32})
+                .notNull()
+                .references(() => slackWorkspaces.teamId),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.appId]}),
+            foreignKey({
+                columns: [table.integrationId, table.appId],
+                foreignColumns: [integrationApps.integrationId, integrationApps.appId],
+            }).onDelete('cascade'),
+            // Deliberately not led by integrationId: serves the cross-tenant "anyone else using this workspace" check.
+            index('integration_app_slack_settings_team_idx').on(table.teamId),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
 export const notificationHandles = gitgazerSchema
     .table(
         'notification_handles',
@@ -235,6 +274,45 @@ export const webhookHandleDetails = gitgazerSchema
         ],
     )
     .enableRLS();
+
+export const slackHandleDetails = gitgazerSchema
+    .table(
+        'slack_handle_details',
+        {
+            integrationId: uuid('integration_id')
+                .notNull()
+                .references(() => integrations.integrationId, {onDelete: 'cascade'}),
+            handleId: uuid('handle_id').notNull(),
+            channelId: varchar('channel_id', {length: 32}).notNull(),
+            channelName: varchar('channel_name', {length: 255}).notNull(),
+        },
+        (table) => [
+            primaryKey({columns: [table.integrationId, table.handleId]}),
+            foreignKey({
+                columns: [table.integrationId, table.handleId],
+                foreignColumns: [notificationHandles.integrationId, notificationHandles.handleId],
+            }).onDelete('cascade'),
+            writerTenantSeparationPolicy(),
+            readerTenantSeparationPolicy(),
+        ],
+    )
+    .enableRLS();
+
+// Global (no tenant RLS), like slackWorkspaces. A null slackUserId records that the lookup found no match.
+export const slackUserLinks = gitgazerSchema.table(
+    'slack_user_links',
+    {
+        teamId: varchar('team_id', {length: 32})
+            .notNull()
+            .references(() => slackWorkspaces.teamId, {onDelete: 'cascade'}),
+        githubUserId: bigint('github_user_id', {mode: 'number'}).notNull(),
+        slackUserId: varchar('slack_user_id', {length: 32}),
+        source: varchar('source', {length: 30, enum: SLACK_LINK_SOURCES}),
+        checkedAt: timestamp('checked_at', {withTimezone: true}).notNull(),
+        autoLinkBlocked: boolean('auto_link_blocked').notNull().default(false),
+    },
+    (table) => [primaryKey({columns: [table.teamId, table.githubUserId]})],
+);
 
 export const notificationRuleDestinations = gitgazerSchema
     .table(
