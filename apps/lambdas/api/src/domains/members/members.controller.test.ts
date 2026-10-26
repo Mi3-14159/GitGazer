@@ -2,15 +2,21 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
 const mockDbTransaction = vi.fn();
+const mockDbSelect = vi.fn();
+let mockSlackTeamId: string | undefined;
 
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: (...args: any[]) => mockWithRlsTransaction(...args),
-    db: {transaction: (...args: any[]) => mockDbTransaction(...args)},
+    db: {transaction: (...args: any[]) => mockDbTransaction(...args), select: (...args: any[]) => mockDbSelect(...args)},
 }));
+
+vi.mock('@/domains/apps/apps.controller', () => ({findSlackTeamId: async () => mockSlackTeamId}));
 
 vi.mock('@gitgazer/db/schema/gitgazer', () => ({
     integrationInvitations: Symbol('integrationInvitations'),
     users: Symbol('users'),
+    integrationAppSlackSettings: Symbol('integrationAppSlackSettings'),
+    slackUserLinks: Symbol('slackUserLinks'),
 }));
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
@@ -34,9 +40,49 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
 
 let controller: typeof import('./members.controller');
 
+const membersTx = (members: unknown[], githubIds: {userId: number; githubId: number | null}[]) => {
+    const tx = {
+        findManyArgs: [] as any[],
+        tables: [] as unknown[],
+        query: {
+            userAssignments: {
+                findMany: (args: unknown) => {
+                    tx.findManyArgs.push(args);
+                    return Promise.resolve(members);
+                },
+            },
+        },
+        select: () => {
+            const chain = {
+                from: (table: unknown) => (tx.tables.push(table), chain),
+                innerJoin: (table: unknown) => (tx.tables.push(table), chain),
+                where: () => Promise.resolve(githubIds),
+            };
+            return chain;
+        },
+    };
+    return tx;
+};
+
+const masterLinks = (rows: {githubUserId: number}[]) => {
+    const read = {fields: [] as Record<string, unknown>[], tables: [] as unknown[]};
+    mockDbSelect.mockImplementation((fields: Record<string, unknown>) => {
+        read.fields.push(fields);
+        return {
+            from: (table: unknown) => {
+                read.tables.push(table);
+                return {where: () => Promise.resolve(rows)};
+            },
+        };
+    });
+    return read;
+};
+
 describe('members controller', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
+        mockDbSelect.mockReset();
+        mockSlackTeamId = undefined;
         mockSendInvitationEmail.mockResolvedValue(undefined);
         mockCreateEventLogEntry.mockResolvedValue({});
         controller = await import('./members.controller');
@@ -80,16 +126,7 @@ describe('members controller', () => {
                 },
             ];
 
-            mockWithRlsTransaction.mockImplementation(async (params) => {
-                const mockTx = {
-                    query: {
-                        userAssignments: {
-                            findMany: () => Promise.resolve(mockResult),
-                        },
-                    },
-                };
-                return params.callback(mockTx);
-            });
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(membersTx(mockResult, [])));
 
             const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1']});
 
@@ -124,6 +161,44 @@ describe('members controller', () => {
                 },
             ]);
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1']}));
+            expect(mockDbSelect).not.toHaveBeenCalled();
+        });
+
+        it('members list marks linked members and never returns Slack IDs', async () => {
+            const members = [1, 2, 3].map((userId) => ({
+                userId,
+                role: 'member',
+                createdAt: new Date('2024-01-15'),
+                integrationId: 'int-1',
+                user: {id: userId, email: null, name: `User ${userId}`, picture: null, githubLogin: `user${userId}`, lastActiveAt: null},
+            }));
+            mockSlackTeamId = 'T1';
+            const tx = membersTx(members, [
+                {userId: 1, githubId: 101},
+                {userId: 2, githubId: 202},
+                {userId: 3, githubId: null},
+            ]);
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(tx));
+            const links = masterLinks([{githubUserId: 202}]);
+            const {slackUserLinks} = await import('@gitgazer/db/schema/gitgazer');
+
+            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1']});
+
+            expect(result.map((m) => [m.userId, m.slackLinked])).toEqual([
+                [1, false],
+                [2, true],
+                [3, false],
+            ]);
+            // slack_user_links is global and revoked from the RLS roles, so only the master connection may read it
+            expect(tx.tables).not.toContain(slackUserLinks);
+            expect(links.tables).toEqual([slackUserLinks]);
+            expect(Object.keys(links.fields[0])).toEqual(['githubUserId']);
+            expect(JSON.stringify(result)).not.toContain('slackUserId');
+            // Explicit columns, so a new users column (or the GitHub ID used for the join) never reaches the browser
+            expect(tx.findManyArgs[0]).toEqual({
+                where: {integrationId: 'int-1'},
+                with: {user: {columns: {id: true, email: true, name: true, picture: true, githubLogin: true, lastActiveAt: true}}},
+            });
         });
     });
 

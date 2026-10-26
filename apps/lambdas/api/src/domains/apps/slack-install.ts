@@ -3,7 +3,7 @@ import {mintSignedState, verifySignedState} from '@/domains/auth/auth.controller
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {buildStateCookie} from '@/shared/helpers/cookies';
 import {BadRequestError, ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
-import {buildInstallUrl, exchangeInstallCode, revokeToken} from '@gitgazer/backend-core/clients/slack.client';
+import {buildInstallUrl, exchangeInstallCode, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {sendSlackLookupTask} from '@gitgazer/backend-core/clients/sqs.client';
 import config from '@gitgazer/backend-core/config';
 import {encryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
@@ -17,23 +17,46 @@ export type SlackState = {purpose: 'slack_install' | 'slack_sign_in'; integratio
 
 type InstallOutcome = 'installed' | 'enterprise' | 'workspace_mismatch' | 'failed';
 
-export const buildSlackInstallRedirect = (params: {
-    integrationId: string;
-    userId: number;
-    redirectUrl: string | undefined;
-}): {location: string; stateCookie: string} => {
+/** Mints the state for a Slack round trip, bound to the user, the integration and an allow-listed frontend URL. */
+export const mintSlackState = (
+    purpose: SlackState['purpose'],
+    params: {integrationId: string; userId: number; redirectUrl: string | undefined},
+): {token: string; nonce: string; stateCookie: string} => {
     const redirectUrl = params.redirectUrl && validateRedirectUrl(params.redirectUrl);
     if (!redirectUrl) {
         throw new BadRequestError('Invalid redirect_url parameter');
     }
 
     const {token, nonce} = mintSignedState<SlackState>({
-        purpose: 'slack_install',
+        purpose,
         integrationId: params.integrationId,
         userId: params.userId,
         redirect_url: redirectUrl,
     });
-    return {location: buildInstallUrl(token), stateCookie: buildStateCookie(nonce)};
+    return {token, nonce, stateCookie: buildStateCookie(nonce)};
+};
+
+export const verifySlackState = (purpose: SlackState['purpose'], state: string | undefined, nonce: string | null, userId: number): SlackState => {
+    const verified = verifySignedState<SlackState>(state, nonce);
+    if (!verified || verified.purpose !== purpose || verified.userId !== userId) {
+        throw new ForbiddenError('Invalid or expired OAuth state');
+    }
+    return verified;
+};
+
+export const outcomeRedirect = (redirect_url: string, outcome: string, success: string): {redirectUrl: string} => {
+    const redirectUrl = new URL(redirect_url);
+    redirectUrl.searchParams.set(outcome === success ? 'slack' : 'slack_error', outcome);
+    return {redirectUrl: redirectUrl.toString()};
+};
+
+export const buildSlackInstallRedirect = (params: {
+    integrationId: string;
+    userId: number;
+    redirectUrl: string | undefined;
+}): {location: string; stateCookie: string} => {
+    const {token, stateCookie} = mintSlackState('slack_install', params);
+    return {location: buildInstallUrl(token), stateCookie};
 };
 
 const install = async (params: {code: string; integrationId: string; userId: number; integrationIds: string[]}): Promise<InstallOutcome> => {
@@ -45,7 +68,7 @@ const install = async (params: {code: string; integrationId: string; userId: num
         try {
             await revokeToken(installation.botToken);
         } catch (error) {
-            logger.error('Failed to revoke the token of a rejected org-wide Slack install', {error, integrationId});
+            logger.error('Failed to revoke the token of a rejected org-wide Slack install', {reason: slackErrorReason(error), integrationId});
         }
         return 'enterprise';
     }
@@ -107,11 +130,7 @@ export const completeSlackInstall = async (params: {
     const {code, state, oauthStateNonce, userId, integrationIds, integrationRoles} = params;
     const logger = getLogger();
 
-    const verified = verifySignedState<SlackState>(state, oauthStateNonce);
-    if (!verified || verified.purpose !== 'slack_install' || verified.userId !== userId) {
-        throw new ForbiddenError('Invalid or expired OAuth state');
-    }
-    const {integrationId} = verified;
+    const {integrationId, redirect_url} = verifySlackState('slack_install', state, oauthStateNonce, userId);
 
     let outcome: InstallOutcome;
     const role = integrationRoles[integrationId];
@@ -125,7 +144,7 @@ export const completeSlackInstall = async (params: {
         try {
             outcome = await install({code, integrationId, userId, integrationIds});
         } catch (error) {
-            logger.error('Slack install failed', {error, integrationId});
+            logger.error('Slack install failed', {reason: slackErrorReason(error), integrationId});
             outcome = 'failed';
         }
     }
@@ -134,7 +153,5 @@ export const completeSlackInstall = async (params: {
         logger.info('Slack install not completed', {integrationId, outcome});
     }
 
-    const redirectUrl = new URL(verified.redirect_url);
-    redirectUrl.searchParams.set(outcome === 'installed' ? 'slack' : 'slack_error', outcome);
-    return {redirectUrl: redirectUrl.toString()};
+    return outcomeRedirect(redirect_url, outcome, 'installed');
 };

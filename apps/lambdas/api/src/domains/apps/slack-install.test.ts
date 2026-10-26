@@ -23,7 +23,8 @@ vi.mock('@gitgazer/backend-core/config', () => ({
     },
 }));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => mocks.logger}));
-vi.mock('@gitgazer/backend-core/clients/slack.client', () => ({
+vi.mock('@gitgazer/backend-core/clients/slack.client', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-core/clients/slack.client')>()),
     buildInstallUrl: (state: string) => `https://slack.com/oauth/v2/authorize?state=${state}`,
     exchangeInstallCode: mocks.exchangeInstallCode,
     revokeToken: mocks.revokeToken,

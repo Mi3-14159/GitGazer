@@ -2,8 +2,9 @@ export * from './mcpQuota';
 export * from './metrics';
 export * from './readonlyQuery';
 
+// Explicit columns, so a new users column never reaches the members list by accident
 export const memberQueryRelations = {
-    user: true,
+    user: {columns: {id: true, email: true, name: true, picture: true, githubLogin: true, lastActiveAt: true}},
 } as const;
 
 export const invitationQueryRelations = {

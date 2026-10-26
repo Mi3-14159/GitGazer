@@ -18,6 +18,10 @@ export class SlackApiError extends Error {
     }
 }
 
+// Slack errors carry only Slack's code; other errors (a failed query's params, say) may embed Slack IDs or secrets.
+export const slackErrorReason = (error: unknown): string =>
+    error instanceof SlackApiError ? error.code : error instanceof Error ? error.name : 'UnknownError';
+
 export const isRevokedSlackError = (error: unknown): boolean => error instanceof SlackApiError && REVOKED_ERROR_CODES.includes(error.code);
 
 type SlackCall = {token?: string; query?: Record<string, string>; form?: Record<string, string>; json?: object};
