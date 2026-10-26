@@ -44,7 +44,8 @@
         (open) => {
             if (!open) return;
             selected.value = null;
-            if (channels.value === null && !loading.value) load();
+            // Reload on every open so a channel the app was just invited to shows up.
+            load();
         },
         {immediate: true},
     );

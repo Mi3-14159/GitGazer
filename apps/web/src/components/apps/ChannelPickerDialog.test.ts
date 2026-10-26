@@ -17,7 +17,7 @@ function mountDialog() {
 
 describe('ChannelPickerDialog', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
     });
 
     it('picker explains private channels need /invite', async () => {
@@ -33,16 +33,22 @@ describe('ChannelPickerDialog', () => {
         expect(wrapper.find('label[for="channel-C1"]').text()).not.toContain('private');
     });
 
-    it('loads channels once', async () => {
-        listSlackChannels.mockResolvedValue([{id: 'C1', name: 'general', isPrivate: false}]);
+    it('loads channels on each open', async () => {
+        listSlackChannels.mockResolvedValueOnce([{id: 'C1', name: 'general', isPrivate: false}]);
+        listSlackChannels.mockResolvedValueOnce([
+            {id: 'C1', name: 'general', isPrivate: false},
+            {id: 'C2', name: 'deploys', isPrivate: true},
+        ]);
         const wrapper = mountDialog();
         await flushPromises();
+        expect(wrapper.find('input[value="C2"]').exists()).toBe(false);
+
         await wrapper.setProps({open: false});
         await wrapper.setProps({open: true});
         await flushPromises();
 
-        expect(listSlackChannels).toHaveBeenCalledTimes(1);
-        expect(wrapper.find('input[value="C1"]').exists()).toBe(true);
+        expect(listSlackChannels).toHaveBeenCalledTimes(2);
+        expect(wrapper.find('input[value="C2"]').exists()).toBe(true);
     });
 
     it('shows a load error with a retry', async () => {

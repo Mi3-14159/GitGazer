@@ -113,7 +113,7 @@
         if (slack === 'installed') {
             installNotice.value = 'Slack app installed.';
             selectedType.value = 'slack';
-        } else {
+        } else if (slackError !== undefined) {
             installError.value = SLACK_INSTALL_ERRORS[String(slackError)] ?? 'Installing the Slack app failed. Try again.';
         }
         router.replace({query});
@@ -132,13 +132,13 @@
         installing.value = type;
         installError.value = null;
         installNotice.value = null;
-        if (type === 'slack') {
-            // A long Slack consent screen can outlast the access token the callback needs.
-            await refreshSession();
-            window.location.assign(slackInstallUrl(props.integration.integrationId, window.location.origin + window.location.pathname));
-            return;
-        }
         try {
+            if (type === 'slack') {
+                // A long Slack consent screen can outlast the access token the callback needs.
+                await refreshSession();
+                window.location.assign(slackInstallUrl(props.integration.integrationId, window.location.origin + window.location.pathname));
+                return;
+            }
             await installApp(props.integration.integrationId, type);
             await loadApps();
             selectedType.value = type;
@@ -296,6 +296,7 @@
             </p>
 
             <AppCatalog
+                v-if="installable.length > 0"
                 :installable="installable"
                 :can-install="canManage"
                 :installing="installing"

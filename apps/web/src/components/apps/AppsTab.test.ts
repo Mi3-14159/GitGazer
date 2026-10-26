@@ -83,6 +83,7 @@ describe('AppsTab', () => {
         expect(slackInstallUrl).toHaveBeenCalledWith('int-1', redirectUrl);
         expect(assign).toHaveBeenCalledWith(`https://api.test/int-1/slack/install?r=${redirectUrl}`);
         expect(installApp).not.toHaveBeenCalled();
+        expect(wrapper.find('button[aria-label="Install Slack"]').attributes('disabled')).toBeUndefined();
         assign.mockRestore();
     });
 
@@ -100,5 +101,9 @@ describe('AppsTab', () => {
 
         const failed = await mountTab('admin', '/integrations/int-1/apps?slack_error=failed');
         expect(failed.wrapper.find('[role="alert"]').text()).toContain('Installing the Slack app failed');
+
+        const unknown = await mountTab('admin', '/integrations/int-1/apps?slack=other');
+        expect(unknown.wrapper.find('[role="alert"]').exists()).toBe(false);
+        expect(unknown.wrapper.find('[role="status"]').exists()).toBe(false);
     });
 });

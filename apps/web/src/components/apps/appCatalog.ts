@@ -36,6 +36,4 @@ export const APP_INFO: Record<IntegrationAppType, AppInfo> = {
     },
 };
 
-export const COMING_LATER: AppInfo[] = [];
-
 export const GITHUB_APP_INSTALL_URL = 'https://github.com/apps/gitgazer-integration/installations/new';
