@@ -1,6 +1,7 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {createHandle, deleteHandle, installApp, listApps, listSlackChannels, uninstallApp, updateHandle} from '@/domains/apps/apps.controller';
 import {buildSlackInstallRedirect} from '@/domains/apps/slack-install';
+import {listMoveCandidates, moveWebhookHandles, type WebhookMove} from '@/domains/apps/slack-move';
 import {requireRole} from '@/shared/middleware/require-role';
 import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
@@ -62,6 +63,40 @@ router.get(
             redirectUrl: (reqCtx.event as APIGatewayProxyEventV2).queryStringParameters?.redirect_url,
         });
         return new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: location, 'Set-Cookie': stateCookie}});
+    },
+);
+
+router.get(
+    '/api/integrations/:integrationId/apps/slack/move-candidates',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const candidates = await listMoveCandidates({
+            integrationId: reqCtx.params.integrationId,
+            integrationIds: reqCtx.appContext?.integrations ?? [],
+        });
+        return json(candidates);
+    },
+);
+
+router.post(
+    '/api/integrations/:integrationId/apps/slack/move',
+    [addUserIntegrationsToCtx, requireRole('admin')],
+    async (reqCtx: AppRequestContext) => {
+        const {moves} = await readBody(reqCtx);
+        const isMove = (m: unknown): m is WebhookMove =>
+            typeof m === 'object' &&
+            m !== null &&
+            typeof (m as WebhookMove).webhookHandleId === 'string' &&
+            typeof (m as WebhookMove).channelId === 'string';
+        if (!Array.isArray(moves) || !moves.every(isMove)) {
+            throw new BadRequestError('moves must be a list of webhookHandleId and channelId');
+        }
+        const result = await moveWebhookHandles({
+            integrationId: reqCtx.params.integrationId,
+            integrationIds: reqCtx.appContext?.integrations ?? [],
+            moves,
+        });
+        return json(result);
     },
 );
 
