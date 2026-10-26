@@ -59,6 +59,8 @@ If your Slack email differs from your GitHub emails, link yourself:
 - **Prompt.** While you aren't linked, the integration page shows **Connect your Slack account to get pinged on your failures**. Click **Connect Slack**, or dismiss it (remembered in your browser).
 - **Elsewhere.** The same button is on your own row in the **Members** tab and in the Slack app's settings.
 
+The button and the prompt are hidden while the Slack app is disconnected.
+
 You sign in with Slack and pick the workspace the integration uses. Connecting to a different workspace is rejected. To undo it, click **Disconnect** in the same places. A disconnect sticks: GitGazer won't link you again automatically until you connect again.
 
 Only you can connect or disconnect your own account; admins can't link other people. The Slack app's settings show how many members are linked.
@@ -69,7 +71,7 @@ If the integration has Webhook handles for the same Slack workspace, the Slack a
 
 1. GitGazer lists the Webhook handles whose URL points to the installed workspace. Handles for other workspaces aren't offered.
 2. A webhook URL doesn't reveal its channel, so pick the target channel for each handle, or skip it.
-3. Confirm. For each handle, GitGazer creates the channel handle, points its rules to it, and deletes the Webhook handle. A handle that fails stays untouched and keeps sending through its webhook.
+3. Confirm. For each handle, GitGazer creates (or reuses) the channel handle, points its rules to it, and deletes the Webhook handle. A handle that fails stays untouched and keeps sending through its webhook.
 4. GitGazer ends with a checklist of the old webhooks and a link to Slack's app management page.
 
 :::warning[Remove the old webhooks in Slack]
