@@ -18,7 +18,7 @@ GitGazer is a GitHub workflow monitoring and notification system built on AWS se
 | `infra/`                     | Infrastructure as code                        | Terraform, AWS (Lambda, API GW, RDS Aurora PG, Cognito) |
 
 The lambda apps are `api`, `websocket`, `worker`, `backfill-worker`, `org-sync-scheduler` and
-`http-proxy`. Each has a single `src/index.ts` entrypoint and builds exactly one
+`http-proxy`. Each has a single `src/index.ts` entrypoint (`api` also has `src/server.ts`, a Node HTTP server for local dev) and builds exactly one
 `dist/gitgazer-<name>.zip`, which is the S3 key Terraform reads.
 
 ### Key Conventions

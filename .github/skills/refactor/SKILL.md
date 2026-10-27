@@ -29,11 +29,11 @@ Improve code structure and readability without changing external behavior. Refac
 
 ## Project Architecture at a Glance
 
-| Area                | Stack                                          | Key Convention                                                       |
-| ------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
-| `apps/lambdas/api/` | TypeScript, Lambda, Powertools Router, Drizzle | Controller-centric domains, `withRlsTransaction`, `@/` alias imports |
-| `apps/web/`         | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite  | `<script setup>`, composables for API logic, `@/` alias imports      |
-| `packages/db/`      | Drizzle ORM, Aurora PostgreSQL                 | Shared schema, types, runtime guards, RLS helpers                    |
+| Area                | Stack                                         | Key Convention                                                       |
+| ------------------- | --------------------------------------------- | -------------------------------------------------------------------- |
+| `apps/lambdas/api/` | TypeScript, Lambda, Hono, Drizzle             | Controller-centric domains, `withRlsTransaction`, `@/` alias imports |
+| `apps/web/`         | Vue 3, Radix Vue, Tailwind CSS 4, Pinia, Vite | `<script setup>`, composables for API logic, `@/` alias imports      |
+| `packages/db/`      | Drizzle ORM, Aurora PostgreSQL                | Shared schema, types, runtime guards, RLS helpers                    |
 
 ### Import Rules (applies everywhere)
 
@@ -104,13 +104,13 @@ Every tenant-scoped database query must go through `withRlsTransaction`. The bou
 - const runs = await db.query.workflowRuns.findMany({ where: ... });
 
 # GOOD: RLS at controller boundary, tx passed down
-+ export async function getWorkflows(reqCtx: RequestContext) {
-+   const integrationIds = reqCtx.user.integrationIds;
++ workflowsRoutes.get('/api/workflows', async (c) => {
++   const integrationIds = c.var.appContext?.integrations ?? [];
 +   return withRlsTransaction(integrationIds, async (tx) => {
 +     const runs = await tx.query.workflowRuns.findMany({ /* ... */ });
-+     return runs;
++     return c.json(runs);
 +   });
-+ }
++ });
 ```
 
 ### 4. Direct AWS Client Instantiation
