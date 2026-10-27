@@ -164,7 +164,9 @@ describe('requireRole middleware (hono)', () => {
             router.get('/integrations/:integrationId', requireRole('viewer'), handler);
             const app = new Hono<AppEnv>().route('/api', router);
 
-            await testRequest(app, 'GET', '/api/integrations/int-1', {appContext: {userId: 1, username: '', email: '', name: '', nickname: '', picture: '', integrationRoles: {'int-1': 'viewer'}}});
+            await testRequest(app, 'GET', '/api/integrations/int-1', {
+                appContext: {userId: 1, username: '', email: '', name: '', nickname: '', picture: '', integrationRoles: {'int-1': 'viewer'}},
+            });
 
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
             expect(logger.debug).toHaveBeenCalledWith('authz', expect.objectContaining({action: 'GET /api/integrations/:integrationId'}));

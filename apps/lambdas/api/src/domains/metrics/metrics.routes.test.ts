@@ -61,9 +61,14 @@ describe('metrics routes', () => {
     it('GET /api/metrics/repositories narrows to the requested authorized integrations', async () => {
         mocks.listRepositories.mockResolvedValue([{id: 1}]);
 
-        const res = await testRequest(router, 'GET', `/api/metrics/repositories?integrationIds=${INTEGRATION_ID},22222222-2222-4222-8222-222222222222`, {
-            appContext,
-        });
+        const res = await testRequest(
+            router,
+            'GET',
+            `/api/metrics/repositories?integrationIds=${INTEGRATION_ID},22222222-2222-4222-8222-222222222222`,
+            {
+                appContext,
+            },
+        );
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{id: 1}]);
