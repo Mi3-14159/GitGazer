@@ -1,17 +1,18 @@
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
 import type {MetricName} from '@/domains/metrics/metrics.controller';
 import {getWidgetMetric, VALID_METRIC_NAMES} from '@/domains/metrics/metrics.controller';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
 import {listRepositories, listTopics} from '@gitgazer/db/queries/metrics';
 import type {GroupByOption} from '@gitgazer/db/types/metrics';
 import {isMetricsFilter} from '@gitgazer/db/types/metrics';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {Context} from 'hono';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-function parseMetricsFilter(event: APIGatewayProxyEventV2) {
-    const params = event.queryStringParameters ?? {};
+function parseMetricsFilter(c: Context<AppEnv>) {
+    const params = c.req.query();
     if (!isMetricsFilter(params as Record<string, unknown>)) {
         throw new BadRequestError('Invalid query parameters');
     }
@@ -35,12 +36,12 @@ function parseMetricsFilter(event: APIGatewayProxyEventV2) {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function resolveIntegrationIds(reqCtx: AppRequestContext, event: APIGatewayProxyEventV2): string[] | null {
-    const userIntegrationIds = reqCtx.appContext?.integrations ?? [];
+function resolveIntegrationIds(c: Context<AppEnv>): string[] | null {
+    const userIntegrationIds = c.var.appContext?.integrations ?? [];
     if (!userIntegrationIds.length) return null;
 
     const authorized = new Set(userIntegrationIds);
-    const params = event.queryStringParameters ?? {};
+    const params = c.req.query();
 
     // Multi-select filter: keep only valid ids the user is actually assigned to.
     if (params.integrationIds) {
@@ -63,33 +64,30 @@ function jsonResponse(body: unknown, status: number = HttpStatusCodes.OK): Respo
     });
 }
 
-router.get('/api/metrics/widget', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const integrationIds = resolveIntegrationIds(reqCtx, event);
+router.get('/api/metrics/widget', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse({message: 'No integrations found for user'});
 
-    const metricName = event.queryStringParameters?.metricName;
+    const metricName = c.req.query('metricName');
     if (!metricName || !VALID_METRIC_NAMES.has(metricName)) {
         throw new BadRequestError(`Invalid metric name. Valid values: ${[...VALID_METRIC_NAMES].join(', ')}`);
     }
 
-    const filter = parseMetricsFilter(event);
+    const filter = parseMetricsFilter(c);
     const metric = await getWidgetMetric({integrationIds, filter, metricName: metricName as MetricName});
     return jsonResponse(metric);
 });
 
-router.get('/api/metrics/repositories', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const integrationIds = resolveIntegrationIds(reqCtx, event);
+router.get('/api/metrics/repositories', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse([]);
 
     const repos = await listRepositories({integrationIds});
     return jsonResponse(repos);
 });
 
-router.get('/api/metrics/topics', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const integrationIds = resolveIntegrationIds(reqCtx, event);
+router.get('/api/metrics/topics', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse([]);
 
     const topics = await listTopics({integrationIds});

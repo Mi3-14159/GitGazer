@@ -1,14 +1,14 @@
 import {getOverview} from '@/domains/overview/overview.controller';
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
 import {parseDateFilters} from '@/shared/helpers/filters';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {AppEnv} from '@/shared/hono/env';
+import {HttpStatusCodes} from '@/shared/hono/http-errors';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get('/api/overview', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.get('/api/overview', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
     if (!integrationIds || integrationIds.length === 0) {
         return new Response(JSON.stringify({message: 'No integrations found for user'}), {
             status: HttpStatusCodes.OK,
@@ -16,10 +16,7 @@ router.get('/api/overview', [addUserIntegrationsToCtx], async (reqCtx: AppReques
         });
     }
 
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const {queryStringParameters} = event;
-
-    const filters = parseDateFilters(queryStringParameters);
+    const filters = parseDateFilters(c.req.query());
 
     const overview = await getOverview({
         integrationIds,

@@ -1,7 +1,7 @@
 import {getEventLogEntries, getEventLogStats, markAllEventLogRead, toggleEventLogRead} from '@gitgazer/backend-services/event-log.controller';
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, HttpStatusCodes, NotFoundError, Router} from '@aws-lambda-powertools/event-handler/http';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, HttpStatusCodes, NotFoundError} from '@/shared/hono/http-errors';
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,
@@ -10,14 +10,15 @@ import {
     type EventLogFilters,
     type EventLogType,
 } from '@gitgazer/db/types';
+import {Hono} from 'hono';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const params = reqCtx.event.queryStringParameters ?? {};
+router.get('/api/event-log', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    const params = c.req.query();
 
     const filters: EventLogFilters = {};
 
@@ -79,21 +80,22 @@ router.get('/api/event-log', [addUserIntegrationsToCtx], async (reqCtx: AppReque
     });
 });
 
-router.get('/api/event-log/stats', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    return await getEventLogStats({integrationIds});
+router.get('/api/event-log/stats', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    return c.json(await getEventLogStats({integrationIds}));
 });
 
-router.patch('/api/event-log/:id/read', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.patch('/api/event-log/:id/read', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    const id = c.req.param('id');
 
-    if (!UUID_RE.test(reqCtx.params.id)) {
+    if (!UUID_RE.test(id)) {
         throw new BadRequestError('Invalid event log entry ID');
     }
 
     let body;
     try {
-        body = await reqCtx.req.json();
+        body = await c.req.json();
     } catch {
         throw new BadRequestError('Invalid request body');
     }
@@ -102,7 +104,7 @@ router.patch('/api/event-log/:id/read', [addUserIntegrationsToCtx], async (reqCt
         throw new BadRequestError('Missing or invalid "read" field');
     }
 
-    const entry = await toggleEventLogRead({id: reqCtx.params.id, integrationIds, read: body.read});
+    const entry = await toggleEventLogRead({id, integrationIds, read: body.read});
     if (!entry) {
         throw new NotFoundError('Event log entry not found');
     }
@@ -115,10 +117,10 @@ router.patch('/api/event-log/:id/read', [addUserIntegrationsToCtx], async (reqCt
     });
 });
 
-router.post('/api/event-log/mark-all-read', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.post('/api/event-log/mark-all-read', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
     const count = await markAllEventLogRead({integrationIds});
-    return {updated: count};
+    return c.json({updated: count});
 });
 
 export default router;
