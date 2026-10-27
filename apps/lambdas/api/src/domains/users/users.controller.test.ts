@@ -272,7 +272,7 @@ describe('fetchGitHubUser', () => {
 
 describe('parseOAuthTokenBody (drives the route 400 guard)', () => {
     it('parses a urlencoded body and exposes the code', () => {
-        const result = parseOAuthTokenBody('grant_type=authorization_code&code=abc123', false);
+        const result = parseOAuthTokenBody('grant_type=authorization_code&code=abc123');
 
         expect(result.code).toBe('abc123');
         // users.routes.ts: !result.code === false here, so no 400 is thrown.
@@ -280,18 +280,10 @@ describe('parseOAuthTokenBody (drives the route 400 guard)', () => {
     });
 
     it('yields no code when absent, so the route guard rejects the request (400)', () => {
-        const result = parseOAuthTokenBody('grant_type=authorization_code', false);
+        const result = parseOAuthTokenBody('grant_type=authorization_code');
 
         // users.routes.ts throws BadRequestError (400) when !result.code is true.
         expect(result.code).toBeUndefined();
         expect(!result.code).toBe(true);
-    });
-
-    it('decodes a base64-encoded body', () => {
-        const encoded = Buffer.from('code=xyz789', 'utf-8').toString('base64');
-
-        const result = parseOAuthTokenBody(encoded, true);
-
-        expect(result.code).toBe('xyz789');
     });
 });

@@ -3,10 +3,7 @@ import authRoutes from '@/domains/auth/auth.routes';
 import githubAppRoutes from '@/domains/github-app/github-app.routes';
 import integrationsRoutes from '@/domains/integrations/integrations.routes';
 import mcpRoutes from '@/domains/mcp/mcp.routes';
-import membersRoutes from '@/domains/members/members.routes';
-import notificationsRoutes from '@/domains/notifications/notifications.routes';
 import slackRoutes from '@/domains/slack/slack.routes';
-import usersRoutes from '@/domains/users/users.routes';
 import importRoutes from '@/domains/webhooks/webhooks.routes';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -49,15 +46,12 @@ export const createApp = (): Router => {
     app.use(originCheck);
 
     app.includeRouter(authRoutes);
-    app.includeRouter(usersRoutes);
     app.includeRouter(githubAppRoutes);
     app.includeRouter(importRoutes);
     app.includeRouter(feFailover);
-    app.includeRouter(notificationsRoutes);
     app.includeRouter(integrationsRoutes);
     app.includeRouter(appsRoutes);
     app.includeRouter(slackRoutes);
-    app.includeRouter(membersRoutes);
     app.includeRouter(mcpRoutes);
 
     // Powertools also routes NotFoundErrors thrown by its own routes here; only unmatched requests go to Hono.

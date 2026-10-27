@@ -1,18 +1,18 @@
 import {assertCognitoCaller, exchangeGitHubOAuthToken, fetchGitHubUser, parseOAuthTokenBody} from '@/domains/users/users.controller';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, ForbiddenError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, ForbiddenError, HttpStatusCodes} from '@/shared/hono/http-errors';
 import {UserAttributes} from '@gitgazer/db/types';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
-    const {body, isBase64Encoded} = reqCtx.event as APIGatewayProxyEventV2;
+router.post('/api/auth/cognito/token', async (c) => {
+    const body = await c.req.text();
     if (!body) {
         throw new BadRequestError('Missing request body');
     }
 
-    const result = parseOAuthTokenBody(body, isBase64Encoded);
+    const result = parseOAuthTokenBody(body);
 
     // Authenticate the caller (only the Cognito IdP knows the OAuth app secret) before
     // doing any work with the request.
@@ -33,19 +33,14 @@ router.post('/api/auth/cognito/token', async (reqCtx: AppRequestContext) => {
     });
 });
 
-router.get('/api/auth/cognito/user', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const result = await fetchGitHubUser(event.headers['authorization'] ?? '');
+router.get('/api/auth/cognito/user', async (c) => {
+    const result = await fetchGitHubUser(c.req.header('authorization') ?? '');
 
-    return {
-        statusCode: result.status,
-        headers: result.headers,
-        body: result.body,
-    };
+    return new Response(result.body, {status: result.status, headers: result.headers});
 });
 
-router.get('/api/user', async (reqCtx: AppRequestContext) => {
-    const {userId, username, email, name, nickname, picture} = reqCtx.appContext!;
+router.get('/api/user', async (c) => {
+    const {userId, username, email, name, nickname, picture} = c.var.appContext!;
 
     if (!userId) {
         throw new ForbiddenError('userId is missing');
