@@ -45,10 +45,11 @@ pnpm run pretty
 ### Router Pattern
 
 - The api app is a [Hono](https://hono.dev) app built by `createApp()` in `apps/lambdas/api/src/app.ts`; `src/index.ts`
-  wraps it for API Gateway with `@hono/aws-lambda`, and `src/server.ts` serves it over HTTP
+  wraps it for API Gateway with `@hono/aws-lambda`, and `src/server.ts` serves it over HTTP, running each request
+  under its own child logger (`runWithRequestLogger`) because it serves requests concurrently
 - Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` as a `new Hono<AppEnv>()` router
   (`AppEnv` from `@/shared/hono/env`), mounted in `createApp()` with `app.route('/', <router>)`
-- Middleware chain: request logger → `compress` → `cors` → `authenticate` → `originCheck` → route handlers
+- Middleware chain: `compress` → `setContentLength` → `cors` → `authenticate` → `originCheck` → route handlers
 - Handlers read the authenticated user from `c.var.appContext`. Add `addUserIntegrationsToCtx`
   (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`, then
   `requireRole(...)` (`@/shared/middleware/require-role`) to gate a route on the `:integrationId` path parameter

@@ -1,6 +1,6 @@
 // Template: apps/lambdas/api/src/domains/<domain>/<domain>.routes.ts
 // Rename `things` / `Thing`. Register in createApp() in apps/lambdas/api/src/app.ts via app.route('/', thingsRoutes).
-// The global chain (request logger → compress → cors → authenticate → originCheck) is applied by createApp — do not re-add it.
+// The global chain (compress → setContentLength → cors → authenticate → originCheck) is applied by createApp — do not re-add it.
 
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {createThing, getThings} from '@/domains/things/things.controller';

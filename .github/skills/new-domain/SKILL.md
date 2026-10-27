@@ -41,7 +41,7 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
     app.route('/', thingsRoutes);
     ```
 
-    The global middleware chain (request logger → `compress` → `cors` → `authenticate` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
+    The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
 
 3. **Write controllers** that wrap every tenant-scoped query in `withRlsTransaction` (see the `refactor` skill for the boundary rules). Default role is reader; pass `userName: gitgazerWriter.name` for writes.
 
