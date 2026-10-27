@@ -46,7 +46,10 @@ data "aws_iam_policy_document" "api" {
       "logs:PutLogEvents",
       "logs:DescribeLogStreams",
     ]
-    resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-api-${terraform.workspace}:*"]
+    resources = [
+      "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-api-${terraform.workspace}:*",
+      "${aws_cloudwatch_log_group.api_web.arn}:*",
+    ]
   }
 
   dynamic "statement" {
@@ -159,18 +162,10 @@ resource "aws_lambda_function" "api" {
   publish           = true
   memory_size       = 256
   environment {
-    variables = {
+    variables = merge(local.api_environment, {
       AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
       OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
-      ENVIRONMENT                         = terraform.workspace
-      POWERTOOLS_LOG_LEVEL                = local.lambda_application_log_level
-      POWERTOOLS_LOGGER_LOG_EVENT         = local.lambda_enable_event_logging
-      RDS_DATABASE                        = "postgres"
-      RDS_DB_USER                         = module.db.cluster_master_username
-      RDS_HOST                            = local.database_endpoint
-      CONFIG_SECRET_ARN                   = aws_secretsmanager_secret.lambda_config.arn
-      NODE_OPTIONS                        = "--enable-source-maps"
-    }
+    })
   }
   layers = local.lambda_layers_arm64
   logging_config {

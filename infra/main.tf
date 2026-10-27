@@ -6,7 +6,7 @@ terraform {
     }
     awscc = {
       source  = "hashicorp/awscc"
-      version = "~> 1.0"
+      version = "~> 1.107"
     }
     random = {
       source  = "hashicorp/random"
@@ -62,6 +62,16 @@ locals {
   availability_zones            = coalescelist(try(var.db_config.availability_zones, []), try(module.vpc.azs, []))
   ses_domain                    = var.ses_config.domain != null ? var.ses_config.domain : var.custom_domain_config.domain_name
   monitoring_alarm_actions      = var.enable_cloudwatch_alarm_notifications ? [aws_sns_topic.cloudwatch_alarms[0].arn] : []
+  api_environment = {
+    ENVIRONMENT                 = terraform.workspace
+    POWERTOOLS_LOG_LEVEL        = local.lambda_application_log_level
+    POWERTOOLS_LOGGER_LOG_EVENT = local.lambda_enable_event_logging
+    RDS_DATABASE                = "postgres"
+    RDS_DB_USER                 = module.db.cluster_master_username
+    RDS_HOST                    = local.database_endpoint
+    CONFIG_SECRET_ARN           = aws_secretsmanager_secret.lambda_config.arn
+    NODE_OPTIONS                = "--enable-source-maps"
+  }
   monitored_lambda_alarm_config = merge({
     api = {
       function_name         = aws_lambda_function.api.function_name
@@ -93,6 +103,7 @@ locals {
   )
   monitored_lambda_log_groups = merge({
     api                = aws_cloudwatch_log_group.api.name
+    api_web            = aws_cloudwatch_log_group.api_web.name
     api_websocket      = aws_cloudwatch_log_group.api_websocket.name
     worker             = aws_cloudwatch_log_group.worker.name
     org_sync_scheduler = aws_cloudwatch_log_group.org_sync_scheduler.name
