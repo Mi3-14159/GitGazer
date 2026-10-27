@@ -13,7 +13,7 @@ vi.mock('@/domains/metrics/metrics.controller', () => ({
 }));
 vi.mock('@gitgazer/db/queries/metrics', () => ({listRepositories: mocks.listRepositories, listTopics: mocks.listTopics}));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtxHono: async (c: {var: {appContext?: {integrations?: string[]}}}, next: () => Promise<void>) => {
+    addUserIntegrationsToCtx: async (c: {var: {appContext?: {integrations?: string[]}}}, next: () => Promise<void>) => {
         c.var.appContext!.integrations = [INTEGRATION_ID];
         await next();
     },

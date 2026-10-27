@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({getNotificationRules: vi.fn(), upsertNotificati
 
 vi.mock('@/domains/notifications/notifications.controller', () => mocks);
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtxHono: async (
+    addUserIntegrationsToCtx: async (
         c: {var: {appContext?: {integrations?: string[]; integrationRoles?: Record<string, string>}}},
         next: () => Promise<void>,
     ) => {

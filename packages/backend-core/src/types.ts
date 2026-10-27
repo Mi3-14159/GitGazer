@@ -1,4 +1,3 @@
-import {RequestContext} from '@aws-lambda-powertools/event-handler/types';
 import {type MemberRole, type WebSocketChannel} from '@gitgazer/db/types';
 
 export type WebsocketConnection = {
@@ -21,8 +20,4 @@ export type AppContext = {
     integrationRoles?: Record<string, MemberRole>;
     /** Populated by requireRole middleware: the user's role for the current request's integration. */
     role?: MemberRole;
-};
-
-export type AppRequestContext = RequestContext & {
-    appContext?: AppContext;
 };

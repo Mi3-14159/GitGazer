@@ -1,191 +1,119 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
+import type {AppEnv} from '@/shared/hono/env';
+import {requireRole} from '@/shared/middleware/require-role';
+import {testRequest} from '@/shared/hono/test-request';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {requireRole} from './require-role';
+import {Hono, type Context} from 'hono';
 
 import type {MemberRole} from '@gitgazer/db/types';
 
-function makeReqCtx(opts: {integrationId?: string; integrationRoles?: Record<string, MemberRole>; userId?: number; routeKey?: string}) {
-    return {
-        params: opts.integrationId ? {integrationId: opts.integrationId} : {},
+const handler = vi.fn((c: Context<AppEnv>) => c.json({role: c.var.appContext?.role}));
+
+function callRoute(
+    minimumRole: MemberRole,
+    opts: {integrationId?: string; integrationRoles?: Record<string, MemberRole>; userId?: number; method?: string; route?: string},
+) {
+    const method = opts.method ?? 'GET';
+    const route = opts.route ?? (opts.integrationId ? '/api/test-integrations/:integrationId' : '/api/test');
+    const app = new Hono<AppEnv>();
+    app.on(method, route, requireRole(minimumRole), handler);
+
+    const path = route.replace(':integrationId', opts.integrationId ?? '').replace(':userId', '9');
+    return testRequest(app, method, path, {
         appContext: {
             userId: opts.userId ?? 1,
+            username: '',
+            email: '',
+            name: '',
+            nickname: '',
+            picture: '',
             integrationRoles: opts.integrationRoles,
         },
-        event: {
-            routeKey: opts.routeKey ?? 'GET /api/test',
-        },
-    } as any;
+    });
 }
 
-describe('requireRole middleware', () => {
-    beforeEach(() => {
-        vi.restoreAllMocks();
-    });
+async function expectRejected(res: Response, status: number, message: string) {
+    expect(res.status).toBe(status);
+    expect(await res.json()).toMatchObject({message});
+    expect(handler).not.toHaveBeenCalled();
+}
 
+describe('requireRole middleware (hono)', () => {
     it('allows owner when owner is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('owner');
+        const res = await callRoute('owner', {integrationId: 'int-1', integrationRoles: {'int-1': 'owner'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'owner'},
-        });
-
-        await middleware({reqCtx, next});
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(reqCtx.appContext.role).toBe('owner');
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(await res.json()).toEqual({role: 'owner'});
     });
 
     it('allows owner when admin is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('admin');
+        const res = await callRoute('admin', {integrationId: 'int-1', integrationRoles: {'int-1': 'owner'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'owner'},
-        });
-
-        await middleware({reqCtx, next});
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(reqCtx.appContext.role).toBe('owner');
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(await res.json()).toEqual({role: 'owner'});
     });
 
     it('allows admin when admin is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('admin');
+        const res = await callRoute('admin', {integrationId: 'int-1', integrationRoles: {'int-1': 'admin'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'admin'},
-        });
-
-        await middleware({reqCtx, next});
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(reqCtx.appContext.role).toBe('admin');
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(await res.json()).toEqual({role: 'admin'});
     });
 
     it('allows member when member is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('member');
+        const res = await callRoute('member', {integrationId: 'int-1', integrationRoles: {'int-1': 'member'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'member'},
-        });
-
-        await middleware({reqCtx, next});
-
-        expect(next).toHaveBeenCalledTimes(1);
+        expect(res.status).toBe(200);
+        expect(handler).toHaveBeenCalledTimes(1);
     });
 
     it('rejects viewer when member is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('member');
+        const res = await callRoute('member', {integrationId: 'int-1', integrationRoles: {'int-1': 'viewer'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'viewer'},
-        });
-
-        await expect(middleware({reqCtx, next})).rejects.toThrow('Insufficient permissions');
-        expect(next).not.toHaveBeenCalled();
+        await expectRejected(res, 403, 'Insufficient permissions');
     });
 
     it('rejects member when admin is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('admin');
+        const res = await callRoute('admin', {integrationId: 'int-1', integrationRoles: {'int-1': 'member'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'member'},
-        });
-
-        await expect(middleware({reqCtx, next})).rejects.toThrow('Insufficient permissions');
-        expect(next).not.toHaveBeenCalled();
+        await expectRejected(res, 403, 'Insufficient permissions');
     });
 
     it('rejects admin when owner is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('owner');
+        const res = await callRoute('owner', {integrationId: 'int-1', integrationRoles: {'int-1': 'admin'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'admin'},
-        });
-
-        await expect(middleware({reqCtx, next})).rejects.toThrow('Insufficient permissions');
-        expect(next).not.toHaveBeenCalled();
+        await expectRejected(res, 403, 'Insufficient permissions');
     });
 
     it('rejects when user is not a member of the integration', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('viewer');
+        const res = await callRoute('viewer', {integrationId: 'int-unknown', integrationRoles: {'int-1': 'owner'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-unknown',
-            integrationRoles: {'int-1': 'owner'},
-        });
-
-        await expect(middleware({reqCtx, next})).rejects.toThrow('Not a member of this integration');
-        expect(next).not.toHaveBeenCalled();
+        await expectRejected(res, 403, 'Not a member of this integration');
     });
 
     it('rejects when integrationId is missing from path params', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('viewer');
+        const res = await callRoute('viewer', {integrationRoles: {'int-1': 'owner'}});
 
-        const reqCtx = makeReqCtx({
-            integrationRoles: {'int-1': 'owner'},
-        });
-
-        await expect(middleware({reqCtx, next})).rejects.toThrow(/Missing integration identifier/);
-        expect(next).not.toHaveBeenCalled();
+        await expectRejected(res, 400, 'Missing integration identifier');
     });
 
     it('rejects when integrationRoles is not populated', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('viewer');
+        const res = await callRoute('viewer', {integrationId: 'int-1'});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-        });
-
-        await expect(middleware({reqCtx, next})).rejects.toThrow('Not a member of this integration');
-        expect(next).not.toHaveBeenCalled();
+        await expectRejected(res, 403, 'Not a member of this integration');
     });
 
     it('allows viewer when viewer is required', async () => {
-        const next = vi.fn(async () => undefined);
-        const middleware = requireRole('viewer');
+        const res = await callRoute('viewer', {integrationId: 'int-1', integrationRoles: {'int-1': 'viewer'}});
 
-        const reqCtx = makeReqCtx({
-            integrationId: 'int-1',
-            integrationRoles: {'int-1': 'viewer'},
-        });
-
-        await middleware({reqCtx, next});
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(reqCtx.appContext.role).toBe('viewer');
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(await res.json()).toEqual({role: 'viewer'});
     });
 
     describe('audit logging', () => {
         it('logs allowed authz decision at debug level with structured fields', async () => {
-            const next = vi.fn(async () => undefined);
-            const middleware = requireRole('admin');
-
-            const reqCtx = makeReqCtx({
-                integrationId: 'int-1',
-                integrationRoles: {'int-1': 'owner'},
-                userId: 42,
-                routeKey: 'DELETE /api/integrations/{integrationId}',
-            });
-
-            await middleware({reqCtx, next});
+            await callRoute('admin', {integrationId: 'int-1', integrationRoles: {'int-1': 'owner'}, userId: 42, method: 'DELETE'});
 
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
             expect(logger.debug).toHaveBeenCalledWith('authz', {
@@ -193,77 +121,69 @@ describe('requireRole middleware', () => {
                 integrationId: 'int-1',
                 role: 'owner',
                 minimumRole: 'admin',
-                action: 'DELETE /api/integrations/{integrationId}',
+                action: 'DELETE /api/test-integrations/:integrationId',
                 allowed: true,
             });
         });
 
         it('logs denied authz decision at info level when role is insufficient', async () => {
-            const next = vi.fn(async () => undefined);
-            const middleware = requireRole('admin');
+            const res = await callRoute('admin', {integrationId: 'int-1', integrationRoles: {'int-1': 'member'}, userId: 7, method: 'PUT'});
 
-            const reqCtx = makeReqCtx({
-                integrationId: 'int-1',
-                integrationRoles: {'int-1': 'member'},
-                userId: 7,
-                routeKey: 'PUT /api/integrations/{integrationId}',
-            });
-
-            await expect(middleware({reqCtx, next})).rejects.toThrow('Insufficient permissions');
-
+            expect(res.status).toBe(403);
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
             expect(logger.info).toHaveBeenCalledWith('authz', {
                 userId: 7,
                 integrationId: 'int-1',
                 role: 'member',
                 minimumRole: 'admin',
-                action: 'PUT /api/integrations/{integrationId}',
+                action: 'PUT /api/test-integrations/:integrationId',
                 allowed: false,
                 reason: 'insufficient role',
             });
         });
 
         it('logs denied authz decision when user is not a member', async () => {
-            const next = vi.fn(async () => undefined);
-            const middleware = requireRole('viewer');
+            const res = await callRoute('viewer', {integrationId: 'int-unknown', integrationRoles: {'int-1': 'owner'}, userId: 5});
 
-            const reqCtx = makeReqCtx({
-                integrationId: 'int-unknown',
-                integrationRoles: {'int-1': 'owner'},
-                userId: 5,
-            });
-
-            await expect(middleware({reqCtx, next})).rejects.toThrow('Not a member of this integration');
-
+            expect(res.status).toBe(403);
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
             expect(logger.info).toHaveBeenCalledWith('authz', {
                 userId: 5,
                 integrationId: 'int-unknown',
                 role: null,
                 minimumRole: 'viewer',
-                action: 'GET /api/test',
+                action: 'GET /api/test-integrations/:integrationId',
                 allowed: false,
                 reason: 'not a member',
             });
         });
 
-        it('logs action from routeKey', async () => {
-            const next = vi.fn(async () => undefined);
-            const middleware = requireRole('member');
+        it('logs the full route pattern when the router is mounted below the root', async () => {
+            const router = new Hono<AppEnv>();
+            router.get('/integrations/:integrationId', requireRole('viewer'), handler);
+            const app = new Hono<AppEnv>().route('/api', router);
 
-            const reqCtx = makeReqCtx({
-                integrationId: 'int-1',
-                integrationRoles: {'int-1': 'member'},
-                routeKey: 'PATCH /api/integrations/{integrationId}/members/{userId}/role',
+            await testRequest(app, 'GET', '/api/integrations/int-1', {
+                appContext: {userId: 1, username: '', email: '', name: '', nickname: '', picture: '', integrationRoles: {'int-1': 'viewer'}},
             });
 
-            await middleware({reqCtx, next});
+            const logger = vi.mocked(getLogger).mock.results[0]!.value;
+            expect(logger.debug).toHaveBeenCalledWith('authz', expect.objectContaining({action: 'GET /api/integrations/:integrationId'}));
+        });
+
+        it('logs action from the route path', async () => {
+            await callRoute('member', {
+                integrationId: 'int-1',
+                integrationRoles: {'int-1': 'member'},
+                method: 'PATCH',
+                route: '/api/test/:integrationId/members/:userId/role',
+            });
 
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
             expect(logger.debug).toHaveBeenCalledWith(
                 'authz',
                 expect.objectContaining({
-                    action: 'PATCH /api/integrations/{integrationId}/members/{userId}/role',
+                    action: 'PATCH /api/test/:integrationId/members/:userId/role',
                 }),
             );
         });

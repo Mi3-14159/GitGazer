@@ -1,4 +1,4 @@
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockProxyFetch = vi.fn();

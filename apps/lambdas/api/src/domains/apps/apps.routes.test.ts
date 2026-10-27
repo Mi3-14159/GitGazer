@@ -24,7 +24,7 @@ vi.mock('@/domains/apps/apps.controller', () => ({
 vi.mock('@/domains/apps/slack-move', () => ({listMoveCandidates: mocks.listMoveCandidates, moveWebhookHandles: mocks.moveWebhookHandles}));
 vi.mock('@/domains/apps/slack-install', () => ({buildSlackInstallRedirect: mocks.buildSlackInstallRedirect}));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtxHono: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
+    addUserIntegrationsToCtx: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
         c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: mocks.role}});
         await next();
     },

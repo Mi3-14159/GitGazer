@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@aws-lambda-powertools/event-handler": "catalog:",
     "@aws-lambda-powertools/jmespath": "catalog:",
     "@aws-lambda-powertools/logger": "catalog:",
     "@aws-sdk/client-kms": "catalog:",

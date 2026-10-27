@@ -1,4 +1,4 @@
-import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, NotFoundError} from '@/shared/hono/http-errors';
 import {integrationApps, notificationHandles, slackHandleDetails, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {MAX_SLACK_HANDLES, MAX_WEBHOOK_HANDLES} from '@gitgazer/db/types';

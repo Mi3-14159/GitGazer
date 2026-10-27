@@ -16,7 +16,7 @@ vi.mock('@/domains/slack/connect', () => ({
     disconnectSlack: mocks.disconnectSlack,
 }));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtxHono: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
+    addUserIntegrationsToCtx: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
         c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'viewer'}});
         await next();
     },

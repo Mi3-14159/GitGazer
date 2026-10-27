@@ -9,13 +9,13 @@ import {
     upsertIntegration,
 } from '@/domains/integrations/integrations.controller';
 import {getGithubSettings} from '@/domains/apps/github-settings';
-import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ConflictError} from '@/shared/errors';
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, ForbiddenError, HttpStatusCodes} from '@/shared/hono/http-errors';
-import {requireRole} from '@/shared/hono/require-role';
+import {requireRole} from '@/shared/middleware/require-role';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
@@ -38,7 +38,7 @@ const readJsonBody = async (c: Context<AppEnv>) => {
     }
 };
 
-router.get('/api/integrations', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/integrations', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     const integrationRoles = c.var.appContext?.integrationRoles ?? {};
     const integrations = await getIntegrations({
@@ -53,7 +53,7 @@ router.get('/api/integrations', addUserIntegrationsToCtxHono, async (c) => {
     return c.json(integrationsWithRoles);
 });
 
-router.post('/api/integrations', addUserIntegrationsToCtxHono, async (c) => {
+router.post('/api/integrations', addUserIntegrationsToCtx, async (c) => {
     const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
@@ -71,7 +71,7 @@ router.post('/api/integrations', addUserIntegrationsToCtxHono, async (c) => {
     return c.json(integration);
 });
 
-router.put('/api/integrations/:integrationId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+router.put('/api/integrations/:integrationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
@@ -89,7 +89,7 @@ router.put('/api/integrations/:integrationId', addUserIntegrationsToCtxHono, req
     return c.json(updatedIntegration);
 });
 
-router.delete('/api/integrations/:integrationId', addUserIntegrationsToCtxHono, requireRole('owner'), async (c) => {
+router.delete('/api/integrations/:integrationId', addUserIntegrationsToCtx, requireRole('owner'), async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     await deleteIntegration(c.req.param('integrationId'), integrationIds, c.var.appContext?.userId!);
 
@@ -98,7 +98,7 @@ router.delete('/api/integrations/:integrationId', addUserIntegrationsToCtxHono, 
     });
 });
 
-router.post('/api/integrations/:integrationId/rotate-secret', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+router.post('/api/integrations/:integrationId/rotate-secret', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 
@@ -107,7 +107,7 @@ router.post('/api/integrations/:integrationId/rotate-secret', addUserIntegration
     return c.json(integration);
 });
 
-router.post('/api/integrations/:integrationId/github-app', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+router.post('/api/integrations/:integrationId/github-app', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const logger = getLogger();
     const integrationId = c.req.param('integrationId');
 
@@ -213,7 +213,7 @@ router.post('/api/integrations/:integrationId/github-app', addUserIntegrationsTo
     });
 });
 
-router.delete('/api/integrations/:integrationId/github-app/:installationId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+router.delete('/api/integrations/:integrationId/github-app/:installationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const installationId = parseInt(c.req.param('installationId'), 10);
 
@@ -228,7 +228,7 @@ router.delete('/api/integrations/:integrationId/github-app/:installationId', add
     });
 });
 
-router.patch('/api/integrations/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+router.patch('/api/integrations/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const installationId = parseInt(c.req.param('installationId'), 10);
 
@@ -270,7 +270,7 @@ router.patch('/api/integrations/:integrationId/github-app/:installationId/events
     return c.json({events: requestBody.events});
 });
 
-router.patch('/api/integrations/:integrationId/org-sync-settings', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+router.patch('/api/integrations/:integrationId/org-sync-settings', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 

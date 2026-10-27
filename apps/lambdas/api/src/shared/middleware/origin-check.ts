@@ -1,9 +1,9 @@
+import type {AppEnv} from '@/shared/hono/env';
+import {ForbiddenError} from '@/shared/hono/http-errors';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
-import {ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
-import {Middleware} from '@aws-lambda-powertools/event-handler/types';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {MiddlewareHandler} from 'hono';
 
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
 
@@ -12,22 +12,22 @@ const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
  * the configured allowlist. Public routes (webhooks, auth callbacks) are exempt
  * because they use their own authentication (HMAC signatures, auth codes).
  */
-export const originCheck: Middleware = async ({reqCtx, next}) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const method = event.requestContext?.http?.method?.toUpperCase();
+export const originCheck: MiddlewareHandler<AppEnv> = async (c, next) => {
+    const method = c.req.method.toUpperCase();
+    const path = c.req.path;
 
-    if (!method || !STATE_CHANGING_METHODS.has(method)) {
+    if (!STATE_CHANGING_METHODS.has(method)) {
         await next();
         return;
     }
 
     // Public routes (webhooks, auth) have their own auth — skip origin check
-    if (publicRoutePrefixes.some((prefix) => event.rawPath.startsWith(prefix))) {
+    if (publicRoutePrefixes.some((prefix) => path.startsWith(prefix))) {
         await next();
         return;
     }
 
-    const origin = event.headers?.['origin'];
+    const origin = c.req.header('origin');
     if (!origin) {
         // No origin header (e.g. server-to-server) — allow, as cookies won't be attached
         await next();
@@ -45,7 +45,7 @@ export const originCheck: Middleware = async ({reqCtx, next}) => {
 
     if (!isAllowed) {
         const logger = getLogger();
-        logger.warn('Rejected request: Origin not in allowlist', {origin, method, path: event.rawPath});
+        logger.warn('Rejected request: Origin not in allowlist', {origin, method, path});
         throw new ForbiddenError('Origin not allowed');
     }
 

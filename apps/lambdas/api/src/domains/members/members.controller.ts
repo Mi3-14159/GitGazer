@@ -3,7 +3,7 @@ import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controll
 import {sendInvitationEmail} from '@/shared/clients/ses.client';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, ForbiddenError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, ForbiddenError, NotFoundError} from '@/shared/hono/http-errors';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {invitationQueryRelations, memberQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';

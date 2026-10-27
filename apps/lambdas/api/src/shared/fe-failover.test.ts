@@ -5,7 +5,7 @@ const {getIndexHtmlMock} = vi.hoisted(() => ({getIndexHtmlMock: vi.fn()}));
 
 vi.mock('@/shared/clients/s3.client', () => ({getIndexHtml: getIndexHtmlMock}));
 
-import feFailover from '@/shared/router/feFailover';
+import feFailover from '@/shared/fe-failover';
 
 describe('fe-failover routes', () => {
     beforeEach(() => {

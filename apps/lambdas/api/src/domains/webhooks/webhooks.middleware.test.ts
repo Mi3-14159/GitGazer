@@ -1,13 +1,15 @@
 import type {AppEnv} from '@/shared/hono/env';
-import {testRequest} from '@/shared/hono/test-request';
-import type {APIGatewayProxyEventV2, Context} from 'aws-lambda';
+import {handler} from '@/index';
+import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
 import * as crypto from 'crypto';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => ['https://app.example.com'])}, loadConfig: vi.fn()}));
+vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/db/client', () => {
     return {
+        initDb: vi.fn(),
         withRlsTransaction: vi.fn(),
     };
 });
@@ -39,28 +41,6 @@ async function post(headers: Record<string, string>, body?: string, path = '/tes
     const res = await testRequest(app, 'POST', path, {headers, body});
     return {res, next, json: await res.json()};
 }
-
-const apiGatewayEvent = (path: string, headers: Record<string, string>, body: string, isBase64Encoded: boolean): APIGatewayProxyEventV2 => ({
-    version: '2.0',
-    routeKey: '$default',
-    rawPath: path,
-    rawQueryString: '',
-    headers: {host: 'api.example.com', ...headers},
-    requestContext: {
-        accountId: '123',
-        apiId: 'api',
-        domainName: 'api.example.com',
-        domainPrefix: 'api',
-        http: {method: 'POST', path, protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'GitHub-Hookshot'},
-        requestId: 'req-1',
-        routeKey: '$default',
-        stage: '$default',
-        time: '',
-        timeEpoch: 0,
-    },
-    body,
-    isBase64Encoded,
-});
 
 describe('verifyGithubSign middleware', () => {
     beforeEach(() => {
@@ -156,17 +136,15 @@ describe('verifyGithubSign middleware', () => {
 
     it('accepts a base64-encoded API Gateway body', async () => {
         await mockSettings([{appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'}]);
-        const {createApp} = await import('@/shared/router');
 
         const rawBody = Buffer.from('{ "zen":  "Zoë ☃" }', 'utf-8');
-        const event = apiGatewayEvent(
-            '/api/import/int-1',
-            {'x-hub-signature-256': signatureFor(rawBody, 'shh'), 'x-github-event': 'ping'},
-            rawBody.toString('base64'),
-            true,
-        );
+        const event = apiGatewayEvent('POST', '/api/import/int-1', {
+            headers: {'x-hub-signature-256': signatureFor(rawBody, 'shh'), 'x-github-event': 'ping'},
+            body: rawBody.toString('base64'),
+            isBase64Encoded: true,
+        });
 
-        const res = await createApp().resolve(event, {} as Context);
+        const res = await handler(event, {} as Parameters<typeof handler>[1]);
 
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body!)).toEqual({message: 'ok'});
@@ -174,17 +152,15 @@ describe('verifyGithubSign middleware', () => {
 
     it('rejects a base64-encoded body whose signature was computed over the encoded text', async () => {
         await mockSettings([{appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'}]);
-        const {createApp} = await import('@/shared/router');
 
         const encoded = Buffer.from(JSON.stringify({deploy: true}), 'utf-8').toString('base64');
-        const event = apiGatewayEvent(
-            '/api/import/int-1',
-            {'x-hub-signature-256': signatureFor(encoded, 'shh'), 'x-github-event': 'ping'},
-            encoded,
-            true,
-        );
+        const event = apiGatewayEvent('POST', '/api/import/int-1', {
+            headers: {'x-hub-signature-256': signatureFor(encoded, 'shh'), 'x-github-event': 'ping'},
+            body: encoded,
+            isBase64Encoded: true,
+        });
 
-        const res = await createApp().resolve(event, {} as Context);
+        const res = await handler(event, {} as Parameters<typeof handler>[1]);
 
         expect(res.statusCode).toBe(401);
         expect(JSON.parse(res.body!)).toMatchObject({message: 'Invalid signature'});

@@ -1,22 +1,20 @@
-import {extractTokenFromCookies} from '@/shared/helpers/cookies';
+import {extractTokenFromCookies, getRequestCookies} from '@/shared/helpers/cookies';
+import type {AppEnv} from '@/shared/hono/env';
+import {InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
 import {getVerifiers} from '@/shared/middleware/token-verifier';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
-import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {pendingOrgSync, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {CognitoJwtPayload} from 'aws-jwt-verify/jwt-model';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
 import {eq, sql} from 'drizzle-orm';
+import type {MiddlewareHandler} from 'hono';
 
-export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
+export const authenticate: MiddlewareHandler<AppEnv> = async (c, next) => {
     const logger = getLogger();
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const {rawPath} = event;
+    const rawPath = c.req.path;
 
     // Skip authentication for public routes (declared by each domain). A prefix ending in `/`
     // is a subtree match; a non-slash prefix must match exactly or on a `/` segment boundary
@@ -34,7 +32,7 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
     logger.debug('Running authentication middleware', {rawPath});
 
     // Extract tokens from cookies
-    const cookies = event.cookies || [];
+    const cookies = getRequestCookies(c);
     const accessToken = extractTokenFromCookies(cookies, 'accessToken');
     const idToken = extractTokenFromCookies(cookies, 'idToken');
     const refreshToken = extractTokenFromCookies(cookies, 'refreshToken');
@@ -138,14 +136,14 @@ export const authenticate: Middleware = async ({reqCtx, next}: {reqCtx: AppReque
         await resolvePendingOrgSync(userId, githubId);
     }
 
-    reqCtx.appContext = {
+    c.set('appContext', {
         userId,
         username: (idPayload.username as string) || (idPayload['cognito:username'] as string) || '',
         email: (idPayload.email as string) || '',
         name: (idPayload.name as string) || '',
         nickname: (idPayload.nickname as string) || '',
         picture: (idPayload.picture as string) || '',
-    };
+    });
 
     await next();
 };

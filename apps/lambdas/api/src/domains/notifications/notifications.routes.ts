@@ -1,8 +1,8 @@
-import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/domains/notifications/notifications.controller';
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
-import {requireRole} from '@/shared/hono/require-role';
+import {requireRole} from '@/shared/middleware/require-role';
 import {isNotificationRuleUpdate} from '@gitgazer/db/types';
 import type {Context} from 'hono';
 import {Hono} from 'hono';
@@ -21,12 +21,12 @@ async function parseRuleBody(c: Context<AppEnv>): Promise<unknown> {
     }
 }
 
-router.get('/api/notifications', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/notifications', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     return c.json(await getNotificationRules({integrationIds}));
 });
 
-router.post('/api/integrations/:integrationId/notifications', addUserIntegrationsToCtxHono, requireRole('member'), async (c) => {
+router.post('/api/integrations/:integrationId/notifications', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const requestBody = await parseRuleBody(c);
 
     if (!isNotificationRuleUpdate(requestBody)) {
@@ -36,7 +36,7 @@ router.post('/api/integrations/:integrationId/notifications', addUserIntegration
     return c.json(await upsertNotificationRule({rule: requestBody, integrationId: c.req.param('integrationId'), createOnly: true}));
 });
 
-router.put('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtxHono, requireRole('member'), async (c) => {
+router.put('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const requestBody = await parseRuleBody(c);
 
     if (!isNotificationRuleUpdate(requestBody)) {
@@ -52,7 +52,7 @@ router.put('/api/integrations/:integrationId/notifications/:id', addUserIntegrat
     );
 });
 
-router.delete('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtxHono, requireRole('member'), async (c) => {
+router.delete('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     await deleteNotificationRule(c.req.param('id'), c.req.param('integrationId'));
 
     return new Response(JSON.stringify({success: true}), {

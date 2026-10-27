@@ -6,7 +6,6 @@ packages:
   - 'packages/*'
 
 catalog:
-  '@aws-lambda-powertools/event-handler': '^2.36.0'
   '@aws-lambda-powertools/jmespath': '^2.36.0'
   '@aws-lambda-powertools/logger': '^2.36.0'
   '@aws-lambda-powertools/metrics': '^2.36.0'
@@ -29,6 +28,7 @@ catalog:
   '@docusaurus/tsconfig': '3.10.2'
   '@docusaurus/types': '3.10.2'
   '@easyops-cn/docusaurus-search-local': '^0.55.2'
+  '@hono/aws-lambda': '1.0.1'
   '@hono/node-server': '2.1.4'
   '@lucide/vue': '^1.59.0'
   '@mdx-js/react': '^3.0.0'

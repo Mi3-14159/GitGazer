@@ -1,6 +1,6 @@
 import {buildLoginRedirect, generateWsToken, handleOAuthCallback, refreshTokens} from '@/domains/auth/auth.controller';
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
-import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {
     buildClearCookies,
     buildClearStateCookie,
@@ -112,7 +112,7 @@ router.get('/api/auth/logout', async (c) => {
     });
 });
 
-router.get('/api/auth/ws-token', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/auth/ws-token', addUserIntegrationsToCtx, async (c) => {
     const logger = getLogger();
     const {userId, username, email, integrations} = c.var.appContext!;
 

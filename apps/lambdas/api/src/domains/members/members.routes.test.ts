@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/domains/members/members.controller', () => mocks);
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtxHono: async (
+    addUserIntegrationsToCtx: async (
         c: {var: {appContext?: {integrations?: string[]; integrationRoles?: Record<string, string>}}},
         next: () => Promise<void>,
     ) => {

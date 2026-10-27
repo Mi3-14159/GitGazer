@@ -4,7 +4,7 @@ import {findSlackTeamId, releaseWorkspaceIfUnused} from '@/domains/apps/apps.con
 import {getGithubSettings, installGithubApp} from '@/domains/apps/github-settings';
 import {ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError} from '@/shared/hono/http-errors';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
