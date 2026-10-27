@@ -1,25 +1,62 @@
+import type {AppEnv} from '@/shared/hono/env';
+import {testRequest} from '@/shared/hono/test-request';
+import type {APIGatewayProxyEventV2, Context} from 'aws-lambda';
 import * as crypto from 'crypto';
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {configGetMock} = vi.hoisted(() => ({
+const {configGetMock, handleGithubAppEventMock} = vi.hoisted(() => ({
     configGetMock: vi.fn((key: string) => {
-        if (key !== 'githubApp') throw new Error(`Unexpected config key: ${key}`);
-        return {webhookSecret: 'shh'};
+        if (key === 'githubApp') return {webhookSecret: 'shh'};
+        return ['https://app.example.com'];
     }),
+    handleGithubAppEventMock: vi.fn(async () => undefined),
 }));
 
 vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: configGetMock},
+    loadConfig: vi.fn(),
 }));
-
-function makeReqCtx(event: any) {
-    return {event} as any;
-}
+vi.mock('@/domains/github-app/github-app.controller', () => ({handleGithubAppEvent: handleGithubAppEventMock}));
 
 function signatureFor(payload: string | NodeJS.ArrayBufferView, secret: string) {
     const hmac = crypto.createHmac('sha256', secret);
     return 'sha256=' + hmac.update(payload).digest('hex');
 }
+
+async function post(headers: Record<string, string>, body?: string) {
+    const {verifyGithubAppSignature} = await import('./github-app.middleware');
+    const next = vi.fn();
+    const app = new Hono<AppEnv>();
+    app.post('/test/webhook', verifyGithubAppSignature, async (c) => {
+        next();
+        return c.json({received: await c.req.json()});
+    });
+    const res = await testRequest(app, 'POST', '/test/webhook', {headers, body});
+    return {res, next, json: await res.json()};
+}
+
+const apiGatewayEvent = (path: string, headers: Record<string, string>, body: string, isBase64Encoded: boolean): APIGatewayProxyEventV2 => ({
+    version: '2.0',
+    routeKey: '$default',
+    rawPath: path,
+    rawQueryString: '',
+    headers: {host: 'api.example.com', ...headers},
+    requestContext: {
+        accountId: '123',
+        apiId: 'api',
+        domainName: 'api.example.com',
+        domainPrefix: 'api',
+        http: {method: 'POST', path, protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'GitHub-Hookshot'},
+        requestId: 'req-1',
+        routeKey: '$default',
+        stage: '$default',
+        time: '',
+        timeEpoch: 0,
+    },
+    body,
+    isBase64Encoded,
+});
 
 describe('verifyGithubAppSignature middleware', () => {
     beforeEach(() => {
@@ -28,43 +65,61 @@ describe('verifyGithubAppSignature middleware', () => {
     });
 
     it('calls next for a plain body with a valid signature', async () => {
-        const {verifyGithubAppSignature} = await import('./github-app.middleware');
-        const next = vi.fn(async () => undefined);
         const payload = JSON.stringify({action: 'created'});
-        const event = {headers: {'x-hub-signature-256': signatureFor(payload, 'shh')}, body: payload};
 
-        const out = await verifyGithubAppSignature({reqCtx: makeReqCtx(event), next} as any);
+        const {res, next} = await post({'x-hub-signature-256': signatureFor(payload, 'shh')}, payload);
 
-        expect(out).toBeUndefined();
+        expect(res.status).toBe(200);
         expect(next).toHaveBeenCalledTimes(1);
     });
 
-    it('calls next for a base64-encoded body with a signature over the decoded bytes', async () => {
-        const {verifyGithubAppSignature} = await import('./github-app.middleware');
-        const next = vi.fn(async () => undefined);
-        const payload = JSON.stringify({action: 'created'});
-        const rawBody = Buffer.from(payload, 'utf-8');
-        const event = {
-            headers: {'x-hub-signature-256': signatureFor(rawBody, 'shh')},
-            body: rawBody.toString('base64'),
-            isBase64Encoded: true,
-        };
+    it('throws BadRequestError when signature or payload is missing', async () => {
+        const missingSig = await post({}, '{}');
+        expect(missingSig.res.status).toBe(400);
+        expect(missingSig.json).toMatchObject({message: 'Missing signature or payload'});
 
-        const out = await verifyGithubAppSignature({reqCtx: makeReqCtx(event), next} as any);
-
-        expect(out).toBeUndefined();
-        expect(next).toHaveBeenCalledTimes(1);
+        const missingBody = await post({'x-hub-signature-256': 'sha256=deadbeef'});
+        expect(missingBody.res.status).toBe(400);
+        expect(missingBody.json).toMatchObject({message: 'Missing signature or payload'});
     });
 
     it('throws UnauthorizedError for an invalid signature', async () => {
-        const {verifyGithubAppSignature} = await import('./github-app.middleware');
-        const next = vi.fn(async () => undefined);
         const payload = JSON.stringify({action: 'created'});
         const good = signatureFor(payload, 'shh');
         const bad = good.slice(0, -1) + (good.endsWith('0') ? '1' : '0');
-        const event = {headers: {'x-hub-signature-256': bad}, body: payload};
 
-        await expect(verifyGithubAppSignature({reqCtx: makeReqCtx(event), next} as any)).rejects.toThrow('Invalid signature');
+        const {res, next, json} = await post({'x-hub-signature-256': bad}, payload);
+
+        expect(res.status).toBe(401);
+        expect(json).toMatchObject({message: 'Invalid signature'});
         expect(next).not.toHaveBeenCalled();
+    });
+
+    it('verifies the signature over the raw bytes and still lets the handler parse JSON', async () => {
+        const payload = '{ "name" :  "Zoë \u00fc \u2603 😀",\n   "n":1.0 }';
+        expect(payload).not.toBe(JSON.stringify(JSON.parse(payload)));
+
+        const {res, next, json} = await post({'x-hub-signature-256': signatureFor(Buffer.from(payload, 'utf-8'), 'shh')}, payload);
+
+        expect(res.status).toBe(200);
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(json).toEqual({received: {name: 'Zoë ü ☃ 😀', n: 1}});
+    });
+
+    it('accepts a base64-encoded API Gateway body', async () => {
+        const {createApp} = await import('@/shared/router');
+        const rawBody = Buffer.from('{ "action":  "created", "who": "Zoë ☃" }', 'utf-8');
+        const event = apiGatewayEvent(
+            '/api/github/webhook',
+            {'x-hub-signature-256': signatureFor(rawBody, 'shh'), 'x-github-event': 'installation'},
+            rawBody.toString('base64'),
+            true,
+        );
+
+        const res = await createApp().resolve(event, {} as Context);
+
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body!)).toEqual({message: 'ok'});
+        expect(handleGithubAppEventMock).toHaveBeenCalledWith('installation', {action: 'created', who: 'Zoë ☃'});
     });
 });

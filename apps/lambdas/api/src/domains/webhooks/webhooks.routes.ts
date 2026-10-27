@@ -1,17 +1,19 @@
 import {handleEvent} from '@gitgazer/backend-services/webhooks.controller';
 import {isValidImportEvent} from '@/shared/helpers/validation';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, HttpError, InternalServerError, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, HttpError, InternalServerError} from '@/shared/hono/http-errors';
 import {EventPayloadMap} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
+import {Hono} from 'hono';
 import {verifyGithubSign} from './webhooks.middleware';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => {
+router.post('/api/import/:integrationId', verifyGithubSign, async (c) => {
     const logger = getLogger();
 
-    const githubEventType = reqCtx.event?.headers?.['x-github-event'];
+    const githubEventType = c.req.header('x-github-event');
     if (!githubEventType || typeof githubEventType !== 'string') {
         throw new BadRequestError('Missing X-GitHub-Event header');
     }
@@ -22,24 +24,24 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
     }
 
     if (githubEventType === 'ping') {
-        return {message: 'ok'};
+        return c.json({message: 'ok'});
     }
 
-    if (!reqCtx.event.body) {
+    if (!(await c.req.text())) {
         throw new BadRequestError('Missing request body');
     }
 
     let requestBody;
     try {
-        requestBody = await reqCtx.req.json();
+        requestBody = await c.req.json();
     } catch (error) {
         throw new BadRequestError('Invalid request body');
     }
 
-    const source = reqCtx.event?.headers?.['x-gitgazer-source'] === 'backfill' ? ('backfill' as const) : undefined;
+    const source = c.req.header('x-gitgazer-source') === 'backfill' ? ('backfill' as const) : undefined;
 
     try {
-        await handleEvent(reqCtx.params.integrationId, githubEventType as EmitterWebhookEventName & keyof EventPayloadMap, requestBody, {source});
+        await handleEvent(c.req.param('integrationId'), githubEventType as EmitterWebhookEventName & keyof EventPayloadMap, requestBody, {source});
     } catch (error) {
         if (error instanceof HttpError) {
             throw error;
@@ -49,7 +51,7 @@ router.post('/api/import/:integrationId', [verifyGithubSign], async (reqCtx) => 
         throw new InternalServerError('Error storing event');
     }
 
-    return {message: 'ok'};
+    return c.json({message: 'ok'});
 });
 
 export const publicPrefixes = ['/api/import/'] as const;

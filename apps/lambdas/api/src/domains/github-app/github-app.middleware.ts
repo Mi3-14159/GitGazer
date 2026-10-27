@@ -1,11 +1,11 @@
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
-import {Middleware} from '@aws-lambda-powertools/event-handler/types';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
+import type {MiddlewareHandler} from 'hono';
 
-export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
+export const verifyGithubAppSignature: MiddlewareHandler<AppEnv> = async (c, next) => {
     const logger = getLogger();
     logger.debug('running verifyGithubAppSignature middleware');
 
@@ -14,15 +14,13 @@ export const verifyGithubAppSignature: Middleware = async ({reqCtx, next}) => {
         throw new InternalServerError('GH_APP_WEBHOOK_SECRET is not configured');
     }
 
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const signature = event.headers['x-hub-signature-256'];
-    const payload = event.body;
+    const signature = c.req.header('x-hub-signature-256');
+    const rawBody = Buffer.from(await c.req.arrayBuffer());
 
-    if (!signature || !payload) {
+    if (!signature || rawBody.length === 0) {
         throw new BadRequestError('Missing signature or payload');
     }
 
-    const rawBody = event.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload, 'utf-8');
     const hmac = crypto.createHmac('sha256', webhookSecret);
     const digestBuf = Buffer.from('sha256=' + hmac.update(rawBody).digest('hex'));
     const signatureBuf = Buffer.from(signature);
