@@ -75,6 +75,10 @@ Measured over the 30 days before 2026-10-26 (CloudWatch logs of `gitgazer-api-de
   [#50452](https://github.com/hashicorp/terraform-provider-aws/pull/50452), tracking issue
   [#50429](https://github.com/hashicorp/terraform-provider-aws/issues/50429)). The repo locks provider 6.57.1.
   Infrastructure stays in Terraform; no CloudFormation wrapper or click-ops for permanent resources.
+- The `awscc` provider (Cloud Control API) has them since 1.107.0 (October 21, 2026): `awscc_lambda_web_function`,
+  `awscc_lambda_web_function_revision`, `awscc_lambda_web_function_endpoint`, `awscc_lambda_network_connector` and
+  `awscc_lambda_resource_policy`. The repo already uses `awscc` (lock 1.94.0). The endpoint pins revisions through
+  `revision_weights` (one or two entries); it has no "follow the latest revision" setting.
 - The app currently assumes one request per environment:
     - the DB pool is `max: 1` with a 5 s `connectionTimeoutMillis` ([packages/db/src/client.ts](../../../packages/db/src/client.ts));
     - `logger.resetKeys()` / `addContext()` mutate the shared logger per invocation ([index.ts](../../../apps/lambdas/api/src/index.ts));
@@ -88,7 +92,8 @@ Measured over the 30 days before 2026-10-26 (CloudWatch logs of `gitgazer-api-de
 Made by the owner:
 
 - **Two phases.** Phase 1 is everything that doesn't need the Terraform resources and ships to production behind the
-  existing HTTP API. Phase 2 starts once the provider releases `aws_lambdaweb_*`.
+  existing HTTP API. Phase 2 starts once Terraform can manage Web Functions; it uses the `awscc` resources (2026-10-27),
+  without a separate Terraform spike.
 - **Hono** replaces the Powertools router.
 - **One Web Function endpoint, without a rate limit.**
 - **WAF later** as its own project. Between the cutover and WAF, the nine public routes that API Gateway throttles today
@@ -187,18 +192,32 @@ This shrinks the Arm64 layer question to Insights and OTEL.
 
 ## Phase 2 — switch and finish
 
-Starts when the provider release with `aws_lambdaweb_function`/`aws_lambdaweb_endpoint` is out and the spike results
-are in. Updating the provider constraint is part of it.
+Built with the `awscc` resources; the `awscc` constraint moves to `~> 1.107`. If `aws_lambdaweb_*` ships later,
+switching providers is its own change (`removed` plus `import` blocks), not part of this phase.
 
 ### 1. Web Function next to the HTTP API
 
-- A Web Function for `api` in Terraform, built from the same zip the Event Function uses, with the same IAM role
-  permissions, VPC config, environment variables, log group and tracing setting.
-- One endpoint, no rate limit. _My call:_ "maximum environments" set so that environments × DB pool size stays well
-  under Aurora's connection limit.
-- _My call:_ auto deployment to the latest revision, matching today's flow where `terraform apply` makes a new zip
-  live. Canary weights between revisions are possible later but not needed now.
-- CloudFront gets the endpoint as an additional origin, with OAC or the secret-header fallback from the spike.
+- A Web Function for `api` (`awscc_lambda_web_function`), with the same environment variables as the Event Function.
+  _My call:_ it reuses the `api` IAM role, whose trust policy already allows `lambda.amazonaws.com`.
+- _My call:_ **one zip for both.** The bundle's `index.js` keeps exporting the Event Function `handler` and, when
+  `AWS_LAMBDA_HTTP_ENDPOINT` is set, also starts the HTTP server from `server.ts`. One build, one upload, one S3
+  object version for both backends, which is what "changes ship to both" needs during the cutover.
+- _My call:_ **a revision per code version.** `awscc_lambda_web_function_revision` points at the zip's
+  `s3_object_version`; a new version replaces the revision (create before destroy), and the endpoint's
+  `revision_weights` sends 100 % to the current one. That is the same flow as today's `live` alias: `terraform apply`
+  makes a new zip live. Two weights for a canary are possible later.
+- VPC access through an `awscc_lambda_network_connector` on the `api` subnets and security group, with its own
+  operator role for the ENIs; the revision uses the connector's `latest_version_arn`.
+- The code bucket gets a policy that lets `lambda.amazonaws.com` read the zip, scoped with `aws:SourceAccount`.
+- Logs go to a Terraform-managed log group with the same retention as `api` (revision `logging_config.log_group`).
+  Lambda layers aren't supported, so the Web Function runs without Insights or OTEL; `enable_lambda_tracing` keeps
+  applying to the Event Functions only.
+- One endpoint, HomeRegion, `IamAuth`, no rate limit. _My call:_ `DB_POOL_MAX` and the endpoint's `max_environments`
+  are set so that environments × pool size plus the other Lambdas stay at most half of Aurora's `max_connections`
+  (checked with `SHOW max_connections` before choosing). `max_concurrency_per_environment` keeps its default.
+- CloudFront gets the endpoint as an additional origin: OAC with origin type `lambda`, signing always, origin request
+  policy `AllViewerExceptHostHeader`, caching disabled, and an `awscc_lambda_resource_policy` on the **endpoint** ARN
+  that allows `lambda:InvokeWebFunctionEndpoint` for the distribution (`aws:SourceArn`).
 
 ### 2. Route-by-route cutover
 
@@ -219,7 +238,7 @@ _My call:_ at least one week with all traffic on the Web Function and no rollbac
 
 - Delete the HTTP API, its stage, `api_resources` routes, route throttling settings, the API Gateway Lambda permission,
   the `api` Event Function and its `live` alias, and the API Gateway access logs and throttling alarms that only
-  concern the HTTP API.
+  concern the HTTP API. The bundle then drops the Event Function `handler` and `@hono/aws-lambda`.
 - Update CI/CD (`upload`, `ci_cd_infra.yaml`) if the deploy flow changed, plus `AGENTS.md`, the backend instructions
   and `infra/README.md` (`dev:api`, routes no longer in Terraform).
 

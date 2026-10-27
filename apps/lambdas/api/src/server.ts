@@ -37,10 +37,3 @@ export const startServer = async (endpoint = process.env.AWS_LAMBDA_HTTP_ENDPOIN
 
     return server;
 };
-
-if (require.main === module) {
-    startServer().catch((error) => {
-        logger.error('Server failed to start', {error});
-        process.exit(1);
-    });
-}

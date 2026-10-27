@@ -1,5 +1,6 @@
 import '@gitgazer/backend-core/bootstrap';
 import {initApp} from '@/app';
+import {startServer} from '@/server';
 import {redactHandleRouteBody, redactHandleRouteResult} from '@/shared/redact-handle-event';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {handle, type LambdaEvent} from '@hono/aws-lambda';
@@ -22,3 +23,10 @@ export const handler = async (event: APIGatewayProxyEventV2, context: Context): 
     logger.debug('result', {result: redactHandleRouteResult(event, result)});
     return result;
 };
+
+if (process.env.AWS_LAMBDA_HTTP_ENDPOINT) {
+    startServer().catch((error) => {
+        logger.error('Server failed to start', {error});
+        process.exit(1);
+    });
+}
