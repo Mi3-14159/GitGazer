@@ -45,6 +45,10 @@ describe('getRequestCookies', () => {
         expect(getRequestCookies(ctx('a=1; b=2'))).toEqual(['a=1', 'b=2']);
     });
 
+    it('splits pairs separated by a bare semicolon', () => {
+        expect(getRequestCookies(ctx('a=1;b=2'))).toEqual(['a=1', 'b=2']);
+    });
+
     it('returns an empty array without a Cookie header', () => {
         expect(getRequestCookies(ctx())).toEqual([]);
     });
