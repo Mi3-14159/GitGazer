@@ -14,11 +14,22 @@ import importRoutes from '@/domains/webhooks/webhooks.routes';
 import workflowsRoutes from '@/domains/workflows/workflows.routes';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {AppRequestContext} from '@gitgazer/backend-core/types';
+import {createHonoApp} from '@/shared/hono/app';
+import type {AppEnv} from '@/shared/hono/env';
 import {authenticate} from '@/shared/middleware/authentication';
 import {originCheck} from '@/shared/middleware/origin-check';
 import feFailover from '@/shared/router/feFailover';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {compress, cors} from '@aws-lambda-powertools/event-handler/http/middleware';
+import type {Hono} from 'hono';
+
+let honoApp: Hono<AppEnv> | null = null;
+
+const getHonoApp = (): Hono<AppEnv> => {
+    honoApp ??= createHonoApp();
+    return honoApp;
+};
 
 export const createApp = (): Router => {
     const logger = getLogger();
@@ -56,6 +67,14 @@ export const createApp = (): Router => {
     app.includeRouter(membersRoutes);
     app.includeRouter(metricsRoutes);
     app.includeRouter(mcpRoutes);
+
+    // Powertools also routes NotFoundErrors thrown by its own routes here; only unmatched requests go to Hono.
+    app.notFound(async (error, reqCtx: AppRequestContext) => {
+        if (reqCtx.route) {
+            return error.toWebResponse();
+        }
+        return getHonoApp().fetch(reqCtx.req, {appContext: reqCtx.appContext, event: reqCtx.event, lambdaContext: reqCtx.context});
+    });
 
     logger.info('Routes setup completed');
 
