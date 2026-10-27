@@ -147,3 +147,29 @@ resource "awscc_lambda_web_function_endpoint" "api" {
     max_environments = local.api_web_max_environments
   }
 }
+
+# Scoped to the endpoint ARN; a statement on the function ARN alone is rejected with 403
+data "aws_iam_policy_document" "api_web_resource_policy" {
+  statement {
+    sid       = "AllowCloudFrontOACAccess"
+    effect    = "Allow"
+    actions   = ["lambda:InvokeWebFunctionEndpoint"]
+    resources = [awscc_lambda_web_function_endpoint.api.endpoint_arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = [aws_cloudfront_distribution.this.arn]
+    }
+  }
+}
+
+resource "awscc_lambda_resource_policy" "api_web" {
+  resource_arn    = awscc_lambda_web_function.api.function_arn
+  policy_document = data.aws_iam_policy_document.api_web_resource_policy.json
+}

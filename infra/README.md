@@ -16,7 +16,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | Name                                                                     | Version  |
 | ------------------------------------------------------------------------ | -------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement_terraform) | ~> 1.0   |
-| <a name="requirement_aws"></a> [aws](#requirement_aws)                   | ~> 6.3   |
+| <a name="requirement_aws"></a> [aws](#requirement_aws)                   | ~> 6.68  |
 | <a name="requirement_awscc"></a> [awscc](#requirement_awscc)             | ~> 1.107 |
 | <a name="requirement_random"></a> [random](#requirement_random)          | ~> 3.6   |
 
@@ -61,6 +61,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_cloudfront_distribution.docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution)                                                       | resource    |
 | [aws_cloudfront_distribution.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution)                                                       | resource    |
 | [aws_cloudfront_function.docs_url_rewrite](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_function)                                                   | resource    |
+| [aws_cloudfront_origin_access_control.api_web](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control)                                  | resource    |
 | [aws_cloudfront_origin_access_control.docs_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control)                              | resource    |
 | [aws_cloudfront_origin_access_control.ui_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control)                                | resource    |
 | [aws_cloudfront_response_headers_policy.cors_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_response_headers_policy)                          | resource    |
@@ -202,6 +203,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_sqs_queue.webhook_events_dlq](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sqs_queue)                                                                     | resource    |
 | [aws_vpc_endpoint.s3](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_endpoint)                                                                               | resource    |
 | [awscc_lambda_network_connector.api](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/lambda_network_connector)                                                  | resource    |
+| [awscc_lambda_resource_policy.api_web](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/lambda_resource_policy)                                                  | resource    |
 | [awscc_lambda_web_function.api](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/lambda_web_function)                                                            | resource    |
 | [awscc_lambda_web_function_endpoint.api](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/lambda_web_function_endpoint)                                          | resource    |
 | [awscc_lambda_web_function_revision.api](https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/lambda_web_function_revision)                                          | resource    |
@@ -217,6 +219,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_iam_policy_document.api_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                                 | data source |
 | [aws_iam_policy_document.api_web_connector](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                               | data source |
 | [aws_iam_policy_document.api_web_connector_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                   | data source |
+| [aws_iam_policy_document.api_web_resource_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                         | data source |
 | [aws_iam_policy_document.api_websocket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                                   | data source |
 | [aws_iam_policy_document.api_websocket_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                       | data source |
 | [aws_iam_policy_document.aws_kms_key_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                              | data source |
