@@ -177,14 +177,14 @@ describe('requireRole middleware (hono)', () => {
                 integrationId: 'int-1',
                 integrationRoles: {'int-1': 'member'},
                 method: 'PATCH',
-                route: '/api/integrations/:integrationId/members/:userId/role',
+                route: '/api/test/:integrationId/members/:userId/role',
             });
 
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
             expect(logger.debug).toHaveBeenCalledWith(
                 'authz',
                 expect.objectContaining({
-                    action: 'PATCH /api/integrations/:integrationId/members/:userId/role',
+                    action: 'PATCH /api/test/:integrationId/members/:userId/role',
                 }),
             );
         });

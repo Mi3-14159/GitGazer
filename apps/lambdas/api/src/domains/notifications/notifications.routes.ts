@@ -1,82 +1,66 @@
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/domains/notifications/notifications.controller';
-import {requireRole} from '@/shared/middleware/require-role';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {requireRole} from '@/shared/hono/require-role';
 import {isNotificationRuleUpdate} from '@gitgazer/db/types';
+import type {Context} from 'hono';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get('/api/notifications', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    return await getNotificationRules({
-        integrationIds: integrationIds,
-    });
+async function parseRuleBody(c: Context<AppEnv>): Promise<unknown> {
+    if (!(await c.req.text())) {
+        throw new BadRequestError('Missing request body');
+    }
+
+    try {
+        return await c.req.json();
+    } catch {
+        throw new BadRequestError('Invalid request body');
+    }
+}
+
+router.get('/api/notifications', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    return c.json(await getNotificationRules({integrationIds}));
 });
 
-router.post(
-    '/api/integrations/:integrationId/notifications',
-    [addUserIntegrationsToCtx, requireRole('member')],
-    async (reqCtx: AppRequestContext) => {
-        if (!reqCtx.event.body) {
-            throw new BadRequestError('Missing request body');
-        }
+router.post('/api/integrations/:integrationId/notifications', addUserIntegrationsToCtxHono, requireRole('member'), async (c) => {
+    const requestBody = await parseRuleBody(c);
 
-        let requestBody;
-        try {
-            requestBody = await reqCtx.req.json();
-        } catch (error) {
-            throw new BadRequestError('Invalid request body');
-        }
+    if (!isNotificationRuleUpdate(requestBody)) {
+        throw new BadRequestError('Invalid notification rule');
+    }
 
-        if (!isNotificationRuleUpdate(requestBody)) {
-            throw new BadRequestError('Invalid notification rule');
-        }
+    return c.json(await upsertNotificationRule({rule: requestBody, integrationId: c.req.param('integrationId'), createOnly: true}));
+});
 
-        return await upsertNotificationRule({rule: requestBody, integrationId: reqCtx.params.integrationId, createOnly: true});
-    },
-);
+router.put('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtxHono, requireRole('member'), async (c) => {
+    const requestBody = await parseRuleBody(c);
 
-router.put(
-    '/api/integrations/:integrationId/notifications/:id',
-    [addUserIntegrationsToCtx, requireRole('member')],
-    async (reqCtx: AppRequestContext) => {
-        if (!reqCtx.event.body) {
-            throw new BadRequestError('Missing request body');
-        }
+    if (!isNotificationRuleUpdate(requestBody)) {
+        throw new BadRequestError('Invalid notification rule update');
+    }
 
-        let requestBody;
-        try {
-            requestBody = await reqCtx.req.json();
-        } catch (error) {
-            throw new BadRequestError('Invalid request body');
-        }
-
-        if (!isNotificationRuleUpdate(requestBody)) {
-            throw new BadRequestError('Invalid notification rule update');
-        }
-
-        return await upsertNotificationRule({
+    return c.json(
+        await upsertNotificationRule({
             rule: requestBody,
-            integrationId: reqCtx.params.integrationId,
-            ruleId: reqCtx.params.id,
-        });
-    },
-);
+            integrationId: c.req.param('integrationId'),
+            ruleId: c.req.param('id'),
+        }),
+    );
+});
 
-router.delete(
-    '/api/integrations/:integrationId/notifications/:id',
-    [addUserIntegrationsToCtx, requireRole('member')],
-    async (reqCtx: AppRequestContext) => {
-        await deleteNotificationRule(reqCtx.params.id, reqCtx.params.integrationId);
+router.delete('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtxHono, requireRole('member'), async (c) => {
+    await deleteNotificationRule(c.req.param('id'), c.req.param('integrationId'));
 
-        return new Response(JSON.stringify({success: true}), {
-            status: HttpStatusCodes.OK,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-    },
-);
+    return new Response(JSON.stringify({success: true}), {
+        status: HttpStatusCodes.OK,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+});
 
 export default router;

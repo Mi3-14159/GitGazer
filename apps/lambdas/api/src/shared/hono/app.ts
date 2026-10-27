@@ -1,6 +1,9 @@
 import eventLogRoutes from '@/domains/event-log/event-log.routes';
+import membersRoutes from '@/domains/members/members.routes';
 import metricsRoutes from '@/domains/metrics/metrics.routes';
+import notificationsRoutes from '@/domains/notifications/notifications.routes';
 import overviewRoutes from '@/domains/overview/overview.routes';
+import usersRoutes from '@/domains/users/users.routes';
 import workflowsRoutes from '@/domains/workflows/workflows.routes';
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpError, NotFoundError} from '@/shared/hono/http-errors';
@@ -33,6 +36,9 @@ export const createHonoApp = (): Hono<AppEnv> => {
     app.route('/', workflowsRoutes);
     app.route('/', overviewRoutes);
     app.route('/', metricsRoutes);
+    app.route('/', notificationsRoutes);
+    app.route('/', usersRoutes);
+    app.route('/', membersRoutes);
 
     return app;
 };

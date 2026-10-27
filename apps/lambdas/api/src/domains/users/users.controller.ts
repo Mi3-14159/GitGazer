@@ -60,11 +60,7 @@ export const assertCognitoCaller = (clientId: string | undefined, clientSecret: 
     }
 };
 
-export const parseOAuthTokenBody = (body: string, isBase64Encoded: boolean): OAuthTokenBody => {
-    if (isBase64Encoded) {
-        body = Buffer.from(body, 'base64').toString('utf-8');
-    }
-
+export const parseOAuthTokenBody = (body: string): OAuthTokenBody => {
     const result: Record<string, string> = {};
     body.split('&').forEach((param) => {
         const [key, value] = param.split('=');
