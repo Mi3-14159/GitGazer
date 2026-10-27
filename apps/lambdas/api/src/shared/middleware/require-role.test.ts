@@ -160,15 +160,15 @@ describe('requireRole middleware (hono)', () => {
 
         it('logs the full route pattern when the router is mounted below the root', async () => {
             const router = new Hono<AppEnv>();
-            router.get('/integrations/:integrationId', requireRole('viewer'), handler);
-            const app = new Hono<AppEnv>().route('/api', router);
+            router.get('/members', requireRole('viewer'), handler);
+            const app = new Hono<AppEnv>().route('/api/integrations/:integrationId', router);
 
-            await testRequest(app, 'GET', '/api/integrations/int-1', {
+            await testRequest(app, 'GET', '/api/integrations/int-1/members', {
                 appContext: {userId: 1, username: '', email: '', name: '', nickname: '', picture: '', integrationRoles: {'int-1': 'viewer'}},
             });
 
             const logger = vi.mocked(getLogger).mock.results[0]!.value;
-            expect(logger.debug).toHaveBeenCalledWith('authz', expect.objectContaining({action: 'GET /api/integrations/:integrationId'}));
+            expect(logger.debug).toHaveBeenCalledWith('authz', expect.objectContaining({action: 'GET /api/integrations/:integrationId/members'}));
         });
 
         it('logs action from the route path', async () => {

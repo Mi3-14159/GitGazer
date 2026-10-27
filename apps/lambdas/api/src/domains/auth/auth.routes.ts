@@ -24,7 +24,7 @@ const buildHeaders = (headers: Record<string, string>, cookies: string[]): Heade
     return result;
 };
 
-router.get('/api/auth/login', async (c) => {
+router.get('/login', async (c) => {
     const logger = getLogger();
     logger.info('OAuth login initiation handler invoked');
 
@@ -36,7 +36,7 @@ router.get('/api/auth/login', async (c) => {
     });
 });
 
-router.get('/api/auth/callback', async (c) => {
+router.get('/callback', async (c) => {
     const logger = getLogger();
     logger.info('OAuth callback handler invoked');
 
@@ -57,7 +57,7 @@ router.get('/api/auth/callback', async (c) => {
     });
 });
 
-router.post('/api/auth/refresh', async (c) => {
+router.post('/refresh', async (c) => {
     const logger = getLogger();
     logger.info('Token refresh handler invoked');
 
@@ -86,7 +86,7 @@ router.post('/api/auth/refresh', async (c) => {
     });
 });
 
-router.get('/api/auth/logout', async (c) => {
+router.get('/logout', async (c) => {
     const logger = getLogger();
     logger.info('Logout handler invoked');
 
@@ -112,7 +112,7 @@ router.get('/api/auth/logout', async (c) => {
     });
 });
 
-router.get('/api/auth/ws-token', addUserIntegrationsToCtx, async (c) => {
+router.get('/ws-token', addUserIntegrationsToCtx, async (c) => {
     const logger = getLogger();
     const {userId, username, email, integrations} = c.var.appContext!;
 

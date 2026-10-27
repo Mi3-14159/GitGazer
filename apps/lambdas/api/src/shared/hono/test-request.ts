@@ -8,7 +8,7 @@ export const testRequest = async (
     app: Hono<AppEnv>,
     method: string,
     path: string,
-    init: {appContext?: AppContext; cookies?: string[]; headers?: Record<string, string>; body?: string | object} = {},
+    init: {appContext?: AppContext; cookies?: string[]; headers?: Record<string, string>; body?: string | object; basePath?: string} = {},
 ): Promise<Response> => {
     const headers = new Headers(init.headers);
     if (init.cookies) {
@@ -28,7 +28,7 @@ export const testRequest = async (
         c.set('appContext', init.appContext);
         await next();
     });
-    return base.route('/', app).request(path, {method, headers, body});
+    return base.route(init.basePath ?? '/', app).request(path, {method, headers, body});
 };
 
 export const apiGatewayEvent = (

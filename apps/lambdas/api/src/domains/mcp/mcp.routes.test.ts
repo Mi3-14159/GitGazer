@@ -1,7 +1,9 @@
 import router from '@/domains/mcp/mcp.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {handleToken} from '@/domains/mcp/mcp-oauth.controller';
 import {handler} from '@/index';
 import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@/domains/mcp/mcp.controller', () => ({
@@ -38,12 +40,14 @@ vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/backend-core/config', async (importOriginal) => ({...(await importOriginal<object>()), loadConfig: vi.fn()}));
 vi.mock('@gitgazer/db/client', async (importOriginal) => ({...(await importOriginal<object>()), initDb: vi.fn()}));
 
+const app = new Hono<AppEnv>().route('/api/mcp', router);
+
 const MODERN_VERSION = '2026-07-28';
 
 let controller: typeof import('@/domains/mcp/mcp.controller');
 
 const post = (body: string, headers?: Record<string, string>): Promise<Response> =>
-    testRequest(router, 'POST', '/api/mcp', {body, headers: {'content-type': 'application/json', authorization: 'Bearer token', ...headers}});
+    testRequest(app, 'POST', '/api/mcp', {body, headers: {'content-type': 'application/json', authorization: 'Bearer token', ...headers}});
 
 const modernBody = (method: string, params: Record<string, unknown> = {}): string =>
     JSON.stringify({jsonrpc: '2.0', id: 1, method, params: {...params, _meta: {'io.modelcontextprotocol/protocolVersion': MODERN_VERSION}}});

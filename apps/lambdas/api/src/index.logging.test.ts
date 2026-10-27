@@ -10,11 +10,11 @@ vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => [])}, loadConfig: vi.fn()}));
 vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: vi.fn(), withRlsTransaction: vi.fn()}));
 vi.mock('@/shared/middleware/authentication', () => ({authenticate: async (_c: unknown, next: () => Promise<void>) => next()}));
-vi.mock('@/domains/overview/overview.routes', async () => {
+vi.mock('@/domains/users/users.routes', async () => {
     const {Hono} = await import('hono');
     const {getLogger} = await import('@gitgazer/backend-core/logger');
     return {
-        default: new Hono().get('/api/log', (c) => {
+        default: new Hono().get('/log', (c) => {
             getLogger().info('route log');
             return c.json({ok: true});
         }),

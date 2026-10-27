@@ -1,6 +1,8 @@
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import router from '@/domains/auth/auth.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {handler} from '@/index';
 import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
 
@@ -16,6 +18,8 @@ vi.mock('@gitgazer/backend-core/config', async (importOriginal) => {
 
 // logout is not a public route; the token check is not under test here
 vi.mock('@/shared/middleware/authentication', () => ({authenticate: async (_c: unknown, next: () => Promise<void>) => next()}));
+
+const app = new Hono<AppEnv>().route('/api/auth', router);
 
 const mocks = vi.hoisted(() => ({buildLoginRedirect: vi.fn(), generateWsToken: vi.fn(), handleOAuthCallback: vi.fn(), refreshTokens: vi.fn()}));
 
@@ -48,7 +52,7 @@ describe('auth routes', () => {
     it('redirects with 302 and Location on login', async () => {
         mocks.buildLoginRedirect.mockReturnValue({location: 'https://idp/login', stateCookie: 'oauthState=n; Secure'});
 
-        const res = await testRequest(router, 'GET', '/api/auth/login?redirect_url=https://app/x');
+        const res = await testRequest(app, 'GET', '/api/auth/login?redirect_url=https://app/x');
 
         expect(res.status).toBe(302);
         expect(res.headers.get('Location')).toBe('https://idp/login');
@@ -62,7 +66,7 @@ describe('auth routes', () => {
             redirectUrl: 'https://app/',
         });
 
-        const res = await testRequest(router, 'GET', '/api/auth/callback?code=c&state=s', {cookies: ['oauthState=nonce']});
+        const res = await testRequest(app, 'GET', '/api/auth/callback?code=c&state=s', {cookies: ['oauthState=nonce']});
 
         expect(res.status).toBe(302);
         expect(res.headers.get('Location')).toBe('https://app/');
@@ -84,7 +88,7 @@ describe('auth routes', () => {
     it('sets each cookie as its own Set-Cookie header on refresh success', async () => {
         mocks.refreshTokens.mockResolvedValue({success: true, cookies: ['accessToken=a', 'idToken=i']});
 
-        const res = await testRequest(router, 'POST', '/api/auth/refresh', {cookies: ['refreshToken=rt']});
+        const res = await testRequest(app, 'POST', '/api/auth/refresh', {cookies: ['refreshToken=rt']});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({success: true});
@@ -101,7 +105,7 @@ describe('auth routes', () => {
     it('sets each cookie as its own Set-Cookie header on refresh failure', async () => {
         mocks.refreshTokens.mockResolvedValue({success: false, clearCookies: ['accessToken=', 'idToken=', 'refreshToken=']});
 
-        const res = await testRequest(router, 'POST', '/api/auth/refresh', {cookies: ['refreshToken=rt']});
+        const res = await testRequest(app, 'POST', '/api/auth/refresh', {cookies: ['refreshToken=rt']});
 
         expect(res.status).toBe(401);
         expect(await res.json()).toEqual({error: 'Failed to refresh tokens'});
@@ -113,14 +117,14 @@ describe('auth routes', () => {
     });
 
     it('returns 401 on refresh without a refresh token', async () => {
-        const res = await testRequest(router, 'POST', '/api/auth/refresh');
+        const res = await testRequest(app, 'POST', '/api/auth/refresh');
 
         expect(res.status).toBe(401);
         expect(mocks.refreshTokens).not.toHaveBeenCalled();
     });
 
     it('sets each cleared cookie as its own Set-Cookie header on logout', async () => {
-        const res = await testRequest(router, 'GET', '/api/auth/logout?redirect_uri=https://localhost/');
+        const res = await testRequest(app, 'GET', '/api/auth/logout?redirect_uri=https://localhost/');
 
         expect(res.status).toBe(302);
         expect(res.headers.getSetCookie()).toHaveLength(3);
@@ -136,7 +140,7 @@ describe('auth routes', () => {
     });
 
     it('returns 400 on logout without redirect_uri', async () => {
-        const res = await testRequest(router, 'GET', '/api/auth/logout');
+        const res = await testRequest(app, 'GET', '/api/auth/logout');
 
         expect(res.status).toBe(400);
     });
@@ -144,7 +148,7 @@ describe('auth routes', () => {
     it('GET /api/auth/ws-token returns the generated token', async () => {
         mocks.generateWsToken.mockReturnValue('tok');
 
-        const res = await testRequest(router, 'GET', '/api/auth/ws-token', {appContext: {...appContext}});
+        const res = await testRequest(app, 'GET', '/api/auth/ws-token', {appContext: {...appContext}});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({token: 'tok'});

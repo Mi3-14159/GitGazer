@@ -10,7 +10,7 @@ import {verifyGithubSign} from './webhooks.middleware';
 
 const router = new Hono<AppEnv>();
 
-router.post('/api/import/:integrationId', verifyGithubSign, async (c) => {
+router.post('/:integrationId', verifyGithubSign, async (c) => {
     const logger = getLogger();
 
     const githubEventType = c.req.header('x-github-event');

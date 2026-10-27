@@ -1,7 +1,11 @@
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import router from '@/domains/metrics/metrics.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+
+const app = new Hono<AppEnv>().route('/api/metrics', router);
 
 const mocks = vi.hoisted(() => ({getWidgetMetric: vi.fn(), listRepositories: vi.fn(), listTopics: vi.fn()}));
 
@@ -30,7 +34,7 @@ describe('metrics routes', () => {
         mocks.getWidgetMetric.mockResolvedValue({value: 1});
 
         const res = await testRequest(
-            router,
+            app,
             'GET',
             '/api/metrics/widget?metricName=pr-cycle-time&repositoryIds=1,2&topics=a,b&from=2026-01-01&granularity=day&groupBy=topic&defaultBranchOnly=true',
             {appContext},
@@ -53,7 +57,7 @@ describe('metrics routes', () => {
     });
 
     it('GET /api/metrics/widget rejects an unknown metric name', async () => {
-        const res = await testRequest(router, 'GET', '/api/metrics/widget?metricName=nope', {appContext});
+        const res = await testRequest(app, 'GET', '/api/metrics/widget?metricName=nope', {appContext});
 
         expect(res.status).toBe(400);
     });
@@ -61,14 +65,9 @@ describe('metrics routes', () => {
     it('GET /api/metrics/repositories narrows to the requested authorized integrations', async () => {
         mocks.listRepositories.mockResolvedValue([{id: 1}]);
 
-        const res = await testRequest(
-            router,
-            'GET',
-            `/api/metrics/repositories?integrationIds=${INTEGRATION_ID},22222222-2222-4222-8222-222222222222`,
-            {
-                appContext,
-            },
-        );
+        const res = await testRequest(app, 'GET', `/api/metrics/repositories?integrationIds=${INTEGRATION_ID},22222222-2222-4222-8222-222222222222`, {
+            appContext,
+        });
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{id: 1}]);
@@ -78,7 +77,7 @@ describe('metrics routes', () => {
     it('GET /api/metrics/topics selects the single integration passed as integrationId', async () => {
         mocks.listTopics.mockResolvedValue(['a']);
 
-        const res = await testRequest(router, 'GET', `/api/metrics/topics?integrationId=${INTEGRATION_ID}`, {appContext});
+        const res = await testRequest(app, 'GET', `/api/metrics/topics?integrationId=${INTEGRATION_ID}`, {appContext});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual(['a']);

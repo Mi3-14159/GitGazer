@@ -7,7 +7,7 @@ import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
-router.get('/api/overview', addUserIntegrationsToCtx, async (c) => {
+router.get('/', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     if (!integrationIds || integrationIds.length === 0) {
         return new Response(JSON.stringify({message: 'No integrations found for user'}), {

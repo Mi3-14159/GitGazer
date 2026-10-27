@@ -1,4 +1,4 @@
-import router from '@/domains/mcp/mcp.routes';
+import {wellKnownRoutes} from '@/domains/mcp/mcp.routes';
 import {testRequest} from '@/shared/hono/test-request';
 import {describe, expect, it, vi} from 'vitest';
 
@@ -29,7 +29,7 @@ const AUTHORIZATION_SERVER_METADATA = {
 };
 
 // With no configured mcpServerUrl the origin is the host of the request URL.
-const getFromHost = (path: string) => testRequest(router, 'GET', `https://app.gitgazer.com${path}`);
+const getFromHost = (path: string) => testRequest(wellKnownRoutes, 'GET', `https://app.gitgazer.com${path}`);
 
 describe('MCP metadata documents', () => {
     it('keeps the MCP metadata documents unchanged', async () => {

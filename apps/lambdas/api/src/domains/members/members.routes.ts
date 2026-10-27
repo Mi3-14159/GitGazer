@@ -18,7 +18,7 @@ import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
-router.get('/api/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
+router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 
@@ -30,7 +30,7 @@ router.get('/api/integrations/:integrationId/members', addUserIntegrationsToCtx,
     });
 });
 
-router.patch('/api/integrations/:integrationId/members/:userId/role', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.patch('/integrations/:integrationId/members/:userId/role', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const targetUserId = parseInt(c.req.param('userId'), 10);
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -63,7 +63,7 @@ router.patch('/api/integrations/:integrationId/members/:userId/role', addUserInt
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.delete('/api/integrations/:integrationId/members/:userId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.delete('/integrations/:integrationId/members/:userId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const targetUserId = parseInt(c.req.param('userId'), 10);
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -84,7 +84,7 @@ router.delete('/api/integrations/:integrationId/members/:userId', addUserIntegra
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.post('/api/integrations/:integrationId/leave', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
+router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
     const userId = c.var.appContext!.userId;
@@ -94,7 +94,7 @@ router.post('/api/integrations/:integrationId/leave', addUserIntegrationsToCtx, 
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.get('/api/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
     const callerRole = c.var.appContext?.integrationRoles?.[integrationId];
@@ -111,7 +111,7 @@ router.get('/api/integrations/:integrationId/invitations', addUserIntegrationsTo
     });
 });
 
-router.post('/api/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
     const requestingUserId = c.var.appContext!.userId;
@@ -148,7 +148,7 @@ router.post('/api/integrations/:integrationId/invitations', addUserIntegrationsT
     });
 });
 
-router.post('/api/integrations/:integrationId/invitations/:invitationId/resend', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/integrations/:integrationId/invitations/:invitationId/resend', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const invitationId = c.req.param('invitationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -163,7 +163,7 @@ router.post('/api/integrations/:integrationId/invitations/:invitationId/resend',
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.delete('/api/integrations/:integrationId/invitations/:invitationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.delete('/integrations/:integrationId/invitations/:invitationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const invitationId = c.req.param('invitationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -179,7 +179,7 @@ router.delete('/api/integrations/:integrationId/invitations/:invitationId', addU
 
 // No addUserIntegrationsToCtx — the user doesn't belong to any integration yet.
 // Global authenticate middleware still runs, so appContext is populated.
-router.post('/api/invitations/accept', async (c) => {
+router.post('/invitations/accept', async (c) => {
     const userId = c.var.appContext?.userId;
 
     if (!userId) {

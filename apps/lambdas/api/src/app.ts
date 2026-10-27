@@ -3,7 +3,7 @@ import authRoutes from '@/domains/auth/auth.routes';
 import eventLogRoutes from '@/domains/event-log/event-log.routes';
 import githubAppRoutes from '@/domains/github-app/github-app.routes';
 import integrationsRoutes from '@/domains/integrations/integrations.routes';
-import mcpRoutes from '@/domains/mcp/mcp.routes';
+import mcpRoutes, {wellKnownRoutes} from '@/domains/mcp/mcp.routes';
 import membersRoutes from '@/domains/members/members.routes';
 import metricsRoutes from '@/domains/metrics/metrics.routes';
 import notificationsRoutes from '@/domains/notifications/notifications.routes';
@@ -74,6 +74,27 @@ const corsFor = (origins: string[]): MiddlewareHandler => {
     return (c, next) => (origins.includes(c.req.header('origin') ?? '') ? handler(c, next) : next());
 };
 
+/** All domain routers; their paths are relative to /api, or to their own mount path where they have one. */
+const createApiRouter = (): Hono<AppEnv> => {
+    const api = new Hono<AppEnv>();
+    api.route('/event-log', eventLogRoutes);
+    api.route('/workflows', workflowsRoutes);
+    api.route('/overview', overviewRoutes);
+    api.route('/metrics', metricsRoutes);
+    api.route('/auth', authRoutes);
+    api.route('/integrations', integrationsRoutes);
+    api.route('/integrations/:integrationId', appsRoutes);
+    api.route('/mcp', mcpRoutes);
+    api.route('/github', githubAppRoutes);
+    api.route('/import', importRoutes);
+    // These domains' routes span several prefixes, so their paths stay relative to /api
+    api.route('/', notificationsRoutes);
+    api.route('/', usersRoutes);
+    api.route('/', membersRoutes);
+    api.route('/', slackRoutes);
+    return api;
+};
+
 export const createApp = (): Hono<AppEnv> => {
     const logger = getLogger();
     logger.info('Setting up routes');
@@ -86,20 +107,8 @@ export const createApp = (): Hono<AppEnv> => {
     app.use(authenticate);
     app.use(originCheck);
 
-    app.route('/', eventLogRoutes);
-    app.route('/', workflowsRoutes);
-    app.route('/', overviewRoutes);
-    app.route('/', metricsRoutes);
-    app.route('/', notificationsRoutes);
-    app.route('/', usersRoutes);
-    app.route('/', membersRoutes);
-    app.route('/', authRoutes);
-    app.route('/', integrationsRoutes);
-    app.route('/', appsRoutes);
-    app.route('/', slackRoutes);
-    app.route('/', mcpRoutes);
-    app.route('/', githubAppRoutes);
-    app.route('/', importRoutes);
+    app.route('/api', createApiRouter());
+    app.route('/', wellKnownRoutes);
     app.route('/', feFailover);
 
     logger.info('Routes setup completed');

@@ -1,6 +1,10 @@
 import router from '@/domains/apps/apps.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+const app = new Hono<AppEnv>().route('/api/integrations/:integrationId', router);
 
 const mocks = vi.hoisted(() => ({
     role: 'viewer' as string,
@@ -45,7 +49,7 @@ describe('GET /api/integrations/:integrationId/apps', () => {
     ])('passes canSeeSecrets for %s as %s', async (role, canSeeSecrets) => {
         mocks.role = role;
 
-        const res = await testRequest(router, 'GET', '/api/integrations/i1/apps');
+        const res = await testRequest(app, 'GET', '/api/integrations/i1/apps');
 
         expect(res.status).toBe(200);
         expect(mocks.listApps).toHaveBeenCalledWith(expect.objectContaining({integrationId: 'i1', canSeeSecrets}));
@@ -68,7 +72,7 @@ describe('Slack routes', () => {
     ])('channels route is admin only (%s -> %s)', async (role, status) => {
         mocks.role = role;
 
-        const res = await testRequest(router, 'GET', '/api/integrations/i1/apps/a1/slack/channels');
+        const res = await testRequest(app, 'GET', '/api/integrations/i1/apps/a1/slack/channels');
 
         expect(res.status).toBe(status);
         expect(mocks.listSlackChannels).toHaveBeenCalledTimes(status === 200 ? 1 : 0);
@@ -77,7 +81,7 @@ describe('Slack routes', () => {
     it('install redirects admins to Slack with the state cookie', async () => {
         mocks.role = 'admin';
 
-        const res = await testRequest(router, 'GET', '/api/integrations/i1/apps/slack/install?redirect_url=https://app.example.com/x');
+        const res = await testRequest(app, 'GET', '/api/integrations/i1/apps/slack/install?redirect_url=https://app.example.com/x');
 
         expect(res.status).toBe(302);
         expect(res.headers.get('location')).toBe('https://slack.com/oauth/v2/authorize?state=s');
@@ -88,7 +92,7 @@ describe('Slack routes', () => {
     it('install is admin only', async () => {
         mocks.role = 'member';
 
-        const res = await testRequest(router, 'GET', '/api/integrations/i1/apps/slack/install');
+        const res = await testRequest(app, 'GET', '/api/integrations/i1/apps/slack/install');
 
         expect(res.status).toBe(403);
         expect(mocks.buildSlackInstallRedirect).not.toHaveBeenCalled();
@@ -97,7 +101,7 @@ describe('Slack routes', () => {
     it('a handle with a channelId is created as a channel handle', async () => {
         mocks.role = 'admin';
 
-        const res = await testRequest(router, 'POST', '/api/integrations/i1/apps/a1/handles', {body: {channelId: 'C1'}});
+        const res = await testRequest(app, 'POST', '/api/integrations/i1/apps/a1/handles', {body: {channelId: 'C1'}});
 
         expect(res.status).toBe(201);
         expect(mocks.createHandle).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], appId: 'a1', channelId: 'C1'});
@@ -106,8 +110,8 @@ describe('Slack routes', () => {
     it('move candidates and move are admin only', async () => {
         mocks.role = 'member';
 
-        const list = await testRequest(router, 'GET', '/api/integrations/i1/apps/slack/move-candidates');
-        const move = await testRequest(router, 'POST', '/api/integrations/i1/apps/slack/move', {body: {moves: []}});
+        const list = await testRequest(app, 'GET', '/api/integrations/i1/apps/slack/move-candidates');
+        const move = await testRequest(app, 'POST', '/api/integrations/i1/apps/slack/move', {body: {moves: []}});
 
         expect([list.status, move.status]).toEqual([403, 403]);
         expect(mocks.listMoveCandidates).not.toHaveBeenCalled();
@@ -119,7 +123,7 @@ describe('Slack routes', () => {
         mocks.moveWebhookHandles.mockResolvedValue({moved: ['w1'], failed: [], webhookAppEmpty: true});
         const moves = [{webhookHandleId: 'w1', channelId: 'C1'}];
 
-        const res = await testRequest(router, 'POST', '/api/integrations/i1/apps/slack/move', {body: {moves}});
+        const res = await testRequest(app, 'POST', '/api/integrations/i1/apps/slack/move', {body: {moves}});
 
         expect(res.status).toBe(200);
         expect(mocks.moveWebhookHandles).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], moves});
@@ -128,7 +132,7 @@ describe('Slack routes', () => {
     it('move rejects malformed moves', async () => {
         mocks.role = 'admin';
 
-        const res = await testRequest(router, 'POST', '/api/integrations/i1/apps/slack/move', {body: {moves: [{webhookHandleId: 'w1'}]}});
+        const res = await testRequest(app, 'POST', '/api/integrations/i1/apps/slack/move', {body: {moves: [{webhookHandleId: 'w1'}]}});
 
         expect(res.status).toBe(400);
         expect(mocks.moveWebhookHandles).not.toHaveBeenCalled();
@@ -138,7 +142,7 @@ describe('Slack routes', () => {
         mocks.role = 'admin';
         mocks.listMoveCandidates.mockResolvedValue([{handleId: 'w1', name: 'x', ruleCount: 1}]);
 
-        const res = await testRequest(router, 'GET', '/api/integrations/i1/apps/slack/move-candidates');
+        const res = await testRequest(app, 'GET', '/api/integrations/i1/apps/slack/move-candidates');
 
         expect(res.status).toBe(200);
         expect(mocks.listMoveCandidates).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1']});
