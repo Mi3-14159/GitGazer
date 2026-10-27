@@ -3,6 +3,7 @@ import {BadRequestError, ForbiddenError} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {hasRole, type MemberRole} from '@gitgazer/db/types';
 import type {MiddlewareHandler} from 'hono';
+import {routePath} from 'hono/route';
 
 /**
  * Route-level middleware factory that enforces a minimum integration role.
@@ -19,7 +20,7 @@ export const requireRole = (minimumRole: MemberRole): MiddlewareHandler<AppEnv> 
         const appContext = c.var.appContext;
         const userId = appContext?.userId;
         const integrationRoles = appContext?.integrationRoles;
-        const action = `${c.req.method} ${c.req.routePath}`;
+        const action = `${c.req.method} ${routePath(c, -1)}`;
 
         if (!integrationId) {
             logger.error('requireRole: missing integrationId path parameter — check route definition');

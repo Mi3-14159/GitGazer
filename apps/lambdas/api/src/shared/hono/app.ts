@@ -1,3 +1,7 @@
+import eventLogRoutes from '@/domains/event-log/event-log.routes';
+import metricsRoutes from '@/domains/metrics/metrics.routes';
+import overviewRoutes from '@/domains/overview/overview.routes';
+import workflowsRoutes from '@/domains/workflows/workflows.routes';
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpError, NotFoundError} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -24,6 +28,11 @@ export const createHonoApp = (): Hono<AppEnv> => {
         const path = c.req.path === '/' ? '/' : c.req.path.replace(/\/+$/, '');
         return new NotFoundError(`Route ${path} for method ${c.req.method} not found`).toWebResponse();
     });
+
+    app.route('/', eventLogRoutes);
+    app.route('/', workflowsRoutes);
+    app.route('/', overviewRoutes);
+    app.route('/', metricsRoutes);
 
     return app;
 };

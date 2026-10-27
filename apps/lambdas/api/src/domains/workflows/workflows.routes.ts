@@ -1,15 +1,15 @@
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
 import {getWorkflowFilterValues, getWorkflows} from '@/domains/workflows/workflows.controller';
 import {parseDateFilters, parseWorkflowColumnFilters} from '@/shared/helpers/filters';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
 import {isWorkflowsRequestParameters, WORKFLOW_FILTER_COLUMNS, WorkflowFilterColumn} from '@gitgazer/db/types';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.get('/api/workflows', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
     if (!integrationIds || integrationIds.length === 0) {
         return new Response(JSON.stringify({message: 'No integrations found for user'}), {
             status: HttpStatusCodes.OK,
@@ -19,12 +19,12 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         });
     }
 
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const {queryStringParameters} = event;
+    // The cursor is parsed in place and the column filters are consumed from it below
+    const queryStringParameters: Record<string, any> = {...c.req.query()};
 
     try {
-        if (queryStringParameters?.cursor) {
-            queryStringParameters.cursor = JSON.parse(queryStringParameters.cursor || 'null');
+        if (queryStringParameters.cursor) {
+            queryStringParameters.cursor = JSON.parse(queryStringParameters.cursor);
         }
     } catch (error) {
         throw new BadRequestError('Invalid cursor parameter');
@@ -36,7 +36,7 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
         throw new BadRequestError('Invalid query parameters');
     }
 
-    const {limit, cursor} = queryStringParameters ?? {};
+    const {limit, cursor} = queryStringParameters;
 
     const workflows = await getWorkflows({
         integrationIds,
@@ -53,8 +53,8 @@ router.get('/api/workflows', [addUserIntegrationsToCtx], async (reqCtx: AppReque
     });
 });
 
-router.get('/api/workflows/filter-values', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.get('/api/workflows/filter-values', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
     if (!integrationIds.length) {
         return new Response(JSON.stringify([]), {
             status: HttpStatusCodes.OK,
@@ -62,16 +62,16 @@ router.get('/api/workflows/filter-values', [addUserIntegrationsToCtx], async (re
         });
     }
 
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const column = event.queryStringParameters?.column;
+    const column = c.req.query('column');
 
     if (!column || !WORKFLOW_FILTER_COLUMNS.includes(column as WorkflowFilterColumn)) {
         throw new BadRequestError(`Invalid column. Valid values: ${WORKFLOW_FILTER_COLUMNS.join(', ')}`);
     }
 
-    const search = event.queryStringParameters?.search;
-    const limit = event.queryStringParameters?.limit ? Number(event.queryStringParameters.limit) : undefined;
-    const dateFilters = parseDateFilters(event.queryStringParameters ?? undefined);
+    const search = c.req.query('search');
+    const limitParam = c.req.query('limit');
+    const limit = limitParam ? Number(limitParam) : undefined;
+    const dateFilters = parseDateFilters(c.req.query());
 
     const values = await getWorkflowFilterValues({
         integrationIds,
