@@ -73,10 +73,6 @@ locals {
     NODE_OPTIONS                = "--enable-source-maps"
   }
   monitored_lambda_alarm_config = merge({
-    api = {
-      function_name         = aws_lambda_function.api.function_name
-      duration_threshold_ms = 24000
-    }
     api_websocket = {
       function_name         = aws_lambda_function.api_websocket.function_name
       duration_threshold_ms = 8000
@@ -102,7 +98,6 @@ locals {
     } : {}
   )
   monitored_lambda_log_groups = merge({
-    api                = aws_cloudwatch_log_group.api.name
     api_web            = aws_cloudwatch_log_group.api_web.name
     api_websocket      = aws_cloudwatch_log_group.api_websocket.name
     worker             = aws_cloudwatch_log_group.worker.name

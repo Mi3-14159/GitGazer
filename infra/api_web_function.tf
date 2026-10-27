@@ -4,6 +4,9 @@ locals {
   api_web_db_pool_max      = 5
   api_web_max_environments = min(10, floor((var.db_max_connections / 2 - 20) / local.api_web_db_pool_max))
   awscc_default_tags       = [for k, v in local.default_tags : { key = k, value = tostring(v) }]
+  # MCP run_sql statement_timeout (seconds), written into the Lambda config secret (mcpQuota.maxQuerySeconds).
+  # Keep below the revision's timeout_seconds so a timed-out query is charged before the request is cut off.
+  mcp_query_timeout_seconds = 20
 }
 
 resource "aws_cloudwatch_log_group" "api_web" {

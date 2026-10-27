@@ -1,9 +1,3 @@
-resource "aws_cloudwatch_log_group" "api" {
-  name              = "/aws/lambda/${var.name_prefix}-api-${terraform.workspace}"
-  retention_in_days = 30
-  kms_key_id        = aws_kms_key.this.arn
-}
-
 data "aws_iam_policy_document" "api_assume_role" {
   statement {
     effect = "Allow"
@@ -46,10 +40,7 @@ data "aws_iam_policy_document" "api" {
       "logs:PutLogEvents",
       "logs:DescribeLogStreams",
     ]
-    resources = [
-      "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-api-${terraform.workspace}:*",
-      "${aws_cloudwatch_log_group.api_web.arn}:*",
-    ]
+    resources = ["${aws_cloudwatch_log_group.api_web.arn}:*"]
   }
 
   dynamic "statement" {
@@ -146,57 +137,4 @@ resource "aws_iam_role_policy" "api" {
 data "aws_s3_object" "api_lambda_function_archive" {
   bucket = module.lambda_store.s3_bucket_id
   key    = "${var.name_prefix}-api.zip"
-}
-
-resource "aws_lambda_function" "api" {
-  description       = "GitGazers REST API Lambda Function"
-  function_name     = "${var.name_prefix}-api-${terraform.workspace}"
-  role              = aws_iam_role.api.arn
-  handler           = "index.handler"
-  runtime           = "nodejs24.x"
-  architectures     = ["arm64"]
-  s3_bucket         = module.lambda_store.s3_bucket_id
-  s3_key            = data.aws_s3_object.api_lambda_function_archive.key
-  s3_object_version = data.aws_s3_object.api_lambda_function_archive.version_id
-  timeout           = 30
-  publish           = true
-  memory_size       = 256
-  environment {
-    variables = merge(local.api_environment, {
-      AWS_LAMBDA_EXEC_WRAPPER             = var.enable_lambda_tracing ? "/opt/otel-instrument" : null
-      OTEL_NODE_DISABLED_INSTRUMENTATIONS = "none"
-    })
-  }
-  layers = local.lambda_layers_arm64
-  logging_config {
-    log_group             = aws_cloudwatch_log_group.api.name
-    log_format            = "JSON"
-    application_log_level = local.lambda_application_log_level
-    system_log_level      = "INFO"
-  }
-  tracing_config {
-    mode = var.enable_lambda_tracing ? "Active" : "PassThrough"
-  }
-
-  vpc_config {
-    subnet_ids                  = local.private_subnets
-    security_group_ids          = [aws_security_group.lambda.id]
-    ipv6_allowed_for_dual_stack = true
-  }
-}
-
-resource "aws_lambda_alias" "live" {
-  name             = "live"
-  description      = "live version"
-  function_name    = aws_lambda_function.api.arn
-  function_version = aws_lambda_function.api.version
-}
-
-resource "aws_lambda_permission" "apigw" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_alias.live.function_name
-  qualifier     = aws_lambda_alias.live.name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*"
 }
