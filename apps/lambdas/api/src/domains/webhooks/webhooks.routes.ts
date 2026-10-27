@@ -2,7 +2,7 @@ import {handleEvent} from '@gitgazer/backend-services/webhooks.controller';
 import {isValidImportEvent} from '@/shared/helpers/validation';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpError, InternalServerError} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpError, InternalServerError} from '@/shared/errors';
 import {EventPayloadMap} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
 import {Hono} from 'hono';

@@ -1,5 +1,5 @@
 import type {AppEnv} from '@/shared/hono/env';
-import {ForbiddenError} from '@/shared/hono/http-errors';
+import {ForbiddenError} from '@/shared/errors';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';

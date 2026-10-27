@@ -14,7 +14,7 @@ import importRoutes from '@/domains/webhooks/webhooks.routes';
 import workflowsRoutes from '@/domains/workflows/workflows.routes';
 import feFailover from '@/shared/fe-failover';
 import type {AppEnv} from '@/shared/hono/env';
-import {HttpError, NotFoundError} from '@/shared/hono/http-errors';
+import {HttpError, NotFoundError} from '@/shared/errors';
 import {authenticate} from '@/shared/middleware/authentication';
 import {originCheck} from '@/shared/middleware/origin-check';
 import config, {loadConfig} from '@gitgazer/backend-core/config';

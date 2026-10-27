@@ -29,7 +29,7 @@ vi.mock('@/domains/overview/overview.routes', async () => {
 
 import {createApp} from '@/app';
 import {handler} from '@/index';
-import {BadRequestError, NotFoundError} from '@/shared/hono/http-errors';
+import {BadRequestError, NotFoundError} from '@/shared/errors';
 import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import type {AppContext} from '@gitgazer/backend-core/types';
@@ -74,7 +74,7 @@ describe('createApp', () => {
     it('serializes thrown HttpErrors like Powertools', async () => {
         const app = createApp();
         app.get('/api/test', () => {
-            throw new BadRequestError('x', undefined, {a: 1});
+            throw new BadRequestError('x', {a: 1});
         });
 
         const res = await send(app, 'GET', '/api/test');

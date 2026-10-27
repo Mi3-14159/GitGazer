@@ -2,7 +2,7 @@ import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.midd
 import type {MetricName} from '@/domains/metrics/metrics.controller';
 import {getWidgetMetric, VALID_METRIC_NAMES} from '@/domains/metrics/metrics.controller';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {listRepositories, listTopics} from '@gitgazer/db/queries/metrics';
 import type {GroupByOption} from '@gitgazer/db/types/metrics';
 import {isMetricsFilter} from '@gitgazer/db/types/metrics';

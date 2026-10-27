@@ -1,4 +1,4 @@
-import {BadRequestError, ForbiddenError, InternalServerError} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError, InternalServerError} from '@/shared/errors';
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const defaultConfigGet = (key: string): unknown => {

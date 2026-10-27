@@ -2,7 +2,7 @@ import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import config from '@gitgazer/backend-core/config';
 import {buildAuthCookies, buildClearCookies, buildStateCookie} from '@/shared/helpers/cookies';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, ForbiddenError, InternalServerError} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError, InternalServerError} from '@/shared/errors';
 import {WSToken} from '@gitgazer/db/types';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';
 

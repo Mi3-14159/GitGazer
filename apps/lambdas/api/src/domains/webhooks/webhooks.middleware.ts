@@ -1,6 +1,6 @@
 import {getGithubSettings} from '@/domains/apps/github-settings';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import * as crypto from 'crypto';

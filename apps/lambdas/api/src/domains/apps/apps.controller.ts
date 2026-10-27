@@ -1,7 +1,6 @@
 import {getGithubSettings, installGithubApp} from '@/domains/apps/github-settings';
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
-import {ConflictError} from '@/shared/errors';
-import {BadRequestError, NotFoundError} from '@/shared/hono/http-errors';
+import {BadRequestError, ConflictError, NotFoundError} from '@/shared/errors';
 import {getChannel, listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
 import {getLogger} from '@gitgazer/backend-core/logger';

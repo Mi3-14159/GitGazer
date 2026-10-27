@@ -1,5 +1,5 @@
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/errors';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import * as crypto from 'crypto';

@@ -1,7 +1,7 @@
 import {getEventLogEntries, getEventLogStats, markAllEventLogRead, toggleEventLogRead} from '@gitgazer/backend-services/event-log.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpStatusCodes, NotFoundError} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpStatusCodes, NotFoundError} from '@/shared/errors';
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,

@@ -1,10 +1,9 @@
 import {handleGithubAppEvent} from '@/domains/github-app/github-app.controller';
 import {verifyGithubAppSignature} from '@/domains/github-app/github-app.middleware';
-import {ensureHttpError} from '@/shared/errors';
+import {BadRequestError, ensureHttpError} from '@/shared/errors';
 import {isValidGithubAppEvent} from '@/shared/helpers/validation';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError} from '@/shared/hono/http-errors';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();

@@ -1,4 +1,4 @@
-import {BadRequestError, ForbiddenError, NotFoundError} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError, NotFoundError} from '@/shared/errors';
 import {inspect} from 'node:util';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 

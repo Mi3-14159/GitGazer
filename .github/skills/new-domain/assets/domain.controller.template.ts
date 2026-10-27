@@ -3,7 +3,7 @@
 // Default DB role is reader; pass userName: gitgazerWriter.name for writes.
 
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError} from '@/shared/hono/http-errors';
+import {BadRequestError} from '@/shared/errors';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 // import {things} from '@gitgazer/db/schema/github/<file>'; // your table

@@ -2,9 +2,8 @@ import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controll
 import {deprovisionAllWebhooks, RecordedWebhook, updateWebhookSecrets} from '@/domains/github-app/webhook-provisioning';
 import {findSlackTeamId, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {getGithubSettings, installGithubApp} from '@/domains/apps/github-settings';
-import {ensureHttpError} from '@/shared/errors';
+import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError, ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError} from '@/shared/hono/http-errors';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';

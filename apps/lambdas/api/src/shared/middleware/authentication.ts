@@ -1,6 +1,6 @@
 import {extractTokenFromCookies, getRequestCookies} from '@/shared/helpers/cookies';
 import type {AppEnv} from '@/shared/hono/env';
-import {InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
+import {InternalServerError, UnauthorizedError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
 import {getVerifiers} from '@/shared/middleware/token-verifier';

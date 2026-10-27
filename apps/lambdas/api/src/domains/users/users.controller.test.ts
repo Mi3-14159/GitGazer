@@ -1,4 +1,4 @@
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/errors';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockProxyFetch = vi.fn();

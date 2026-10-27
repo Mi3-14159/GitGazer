@@ -1,7 +1,7 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/domains/notifications/notifications.controller';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {isNotificationRuleUpdate} from '@gitgazer/db/types';
 import type {Context} from 'hono';

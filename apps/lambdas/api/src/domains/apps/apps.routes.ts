@@ -3,7 +3,7 @@ import {createHandle, deleteHandle, installApp, listApps, listSlackChannels, uni
 import {buildSlackInstallRedirect} from '@/domains/apps/slack-install';
 import {listMoveCandidates, moveWebhookHandles, type WebhookMove} from '@/domains/apps/slack-move';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {hasRole, isIntegrationAppType} from '@gitgazer/db/types';
 import type {Context} from 'hono';
