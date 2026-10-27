@@ -18,7 +18,7 @@ import {HttpError, NotFoundError} from '@/shared/hono/http-errors';
 import {authenticate} from '@/shared/middleware/authentication';
 import {originCheck} from '@/shared/middleware/origin-check';
 import config, {loadConfig} from '@gitgazer/backend-core/config';
-import {getLogger, runWithRequestLogger} from '@gitgazer/backend-core/logger';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {initDb} from '@gitgazer/db/client';
 import {Hono, type MiddlewareHandler} from 'hono';
 import {compress} from 'hono/compress';
@@ -78,7 +78,6 @@ export const createApp = (): Hono<AppEnv> => {
     logger.info('Setting up routes');
 
     const app = createBaseApp();
-    app.use((c, next) => runWithRequestLogger({requestId: c.req.header('lambda-web-request-id') ?? crypto.randomUUID()}, next));
     // Powertools compressed every content type above the threshold
     app.use(compress({encoding: 'gzip', threshold: 1024, contentTypeFilter: () => true}));
     app.use(setContentLength);

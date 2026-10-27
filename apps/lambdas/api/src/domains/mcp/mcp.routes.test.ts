@@ -33,7 +33,6 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
         addContext: vi.fn(),
         logEventIfEnabled: vi.fn(),
     }),
-    runWithRequestLogger: (_keys: Record<string, string>, fn: () => Promise<unknown>) => fn(),
 }));
 vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/backend-core/config', async (importOriginal) => ({...(await importOriginal<object>()), loadConfig: vi.fn()}));

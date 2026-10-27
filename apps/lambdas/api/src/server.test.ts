@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
     slowRouteEntered: vi.fn(),
 }));
 
+// The real logger, so the request scope is tested; dev mode would log through console instead of stdout
+vi.hoisted(() => vi.stubEnv('POWERTOOLS_DEV', 'false'));
+vi.mock('@gitgazer/backend-core/logger', async (importOriginal) => importOriginal());
 vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => [])}, loadConfig: mocks.loadConfig}));
 vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: mocks.initDb, closeDb: mocks.closeDb, withRlsTransaction: vi.fn()}));
@@ -22,10 +25,12 @@ vi.mock('@/shared/middleware/authentication', () => ({
 }));
 vi.mock('@/domains/overview/overview.routes', async () => {
     const {Hono} = await import('hono');
+    const {getLogger} = await import('@gitgazer/backend-core/logger');
     const router = new Hono<AppEnv>();
     router.get('/api/slow', async (c) => {
         mocks.slowRouteEntered();
         await new Promise((resolve) => setTimeout(resolve, 50));
+        getLogger().info('slow route done', {userId: c.var.appContext?.userId});
         return c.json({userId: c.var.appContext?.userId});
     });
     return {default: router};
@@ -39,17 +44,23 @@ const freePort = async (): Promise<number> => {
     return port;
 };
 
-const getSlow = (port: number, userId: number) =>
-    fetch(`http://127.0.0.1:${port}/api/slow`, {headers: {'x-test-user': String(userId)}}).then((res) => res.json());
+const getSlow = (port: number, userId: number, headers: Record<string, string> = {}) =>
+    fetch(`http://127.0.0.1:${port}/api/slow`, {headers: {'x-test-user': String(userId), ...headers}}).then((res) => res.json());
 
 describe('server', () => {
     let sigtermListeners: unknown[];
     let servers: {close: () => void}[];
+    let logLines: string[];
 
     beforeEach(() => {
         vi.resetModules();
         sigtermListeners = process.listeners('SIGTERM');
         servers = [];
+        logLines = [];
+        vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+            logLines.push(String(chunk));
+            return true;
+        });
     });
 
     afterEach(() => {
@@ -76,6 +87,29 @@ describe('server', () => {
         const bodies = await Promise.all(users.map((userId) => getSlow(port, userId)));
 
         expect(bodies).toEqual(users.map((userId) => ({userId})));
+    });
+
+    it('keeps the log keys of concurrent requests apart', async () => {
+        const {port} = await start('127.0.0.1:0');
+
+        const users = Array.from({length: 20}, (_, i) => (i % 2) + 1);
+        await Promise.all(users.map((userId, i) => getSlow(port, userId, {'lambda-web-request-id': `req-${i}-user-${userId}`})));
+
+        const routeLogs = logLines.map((line) => JSON.parse(line)).filter((log) => log.message === 'slow route done');
+        expect(routeLogs).toHaveLength(users.length);
+        expect(new Set(routeLogs.map((log) => log.requestId)).size).toBe(users.length);
+        for (const log of routeLogs) {
+            expect(log.requestId).toMatch(new RegExp(`^req-\\d+-user-${log.userId}$`));
+        }
+    });
+
+    it('rejects the start when the port is taken', async () => {
+        const blocker: Server = createServer();
+        await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve));
+        const {port} = blocker.address() as {port: number};
+
+        await expect(start(`127.0.0.1:${port}`)).rejects.toMatchObject({code: 'EADDRINUSE'});
+        blocker.close();
     });
 
     it('runs init before accepting requests', async () => {

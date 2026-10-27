@@ -1,6 +1,6 @@
 import '@gitgazer/backend-core/bootstrap';
 import {initApp} from '@/app';
-import {getLogger} from '@gitgazer/backend-core/logger';
+import {getLogger, runWithRequestLogger} from '@gitgazer/backend-core/logger';
 import {closeDb} from '@gitgazer/db/client';
 import {serve} from '@hono/node-server';
 import type {Server} from 'node:http';
@@ -11,11 +11,15 @@ export const startServer = async (endpoint = process.env.AWS_LAMBDA_HTTP_ENDPOIN
     const app = await initApp();
     const [hostname, port] = endpoint.split(':');
 
-    const server = await new Promise<Server>((resolve) => {
-        const listening = serve({fetch: app.fetch, hostname, port: Number(port)}, (info) => {
+    const fetch = (req: Request) =>
+        runWithRequestLogger({requestId: req.headers.get('lambda-web-request-id') ?? crypto.randomUUID()}, async () => app.fetch(req));
+
+    const server = await new Promise<Server>((resolve, reject) => {
+        const listening = serve({fetch, hostname, port: Number(port)}, (info) => {
             logger.info('Server listening', {address: info.address, port: info.port});
             resolve(listening as Server);
         });
+        listening.once('error', reject);
     });
 
     let draining = false;
