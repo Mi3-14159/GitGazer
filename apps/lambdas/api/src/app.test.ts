@@ -28,15 +28,13 @@ vi.mock('@/domains/users/users.routes', async () => {
 });
 
 import {createApp} from '@/app';
-import {handler} from '@/index';
 import {BadRequestError, NotFoundError} from '@/shared/errors';
-import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {testRequest} from '@/shared/hono/test-request';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import type {AppContext} from '@gitgazer/backend-core/types';
 
 const authCookie = 'accessToken=access; idToken=id';
 const allowedOrigin = 'https://app.example.com';
-const lambdaContext = {} as Parameters<typeof handler>[1];
 
 const send = (app: Hono<AppEnv>, method: string, path: string, headers: Record<string, string> = {}) =>
     app.request(path, {method, headers: {cookie: authCookie, ...headers}});
@@ -196,26 +194,20 @@ describe('createApp', () => {
         expect(unauthorized.headers.get('access-control-allow-origin')).toBe(allowedOrigin);
     });
 
-    it('gzips large responses and the Lambda result is base64', async () => {
-        const event = apiGatewayEvent('GET', '/api/big', {cookies: ['accessToken=access', 'idToken=id'], headers: {'accept-encoding': 'gzip'}});
+    it('gzips large responses', async () => {
+        const res = await send(createApp(), 'GET', '/api/big', {'accept-encoding': 'gzip'});
 
-        const result = await handler(event, lambdaContext);
-
-        expect(result.statusCode).toBe(200);
-        expect(result.isBase64Encoded).toBe(true);
-        expect(result.headers?.['content-encoding']).toBe('gzip');
-        expect(JSON.parse(gunzipSync(Buffer.from(result.body!, 'base64')).toString('utf-8'))).toEqual(mocks.bigPayload);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-encoding')).toBe('gzip');
+        expect(JSON.parse(gunzipSync(Buffer.from(await res.arrayBuffer())).toString('utf-8'))).toEqual(mocks.bigPayload);
     });
 
     it('leaves responses up to the 1 KB threshold uncompressed', async () => {
-        const event = apiGatewayEvent('GET', '/api/nope', {cookies: ['accessToken=access', 'idToken=id'], headers: {'accept-encoding': 'gzip'}});
+        const res = await send(createApp(), 'GET', '/api/nope', {'accept-encoding': 'gzip'});
 
-        const result = await handler(event, lambdaContext);
-
-        expect(result.statusCode).toBe(404);
-        expect(result.isBase64Encoded).toBe(false);
-        expect(result.headers?.['content-encoding']).toBeUndefined();
-        expect(JSON.parse(result.body!)).toMatchObject({message: 'Route /api/nope for method GET not found'});
+        expect(res.status).toBe(404);
+        expect(res.headers.get('content-encoding')).toBeNull();
+        expect(await res.json()).toMatchObject({message: 'Route /api/nope for method GET not found'});
     });
 
     it('only measures the body when the client accepts an encoding', async () => {

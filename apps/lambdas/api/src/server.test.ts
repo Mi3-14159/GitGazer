@@ -33,6 +33,12 @@ vi.mock('@/domains/users/users.routes', async () => {
         getLogger().info('slow route done', {userId: c.var.appContext?.userId});
         return c.json({userId: c.var.appContext?.userId});
     });
+    router.get('/cookies', (c) => {
+        c.header('set-cookie', 'accessToken=a; Secure', {append: true});
+        c.header('set-cookie', 'idToken=i; Secure', {append: true});
+        c.header('set-cookie', 'refreshToken=r; Secure', {append: true});
+        return c.body(null, 204);
+    });
     return {default: router};
 });
 
@@ -101,6 +107,14 @@ describe('server', () => {
         for (const log of routeLogs) {
             expect(log.requestId).toMatch(new RegExp(`^req-\\d+-user-${log.userId}$`));
         }
+    });
+
+    it('sends each cookie as its own Set-Cookie header', async () => {
+        const {port} = await start('127.0.0.1:0');
+
+        const res = await fetch(`http://127.0.0.1:${port}/api/cookies`, {headers: {'x-test-user': '1'}});
+
+        expect(res.headers.getSetCookie()).toEqual(['accessToken=a; Secure', 'idToken=i; Secure', 'refreshToken=r; Secure']);
     });
 
     it('rejects the start when the port is taken', async () => {

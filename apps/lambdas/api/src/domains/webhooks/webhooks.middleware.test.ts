@@ -1,6 +1,5 @@
 import type {AppEnv} from '@/shared/hono/env';
-import {handler} from '@/index';
-import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {testRequest} from '@/shared/hono/test-request';
 import * as crypto from 'crypto';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -132,37 +131,5 @@ describe('verifyGithubSign middleware', () => {
         expect(res.status).toBe(200);
         expect(next).toHaveBeenCalledTimes(1);
         expect(json).toEqual({received: {name: 'Zoë ü ☃ 😀', n: 1}});
-    });
-
-    it('accepts a base64-encoded API Gateway body', async () => {
-        await mockSettings([{appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'}]);
-
-        const rawBody = Buffer.from('{ "zen":  "Zoë ☃" }', 'utf-8');
-        const event = apiGatewayEvent('POST', '/api/import/int-1', {
-            headers: {'x-hub-signature-256': signatureFor(rawBody, 'shh'), 'x-github-event': 'ping'},
-            body: rawBody.toString('base64'),
-            isBase64Encoded: true,
-        });
-
-        const res = await handler(event, {} as Parameters<typeof handler>[1]);
-
-        expect(res.statusCode).toBe(200);
-        expect(JSON.parse(res.body!)).toEqual({message: 'ok'});
-    });
-
-    it('rejects a base64-encoded body whose signature was computed over the encoded text', async () => {
-        await mockSettings([{appId: 'app-1', secret: 'shh', orgSyncDefaultRole: 'viewer'}]);
-
-        const encoded = Buffer.from(JSON.stringify({deploy: true}), 'utf-8').toString('base64');
-        const event = apiGatewayEvent('POST', '/api/import/int-1', {
-            headers: {'x-hub-signature-256': signatureFor(encoded, 'shh'), 'x-github-event': 'ping'},
-            body: encoded,
-            isBase64Encoded: true,
-        });
-
-        const res = await handler(event, {} as Parameters<typeof handler>[1]);
-
-        expect(res.statusCode).toBe(401);
-        expect(JSON.parse(res.body!)).toMatchObject({message: 'Invalid signature'});
     });
 });

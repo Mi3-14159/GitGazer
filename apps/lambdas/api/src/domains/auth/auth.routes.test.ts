@@ -3,8 +3,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import router from '@/domains/auth/auth.routes';
 import type {AppEnv} from '@/shared/hono/env';
-import {handler} from '@/index';
-import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {testRequest} from '@/shared/hono/test-request';
 
 vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/db/client', async (importOriginal) => ({...(await importOriginal<object>()), initDb: vi.fn()}));
@@ -39,9 +38,6 @@ vi.mock('@/domains/integrations/integrations.middleware', async (importOriginal)
 
 const appContext = {userId: 1, username: 'u', email: 'e', name: '', nickname: '', picture: ''};
 
-const lambda = (method: string, path: string, cookies?: string[]) =>
-    handler(apiGatewayEvent(method, path, {cookies, headers: {origin: 'https://localhost'}}), {} as Parameters<typeof handler>[1]);
-
 const COOKIE_OPTIONS = 'Secure; HttpOnly; SameSite=Lax; Path=/';
 
 describe('auth routes', () => {
@@ -70,19 +66,13 @@ describe('auth routes', () => {
 
         expect(res.status).toBe(302);
         expect(res.headers.get('Location')).toBe('https://app/');
-        expect(res.headers.getSetCookie()).toHaveLength(4);
-        expect(res.headers.getSetCookie()[3]).toContain('oauthState=;');
-        expect(mocks.handleOAuthCallback).toHaveBeenCalledWith({code: 'c', state: 's', oauthStateNonce: 'nonce'});
-
-        const result = await lambda('GET', '/api/auth/callback?code=c&state=s', ['theme=dark', 'oauthState=nonce']);
-        expect(result.statusCode).toBe(302);
-        expect(result.cookies).toEqual([
+        expect(res.headers.getSetCookie()).toEqual([
             'accessToken=a; Secure',
             'idToken=i; Secure',
             'refreshToken=r; Secure',
             `oauthState=; ${COOKIE_OPTIONS}; Max-Age=0`,
         ]);
-        expect(mocks.handleOAuthCallback).toHaveBeenLastCalledWith({code: 'c', state: 's', oauthStateNonce: 'nonce'});
+        expect(mocks.handleOAuthCallback).toHaveBeenCalledWith({code: 'c', state: 's', oauthStateNonce: 'nonce'});
     });
 
     it('sets each cookie as its own Set-Cookie header on refresh success', async () => {
@@ -95,11 +85,6 @@ describe('auth routes', () => {
         expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0');
         expect(res.headers.getSetCookie()).toEqual(['accessToken=a', 'idToken=i']);
         expect(mocks.refreshTokens).toHaveBeenCalledWith('rt');
-
-        const result = await lambda('POST', '/api/auth/refresh', ['refreshToken=rt']);
-        expect(result.statusCode).toBe(200);
-        expect(result.cookies).toEqual(['accessToken=a', 'idToken=i']);
-        expect(mocks.refreshTokens).toHaveBeenLastCalledWith('rt');
     });
 
     it('sets each cookie as its own Set-Cookie header on refresh failure', async () => {
@@ -109,11 +94,7 @@ describe('auth routes', () => {
 
         expect(res.status).toBe(401);
         expect(await res.json()).toEqual({error: 'Failed to refresh tokens'});
-        expect(res.headers.getSetCookie()).toHaveLength(3);
-
-        const result = await lambda('POST', '/api/auth/refresh', ['refreshToken=rt']);
-        expect(result.statusCode).toBe(401);
-        expect(result.cookies).toEqual(['accessToken=', 'idToken=', 'refreshToken=']);
+        expect(res.headers.getSetCookie()).toEqual(['accessToken=', 'idToken=', 'refreshToken=']);
     });
 
     it('returns 401 on refresh without a refresh token', async () => {
@@ -127,16 +108,12 @@ describe('auth routes', () => {
         const res = await testRequest(app, 'GET', '/api/auth/logout?redirect_uri=https://localhost/');
 
         expect(res.status).toBe(302);
-        expect(res.headers.getSetCookie()).toHaveLength(3);
-        expect(res.headers.get('Location')).toBeTruthy();
-
-        const result = await lambda('GET', '/api/auth/logout?redirect_uri=https://localhost/');
-        expect(result.statusCode).toBe(302);
-        expect(result.cookies).toEqual([
+        expect(res.headers.getSetCookie()).toEqual([
             `accessToken=; ${COOKIE_OPTIONS}; Max-Age=0`,
             `idToken=; ${COOKIE_OPTIONS}; Max-Age=0`,
             `refreshToken=; ${COOKIE_OPTIONS}; Max-Age=0`,
         ]);
+        expect(res.headers.get('Location')).toBeTruthy();
     });
 
     it('returns 400 on logout without redirect_uri', async () => {

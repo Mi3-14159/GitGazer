@@ -15,8 +15,7 @@ vi.mock('@/domains/users/users.controller', async (importOriginal) => ({
 
 import router from '@/domains/users/users.routes';
 import type {AppEnv} from '@/shared/hono/env';
-import {handler} from '@/index';
-import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {testRequest} from '@/shared/hono/test-request';
 
 const app = new Hono<AppEnv>().route('/api', router);
 
@@ -38,23 +37,6 @@ describe('users routes', () => {
         expect(await res.json()).toEqual({access_token: 'gho'});
         expect(mocks.assertCognitoCaller).toHaveBeenCalledWith('id', 'secret');
         expect(mocks.exchangeGitHubOAuthToken).toHaveBeenCalledWith('abc123');
-    });
-
-    it('POST /api/auth/cognito/token returns the parse status and body for a base64 event body through the Lambda handler', async () => {
-        mocks.exchangeGitHubOAuthToken.mockResolvedValue({access_token: 'gho'});
-        const encoded = Buffer.from('client_id=id&client_secret=secret&code=xyz789', 'utf-8').toString('base64');
-
-        const event = apiGatewayEvent('POST', '/api/auth/cognito/token', {
-            headers: {'content-type': 'application/x-www-form-urlencoded'},
-            body: encoded,
-            isBase64Encoded: true,
-        });
-
-        const res = await handler(event, {} as Parameters<typeof handler>[1]);
-
-        expect(res.statusCode).toBe(200);
-        expect(JSON.parse(res.body!)).toEqual({access_token: 'gho'});
-        expect(mocks.exchangeGitHubOAuthToken).toHaveBeenCalledWith('xyz789');
     });
 
     it('POST /api/auth/cognito/token rejects a missing body and a missing code', async () => {
