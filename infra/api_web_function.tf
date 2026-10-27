@@ -54,11 +54,6 @@ data "aws_iam_policy_document" "api_web_connector_assume_role" {
       type        = "Service"
       identifiers = ["lambda.amazonaws.com"]
     }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [data.aws_caller_identity.current.account_id]
-    }
   }
 }
 
