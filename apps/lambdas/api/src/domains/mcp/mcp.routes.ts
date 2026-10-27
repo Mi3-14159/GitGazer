@@ -1,31 +1,36 @@
 import {buildAuthServerMetadata, handleAuthorize, handleCallback, handleRegister, handleToken} from '@/domains/mcp/mcp-oauth.controller';
 import {buildProtectedResourceMetadata, McpAuthError, protectedResourceMetadataUrl, resolveMcpCaller} from '@/domains/mcp/mcp.controller';
 import {handleMcpRequest, type JsonRpcRequest} from '@/domains/mcp/mcp.protocol';
+import type {AppEnv} from '@/shared/hono/env';
+import {HttpStatusCodes} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {Context} from 'hono';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
+
+// The API Gateway domain of the request, not the Host header: behind CloudFront the Host is the execute-api host either way.
+const requestOrigin = (c: Context<AppEnv>): string => `https://${(c.env?.event as APIGatewayProxyEventV2 | undefined)?.requestContext?.domainName}`;
 
 const JSON_HEADERS = {'Content-Type': 'application/json', 'Cache-Control': 'no-store'} as const;
 
 const jsonRpcError = (code: number, message: string, status: number): Response =>
     new Response(JSON.stringify({jsonrpc: '2.0', id: null, error: {code, message}}), {status, headers: JSON_HEADERS});
 
-router.post('/api/mcp', async (reqCtx: AppRequestContext) => {
+router.post('/api/mcp', async (c) => {
     const logger = getLogger();
-    const event = reqCtx.event as APIGatewayProxyEventV2;
+    const headers = c.req.header();
 
     let caller;
     try {
-        caller = await resolveMcpCaller(event.headers?.['authorization']);
+        caller = await resolveMcpCaller(headers['authorization']);
     } catch (error) {
         if (error instanceof McpAuthError) {
             logger.info('MCP request unauthenticated', {message: error.message});
             return new Response(JSON.stringify({error: 'unauthorized', message: error.message}), {
                 status: HttpStatusCodes.UNAUTHORIZED,
-                headers: {...JSON_HEADERS, 'WWW-Authenticate': `Bearer resource_metadata="${protectedResourceMetadataUrl(event)}"`},
+                headers: {...JSON_HEADERS, 'WWW-Authenticate': `Bearer resource_metadata="${protectedResourceMetadataUrl(requestOrigin(c))}"`},
             });
         }
         throw error;
@@ -33,7 +38,7 @@ router.post('/api/mcp', async (reqCtx: AppRequestContext) => {
 
     let rpc: unknown;
     try {
-        rpc = await reqCtx.req.json();
+        rpc = await c.req.json();
     } catch {
         return jsonRpcError(-32700, 'Parse error', HttpStatusCodes.OK);
     }
@@ -42,46 +47,46 @@ router.post('/api/mcp', async (reqCtx: AppRequestContext) => {
         return jsonRpcError(-32600, 'Invalid Request: expected a single JSON-RPC object', HttpStatusCodes.BAD_REQUEST);
     }
 
-    const outcome = await handleMcpRequest(rpc as JsonRpcRequest, caller, event.headers ?? {});
+    const outcome = await handleMcpRequest(rpc as JsonRpcRequest, caller, headers);
     if (outcome === null) {
         return new Response(null, {status: HttpStatusCodes.ACCEPTED});
     }
     return new Response(JSON.stringify(outcome.response), {status: outcome.status, headers: JSON_HEADERS});
 });
 
-router.get('/.well-known/oauth-protected-resource', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    return new Response(JSON.stringify(buildProtectedResourceMetadata(event)), {status: HttpStatusCodes.OK, headers: JSON_HEADERS});
+router.get('/.well-known/oauth-protected-resource', async (c) => {
+    return new Response(JSON.stringify(buildProtectedResourceMetadata(requestOrigin(c))), {status: HttpStatusCodes.OK, headers: JSON_HEADERS});
 });
 
 // --- OAuth 2.0 authorization-server proxy (fronts Cognito so MCP clients need no manual setup) ---
 
-router.get('/.well-known/oauth-authorization-server', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    return new Response(JSON.stringify(buildAuthServerMetadata(event)), {status: HttpStatusCodes.OK, headers: JSON_HEADERS});
+router.get('/.well-known/oauth-authorization-server', async (c) => {
+    return new Response(JSON.stringify(buildAuthServerMetadata(requestOrigin(c))), {status: HttpStatusCodes.OK, headers: JSON_HEADERS});
 });
 
-router.post('/api/mcp/oauth/register', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    return new Response(JSON.stringify(handleRegister(event.body, event.isBase64Encoded ?? false)), {
+router.post('/api/mcp/oauth/register', async (c) => {
+    return new Response(JSON.stringify(handleRegister(await c.req.text())), {
         status: HttpStatusCodes.CREATED,
         headers: JSON_HEADERS,
     });
 });
 
-router.get('/api/mcp/oauth/authorize', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    return new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: handleAuthorize(event), 'Cache-Control': 'no-store'}});
+router.get('/api/mcp/oauth/authorize', async (c) => {
+    return new Response(null, {
+        status: HttpStatusCodes.FOUND,
+        headers: {Location: handleAuthorize(requestOrigin(c), c.req.query()), 'Cache-Control': 'no-store'},
+    });
 });
 
-router.get('/api/mcp/oauth/callback', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    return new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: handleCallback(event), 'Cache-Control': 'no-store'}});
+router.get('/api/mcp/oauth/callback', async (c) => {
+    return new Response(null, {
+        status: HttpStatusCodes.FOUND,
+        headers: {Location: handleCallback(requestOrigin(c), c.req.query()), 'Cache-Control': 'no-store'},
+    });
 });
 
-router.post('/api/mcp/oauth/token', async (reqCtx: AppRequestContext) => {
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const {status, body} = await handleToken(event, event.body, event.isBase64Encoded ?? false);
+router.post('/api/mcp/oauth/token', async (c) => {
+    const {status, body} = await handleToken(requestOrigin(c), await c.req.text());
     return new Response(body, {status, headers: JSON_HEADERS});
 });
 

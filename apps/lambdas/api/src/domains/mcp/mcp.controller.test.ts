@@ -64,7 +64,7 @@ describe('buildProtectedResourceMetadata', () => {
     });
 
     it('advertises the configured mcp resource, our authorization-server origin, and bearer/scope hints', () => {
-        const meta = ctrl.buildProtectedResourceMetadata({requestContext: {domainName: 'api.example.com'}} as never);
+        const meta = ctrl.buildProtectedResourceMetadata('https://api.example.com');
         expect(meta).toEqual({
             resource: 'https://app.gitgazer.com/api/mcp',
             authorization_servers: ['https://app.gitgazer.com'],

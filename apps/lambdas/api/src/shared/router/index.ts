@@ -1,8 +1,4 @@
-import appsRoutes from '@/domains/apps/apps.routes';
 import githubAppRoutes from '@/domains/github-app/github-app.routes';
-import integrationsRoutes from '@/domains/integrations/integrations.routes';
-import mcpRoutes from '@/domains/mcp/mcp.routes';
-import slackRoutes from '@/domains/slack/slack.routes';
 import importRoutes from '@/domains/webhooks/webhooks.routes';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -59,10 +55,6 @@ export const createApp = (): Router => {
     app.includeRouter(githubAppRoutes);
     app.includeRouter(importRoutes);
     app.includeRouter(feFailover);
-    app.includeRouter(integrationsRoutes);
-    app.includeRouter(appsRoutes);
-    app.includeRouter(slackRoutes);
-    app.includeRouter(mcpRoutes);
 
     // Powertools also routes NotFoundErrors thrown by its own routes here; only unmatched requests go to Hono.
     app.notFound(async (error, reqCtx: AppRequestContext) => {

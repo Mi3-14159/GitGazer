@@ -1,22 +1,24 @@
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
 import {createHandle, deleteHandle, installApp, listApps, listSlackChannels, uninstallApp, updateHandle} from '@/domains/apps/apps.controller';
 import {buildSlackInstallRedirect} from '@/domains/apps/slack-install';
 import {listMoveCandidates, moveWebhookHandles, type WebhookMove} from '@/domains/apps/slack-move';
-import {requireRole} from '@/shared/middleware/require-role';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {requireRole} from '@/shared/hono/require-role';
 import {hasRole, isIntegrationAppType} from '@gitgazer/db/types';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {Context} from 'hono';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-const readBody = async (reqCtx: AppRequestContext): Promise<Record<string, unknown>> => {
-    if (!reqCtx.event.body) {
+const readBody = async (c: Context<AppEnv>): Promise<Record<string, unknown>> => {
+    const rawBody = await c.req.text();
+    if (!rawBody) {
         throw new BadRequestError('Missing request body');
     }
     let body: unknown;
     try {
-        body = await reqCtx.req.json();
+        body = JSON.parse(rawBody);
     } catch {
         throw new BadRequestError('Invalid request body');
     }
@@ -26,152 +28,121 @@ const readBody = async (reqCtx: AppRequestContext): Promise<Record<string, unkno
     return body as Record<string, unknown>;
 };
 
-const json = (body: unknown, status: number = HttpStatusCodes.OK) =>
-    new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
-
-router.get('/api/integrations/:integrationId/apps', [addUserIntegrationsToCtx, requireRole('viewer')], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const role = reqCtx.appContext?.integrationRoles?.[integrationId];
+router.get('/api/integrations/:integrationId/apps', addUserIntegrationsToCtxHono, requireRole('viewer'), async (c) => {
+    const integrationId = c.req.param('integrationId');
+    const role = c.var.appContext?.integrationRoles?.[integrationId];
     const apps = await listApps({
         integrationId,
-        integrationIds: reqCtx.appContext?.integrations ?? [],
+        integrationIds: c.var.appContext?.integrations ?? [],
         canSeeSecrets: role !== undefined && hasRole(role, 'admin'),
     });
-    return json(apps);
+    return c.json(apps);
 });
 
-router.post('/api/integrations/:integrationId/apps', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
-    const body = await readBody(reqCtx);
+router.post('/api/integrations/:integrationId/apps', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const body = await readBody(c);
     if (!isIntegrationAppType(body.type)) {
         throw new BadRequestError('Invalid app type');
     }
     const app = await installApp({
-        integrationId: reqCtx.params.integrationId,
-        integrationIds: reqCtx.appContext?.integrations ?? [],
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
         type: body.type,
     });
-    return json(app, HttpStatusCodes.CREATED);
+    return c.json(app, HttpStatusCodes.CREATED);
 });
 
-router.get(
-    '/api/integrations/:integrationId/apps/slack/install',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const {location, stateCookie} = buildSlackInstallRedirect({
-            integrationId: reqCtx.params.integrationId,
-            userId: reqCtx.appContext!.userId,
-            redirectUrl: (reqCtx.event as APIGatewayProxyEventV2).queryStringParameters?.redirect_url,
-        });
-        return new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: location, 'Set-Cookie': stateCookie}});
-    },
-);
+router.get('/api/integrations/:integrationId/apps/slack/install', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const {location, stateCookie} = buildSlackInstallRedirect({
+        integrationId: c.req.param('integrationId'),
+        userId: c.var.appContext!.userId,
+        redirectUrl: c.req.query('redirect_url'),
+    });
+    return new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: location, 'Set-Cookie': stateCookie}});
+});
 
-router.get(
-    '/api/integrations/:integrationId/apps/slack/move-candidates',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const candidates = await listMoveCandidates({
-            integrationId: reqCtx.params.integrationId,
-            integrationIds: reqCtx.appContext?.integrations ?? [],
-        });
-        return json(candidates);
-    },
-);
+router.get('/api/integrations/:integrationId/apps/slack/move-candidates', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const candidates = await listMoveCandidates({
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+    });
+    return c.json(candidates);
+});
 
-router.post(
-    '/api/integrations/:integrationId/apps/slack/move',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const {moves} = await readBody(reqCtx);
-        const isMove = (m: unknown): m is WebhookMove =>
-            typeof m === 'object' &&
-            m !== null &&
-            typeof (m as WebhookMove).webhookHandleId === 'string' &&
-            typeof (m as WebhookMove).channelId === 'string';
-        if (!Array.isArray(moves) || !moves.every(isMove)) {
-            throw new BadRequestError('moves must be a list of webhookHandleId and channelId');
-        }
-        const result = await moveWebhookHandles({
-            integrationId: reqCtx.params.integrationId,
-            integrationIds: reqCtx.appContext?.integrations ?? [],
-            moves,
-        });
-        return json(result);
-    },
-);
+router.post('/api/integrations/:integrationId/apps/slack/move', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const {moves} = await readBody(c);
+    const isMove = (m: unknown): m is WebhookMove =>
+        typeof m === 'object' &&
+        m !== null &&
+        typeof (m as WebhookMove).webhookHandleId === 'string' &&
+        typeof (m as WebhookMove).channelId === 'string';
+    if (!Array.isArray(moves) || !moves.every(isMove)) {
+        throw new BadRequestError('moves must be a list of webhookHandleId and channelId');
+    }
+    const result = await moveWebhookHandles({
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+        moves,
+    });
+    return c.json(result);
+});
 
-router.get(
-    '/api/integrations/:integrationId/apps/:appId/slack/channels',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const channels = await listSlackChannels({
-            integrationId: reqCtx.params.integrationId,
-            integrationIds: reqCtx.appContext?.integrations ?? [],
-            appId: reqCtx.params.appId,
-        });
-        return json(channels);
-    },
-);
+router.get('/api/integrations/:integrationId/apps/:appId/slack/channels', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const channels = await listSlackChannels({
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+        appId: c.req.param('appId'),
+    });
+    return c.json(channels);
+});
 
-router.delete('/api/integrations/:integrationId/apps/:appId', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
+router.delete('/api/integrations/:integrationId/apps/:appId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
     await uninstallApp({
-        integrationId: reqCtx.params.integrationId,
-        integrationIds: reqCtx.appContext?.integrations ?? [],
-        appId: reqCtx.params.appId,
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+        appId: c.req.param('appId'),
     });
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.post(
-    '/api/integrations/:integrationId/apps/:appId/handles',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const body = await readBody(reqCtx);
-        const scope = {
-            integrationId: reqCtx.params.integrationId,
-            integrationIds: reqCtx.appContext?.integrations ?? [],
-            appId: reqCtx.params.appId,
-        };
-        if (typeof body.channelId === 'string') {
-            return json(await createHandle({...scope, channelId: body.channelId}), HttpStatusCodes.CREATED);
-        }
-        if (typeof body.name !== 'string' || typeof body.url !== 'string') {
-            throw new BadRequestError('name and url are required');
-        }
-        return json(await createHandle({...scope, name: body.name, url: body.url}), HttpStatusCodes.CREATED);
-    },
-);
+router.post('/api/integrations/:integrationId/apps/:appId/handles', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const body = await readBody(c);
+    const scope = {
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+        appId: c.req.param('appId'),
+    };
+    if (typeof body.channelId === 'string') {
+        return c.json(await createHandle({...scope, channelId: body.channelId}), HttpStatusCodes.CREATED);
+    }
+    if (typeof body.name !== 'string' || typeof body.url !== 'string') {
+        throw new BadRequestError('name and url are required');
+    }
+    return c.json(await createHandle({...scope, name: body.name, url: body.url}), HttpStatusCodes.CREATED);
+});
 
-router.patch(
-    '/api/integrations/:integrationId/handles/:handleId',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const body = await readBody(reqCtx);
-        if ((body.name !== undefined && typeof body.name !== 'string') || (body.url !== undefined && typeof body.url !== 'string')) {
-            throw new BadRequestError('name and url must be strings');
-        }
-        const handle = await updateHandle({
-            integrationId: reqCtx.params.integrationId,
-            integrationIds: reqCtx.appContext?.integrations ?? [],
-            handleId: reqCtx.params.handleId,
-            name: body.name as string | undefined,
-            url: body.url as string | undefined,
-        });
-        return json(handle);
-    },
-);
+router.patch('/api/integrations/:integrationId/handles/:handleId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const body = await readBody(c);
+    if ((body.name !== undefined && typeof body.name !== 'string') || (body.url !== undefined && typeof body.url !== 'string')) {
+        throw new BadRequestError('name and url must be strings');
+    }
+    const handle = await updateHandle({
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+        handleId: c.req.param('handleId'),
+        name: body.name as string | undefined,
+        url: body.url as string | undefined,
+    });
+    return c.json(handle);
+});
 
-router.delete(
-    '/api/integrations/:integrationId/handles/:handleId',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        await deleteHandle({
-            integrationId: reqCtx.params.integrationId,
-            integrationIds: reqCtx.appContext?.integrations ?? [],
-            handleId: reqCtx.params.handleId,
-        });
-        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
-    },
-);
+router.delete('/api/integrations/:integrationId/handles/:handleId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    await deleteHandle({
+        integrationId: c.req.param('integrationId'),
+        integrationIds: c.var.appContext?.integrations ?? [],
+        handleId: c.req.param('handleId'),
+    });
+    return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
+});
 
 export default router;

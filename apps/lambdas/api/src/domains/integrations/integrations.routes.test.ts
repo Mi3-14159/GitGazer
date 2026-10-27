@@ -1,4 +1,5 @@
-import type {APIGatewayProxyEventV2, Context} from 'aws-lambda';
+import router from '@/domains/integrations/integrations.routes';
+import {testRequest} from '@/shared/hono/test-request';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => {
@@ -24,8 +25,8 @@ vi.mock('@/domains/integrations/integrations.controller', () => ({
     upsertIntegration: vi.fn(),
 }));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async ({reqCtx, next}: {reqCtx: {appContext?: unknown}; next: () => Promise<void>}) => {
-        reqCtx.appContext = {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'owner'}};
+    addUserIntegrationsToCtxHono: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
+        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'owner'}});
         await next();
     },
 }));
@@ -33,17 +34,7 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLo
 vi.mock('@gitgazer/backend-services/org-member-resolver', () => ({resolveAndAssignOrgMembers: vi.fn()}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
-const linkEvent = (): APIGatewayProxyEventV2 =>
-    ({
-        version: '2.0',
-        routeKey: 'POST /api/integrations/{integrationId}/github-app',
-        rawPath: '/api/integrations/i1/github-app',
-        rawQueryString: '',
-        headers: {'content-type': 'application/json'},
-        requestContext: {domainName: 'api.example.com', http: {method: 'POST', path: '/api/integrations/i1/github-app'}},
-        body: JSON.stringify({installation_id: 42}),
-        isBase64Encoded: false,
-    }) as unknown as APIGatewayProxyEventV2;
+const link = async () => testRequest(router, 'POST', '/api/integrations/i1/github-app', {body: {installation_id: 42}});
 
 const installation = {installationId: 42, integrationId: null, accountLogin: 'acme', accountType: 'Organization', accountId: 500, senderId: 7};
 
@@ -63,11 +54,10 @@ describe('POST /api/integrations/:integrationId/github-app', () => {
         ['a user without a GitHub id', null],
     ])('rejects with 403 and writes nothing when %s did not install it', async (_, githubId) => {
         givenLink(installation, githubId);
-        const router = (await import('@/domains/integrations/integrations.routes')).default;
 
-        const res = await router.resolve(linkEvent(), {} as Context);
+        const res = await link();
 
-        expect(res.statusCode).toBe(403);
+        expect(res.status).toBe(403);
         expect(mocks.transaction).not.toHaveBeenCalled();
         expect(mocks.provisionWebhooks).not.toHaveBeenCalled();
     });
@@ -77,21 +67,19 @@ describe('POST /api/integrations/:integrationId/github-app', () => {
         mocks.getGithubSettings.mockResolvedValue({appId: 'app-g', secret: 's', orgSyncDefaultRole: 'viewer'});
         mocks.returning.mockResolvedValue([{installationId: 42}]);
         mocks.provisionWebhooks.mockResolvedValue(1);
-        const router = (await import('@/domains/integrations/integrations.routes')).default;
 
-        const res = await router.resolve(linkEvent(), {} as Context);
+        const res = await link();
 
-        expect(res.statusCode).toBe(200);
+        expect(res.status).toBe(200);
     });
 
     it('rejects with 409 and writes nothing when the integration has no GitHub app', async () => {
         mocks.getGithubSettings.mockResolvedValue(undefined);
-        const router = (await import('@/domains/integrations/integrations.routes')).default;
 
-        const res = await router.resolve(linkEvent(), {} as Context);
+        const res = await link();
 
-        expect(res.statusCode).toBe(409);
-        expect(res.body).toContain('Install the GitHub app first');
+        expect(res.status).toBe(409);
+        expect(await res.text()).toContain('Install the GitHub app first');
         expect(mocks.update).not.toHaveBeenCalled();
         expect(mocks.txUpdate).not.toHaveBeenCalled();
         expect(mocks.provisionWebhooks).not.toHaveBeenCalled();
@@ -101,11 +89,10 @@ describe('POST /api/integrations/:integrationId/github-app', () => {
         mocks.getGithubSettings.mockResolvedValue({appId: 'app-g', secret: 's', orgSyncDefaultRole: 'viewer'});
         mocks.returning.mockResolvedValue([{installationId: 42}]);
         mocks.provisionWebhooks.mockResolvedValue(1);
-        const router = (await import('@/domains/integrations/integrations.routes')).default;
 
-        const res = await router.resolve(linkEvent(), {} as Context);
+        const res = await link();
 
-        expect(res.statusCode).toBe(200);
+        expect(res.status).toBe(200);
         expect(mocks.transaction).toHaveBeenCalledTimes(1);
         expect(mocks.getGithubSettings).toHaveBeenCalledWith(mocks.tx, 'i1', 'share');
         expect(mocks.txUpdate).toHaveBeenCalledTimes(1);

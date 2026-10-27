@@ -16,7 +16,7 @@ function callRoute(
     opts: {integrationId?: string; integrationRoles?: Record<string, MemberRole>; userId?: number; method?: string; route?: string},
 ) {
     const method = opts.method ?? 'GET';
-    const route = opts.route ?? (opts.integrationId ? '/api/integrations/:integrationId' : '/api/test');
+    const route = opts.route ?? (opts.integrationId ? '/api/test-integrations/:integrationId' : '/api/test');
     const app = createHonoApp();
     app.on(method, route, requireRole(minimumRole), handler);
 
@@ -122,7 +122,7 @@ describe('requireRole middleware (hono)', () => {
                 integrationId: 'int-1',
                 role: 'owner',
                 minimumRole: 'admin',
-                action: 'DELETE /api/integrations/:integrationId',
+                action: 'DELETE /api/test-integrations/:integrationId',
                 allowed: true,
             });
         });
@@ -137,7 +137,7 @@ describe('requireRole middleware (hono)', () => {
                 integrationId: 'int-1',
                 role: 'member',
                 minimumRole: 'admin',
-                action: 'PUT /api/integrations/:integrationId',
+                action: 'PUT /api/test-integrations/:integrationId',
                 allowed: false,
                 reason: 'insufficient role',
             });
@@ -153,7 +153,7 @@ describe('requireRole middleware (hono)', () => {
                 integrationId: 'int-unknown',
                 role: null,
                 minimumRole: 'viewer',
-                action: 'GET /api/integrations/:integrationId',
+                action: 'GET /api/test-integrations/:integrationId',
                 allowed: false,
                 reason: 'not a member',
             });
