@@ -31,6 +31,7 @@ import {createApp} from '@/app';
 import {handler} from '@/index';
 import {BadRequestError, NotFoundError} from '@/shared/hono/http-errors';
 import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import type {AppContext} from '@gitgazer/backend-core/types';
 
 const authCookie = 'accessToken=access; idToken=id';
@@ -95,6 +96,8 @@ describe('createApp', () => {
     });
 
     it('hides unknown errors', async () => {
+        const logger = {debug: vi.fn(), info: vi.fn(), error: vi.fn()};
+        vi.mocked(getLogger).mockReturnValue(logger as never);
         const app = createApp();
         app.get('/api/test', () => {
             throw new Error('secret');
@@ -103,6 +106,8 @@ describe('createApp', () => {
         const res = await send(app, 'GET', '/api/test');
         const body = await res.text();
 
+        expect(logger.error).toHaveBeenCalledWith('Unhandled error processing the request', expect.objectContaining({message: 'secret'}));
+        vi.mocked(getLogger).mockReset();
         expect(res.status).toBe(500);
         expect(JSON.parse(body)).toEqual({statusCode: 500, error: 'Internal Server Error', message: 'Internal Server Error'});
         expect(body).not.toContain('secret');

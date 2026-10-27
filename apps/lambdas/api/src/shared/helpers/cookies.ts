@@ -12,7 +12,7 @@ const STATE_COOKIE_MAX_AGE = 600; // 10 minutes — short-lived OAuth state nonc
 export const OAUTH_STATE_COOKIE_NAME = 'oauthState';
 
 export function getRequestCookies(c: Context): string[] {
-    return c.req.header('cookie')?.split('; ') ?? [];
+    return c.req.header('cookie')?.split(/;\s*/).filter(Boolean) ?? [];
 }
 
 export function extractTokenFromCookies(cookies: string[] | undefined, tokenName: string): string | null {

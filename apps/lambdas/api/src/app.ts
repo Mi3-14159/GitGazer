@@ -30,10 +30,11 @@ export const createBaseApp = (): Hono<AppEnv> => {
     const app = new Hono<AppEnv>({strict: false});
 
     app.onError((error) => {
-        getLogger().debug(`There was an error processing the request: ${error}`);
         if (error instanceof HttpError) {
+            getLogger().debug(`There was an error processing the request: ${error}`);
             return error.toWebResponse();
         }
+        getLogger().error('Unhandled error processing the request', error);
         return Response.json({statusCode: 500, error: 'Internal Server Error', message: 'Internal Server Error'}, {status: 500});
     });
 
