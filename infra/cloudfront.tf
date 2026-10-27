@@ -62,6 +62,44 @@ resource "aws_cloudfront_response_headers_policy" "cors_policy" {
   }
 }
 
+locals {
+  # Which backend serves each route group: "apigw" or "web"
+  api_cutover = {
+    well_known = "apigw" # /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server
+    ui         = "apigw" # /api/* without the groups below, and the fe-failover member of the origin group
+    public     = "apigw" # /api/auth/*, /api/slack/*, /api/mcp, /api/mcp/*
+    webhooks   = "apigw" # /api/import/*, /api/github/*
+  }
+  api_origin_ids = {
+    apigw = aws_apigatewayv2_api.this.id
+    web   = "api-web"
+  }
+  api_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+  well_known_methods = ["GET", "HEAD", "OPTIONS"]
+  well_known_cors    = aws_cloudfront_response_headers_policy.public_metadata_cors.id
+  api_cors           = aws_cloudfront_response_headers_policy.cors_policy.id
+  # Ordered most specific first. The OAuth discovery metadata (RFC 8414/9728) lives outside /api/*.
+  api_cache_behaviors = [
+    { path_pattern = "/api/auth/*", group = "public", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/api/slack/*", group = "public", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/api/mcp", group = "public", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/api/mcp/*", group = "public", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/api/import/*", group = "webhooks", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/api/github/*", group = "webhooks", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/api/*", group = "ui", allowed_methods = local.api_methods, response_headers_policy_id = local.api_cors },
+    { path_pattern = "/.well-known/oauth-protected-resource", group = "well_known", allowed_methods = local.well_known_methods, response_headers_policy_id = local.well_known_cors },
+    { path_pattern = "/.well-known/oauth-authorization-server", group = "well_known", allowed_methods = local.well_known_methods, response_headers_policy_id = local.well_known_cors },
+  ]
+}
+
+resource "aws_cloudfront_origin_access_control" "api_web" {
+  name                              = "${var.name_prefix}-api-web-${terraform.workspace}"
+  origin_access_control_origin_type = "lambda"
+  # Unlike "always", keeps the viewer's Authorization header (MCP bearer tokens)
+  signing_behavior = "always-amz-auth"
+  signing_protocol = "sigv4"
+}
+
 resource "aws_cloudfront_origin_access_control" "ui_bucket" {
   name                              = "${var.name_prefix}-ui-bucket-${terraform.workspace}"
   origin_access_control_origin_type = "s3"
@@ -130,6 +168,25 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  dynamic "origin" {
+    for_each = {
+      "api-web"          = null
+      "api-web-frontend" = "/${local.frontend_failover_sub_path}"
+    }
+    content {
+      domain_name              = awscc_lambda_web_function_endpoint.api.domain_name
+      origin_id                = origin.key
+      origin_path              = origin.value
+      origin_access_control_id = aws_cloudfront_origin_access_control.api_web.id
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
   origin_group {
     origin_id = "frontend-with-failover"
 
@@ -141,45 +198,23 @@ resource "aws_cloudfront_distribution" "this" {
       origin_id = module.ui_bucket.s3_bucket_id
     }
     member {
-      origin_id = "${aws_apigatewayv2_api.this.id}-frontend"
+      origin_id = local.api_cutover.ui == "web" ? "api-web-frontend" : "${aws_apigatewayv2_api.this.id}-frontend"
     }
   }
 
-  ordered_cache_behavior {
-    path_pattern               = "/api/*"
-    allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods             = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id           = aws_apigatewayv2_api.this.id
-    viewer_protocol_policy     = "https-only"
-    cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.cors_policy.id
-  }
-
-  # OAuth Protected Resource Metadata (RFC 9728) for MCP client discovery lives outside
-  # /api/*, so it needs its own behavior routing it to the API origin.
-  ordered_cache_behavior {
-    path_pattern               = "/.well-known/oauth-protected-resource"
-    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
-    cached_methods             = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id           = aws_apigatewayv2_api.this.id
-    viewer_protocol_policy     = "https-only"
-    cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.public_metadata_cors.id
-  }
-
-  # OAuth Authorization Server Metadata (RFC 8414) advertised by the MCP OAuth proxy; also
-  # outside /api/*, so it needs its own behavior routing it to the API origin.
-  ordered_cache_behavior {
-    path_pattern               = "/.well-known/oauth-authorization-server"
-    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
-    cached_methods             = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id           = aws_apigatewayv2_api.this.id
-    viewer_protocol_policy     = "https-only"
-    cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
-    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.public_metadata_cors.id
+  dynamic "ordered_cache_behavior" {
+    for_each = local.api_cache_behaviors
+    iterator = behavior
+    content {
+      path_pattern               = behavior.value.path_pattern
+      allowed_methods            = behavior.value.allowed_methods
+      cached_methods             = ["GET", "HEAD", "OPTIONS"]
+      target_origin_id           = local.api_origin_ids[local.api_cutover[behavior.value.group]]
+      viewer_protocol_policy     = "https-only"
+      cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
+      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
+      response_headers_policy_id = behavior.value.response_headers_policy_id
+    }
   }
 
   default_cache_behavior {
