@@ -14,9 +14,12 @@ resource "aws_cloudwatch_log_group" "api_web" {
 
 data "aws_iam_policy_document" "api_web_connector" {
   statement {
-    effect    = "Allow"
-    actions   = ["ec2:CreateNetworkInterface"]
-    resources = ["arn:aws:ec2:*:*:network-interface/*", "arn:aws:ec2:*:*:subnet/*", "arn:aws:ec2:*:*:security-group/*"]
+    effect  = "Allow"
+    actions = ["ec2:CreateNetworkInterface"]
+    resources = concat(
+      ["arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*", aws_security_group.lambda.arn],
+      [for id in local.private_subnets : "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:subnet/${id}"],
+    )
   }
 
   statement {
@@ -43,9 +46,25 @@ data "aws_iam_policy_document" "api_web_connector" {
   }
 }
 
+data "aws_iam_policy_document" "api_web_connector_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
+
 resource "aws_iam_role" "api_web_connector" {
   name               = "${local.api_web_name}-connector"
-  assume_role_policy = data.aws_iam_policy_document.api_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.api_web_connector_assume_role.json
 }
 
 resource "aws_iam_role_policy" "api_web_connector" {

@@ -24,9 +24,9 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 
 | Name                                                               | Version |
 | ------------------------------------------------------------------ | ------- |
-| <a name="provider_aws"></a> [aws](#provider_aws)                   | 6.57.1  |
+| <a name="provider_aws"></a> [aws](#provider_aws)                   | 6.70.0  |
 | <a name="provider_awscc"></a> [awscc](#provider_awscc)             | 1.107.0 |
-| <a name="provider_random"></a> [random](#provider_random)          | 3.9.0   |
+| <a name="provider_random"></a> [random](#provider_random)          | 3.9.1   |
 | <a name="provider_terraform"></a> [terraform](#provider_terraform) | n/a     |
 
 ## Modules
@@ -216,6 +216,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_iam_policy_document.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                                             | data source |
 | [aws_iam_policy_document.api_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                                 | data source |
 | [aws_iam_policy_document.api_web_connector](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                               | data source |
+| [aws_iam_policy_document.api_web_connector_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                   | data source |
 | [aws_iam_policy_document.api_websocket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                                   | data source |
 | [aws_iam_policy_document.api_websocket_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                       | data source |
 | [aws_iam_policy_document.aws_kms_key_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                                              | data source |
