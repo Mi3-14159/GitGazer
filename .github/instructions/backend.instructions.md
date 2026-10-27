@@ -44,10 +44,18 @@ pnpm run pretty
 
 ### Router Pattern
 
-- Custom router (`@aws-lambda-powertools/event-handler/http`) in `apps/lambdas/api/src/shared/router/index.ts` handles API Gateway Lambda events
-- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` inside the api app
-- Middleware chain: `compress` → `cors` → `authenticate` → `originCheck` → route handlers
-- Each route handler receives typed API Gateway event and context
+- The api app is a [Hono](https://hono.dev) app built by `createApp()` in `apps/lambdas/api/src/app.ts`; `src/index.ts`
+  wraps it for API Gateway with `@hono/aws-lambda`, and `src/server.ts` serves it over HTTP
+- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` as a `new Hono<AppEnv>()` router
+  (`AppEnv` from `@/shared/hono/env`), mounted in `createApp()` with `app.route('/', <router>)`
+- Middleware chain: request logger → `compress` → `cors` → `authenticate` → `originCheck` → route handlers
+- Handlers read the authenticated user from `c.var.appContext`. Add `addUserIntegrationsToCtx`
+  (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`, then
+  `requireRole(...)` (`@/shared/middleware/require-role`) to gate a route on the `:integrationId` path parameter
+- Throw errors from `@/shared/hono/http-errors` (`BadRequestError`, `ForbiddenError`, `NotFoundError`, ...); the app
+  turns them into `{statusCode, error, message, details?}` responses
+- Routes that skip authentication are listed in each domain's `publicPrefixes` export, collected in
+  `src/shared/middleware/public-routes.ts`
 
 ### AWS Service Clients
 
@@ -80,9 +88,10 @@ pnpm run pretty
 
 ### Adding a New API Endpoint
 
-1. Create route handler in `src/domains/<domain>/`
-2. Add route to router in `src/shared/router/index.ts`
-3. Add corresponding tests
+1. Add the route to the domain's `src/domains/<domain>/<domain>.routes.ts` (for a new domain, use the `new-domain` skill)
+2. Mount a new domain router in `createApp()` in `src/app.ts` with `app.route('/', <router>)`
+3. Add tests; route tests use `testRequest(router, method, path, {appContext, cookies?, headers?, body?})` from
+   `@/shared/hono/test-request`
 4. Update schema/types in `packages/db/` if needed
 
 ### Adding a New Controller
