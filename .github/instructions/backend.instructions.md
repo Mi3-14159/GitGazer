@@ -45,7 +45,8 @@ pnpm run pretty
 ### Router Pattern
 
 - The api app is a [Hono](https://hono.dev) app built by `createApp()` in `apps/lambdas/api/src/app.ts`; `src/index.ts`
-  wraps it for API Gateway with `@hono/aws-lambda`, and `src/server.ts` serves it over HTTP, running each request
+  wraps it for API Gateway with `@hono/aws-lambda` and, when `AWS_LAMBDA_HTTP_ENDPOINT` is set (Lambda Web Functions,
+  `dev:api`), starts `src/server.ts`, which serves it over HTTP, running each request
   under its own child logger (`runWithRequestLogger`) because it serves requests concurrently
 - Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` as a `new Hono<AppEnv>()` router
   (`AppEnv` from `@/shared/hono/env`) mounted in
@@ -127,8 +128,8 @@ pnpm run pretty
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
 - Create a repo-root `.env`; every app's dev script reads it
-- Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/server.ts`, a Node HTTP server for the
-  same Hono app the Lambda handler wraps, on `127.0.0.1:8080` (or `AWS_LAMBDA_HTTP_ENDPOINT`)
+- Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/index.ts` with
+  `AWS_LAMBDA_HTTP_ENDPOINT=127.0.0.1:8080`, which starts the same HTTP server the Web Function runs
 
 ### Environment Variables
 
@@ -150,8 +151,8 @@ pnpm run pretty
 
 ### Lambda Functions
 
-One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint (the api app also has
-`src/server.ts`, which serves the same app over HTTP for local development):
+One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint (the api app's entrypoint also
+starts `src/server.ts`, its HTTP server, when `AWS_LAMBDA_HTTP_ENDPOINT` is set):
 
 - **api**: REST API and webhook endpoints
 - **websocket**: WebSocket connection management
