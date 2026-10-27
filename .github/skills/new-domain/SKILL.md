@@ -33,19 +33,19 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
 
 1. **Create the folder and files** from the templates above. Rename `things` / `Thing` to your resource.
 
-2. **Register the router** in `createApiRouter()` in [apps/lambdas/api/src/app.ts](../../../apps/lambdas/api/src/app.ts). Mount it at its own path; its paths are relative to that mount (`/` is served as `/api/things`):
+2. **Register the router** in `createApiRouter()` in [apps/lambdas/api/src/app.ts](../../../apps/lambdas/api/src/app.ts). Mount it at its own path when all its routes share one prefix; its paths are relative to that mount (`/` is served as `/api/integrations/:integrationId/things`). A domain whose routes span several prefixes stays at `api.route('/', ...)` with paths relative to `/api`:
 
     ```ts
     import thingsRoutes from '@/domains/things/things.routes';
     // ...inside createApiRouter(), with the other api.route calls:
-    api.route('/things', thingsRoutes);
+    api.route('/integrations/:integrationId/things', thingsRoutes);
     ```
 
     The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
 
 3. **Write controllers** that wrap every tenant-scoped query in `withRlsTransaction` (see the `refactor` skill for the boundary rules). Default role is reader; pass `userName: gitgazerWriter.name` for writes.
 
-4. **Add tests** colocated as `*.test.ts`. Route tests call `testRequest(app, method, path, {appContext, cookies?, headers?, body?})` from [@/shared/hono/test-request](../../../apps/lambdas/api/src/shared/hono/test-request.ts), which puts the app's error and not-found handlers around the router; mount the router where `createApiRouter()` does, e.g. `new Hono<AppEnv>().route('/api/things', router)`. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
+4. **Add tests** colocated as `*.test.ts`. Route tests call `testRequest(app, method, path, {appContext, cookies?, headers?, body?})` from [@/shared/hono/test-request](../../../apps/lambdas/api/src/shared/hono/test-request.ts), which puts the app's error and not-found handlers around the router; mount the router where `createApiRouter()` does, e.g. `new Hono<AppEnv>().route('/api/integrations/:integrationId/things', router)`. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
 
 5. **Verify**: `cd apps/lambdas/api && pnpm run test:unit && pnpm run lint`.
 
