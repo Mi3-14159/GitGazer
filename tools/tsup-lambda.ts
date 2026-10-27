@@ -25,9 +25,11 @@ const shared: Options = {
 };
 
 // Emits tmp/index.js; the app's zip script packages it as dist/gitgazer-<name>.zip, the uploadable artifact.
-export const lambdaConfig = (name: string) =>
+// Web Function runtimes don't provide @aws-sdk, so those apps bundle it too.
+export const lambdaConfig = (name: string, {bundleAwsSdk = false} = {}) =>
     defineConfig({
         ...shared,
+        ...(bundleAwsSdk && {external: [], noExternal: [/^@gitgazer\//, /^@aws-sdk\//]}),
         name,
         entry: {index: 'src/index.ts'},
         outDir: 'tmp',
