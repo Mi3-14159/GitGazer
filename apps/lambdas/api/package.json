@@ -15,11 +15,13 @@
     "@aws-sdk/client-s3": "catalog:",
     "@aws-sdk/client-sesv2": "catalog:",
     "@aws-sdk/s3-request-presigner": "catalog:",
+    "@hono/node-server": "catalog:",
     "@octokit/webhooks": "catalog:",
     "@octokit/webhooks-types": "catalog:",
     "@types/aws-lambda": "catalog:",
     "aws-jwt-verify": "catalog:",
     "drizzle-orm": "catalog:",
+    "hono": "catalog:",
     "ts-node": "catalog:",
     "tsconfig-paths": "catalog:"
   },

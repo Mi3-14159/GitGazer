@@ -1,0 +1,29 @@
+import type {AppEnv} from '@/shared/hono/env';
+import {HttpError, NotFoundError} from '@/shared/hono/http-errors';
+import {getLogger} from '@gitgazer/backend-core/logger';
+import {Hono} from 'hono';
+
+export const createHonoApp = (): Hono<AppEnv> => {
+    // strict: false matches Powertools, which ignores trailing slashes when matching routes
+    const app = new Hono<AppEnv>({strict: false});
+
+    app.use(async (c, next) => {
+        c.set('appContext', c.env?.appContext);
+        await next();
+    });
+
+    app.onError((error) => {
+        getLogger().debug(`There was an error processing the request: ${error}`);
+        if (error instanceof HttpError) {
+            return error.toWebResponse();
+        }
+        return Response.json({statusCode: 500, error: 'Internal Server Error', message: 'Internal Server Error'}, {status: 500});
+    });
+
+    app.notFound((c) => {
+        const path = c.req.path === '/' ? '/' : c.req.path.replace(/\/+$/, '');
+        return new NotFoundError(`Route ${path} for method ${c.req.method} not found`).toWebResponse();
+    });
+
+    return app;
+};
