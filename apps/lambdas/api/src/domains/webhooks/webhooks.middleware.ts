@@ -1,22 +1,20 @@
 import {getGithubSettings} from '@/domains/apps/github-settings';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@aws-lambda-powertools/event-handler/http';
-import {Middleware} from '@aws-lambda-powertools/event-handler/types';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
 import * as crypto from 'crypto';
+import type {MiddlewareHandler} from 'hono';
 
-export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
+export const verifyGithubSign: MiddlewareHandler<AppEnv> = async (c, next) => {
     const logger = getLogger();
     logger.debug('running verifyGithubSign middleware');
-    const event = reqCtx.event as APIGatewayProxyEventV2;
-    const {pathParameters} = event;
 
-    if (!pathParameters?.integrationId) {
+    const integrationId = c.req.param('integrationId');
+    if (!integrationId) {
         throw new BadRequestError('Missing integration ID in path parameters');
     }
 
-    const integrationId = pathParameters.integrationId;
     const settings = await withRlsTransaction({
         integrationIds: [integrationId],
         callback: async (tx: RdsTransaction) => {
@@ -28,14 +26,13 @@ export const verifyGithubSign: Middleware = async ({reqCtx, next}) => {
         throw new InternalServerError('Integration secret not configured');
     }
 
-    const signature = event.headers['x-hub-signature-256'];
-    const payload = event.body;
+    const signature = c.req.header('x-hub-signature-256');
+    const rawBody = Buffer.from(await c.req.arrayBuffer());
 
-    if (!signature || !payload) {
+    if (!signature || rawBody.length === 0) {
         throw new BadRequestError('Missing signature or payload');
     }
 
-    const rawBody = event.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload, 'utf-8');
     const isValid = validateSignature(rawBody, settings.secret, signature);
     if (!isValid) {
         throw new UnauthorizedError('Invalid signature');

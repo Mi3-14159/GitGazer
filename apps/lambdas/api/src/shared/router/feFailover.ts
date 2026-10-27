@@ -1,9 +1,11 @@
 import {getIndexHtml} from '@/shared/clients/s3.client';
-import {HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {HttpStatusCodes} from '@/shared/hono/http-errors';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get(/\/fe-failover\/.+/, async () => {
+router.get('/fe-failover/:path{.+}', async () => {
     const indexHtml = await getIndexHtml();
     const body = await indexHtml.Body?.transformToString();
 

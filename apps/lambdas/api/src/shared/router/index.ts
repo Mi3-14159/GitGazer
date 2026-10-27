@@ -1,5 +1,3 @@
-import githubAppRoutes from '@/domains/github-app/github-app.routes';
-import importRoutes from '@/domains/webhooks/webhooks.routes';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {AppRequestContext} from '@gitgazer/backend-core/types';
@@ -7,7 +5,6 @@ import {createHonoApp} from '@/shared/hono/app';
 import type {AppEnv} from '@/shared/hono/env';
 import {authenticate} from '@/shared/middleware/authentication';
 import {originCheck} from '@/shared/middleware/origin-check';
-import feFailover from '@/shared/router/feFailover';
 import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {compress, cors} from '@aws-lambda-powertools/event-handler/http/middleware';
 import type {Hono} from 'hono';
@@ -51,10 +48,6 @@ export const createApp = (): Router => {
 
     // CSRF protection: verify Origin header on state-changing requests
     app.use(originCheck);
-
-    app.includeRouter(githubAppRoutes);
-    app.includeRouter(importRoutes);
-    app.includeRouter(feFailover);
 
     // Powertools also routes NotFoundErrors thrown by its own routes here; only unmatched requests go to Hono.
     app.notFound(async (error, reqCtx: AppRequestContext) => {
