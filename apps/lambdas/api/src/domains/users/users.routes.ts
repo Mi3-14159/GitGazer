@@ -6,7 +6,7 @@ import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
-router.post('/api/auth/cognito/token', async (c) => {
+router.post('/auth/cognito/token', async (c) => {
     const body = await c.req.text();
     if (!body) {
         throw new BadRequestError('Missing request body');
@@ -33,13 +33,13 @@ router.post('/api/auth/cognito/token', async (c) => {
     });
 });
 
-router.get('/api/auth/cognito/user', async (c) => {
+router.get('/auth/cognito/user', async (c) => {
     const result = await fetchGitHubUser(c.req.header('authorization') ?? '');
 
     return new Response(result.body, {status: result.status, headers: result.headers});
 });
 
-router.get('/api/user', async (c) => {
+router.get('/user', async (c) => {
     const {userId, username, email, name, nickname, picture} = c.var.appContext!;
 
     if (!userId) {

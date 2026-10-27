@@ -8,7 +8,7 @@ import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
-router.post('/api/github/webhook', verifyGithubAppSignature, async (c) => {
+router.post('/github/webhook', verifyGithubAppSignature, async (c) => {
     const logger = getLogger();
 
     const githubEventType = c.req.header('x-github-event');

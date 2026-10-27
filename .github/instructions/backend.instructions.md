@@ -48,7 +48,8 @@ pnpm run pretty
   wraps it for API Gateway with `@hono/aws-lambda`, and `src/server.ts` serves it over HTTP, running each request
   under its own child logger (`runWithRequestLogger`) because it serves requests concurrently
 - Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` as a `new Hono<AppEnv>()` router
-  (`AppEnv` from `@/shared/hono/env`), mounted in `createApp()` with `app.route('/', <router>)`
+  (`AppEnv` from `@/shared/hono/env`) with paths relative to `/api` (e.g. `/integrations`), mounted in
+  `createApiRouter()` in `src/app.ts` with `api.route('/', <router>)`; `createApp()` serves that router under `/api`
 - Middleware chain: `compress` → `setContentLength` → `cors` → `authenticate` → `originCheck` → route handlers
 - Handlers read the authenticated user from `c.var.appContext`. Add `addUserIntegrationsToCtx`
   (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`, then
@@ -90,9 +91,9 @@ pnpm run pretty
 ### Adding a New API Endpoint
 
 1. Add the route to the domain's `src/domains/<domain>/<domain>.routes.ts` (for a new domain, use the `new-domain` skill)
-2. Mount a new domain router in `createApp()` in `src/app.ts` with `app.route('/', <router>)`
+2. Mount a new domain router in `createApiRouter()` in `src/app.ts` with `api.route('/', <router>)`
 3. Add tests; route tests use `testRequest(router, method, path, {appContext, cookies?, headers?, body?})` from
-   `@/shared/hono/test-request`
+   `@/shared/hono/test-request`, which mounts the router under `/api` (pass `basePath: '/'` for a root router)
 4. Update schema/types in `packages/db/` if needed
 
 ### Adding a New Controller

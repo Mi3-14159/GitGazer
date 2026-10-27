@@ -21,6 +21,7 @@ function callRoute(
 
     const path = route.replace(':integrationId', opts.integrationId ?? '').replace(':userId', '9');
     return testRequest(app, method, path, {
+        basePath: '/',
         appContext: {
             userId: opts.userId ?? 1,
             username: '',
@@ -164,6 +165,7 @@ describe('requireRole middleware (hono)', () => {
             const app = new Hono<AppEnv>().route('/api', router);
 
             await testRequest(app, 'GET', '/api/integrations/int-1', {
+                basePath: '/',
                 appContext: {userId: 1, username: '', email: '', name: '', nickname: '', picture: '', integrationRoles: {'int-1': 'viewer'}},
             });
 

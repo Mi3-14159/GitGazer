@@ -27,7 +27,7 @@ vi.mock('@/domains/overview/overview.routes', async () => {
     const {Hono} = await import('hono');
     const {getLogger} = await import('@gitgazer/backend-core/logger');
     const router = new Hono<AppEnv>();
-    router.get('/api/slow', async (c) => {
+    router.get('/slow', async (c) => {
         mocks.slowRouteEntered();
         await new Promise((resolve) => setTimeout(resolve, 50));
         getLogger().info('slow route done', {userId: c.var.appContext?.userId});

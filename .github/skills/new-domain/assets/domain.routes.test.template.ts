@@ -1,5 +1,5 @@
 // Template: apps/lambdas/api/src/domains/<domain>/<domain>.routes.test.ts
-// testRequest mounts the router behind the app's error and not-found handlers and sets the given appContext.
+// testRequest mounts the router under /api behind the app's error and not-found handlers and sets the given appContext.
 // Mock the controller and addUserIntegrationsToCtx; requireRole runs for real against integrationRoles.
 
 import {beforeEach, describe, expect, it, vi} from 'vitest';

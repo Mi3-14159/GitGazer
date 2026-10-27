@@ -22,6 +22,7 @@ describe('addUserIntegrationsToCtx middleware', () => {
             return c.json({integrations: c.var.appContext?.integrations, integrationRoles: c.var.appContext?.integrationRoles});
         });
         return testRequest(app, 'GET', '/api/test', {
+            basePath: '/',
             appContext: {userId: 123, username: '', email: '', name: '', nickname: '', picture: ''},
         });
     }

@@ -37,7 +37,7 @@ const readJsonBody = async (c: Context<AppEnv>) => {
     }
 };
 
-router.get('/api/integrations', addUserIntegrationsToCtx, async (c) => {
+router.get('/integrations', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     const integrationRoles = c.var.appContext?.integrationRoles ?? {};
     const integrations = await getIntegrations({
@@ -52,7 +52,7 @@ router.get('/api/integrations', addUserIntegrationsToCtx, async (c) => {
     return c.json(integrationsWithRoles);
 });
 
-router.post('/api/integrations', addUserIntegrationsToCtx, async (c) => {
+router.post('/integrations', addUserIntegrationsToCtx, async (c) => {
     const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
@@ -70,7 +70,7 @@ router.post('/api/integrations', addUserIntegrationsToCtx, async (c) => {
     return c.json(integration);
 });
 
-router.put('/api/integrations/:integrationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.put('/integrations/:integrationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
@@ -88,7 +88,7 @@ router.put('/api/integrations/:integrationId', addUserIntegrationsToCtx, require
     return c.json(updatedIntegration);
 });
 
-router.delete('/api/integrations/:integrationId', addUserIntegrationsToCtx, requireRole('owner'), async (c) => {
+router.delete('/integrations/:integrationId', addUserIntegrationsToCtx, requireRole('owner'), async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     await deleteIntegration(c.req.param('integrationId'), integrationIds, c.var.appContext?.userId!);
 
@@ -97,7 +97,7 @@ router.delete('/api/integrations/:integrationId', addUserIntegrationsToCtx, requ
     });
 });
 
-router.post('/api/integrations/:integrationId/rotate-secret', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/integrations/:integrationId/rotate-secret', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 
@@ -106,7 +106,7 @@ router.post('/api/integrations/:integrationId/rotate-secret', addUserIntegration
     return c.json(integration);
 });
 
-router.post('/api/integrations/:integrationId/github-app', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/integrations/:integrationId/github-app', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const logger = getLogger();
     const integrationId = c.req.param('integrationId');
 
@@ -212,7 +212,7 @@ router.post('/api/integrations/:integrationId/github-app', addUserIntegrationsTo
     });
 });
 
-router.delete('/api/integrations/:integrationId/github-app/:installationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.delete('/integrations/:integrationId/github-app/:installationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const installationId = parseInt(c.req.param('installationId'), 10);
 
@@ -227,7 +227,7 @@ router.delete('/api/integrations/:integrationId/github-app/:installationId', add
     });
 });
 
-router.patch('/api/integrations/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.patch('/integrations/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const installationId = parseInt(c.req.param('installationId'), 10);
 
@@ -269,7 +269,7 @@ router.patch('/api/integrations/:integrationId/github-app/:installationId/events
     return c.json({events: requestBody.events});
 });
 
-router.patch('/api/integrations/:integrationId/org-sync-settings', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.patch('/integrations/:integrationId/org-sync-settings', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 

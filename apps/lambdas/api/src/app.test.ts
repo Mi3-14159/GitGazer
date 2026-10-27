@@ -24,7 +24,7 @@ vi.mock('@/shared/middleware/token-verifier', () => ({
 }));
 vi.mock('@/domains/overview/overview.routes', async () => {
     const {Hono} = await import('hono');
-    return {default: new Hono().get('/api/big', (c) => c.json(mocks.bigPayload))};
+    return {default: new Hono().get('/big', (c) => c.json(mocks.bigPayload))};
 });
 
 import {createApp} from '@/app';
@@ -235,7 +235,7 @@ const appContext: AppContext = {userId: 7, username: 'octo', email: 'octo@exampl
 describe('testRequest', () => {
     it('sends cookies, headers and a JSON body', async () => {
         const app = new Hono<AppEnv>();
-        app.post('/api/test', async (c) =>
+        app.post('/test', async (c) =>
             c.json({cookie: c.req.header('cookie'), custom: c.req.header('x-custom'), type: c.req.header('content-type'), body: await c.req.json()}),
         );
 
@@ -246,8 +246,8 @@ describe('testRequest', () => {
 
     it('gives a bare domain router the appContext and Powertools error bodies', async () => {
         const router = new Hono<AppEnv>();
-        router.get('/api/test', (c) => c.json({userId: c.var.appContext?.userId}));
-        router.get('/api/fail', () => {
+        router.get('/test', (c) => c.json({userId: c.var.appContext?.userId}));
+        router.get('/fail', () => {
             throw new BadRequestError('x');
         });
 

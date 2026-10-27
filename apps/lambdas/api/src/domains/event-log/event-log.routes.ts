@@ -16,7 +16,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const router = new Hono<AppEnv>();
 
-router.get('/api/event-log', addUserIntegrationsToCtx, async (c) => {
+router.get('/event-log', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     const params = c.req.query();
 
@@ -80,12 +80,12 @@ router.get('/api/event-log', addUserIntegrationsToCtx, async (c) => {
     });
 });
 
-router.get('/api/event-log/stats', addUserIntegrationsToCtx, async (c) => {
+router.get('/event-log/stats', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     return c.json(await getEventLogStats({integrationIds}));
 });
 
-router.patch('/api/event-log/:id/read', addUserIntegrationsToCtx, async (c) => {
+router.patch('/event-log/:id/read', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     const id = c.req.param('id');
 
@@ -117,7 +117,7 @@ router.patch('/api/event-log/:id/read', addUserIntegrationsToCtx, async (c) => {
     });
 });
 
-router.post('/api/event-log/mark-all-read', addUserIntegrationsToCtx, async (c) => {
+router.post('/event-log/mark-all-read', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     const count = await markAllEventLogRead({integrationIds});
     return c.json({updated: count});

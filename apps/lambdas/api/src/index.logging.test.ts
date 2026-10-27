@@ -14,7 +14,7 @@ vi.mock('@/domains/overview/overview.routes', async () => {
     const {Hono} = await import('hono');
     const {getLogger} = await import('@gitgazer/backend-core/logger');
     return {
-        default: new Hono().get('/api/log', (c) => {
+        default: new Hono().get('/log', (c) => {
             getLogger().info('route log');
             return c.json({ok: true});
         }),

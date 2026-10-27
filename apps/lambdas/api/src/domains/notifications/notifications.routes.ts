@@ -21,12 +21,12 @@ async function parseRuleBody(c: Context<AppEnv>): Promise<unknown> {
     }
 }
 
-router.get('/api/notifications', addUserIntegrationsToCtx, async (c) => {
+router.get('/notifications', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     return c.json(await getNotificationRules({integrationIds}));
 });
 
-router.post('/api/integrations/:integrationId/notifications', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.post('/integrations/:integrationId/notifications', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const requestBody = await parseRuleBody(c);
 
     if (!isNotificationRuleUpdate(requestBody)) {
@@ -36,7 +36,7 @@ router.post('/api/integrations/:integrationId/notifications', addUserIntegration
     return c.json(await upsertNotificationRule({rule: requestBody, integrationId: c.req.param('integrationId'), createOnly: true}));
 });
 
-router.put('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.put('/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const requestBody = await parseRuleBody(c);
 
     if (!isNotificationRuleUpdate(requestBody)) {
@@ -52,7 +52,7 @@ router.put('/api/integrations/:integrationId/notifications/:id', addUserIntegrat
     );
 });
 
-router.delete('/api/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.delete('/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     await deleteNotificationRule(c.req.param('id'), c.req.param('integrationId'));
 
     return new Response(JSON.stringify({success: true}), {
