@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildClearStateCookie, buildStateCookie, extractTokenFromCookies, OAUTH_STATE_COOKIE_NAME} from './cookies';
+import {buildClearStateCookie, buildStateCookie, extractTokenFromCookies, getRequestCookies, OAUTH_STATE_COOKIE_NAME} from './cookies';
 
 describe('buildStateCookie', () => {
     it('builds an httpOnly, secure, lax, short-lived state cookie', () => {
@@ -35,5 +35,17 @@ describe('extractTokenFromCookies', () => {
     it('returns null when the state cookie is absent', () => {
         expect(extractTokenFromCookies(['other=1'], OAUTH_STATE_COOKIE_NAME)).toBeNull();
         expect(extractTokenFromCookies(undefined, OAUTH_STATE_COOKIE_NAME)).toBeNull();
+    });
+});
+
+describe('getRequestCookies', () => {
+    const ctx = (cookie?: string) => ({req: {header: (name: string) => (name === 'cookie' ? cookie : undefined)}}) as never;
+
+    it('splits the Cookie header into its pairs', () => {
+        expect(getRequestCookies(ctx('a=1; b=2'))).toEqual(['a=1', 'b=2']);
+    });
+
+    it('returns an empty array without a Cookie header', () => {
+        expect(getRequestCookies(ctx())).toEqual([]);
     });
 });

@@ -1,5 +1,4 @@
 import appsRoutes from '@/domains/apps/apps.routes';
-import authRoutes from '@/domains/auth/auth.routes';
 import githubAppRoutes from '@/domains/github-app/github-app.routes';
 import integrationsRoutes from '@/domains/integrations/integrations.routes';
 import mcpRoutes from '@/domains/mcp/mcp.routes';
@@ -24,6 +23,18 @@ const getHonoApp = (): Hono<AppEnv> => {
     return honoApp;
 };
 
+// Powertools 2.36 handlerResultToWebResponse uses headers.set and keeps only the last Set-Cookie; it splits a
+// joined header back into the cookies array. Goes away with the bridge in Task 10.
+const joinSetCookies = (response: Response): Response => {
+    const cookies = response.headers.getSetCookie();
+    if (cookies.length < 2) {
+        return response;
+    }
+    const headers = new Headers(response.headers);
+    headers.set('Set-Cookie', cookies.join(', '));
+    return new Response(response.body, {status: response.status, headers});
+};
+
 export const createApp = (): Router => {
     const logger = getLogger();
     logger.info('Setting up routes');
@@ -45,7 +56,6 @@ export const createApp = (): Router => {
     // CSRF protection: verify Origin header on state-changing requests
     app.use(originCheck);
 
-    app.includeRouter(authRoutes);
     app.includeRouter(githubAppRoutes);
     app.includeRouter(importRoutes);
     app.includeRouter(feFailover);
@@ -59,7 +69,8 @@ export const createApp = (): Router => {
         if (reqCtx.route) {
             return error.toWebResponse();
         }
-        return getHonoApp().fetch(reqCtx.req, {appContext: reqCtx.appContext, event: reqCtx.event, lambdaContext: reqCtx.context});
+        const response = await getHonoApp().fetch(reqCtx.req, {appContext: reqCtx.appContext, event: reqCtx.event, lambdaContext: reqCtx.context});
+        return joinSetCookies(response);
     });
 
     logger.info('Routes setup completed');
