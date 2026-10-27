@@ -2,7 +2,6 @@ import {mcpOrigin} from '@/domains/mcp/mcp.controller';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';
 
 const PROXY_STATE_TTL_S = 600;
@@ -78,15 +77,15 @@ const verifyProxyState = (token: string): ProxyState | null => {
     return decoded;
 };
 
-const callbackUrl = (event: APIGatewayProxyEventV2): string => `${mcpOrigin(event)}/api/mcp/oauth/callback`;
+const callbackUrl = (requestOrigin: string): string => `${mcpOrigin(requestOrigin)}/api/mcp/oauth/callback`;
 
 /**
  * OAuth 2.0 Authorization Server Metadata (RFC 8414) for our proxy. Advertising a
  * `registration_endpoint` lets MCP clients self-register (skipping the "provide a client ID"
  * prompt); authorize/token point at our proxy, which relays to Cognito.
  */
-export const buildAuthServerMetadata = (event: APIGatewayProxyEventV2): Record<string, unknown> => {
-    const origin = mcpOrigin(event);
+export const buildAuthServerMetadata = (requestOrigin: string): Record<string, unknown> => {
+    const origin = mcpOrigin(requestOrigin);
     return {
         issuer: origin,
         authorization_endpoint: `${origin}/api/mcp/oauth/authorize`,
@@ -102,12 +101,11 @@ export const buildAuthServerMetadata = (event: APIGatewayProxyEventV2): Record<s
 };
 
 /** Dynamic Client Registration (RFC 7591) shim: return the pre-provisioned public MCP client. */
-export const handleRegister = (rawBody: string | undefined, isBase64Encoded = false): Record<string, unknown> => {
-    const bodyStr = rawBody && isBase64Encoded ? Buffer.from(rawBody, 'base64').toString('utf-8') : rawBody;
+export const handleRegister = (rawBody: string): Record<string, unknown> => {
     let body: {redirect_uris?: unknown} = {};
-    if (bodyStr) {
+    if (rawBody) {
         try {
-            body = JSON.parse(bodyStr) as {redirect_uris?: unknown};
+            body = JSON.parse(rawBody) as {redirect_uris?: unknown};
         } catch {
             throw new BadRequestError('Invalid registration request body');
         }
@@ -124,8 +122,7 @@ export const handleRegister = (rawBody: string | undefined, isBase64Encoded = fa
 };
 
 /** Authorize: validate the request, then redirect to Cognito using OUR callback as redirect_uri. */
-export const handleAuthorize = (event: APIGatewayProxyEventV2): string => {
-    const q = event.queryStringParameters ?? {};
+export const handleAuthorize = (requestOrigin: string, q: Record<string, string>): string => {
     if (q.response_type !== 'code') throw new BadRequestError('unsupported response_type');
     if (!q.redirect_uri || !isAllowedRedirectUri(q.redirect_uri)) throw new BadRequestError('invalid redirect_uri');
     if (!q.code_challenge || q.code_challenge_method !== 'S256') throw new BadRequestError('PKCE with S256 is required');
@@ -134,7 +131,7 @@ export const handleAuthorize = (event: APIGatewayProxyEventV2): string => {
     const authorizeUrl = new URL(`https://${domain}/oauth2/authorize`);
     authorizeUrl.searchParams.set('response_type', 'code');
     authorizeUrl.searchParams.set('client_id', mcpClientId);
-    authorizeUrl.searchParams.set('redirect_uri', callbackUrl(event));
+    authorizeUrl.searchParams.set('redirect_uri', callbackUrl(requestOrigin));
     authorizeUrl.searchParams.set('code_challenge', q.code_challenge);
     authorizeUrl.searchParams.set('code_challenge_method', 'S256');
     // Clamp requested scopes to what we advertise, so a client cannot escalate (e.g. to
@@ -151,14 +148,13 @@ export const handleAuthorize = (event: APIGatewayProxyEventV2): string => {
 };
 
 /** Callback: verify our signed state, then relay the code (or error) to the client's redirect_uri. */
-export const handleCallback = (event: APIGatewayProxyEventV2): string => {
-    const q = event.queryStringParameters ?? {};
+export const handleCallback = (requestOrigin: string, q: Record<string, string>): string => {
     const decoded = q.state ? verifyProxyState(q.state) : null;
     if (!decoded) throw new BadRequestError('Invalid or expired OAuth state');
 
     const target = new URL(decoded.redirectUri);
     // RFC 9207 mix-up defence: must be the same value advertised as `issuer` in the AS metadata.
-    target.searchParams.set('iss', mcpOrigin(event));
+    target.searchParams.set('iss', mcpOrigin(requestOrigin));
     if (q.error) {
         target.searchParams.set('error', q.error);
         if (q.error_description) target.searchParams.set('error_description', q.error_description);
@@ -172,18 +168,13 @@ export const handleCallback = (event: APIGatewayProxyEventV2): string => {
 };
 
 /** Token: relay the exchange to Cognito, forcing our public client id + callback (PKCE passes through). */
-export const handleToken = async (
-    event: APIGatewayProxyEventV2,
-    rawBody: string | undefined,
-    isBase64Encoded: boolean,
-): Promise<{status: number; body: string}> => {
-    const bodyStr = rawBody ? (isBase64Encoded ? Buffer.from(rawBody, 'base64').toString('utf-8') : rawBody) : '';
-    const params = new URLSearchParams(bodyStr);
+export const handleToken = async (requestOrigin: string, rawBody: string): Promise<{status: number; body: string}> => {
+    const params = new URLSearchParams(rawBody);
     const {domain, mcpClientId} = config.get('cognito');
 
     params.set('client_id', mcpClientId);
     if (params.get('grant_type') === 'authorization_code') {
-        params.set('redirect_uri', callbackUrl(event));
+        params.set('redirect_uri', callbackUrl(requestOrigin));
     }
 
     const tokenResponse = await fetch(`https://${domain}/oauth2/token`, {

@@ -1,4 +1,5 @@
-import type {APIGatewayProxyEventV2, Context} from 'aws-lambda';
+import router from '@/domains/slack/slack.routes';
+import {testRequest} from '@/shared/hono/test-request';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -15,27 +16,14 @@ vi.mock('@/domains/slack/connect', () => ({
     disconnectSlack: mocks.disconnectSlack,
 }));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async ({reqCtx, next}: {reqCtx: {appContext?: unknown}; next: () => Promise<void>}) => {
-        reqCtx.appContext = {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'viewer'}};
+    addUserIntegrationsToCtxHono: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
+        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'viewer'}});
         await next();
     },
 }));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
-const event = (method: string, path: string, query: Record<string, string> = {}): APIGatewayProxyEventV2 =>
-    ({
-        version: '2.0',
-        routeKey: `${method} ${path}`,
-        rawPath: path,
-        rawQueryString: new URLSearchParams(query).toString(),
-        queryStringParameters: query,
-        cookies: ['oauthState=n'],
-        headers: {},
-        requestContext: {domainName: 'api.example.com', http: {method, path}},
-        isBase64Encoded: false,
-    }) as unknown as APIGatewayProxyEventV2;
-
-const location = (res: {headers?: Record<string, unknown>}) => res.headers?.location ?? res.headers?.Location;
+const request = (method: string, path: string) => testRequest(router, method, path, {cookies: ['oauthState=n']});
 
 describe('slack routes', () => {
     beforeEach(() => {
@@ -50,13 +38,11 @@ describe('slack routes', () => {
     });
 
     it('completes the install for the session user and clears the state cookie', async () => {
-        const router = (await import('@/domains/slack/slack.routes')).default;
+        const res = await request('GET', '/api/slack/oauth/callback?code=c&state=s');
 
-        const res = await router.resolve(event('GET', '/api/slack/oauth/callback', {code: 'c', state: 's'}), {} as Context);
-
-        expect(res.statusCode).toBe(302);
-        expect(location(res)).toBe('https://app.example.com/x?slack=installed');
-        expect(JSON.stringify(res)).toContain('oauthState=;');
+        expect(res.status).toBe(302);
+        expect(res.headers.get('location')).toBe('https://app.example.com/x?slack=installed');
+        expect(res.headers.getSetCookie().join()).toContain('oauthState=;');
         expect(mocks.completeSlackInstall).toHaveBeenCalledWith({
             code: 'c',
             state: 's',
@@ -68,39 +54,27 @@ describe('slack routes', () => {
     });
 
     it('starts Sign in with Slack for the session user', async () => {
-        const router = (await import('@/domains/slack/slack.routes')).default;
+        const res = await request('GET', '/api/integrations/i1/slack/connect?redirect_url=https://app.example.com/x&userId=99');
 
-        const res = await router.resolve(
-            event('GET', '/api/integrations/i1/slack/connect', {redirect_url: 'https://app.example.com/x', userId: '99'}),
-            {} as Context,
-        );
-
-        expect(res.statusCode).toBe(302);
-        expect(location(res)).toBe('https://slack.com/openid/connect/authorize?state=s');
-        expect(JSON.stringify(res)).toContain('oauthState=n2');
+        expect(res.status).toBe(302);
+        expect(res.headers.get('location')).toBe('https://slack.com/openid/connect/authorize?state=s');
+        expect(res.headers.getSetCookie().join()).toContain('oauthState=n2');
         expect(mocks.buildSlackConnectRedirect).toHaveBeenCalledWith({integrationId: 'i1', userId: 1, redirectUrl: 'https://app.example.com/x'});
     });
 
     it('rejects connect for a non-member', async () => {
-        const router = (await import('@/domains/slack/slack.routes')).default;
+        const res = await request('GET', '/api/integrations/i2/slack/connect?redirect_url=https://app.example.com/x');
 
-        const res = await router.resolve(
-            event('GET', '/api/integrations/i2/slack/connect', {redirect_url: 'https://app.example.com/x'}),
-            {} as Context,
-        );
-
-        expect(res.statusCode).toBe(403);
+        expect(res.status).toBe(403);
         expect(mocks.buildSlackConnectRedirect).not.toHaveBeenCalled();
     });
 
     it('completes Sign in with Slack for the session user and clears the state cookie', async () => {
-        const router = (await import('@/domains/slack/slack.routes')).default;
+        const res = await request('GET', '/api/slack/sign-in/callback?code=c&state=s');
 
-        const res = await router.resolve(event('GET', '/api/slack/sign-in/callback', {code: 'c', state: 's'}), {} as Context);
-
-        expect(res.statusCode).toBe(302);
-        expect(location(res)).toBe('https://app.example.com/x?slack=connected');
-        expect(JSON.stringify(res)).toContain('oauthState=;');
+        expect(res.status).toBe(302);
+        expect(res.headers.get('location')).toBe('https://app.example.com/x?slack=connected');
+        expect(res.headers.getSetCookie().join()).toContain('oauthState=;');
         expect(mocks.completeSlackSignIn).toHaveBeenCalledWith({
             code: 'c',
             state: 's',
@@ -112,11 +86,9 @@ describe('slack routes', () => {
     });
 
     it('disconnects only the session user', async () => {
-        const router = (await import('@/domains/slack/slack.routes')).default;
+        const res = await request('DELETE', '/api/integrations/i1/slack/connection');
 
-        const res = await router.resolve(event('DELETE', '/api/integrations/i1/slack/connection'), {} as Context);
-
-        expect(res.statusCode).toBe(204);
+        expect(res.status).toBe(204);
         expect(mocks.disconnectSlack).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], userId: 1});
     });
 });

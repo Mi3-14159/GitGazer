@@ -9,24 +9,38 @@ import {
     upsertIntegration,
 } from '@/domains/integrations/integrations.controller';
 import {getGithubSettings} from '@/domains/apps/github-settings';
-import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ConflictError} from '@/shared/errors';
-import {requireRole} from '@/shared/middleware/require-role';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, ForbiddenError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, ForbiddenError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {requireRole} from '@/shared/hono/require-role';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
 import {and, eq, isNull} from 'drizzle-orm';
+import type {Context} from 'hono';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const integrationRoles = reqCtx.appContext?.integrationRoles ?? {};
+const readJsonBody = async (c: Context<AppEnv>) => {
+    const rawBody = await c.req.text();
+    if (!rawBody) {
+        throw new BadRequestError('Missing request body');
+    }
+    try {
+        return JSON.parse(rawBody);
+    } catch {
+        throw new BadRequestError('Invalid request body');
+    }
+};
+
+router.get('/api/integrations', addUserIntegrationsToCtxHono, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    const integrationRoles = c.var.appContext?.integrationRoles ?? {};
     const integrations = await getIntegrations({
         integrationIds: integrationIds,
     });
@@ -36,31 +50,17 @@ router.get('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRe
         role: integrationRoles[integration.integrationId] ?? 'viewer',
     }));
 
-    return new Response(JSON.stringify(integrationsWithRoles), {
-        status: HttpStatusCodes.OK,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    return c.json(integrationsWithRoles);
 });
 
-router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    if (!reqCtx.event.body) {
-        throw new BadRequestError('Missing request body');
-    }
-
-    let requestBody;
-    try {
-        requestBody = await reqCtx.req.json();
-    } catch (error) {
-        throw new BadRequestError('Invalid request body');
-    }
+router.post('/api/integrations', addUserIntegrationsToCtxHono, async (c) => {
+    const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
         throw new BadRequestError('Invalid label');
     }
 
-    const {userId, integrations = []} = reqCtx.appContext ?? {};
+    const {userId, integrations = []} = c.var.appContext ?? {};
 
     const integration = await upsertIntegration({
         label: requestBody.label,
@@ -68,83 +68,50 @@ router.post('/api/integrations', [addUserIntegrationsToCtx], async (reqCtx: AppR
         integrationIds: integrations,
     });
 
-    return new Response(JSON.stringify(integration), {
-        status: HttpStatusCodes.OK,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    return c.json(integration);
 });
 
-router.put('/api/integrations/:integrationId', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
-    if (!reqCtx.event.body) {
-        throw new BadRequestError('Missing request body');
-    }
-
-    let requestBody;
-    try {
-        requestBody = await reqCtx.req.json();
-    } catch (error) {
-        throw new BadRequestError('Invalid request body');
-    }
+router.put('/api/integrations/:integrationId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
         throw new BadRequestError('Invalid label');
     }
 
-    const integration = reqCtx.appContext?.integrations ?? [];
+    const integration = c.var.appContext?.integrations ?? [];
 
     const updatedIntegration = await upsertIntegration({
-        id: reqCtx.params.integrationId,
+        id: c.req.param('integrationId'),
         label: requestBody.label,
         integrationIds: integration,
     });
 
-    return new Response(JSON.stringify(updatedIntegration), {
-        status: HttpStatusCodes.OK,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    return c.json(updatedIntegration);
 });
 
-router.delete('/api/integrations/:integrationId', [addUserIntegrationsToCtx, requireRole('owner')], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    await deleteIntegration(reqCtx.params.integrationId, integrationIds, reqCtx.appContext?.userId!);
+router.delete('/api/integrations/:integrationId', addUserIntegrationsToCtxHono, requireRole('owner'), async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    await deleteIntegration(c.req.param('integrationId'), integrationIds, c.var.appContext?.userId!);
 
     return new Response(null, {
         status: HttpStatusCodes.NO_CONTENT,
     });
 });
 
-router.post('/api/integrations/:integrationId/rotate-secret', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
-    const integrationId = reqCtx.params.integrationId;
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
+router.post('/api/integrations/:integrationId/rotate-secret', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const integrationId = c.req.param('integrationId');
+    const integrationIds = c.var.appContext?.integrations ?? [];
 
     const integration = await rotateSecret({integrationId, integrationIds});
 
-    return new Response(JSON.stringify(integration), {
-        status: HttpStatusCodes.OK,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    return c.json(integration);
 });
 
-router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
+router.post('/api/integrations/:integrationId/github-app', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
     const logger = getLogger();
-    const integrationId = reqCtx.params.integrationId;
+    const integrationId = c.req.param('integrationId');
 
-    if (!reqCtx.event.body) {
-        throw new BadRequestError('Missing request body');
-    }
-
-    let requestBody;
-    try {
-        requestBody = await reqCtx.req.json();
-    } catch {
-        throw new BadRequestError('Invalid request body');
-    }
+    const requestBody = await readJsonBody(c);
 
     const installationId = requestBody.installation_id;
     if (typeof installationId !== 'number') {
@@ -159,7 +126,7 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
     }
 
     // Installation ids are guessable, so only the GitHub user who installed it may claim it
-    const userId = reqCtx.appContext?.userId!;
+    const userId = c.var.appContext?.userId!;
     const [user] = await db.select({githubId: users.githubId}).from(users).where(eq(users.id, userId));
     const githubId = user?.githubId;
     const installedByUser =
@@ -237,119 +204,89 @@ router.post('/api/integrations/:integrationId/github-app', [addUserIntegrationsT
         }
     }
 
-    return {
+    return c.json({
         installationId: installation.installationId,
         accountLogin: installation.accountLogin,
         accountType: installation.accountType,
         webhookCount,
         orgSync: orgSyncResult,
-    };
+    });
 });
 
-router.delete(
-    '/api/integrations/:integrationId/github-app/:installationId',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const integrationId = reqCtx.params.integrationId;
-        const installationId = parseInt(reqCtx.params.installationId, 10);
+router.delete('/api/integrations/:integrationId/github-app/:installationId', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const integrationId = c.req.param('integrationId');
+    const installationId = parseInt(c.req.param('installationId'), 10);
 
-        if (isNaN(installationId)) {
-            throw new BadRequestError('Invalid installation ID');
-        }
+    if (isNaN(installationId)) {
+        throw new BadRequestError('Invalid installation ID');
+    }
 
-        await unlinkInstallation(integrationId, installationId);
+    await unlinkInstallation(integrationId, installationId);
 
-        return new Response(null, {
-            status: HttpStatusCodes.NO_CONTENT,
-        });
-    },
-);
+    return new Response(null, {
+        status: HttpStatusCodes.NO_CONTENT,
+    });
+});
 
-router.patch(
-    '/api/integrations/:integrationId/github-app/:installationId/events',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const integrationId = reqCtx.params.integrationId;
-        const installationId = parseInt(reqCtx.params.installationId, 10);
+router.patch('/api/integrations/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const integrationId = c.req.param('integrationId');
+    const installationId = parseInt(c.req.param('installationId'), 10);
 
-        if (isNaN(installationId)) {
-            throw new BadRequestError('Invalid installation ID');
-        }
+    if (isNaN(installationId)) {
+        throw new BadRequestError('Invalid installation ID');
+    }
 
-        if (!reqCtx.event.body) {
-            throw new BadRequestError('Missing request body');
-        }
+    const requestBody = await readJsonBody(c);
 
-        let requestBody;
-        try {
-            requestBody = await reqCtx.req.json();
-        } catch {
-            throw new BadRequestError('Invalid request body');
-        }
+    const allowedEvents: readonly string[] = GITHUB_APP_WEBHOOK_EVENTS;
+    if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
+        throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
+    }
 
-        const allowedEvents: readonly string[] = GITHUB_APP_WEBHOOK_EVENTS;
-        if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
-            throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
-        }
-
-        try {
-            await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
-        } catch (error) {
-            getLogger().error('Failed to update webhook events', {error});
-            await createEventLogEntry({
-                integrationId,
-                category: 'integration',
-                type: 'failure',
-                title: 'Webhook events update failed',
-                message: `Failed to update subscribed webhook events for installation ${installationId}`,
-                metadata: {integrationId, installationId, webhookEvents: requestBody.events},
-            });
-            throw error;
-        }
-
+    try {
+        await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
+    } catch (error) {
+        getLogger().error('Failed to update webhook events', {error});
         await createEventLogEntry({
             integrationId,
             category: 'integration',
-            type: 'info',
-            title: 'Webhook events updated',
-            message: `Subscribed webhook events updated to: ${requestBody.events.join(', ')}`,
+            type: 'failure',
+            title: 'Webhook events update failed',
+            message: `Failed to update subscribed webhook events for installation ${installationId}`,
             metadata: {integrationId, installationId, webhookEvents: requestBody.events},
         });
+        throw error;
+    }
 
-        return {events: requestBody.events};
-    },
-);
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Webhook events updated',
+        message: `Subscribed webhook events updated to: ${requestBody.events.join(', ')}`,
+        metadata: {integrationId, installationId, webhookEvents: requestBody.events},
+    });
 
-router.patch(
-    '/api/integrations/:integrationId/org-sync-settings',
-    [addUserIntegrationsToCtx, requireRole('admin')],
-    async (reqCtx: AppRequestContext) => {
-        const integrationId = reqCtx.params.integrationId;
-        const integrationIds = reqCtx.appContext?.integrations ?? [];
+    return c.json({events: requestBody.events});
+});
 
-        if (!reqCtx.event.body) {
-            throw new BadRequestError('Missing request body');
-        }
+router.patch('/api/integrations/:integrationId/org-sync-settings', addUserIntegrationsToCtxHono, requireRole('admin'), async (c) => {
+    const integrationId = c.req.param('integrationId');
+    const integrationIds = c.var.appContext?.integrations ?? [];
 
-        let body;
-        try {
-            body = await reqCtx.req.json();
-        } catch {
-            throw new BadRequestError('Invalid request body');
-        }
+    const body = await readJsonBody(c);
 
-        if (!body.defaultRole || !isOrgSyncDefaultRole(body.defaultRole)) {
-            throw new BadRequestError(`Invalid defaultRole. Allowed: ${ORG_SYNC_DEFAULT_ROLES.join(', ')}`);
-        }
+    if (!body.defaultRole || !isOrgSyncDefaultRole(body.defaultRole)) {
+        throw new BadRequestError(`Invalid defaultRole. Allowed: ${ORG_SYNC_DEFAULT_ROLES.join(', ')}`);
+    }
 
-        await updateOrgSyncSettings({
-            integrationId,
-            defaultRole: body.defaultRole,
-            integrationIds,
-        });
+    await updateOrgSyncSettings({
+        integrationId,
+        defaultRole: body.defaultRole,
+        integrationIds,
+    });
 
-        return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
-    },
-);
+    return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
+});
 
 export default router;
