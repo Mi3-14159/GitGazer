@@ -1,5 +1,5 @@
 import {Logger} from '@aws-lambda-powertools/logger';
-import {correlationPaths, search} from '@aws-lambda-powertools/logger/correlationId';
+import {search} from '@aws-lambda-powertools/logger/correlationId';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {redactForLog} from './helpers/redact';
 
@@ -22,10 +22,6 @@ export const newLogger = (): Logger => {
 };
 
 const logger = newLogger();
-
-logger.injectLambdaContext({
-    correlationIdPath: correlationPaths.API_GATEWAY_HTTP,
-});
 
 const requestLogger = new AsyncLocalStorage<Logger>();
 
