@@ -44,10 +44,19 @@ pnpm run pretty
 
 ### Router Pattern
 
-- Custom router (`@aws-lambda-powertools/event-handler/http`) in `apps/lambdas/api/src/shared/router/index.ts` handles API Gateway Lambda events
-- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` inside the api app
-- Middleware chain: `compress` → `cors` → `authenticate` → `originCheck` → route handlers
-- Each route handler receives typed API Gateway event and context
+- The api app is a [Hono](https://hono.dev) app built by `createApp()` in `apps/lambdas/api/src/app.ts`; `src/index.ts`
+  wraps it for API Gateway with `@hono/aws-lambda`, and `src/server.ts` serves it over HTTP, running each request
+  under its own child logger (`runWithRequestLogger`) because it serves requests concurrently
+- Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` as a `new Hono<AppEnv>()` router
+  (`AppEnv` from `@/shared/hono/env`), mounted in `createApp()` with `app.route('/', <router>)`
+- Middleware chain: `compress` → `setContentLength` → `cors` → `authenticate` → `originCheck` → route handlers
+- Handlers read the authenticated user from `c.var.appContext`. Add `addUserIntegrationsToCtx`
+  (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`, then
+  `requireRole(...)` (`@/shared/middleware/require-role`) to gate a route on the `:integrationId` path parameter
+- Throw errors from `@/shared/hono/http-errors` (`BadRequestError`, `ForbiddenError`, `NotFoundError`, ...); the app
+  turns them into `{statusCode, error, message, details?}` responses
+- Routes that skip authentication are listed in each domain's `publicPrefixes` export, collected in
+  `src/shared/middleware/public-routes.ts`
 
 ### AWS Service Clients
 
@@ -80,9 +89,10 @@ pnpm run pretty
 
 ### Adding a New API Endpoint
 
-1. Create route handler in `src/domains/<domain>/`
-2. Add route to router in `src/shared/router/index.ts`
-3. Add corresponding tests
+1. Add the route to the domain's `src/domains/<domain>/<domain>.routes.ts` (for a new domain, use the `new-domain` skill)
+2. Mount a new domain router in `createApp()` in `src/app.ts` with `app.route('/', <router>)`
+3. Add tests; route tests use `testRequest(router, method, path, {appContext, cookies?, headers?, body?})` from
+   `@/shared/hono/test-request`
 4. Update schema/types in `packages/db/` if needed
 
 ### Adding a New Controller
@@ -113,12 +123,14 @@ pnpm run pretty
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
 - Create a repo-root `.env`; every app's dev script reads it
-- Start local server: `pnpm run dev:api` from `apps/lambdas/api` (runs on port 8080)
+- Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/server.ts`, a Node HTTP server for the
+  same Hono app the Lambda handler wraps, on `127.0.0.1:8080` (or `AWS_LAMBDA_HTTP_ENDPOINT`)
 
 ### Environment Variables
 
 - `AWS_REGION`: AWS region for services
 - `RDS_*`: RDS connection configuration
+- `DB_POOL_MAX`: database pool size per process (default `1`)
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
 - See the repo-root `.env` for the full list
@@ -134,7 +146,8 @@ pnpm run pretty
 
 ### Lambda Functions
 
-One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint:
+One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint (the api app also has
+`src/server.ts`, which serves the same app over HTTP for local development):
 
 - **api**: REST API and webhook endpoints
 - **websocket**: WebSocket connection management

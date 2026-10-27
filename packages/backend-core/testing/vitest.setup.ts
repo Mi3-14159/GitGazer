@@ -12,6 +12,7 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
         addContext: vi.fn(),
         logEventIfEnabled: vi.fn(),
     })),
+    runWithRequestLogger: vi.fn((_keys: Record<string, string>, fn: () => Promise<unknown>) => fn()),
     newLogger: vi.fn(() => ({
         debug: vi.fn(),
         info: vi.fn(),

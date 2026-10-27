@@ -1,34 +1,27 @@
 // Template: apps/lambdas/api/src/domains/<domain>/<domain>.routes.ts
-// Rename `things` / `Thing`. Register in apps/lambdas/api/src/shared/router/index.ts via app.includeRouter(thingsRoutes).
-// The global chain (compress → cors → authenticate → originCheck) is applied by createApp — do not re-add it.
+// Rename `things` / `Thing`. Register in createApp() in apps/lambdas/api/src/app.ts via app.route('/', thingsRoutes).
+// The global chain (compress → setContentLength → cors → authenticate → originCheck) is applied by createApp — do not re-add it.
 
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {createThing, getThings} from '@/domains/things/things.controller';
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError} from '@/shared/hono/http-errors';
 import {requireRole} from '@/shared/middleware/require-role';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, HttpStatusCodes, Router} from '@aws-lambda-powertools/event-handler/http';
+import {Hono} from 'hono';
 
-const router = new Router();
+const router = new Hono<AppEnv>();
 
-router.get('/api/things', [addUserIntegrationsToCtx], async (reqCtx: AppRequestContext) => {
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const things = await getThings({integrationIds});
-
-    return new Response(JSON.stringify(things), {
-        status: HttpStatusCodes.OK,
-        headers: {'Content-Type': 'application/json'},
-    });
+router.get('/api/things', addUserIntegrationsToCtx, async (c) => {
+    const integrationIds = c.var.appContext?.integrations ?? [];
+    return c.json(await getThings({integrationIds}));
 });
 
-// State-changing routes: gate with requireRole(...). Roles: 'viewer' | 'member' | 'admin' | 'owner'.
-router.post('/api/things', [addUserIntegrationsToCtx, requireRole('admin')], async (reqCtx: AppRequestContext) => {
-    if (!reqCtx.event.body) {
-        throw new BadRequestError('Missing request body');
-    }
-
+// State-changing routes: gate with requireRole(...), which reads the :integrationId path parameter.
+// Roles: 'viewer' | 'member' | 'admin' | 'owner'.
+router.post('/api/integrations/:integrationId/things', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
     let body;
     try {
-        body = await reqCtx.req.json();
+        body = await c.req.json();
     } catch {
         throw new BadRequestError('Invalid request body');
     }
@@ -37,13 +30,7 @@ router.post('/api/things', [addUserIntegrationsToCtx, requireRole('admin')], asy
         throw new BadRequestError('Invalid label');
     }
 
-    const integrationIds = reqCtx.appContext?.integrations ?? [];
-    const thing = await createThing({label: body.label, integrationIds});
-
-    return new Response(JSON.stringify(thing), {
-        status: HttpStatusCodes.OK,
-        headers: {'Content-Type': 'application/json'},
-    });
+    return c.json(await createThing({label: body.label, integrationIds: [c.req.param('integrationId')]}));
 });
 
 export default router;

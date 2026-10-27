@@ -28,7 +28,7 @@ pnpm run test:unit
 pnpm run build                       # Bundles src/index.ts into dist/gitgazer-api.zip
 nx run @gitgazer/lambda-api:upload   # Syncs dist/ to $S3_BUCKET_LAMBDA_STORE
 
-pnpm run dev:api                     # Local server on port 8080 with hot reload
+pnpm run dev:api                     # src/server.ts on 127.0.0.1:8080 with hot reload
 pnpm run test:unit                   # Run all unit tests
 pnpm run lint                        # Check for linting errors
 pnpm run lint:fix                    # Auto-fix linting errors

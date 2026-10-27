@@ -1,6 +1,6 @@
 ---
 name: new-domain
-description: 'Scaffold a new backend domain (feature module) in the GitGazer AWS Lambda API under apps/lambdas/api/src/domains/. Use when adding a new REST resource, feature area, or set of API endpoints. Covers the routes/controller/middleware/test file layout, registering the router in the app, the AWS Powertools Router + middleware chain, role-based access with requireRole, RLS-scoped data access via withRlsTransaction, and the @/ and @gitgazer/db/* import conventions.'
+description: 'Scaffold a new backend domain (feature module) in the GitGazer AWS Lambda API under apps/lambdas/api/src/domains/. Use when adding a new REST resource, feature area, or set of API endpoints. Covers the routes/controller/middleware/test file layout, registering the Hono router in the app, the middleware chain, role-based access with requireRole, RLS-scoped data access via withRlsTransaction, and the @/ and @gitgazer/db/* import conventions.'
 license: MIT
 ---
 
@@ -21,47 +21,48 @@ Create `apps/lambdas/api/src/domains/<domain>/` with:
 
 | File                          | Purpose                                                          | Template                                                                                                        |
 | ----------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `<domain>.routes.ts`          | HTTP endpoints on an AWS Powertools `Router`                     | [assets/domain.routes.template.ts](./assets/domain.routes.template.ts)                                          |
+| `<domain>.routes.ts`          | HTTP endpoints on a `Hono<AppEnv>` router                        | [assets/domain.routes.template.ts](./assets/domain.routes.template.ts)                                          |
+| `<domain>.routes.test.ts`     | Route tests through `testRequest` (controller mocked)            | [assets/domain.routes.test.template.ts](./assets/domain.routes.test.template.ts)                                |
 | `<domain>.controller.ts`      | Business logic + RLS-scoped DB access                            | [assets/domain.controller.template.ts](./assets/domain.controller.template.ts)                                  |
 | `<domain>.controller.test.ts` | Vitest unit tests (AWS + DB mocked)                              | [assets/domain.controller.test.template.ts](./assets/domain.controller.test.template.ts)                        |
 | `<domain>.middleware.ts`      | _Optional_ — only if the domain needs request-context middleware | see [integrations.middleware.ts](../../../apps/lambdas/api/src/domains/integrations/integrations.middleware.ts) |
 
-Reference implementation to copy patterns from: [apps/lambdas/api/src/domains/integrations/](../../../apps/lambdas/api/src/domains/integrations/).
+Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/metrics/](../../../apps/lambdas/api/src/domains/metrics/) (read-only routes) and [apps/lambdas/api/src/domains/notifications/](../../../apps/lambdas/api/src/domains/notifications/) (role-gated writes).
 
 ## Procedure
 
 1. **Create the folder and files** from the templates above. Rename `things` / `Thing` to your resource.
 
-2. **Register the router** in [apps/lambdas/api/src/shared/router/index.ts](../../../apps/lambdas/api/src/shared/router/index.ts):
+2. **Register the router** in `createApp()` in [apps/lambdas/api/src/app.ts](../../../apps/lambdas/api/src/app.ts):
 
     ```ts
     import thingsRoutes from '@/domains/things/things.routes';
-    // ...inside createApp(), with the other includeRouter calls:
-    app.includeRouter(thingsRoutes);
+    // ...inside createApp(), with the other app.route calls:
+    app.route('/', thingsRoutes);
     ```
 
-    The global middleware chain (`compress` → `cors` → `authenticate` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain.
+    The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
 
 3. **Write controllers** that wrap every tenant-scoped query in `withRlsTransaction` (see the `refactor` skill for the boundary rules). Default role is reader; pass `userName: gitgazerWriter.name` for writes.
 
-4. **Add tests** colocated as `*.test.ts`. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
+4. **Add tests** colocated as `*.test.ts`. Route tests call `testRequest(router, method, path, {appContext, cookies?, headers?, body?})` from [@/shared/hono/test-request](../../../apps/lambdas/api/src/shared/hono/test-request.ts), which mounts the router behind the app's error and not-found handlers. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
 
 5. **Verify**: `cd apps/lambdas/api && pnpm run test:unit && pnpm run lint`.
 
 ## Conventions (enforced — see [backend.instructions.md](../../instructions/backend.instructions.md))
 
 - **Imports**: `@/` for `apps/lambdas/api/src`, `@gitgazer/db/*` for the shared package. **Never** `../../../`.
-- **Auth context**: handlers receive `AppRequestContext`; use the `addUserIntegrationsToCtx` middleware to populate `reqCtx.appContext.integrations` / `integrationRoles`.
-- **Authorization**: gate state-changing routes with `requireRole('admin' | 'owner' | ...)` from [@/shared/middleware/require-role](../../../apps/lambdas/api/src/shared/middleware/require-role.ts).
-- **Responses**: return a `Response` with `JSON.stringify(...)` and an `HttpStatusCodes` status; throw `BadRequestError` / `UnauthorizedError` / etc. from `@aws-lambda-powertools/event-handler/http` for errors.
+- **Auth context**: handlers read the authenticated user from `c.var.appContext`; add the `addUserIntegrationsToCtx` middleware from [integrations.middleware.ts](../../../apps/lambdas/api/src/domains/integrations/integrations.middleware.ts) to populate `appContext.integrations` / `integrationRoles`.
+- **Authorization**: gate state-changing routes with `requireRole('admin' | 'owner' | ...)` from [@/shared/middleware/require-role](../../../apps/lambdas/api/src/shared/middleware/require-role.ts), after `addUserIntegrationsToCtx`. It reads the `:integrationId` path parameter.
+- **Responses**: return `c.json(...)`; throw `BadRequestError` / `ForbiddenError` / `NotFoundError` / etc. from [@/shared/hono/http-errors](../../../apps/lambdas/api/src/shared/hono/http-errors.ts) for errors (details go in the third constructor argument).
 - **Logging**: `getLogger()` from `@gitgazer/backend-core/logger` (AWS Powertools structured logging).
 - **AWS clients**: import pre-configured clients from `@/shared/clients/` — never instantiate SDK clients in a controller.
 
 ## Checklist
 
-- [ ] `<domain>.routes.ts` exports `default` a `Router` and is registered via `app.includeRouter(...)`
+- [ ] `<domain>.routes.ts` exports `default` a `Hono<AppEnv>` router and is registered via `app.route('/', ...)` in `createApp()`
 - [ ] All tenant-scoped DB access goes through `withRlsTransaction` with the correct role
 - [ ] State-changing routes protected with `requireRole(...)`
-- [ ] Inputs validated; errors thrown as Powertools HTTP errors
-- [ ] Colocated `*.test.ts` with `@gitgazer/db/client` + AWS mocked
+- [ ] Inputs validated; errors thrown from `@/shared/hono/http-errors`
+- [ ] Colocated `*.test.ts`: routes through `testRequest`, controllers with `@gitgazer/db/client` + AWS mocked
 - [ ] `pnpm run test:unit` and `pnpm run lint` pass

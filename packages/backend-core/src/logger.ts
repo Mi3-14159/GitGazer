@@ -1,5 +1,6 @@
 import {Logger} from '@aws-lambda-powertools/logger';
 import {correlationPaths, search} from '@aws-lambda-powertools/logger/correlationId';
+import {AsyncLocalStorage} from 'node:async_hooks';
 import {redactForLog} from './helpers/redact';
 
 // `event` is the key logEventIfEnabled uses; `result` is the key handlers log responses under.
@@ -9,7 +10,8 @@ export const newLogger = (): Logger => {
     const logger = new Logger({
         environment: process.env.ENVIRONMENT,
         logBufferOptions: {
-            enabled: true,
+            // The buffer is keyed by one trace id per process, so on a Web Function a flush on error would dump other requests' lines
+            enabled: !process.env.AWS_LAMBDA_HTTP_ENDPOINT,
             maxBytes: 1024 * 1024 * 3, // 3 MB
             flushOnErrorLog: true,
         },
@@ -25,4 +27,9 @@ logger.injectLambdaContext({
     correlationIdPath: correlationPaths.API_GATEWAY_HTTP,
 });
 
-export const getLogger = (): Logger => logger;
+const requestLogger = new AsyncLocalStorage<Logger>();
+
+export const getLogger = (): Logger => requestLogger.getStore() ?? logger;
+
+export const runWithRequestLogger = <T>(keys: Record<string, string>, fn: () => Promise<T>): Promise<T> =>
+    requestLogger.run(logger.createChild({persistentKeys: keys}), fn);

@@ -23,6 +23,14 @@ function getConnectionMode(): ConnectionMode {
     return mode;
 }
 
+function getPoolMax(): number {
+    const max = Number(process.env['DB_POOL_MAX'] || 1);
+    if (!Number.isInteger(max) || max < 1) {
+        throw new Error(`Invalid DB_POOL_MAX: ${process.env['DB_POOL_MAX']}. Must be a positive integer.`);
+    }
+    return max;
+}
+
 function initializeRdsProxy(): void {
     const rdsHost = process.env['RDS_HOST'];
     const database = process.env['RDS_DATABASE'];
@@ -47,8 +55,8 @@ function initializeRdsProxy(): void {
         user: dbUser,
         password: () => _signer!.getAuthToken(),
         ssl: {rejectUnauthorized: false},
-        max: 1,
-        // Fail fast instead of hanging until the Lambda timeout when the only connection is held, e.g. by an open transaction
+        max: getPoolMax(),
+        // Fail fast instead of hanging until the Lambda timeout when every connection is held, e.g. by open transactions
         connectionTimeoutMillis: 5000,
         idleTimeoutMillis: 10 * 60 * 1000, // recycle idle connections before IAM token expiry (15 min)
     });
@@ -99,6 +107,10 @@ export async function initDb(): Promise<void> {
         _initPromise = initialize();
     }
     return _initPromise;
+}
+
+export async function closeDb(): Promise<void> {
+    await _pool?.end();
 }
 
 // Proxy preserves the synchronous `db` export so all existing consumers work unchanged.
