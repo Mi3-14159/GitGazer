@@ -1,3 +1,3 @@
 import {lambdaConfig} from '../../../tools/tsup-lambda';
 
-export default lambdaConfig('api');
+export default lambdaConfig('api', {bundleAwsSdk: true});
