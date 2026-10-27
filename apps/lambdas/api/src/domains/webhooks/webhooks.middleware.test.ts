@@ -67,6 +67,22 @@ describe('verifyGithubSign middleware', () => {
         vi.restoreAllMocks();
     });
 
+    it('throws BadRequestError when integrationId path parameter is missing', async () => {
+        const {verifyGithubSign} = await import('./webhooks.middleware');
+        const next = vi.fn();
+        const app = new Hono<AppEnv>();
+        app.post('/test', verifyGithubSign, (c) => {
+            next();
+            return c.json({});
+        });
+
+        const res = await testRequest(app, 'POST', '/test', {body: 'x'});
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toMatchObject({message: 'Missing integration ID in path parameters'});
+        expect(next).not.toHaveBeenCalled();
+    });
+
     it('rejects when the integration has no GitHub app', async () => {
         await mockSettings([]);
 
