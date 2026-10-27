@@ -1,4 +1,4 @@
-import {BadRequestError, ForbiddenError} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError} from '@/shared/errors';
 import {integrationAppSlackSettings, integrationApps, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 

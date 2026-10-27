@@ -2,7 +2,7 @@ import {getOverview} from '@/domains/overview/overview.controller';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {parseDateFilters} from '@/shared/helpers/filters';
 import type {AppEnv} from '@/shared/hono/env';
-import {HttpStatusCodes} from '@/shared/hono/http-errors';
+import {HttpStatusCodes} from '@/shared/errors';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();

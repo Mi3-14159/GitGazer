@@ -1,7 +1,7 @@
 import {mcpOrigin} from '@/domains/mcp/mcp.controller';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, InternalServerError} from '@/shared/hono/http-errors';
+import {BadRequestError, InternalServerError} from '@/shared/errors';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';
 
 const PROXY_STATE_TTL_S = 600;

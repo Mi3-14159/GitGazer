@@ -9,7 +9,7 @@ import {
     OAUTH_STATE_COOKIE_NAME,
 } from '@/shared/helpers/cookies';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, ForbiddenError, HttpStatusCodes, UnauthorizedError} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError, HttpStatusCodes, UnauthorizedError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {Hono} from 'hono';
 

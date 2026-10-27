@@ -3,7 +3,7 @@ import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.midd
 import {buildSlackConnectRedirect, completeSlackSignIn, disconnectSlack} from '@/domains/slack/connect';
 import {buildClearStateCookie, extractTokenFromCookies, getRequestCookies, OAUTH_STATE_COOKIE_NAME} from '@/shared/helpers/cookies';
 import type {AppEnv} from '@/shared/hono/env';
-import {HttpStatusCodes} from '@/shared/hono/http-errors';
+import {HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import type {Context} from 'hono';
 import {Hono} from 'hono';

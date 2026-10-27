@@ -1,6 +1,6 @@
 import {findSlackTeamId} from '@/domains/apps/apps.controller';
 import {mintSlackState, outcomeRedirect, verifySlackState} from '@/domains/slack/oauth-state';
-import {NotFoundError} from '@/shared/hono/http-errors';
+import {NotFoundError} from '@/shared/errors';
 import {buildSignInUrl, exchangeSignInCode, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {blockAutoLink, saveSignInLink} from '@gitgazer/backend-services/slack/link-store';

@@ -1,6 +1,6 @@
 import {getIndexHtml} from '@/shared/clients/s3.client';
 import type {AppEnv} from '@/shared/hono/env';
-import {HttpStatusCodes} from '@/shared/hono/http-errors';
+import {HttpStatusCodes} from '@/shared/errors';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();

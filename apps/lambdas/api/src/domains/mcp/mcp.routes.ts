@@ -2,7 +2,7 @@ import {buildAuthServerMetadata, handleAuthorize, handleCallback, handleRegister
 import {buildProtectedResourceMetadata, McpAuthError, protectedResourceMetadataUrl, resolveMcpCaller} from '@/domains/mcp/mcp.controller';
 import {handleMcpRequest, type JsonRpcRequest} from '@/domains/mcp/mcp.protocol';
 import type {AppEnv} from '@/shared/hono/env';
-import {HttpStatusCodes} from '@/shared/hono/http-errors';
+import {HttpStatusCodes} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import type {Context} from 'hono';
 import {Hono} from 'hono';

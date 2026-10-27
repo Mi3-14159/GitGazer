@@ -2,7 +2,7 @@ import {proxyFetch} from '@gitgazer/backend-core/clients/proxy-fetch';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {linkAtLogin} from '@gitgazer/backend-services/slack/login-links';
-import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/hono/http-errors';
+import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/errors';
 import {createHash, timingSafeEqual} from 'crypto';
 
 type OAuthTokenBody = {

@@ -1,6 +1,6 @@
 import {assertCognitoCaller, exchangeGitHubOAuthToken, fetchGitHubUser, parseOAuthTokenBody} from '@/domains/users/users.controller';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, ForbiddenError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError, HttpStatusCodes} from '@/shared/errors';
 import {UserAttributes} from '@gitgazer/db/types';
 import {Hono} from 'hono';
 

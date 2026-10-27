@@ -53,7 +53,7 @@ pnpm run pretty
 - Handlers read the authenticated user from `c.var.appContext`. Add `addUserIntegrationsToCtx`
   (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`, then
   `requireRole(...)` (`@/shared/middleware/require-role`) to gate a route on the `:integrationId` path parameter
-- Throw errors from `@/shared/hono/http-errors` (`BadRequestError`, `ForbiddenError`, `NotFoundError`, ...); the app
+- Throw errors from `@/shared/errors` (`BadRequestError`, `ForbiddenError`, `NotFoundError`, ...); the app
   turns them into `{statusCode, error, message, details?}` responses
 - Routes that skip authentication are listed in each domain's `publicPrefixes` export, collected in
   `src/shared/middleware/public-routes.ts`

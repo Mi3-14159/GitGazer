@@ -5,7 +5,7 @@
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {createThing, getThings} from '@/domains/things/things.controller';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError} from '@/shared/hono/http-errors';
+import {BadRequestError} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {Hono} from 'hono';
 

@@ -1,5 +1,5 @@
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, ForbiddenError} from '@/shared/hono/http-errors';
+import {BadRequestError, ForbiddenError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {hasRole, type MemberRole} from '@gitgazer/db/types';
 import type {MiddlewareHandler} from 'hono';

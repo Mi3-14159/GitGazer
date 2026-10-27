@@ -54,7 +54,7 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
 - **Imports**: `@/` for `apps/lambdas/api/src`, `@gitgazer/db/*` for the shared package. **Never** `../../../`.
 - **Auth context**: handlers read the authenticated user from `c.var.appContext`; add the `addUserIntegrationsToCtx` middleware from [integrations.middleware.ts](../../../apps/lambdas/api/src/domains/integrations/integrations.middleware.ts) to populate `appContext.integrations` / `integrationRoles`.
 - **Authorization**: gate state-changing routes with `requireRole('admin' | 'owner' | ...)` from [@/shared/middleware/require-role](../../../apps/lambdas/api/src/shared/middleware/require-role.ts), after `addUserIntegrationsToCtx`. It reads the `:integrationId` path parameter.
-- **Responses**: return `c.json(...)`; throw `BadRequestError` / `ForbiddenError` / `NotFoundError` / etc. from [@/shared/hono/http-errors](../../../apps/lambdas/api/src/shared/hono/http-errors.ts) for errors (details go in the third constructor argument).
+- **Responses**: return `c.json(...)`; throw `BadRequestError` / `ForbiddenError` / `NotFoundError` / etc. from [@/shared/errors](../../../apps/lambdas/api/src/shared/errors.ts) for errors (details go in the second constructor argument).
 - **Logging**: `getLogger()` from `@gitgazer/backend-core/logger` (AWS Powertools structured logging).
 - **AWS clients**: import pre-configured clients from `@/shared/clients/` — never instantiate SDK clients in a controller.
 
@@ -63,6 +63,6 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
 - [ ] `<domain>.routes.ts` exports `default` a `Hono<AppEnv>` router and is registered via `app.route('/', ...)` in `createApp()`
 - [ ] All tenant-scoped DB access goes through `withRlsTransaction` with the correct role
 - [ ] State-changing routes protected with `requireRole(...)`
-- [ ] Inputs validated; errors thrown from `@/shared/hono/http-errors`
+- [ ] Inputs validated; errors thrown from `@/shared/errors`
 - [ ] Colocated `*.test.ts`: routes through `testRequest`, controllers with `@gitgazer/db/client` + AWS mocked
 - [ ] `pnpm run test:unit` and `pnpm run lint` pass

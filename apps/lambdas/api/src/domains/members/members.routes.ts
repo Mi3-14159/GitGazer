@@ -11,7 +11,7 @@ import {
     revokeInvitation,
 } from '@/domains/members/members.controller';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
 import {hasRole, isMemberRole} from '@gitgazer/db/types';
 import {Hono} from 'hono';

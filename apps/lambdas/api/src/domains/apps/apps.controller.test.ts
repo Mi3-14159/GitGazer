@@ -1,11 +1,10 @@
-import {BadRequestError, NotFoundError} from '@/shared/hono/http-errors';
+import {BadRequestError, ConflictError, NotFoundError} from '@/shared/errors';
 import {integrationApps, notificationHandles, slackHandleDetails, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {MAX_SLACK_HANDLES, MAX_WEBHOOK_HANDLES} from '@gitgazer/db/types';
 import type {SQL} from 'drizzle-orm';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {ConflictError} from '@/shared/errors';
 
 const selectQueue: unknown[][] = [];
 const deletedTables: unknown[] = [];

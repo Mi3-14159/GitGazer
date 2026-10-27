@@ -2,7 +2,7 @@ import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.midd
 import {getWorkflowFilterValues, getWorkflows} from '@/domains/workflows/workflows.controller';
 import {parseDateFilters, parseWorkflowColumnFilters} from '@/shared/helpers/filters';
 import type {AppEnv} from '@/shared/hono/env';
-import {BadRequestError, HttpStatusCodes} from '@/shared/hono/http-errors';
+import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {isWorkflowsRequestParameters, WORKFLOW_FILTER_COLUMNS, WorkflowFilterColumn} from '@gitgazer/db/types';
 import {Hono} from 'hono';
 
