@@ -466,3 +466,28 @@ resource "aws_cloudwatch_metric_alarm" "webhook_dlq_depth" {
   ok_actions                = local.monitoring_alarm_actions
   insufficient_data_actions = []
 }
+
+resource "aws_cloudwatch_metric_alarm" "api_web_5xx" {
+  count = var.enable_cloudwatch_alarm_notifications ? 1 : 0
+
+  alarm_name          = "${var.name_prefix}-api-web-5xx-${terraform.workspace}"
+  alarm_description   = "API Web Function endpoint is returning 5xx errors"
+  namespace           = "AWS/Lambda/Web"
+  metric_name         = "HTTPResponseStatusClass5XX"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 2
+  datapoints_to_alarm = 2
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = awscc_lambda_web_function.api.function_name
+    EndpointName = awscc_lambda_web_function_endpoint.api.endpoint_name
+  }
+
+  alarm_actions             = local.monitoring_alarm_actions
+  ok_actions                = []
+  insufficient_data_actions = []
+}
