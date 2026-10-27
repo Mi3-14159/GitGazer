@@ -19,6 +19,24 @@ resource "aws_s3_bucket_policy" "lambda_store" {
 
 data "aws_iam_policy_document" "lambda_store_s3_policy_cf_bucket" {
   statement {
+    sid       = "lambdaWebFunctionCode"
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:GetObjectVersion"]
+    resources = ["${module.lambda_store.s3_bucket_arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+
+  statement {
     sid    = "denyInsecureTransport"
     effect = "Deny"
 

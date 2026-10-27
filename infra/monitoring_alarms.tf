@@ -7,7 +7,7 @@ resource "aws_cloudwatch_log_metric_filter" "lambda_error_logs" {
   for_each = var.enable_cloudwatch_alarm_notifications ? local.monitored_lambda_log_groups : {}
 
   name           = "${var.name_prefix}-lambda-${each.key}-error-logs-${terraform.workspace}"
-  pattern        = "{ ($.level = \"ERROR\") || ($.level = \"error\") || ($.severity = \"ERROR\") || ($.logLevel = \"ERROR\") }"
+  pattern        = "{ ($.level = \"ERROR\") || ($.level = \"error\") || ($.severity = \"ERROR\") || ($.logLevel = \"ERROR\") || ($.message.level = \"ERROR\") }"
   log_group_name = each.value
 
   metric_transformation {
