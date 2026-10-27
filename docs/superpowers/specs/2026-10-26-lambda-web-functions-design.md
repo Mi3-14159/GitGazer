@@ -260,15 +260,28 @@ resources were deleted afterwards. Unless noted, requests went through CloudFron
 | 6   | Lifecycle                   | Init (`platform.initReport`) 255–394 ms. First request through CloudFront 0.85 s cold, 0.4 s warm (from a laptop in Germany). Idle environments were replaced within 5 minutes; environments lived 5–16 minutes. `SIGTERM` arrives (`platform.spinDownStart`). Responses of 30 MB passed; requests of 10 MB passed, 30 MB once passed and once returned 504.                                                                                                                                                                                                          |
 | 7   | Auto deployment             | `autoDeploymentMode: LatestRevision` can be set through the API when creating a `HomeRegion` endpoint.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 8   | Streaming                   | Works through CloudFront unbuffered (chunks arrived one per second).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 9   | Per-environment concurrency | `maxConcurrencyPerEnvironment` (1–128, default 64) is only an upper bound. With it set to 8, each environment served at most **1–2** requests at once, and at most 15 environments existed (account quota 800 Arm vCPUs, 2 vCPUs per environment; no `maxEnvironments` set). Bursts of 64–200 parallel requests that each wait 2 s queued in front of the app: p50 9–38 s, max 79–145 s, no errors. The app itself logged ~2000 ms per request.                                                                                                                       |
+| 9   | Per-environment concurrency | `maxConcurrencyPerEnvironment` (1–128, default 64) is only an upper bound; Lambda picks the actual limit and adds environments instead of packing them. With the default, environments ran 2–14 requests at once, and the same load needed 20 environments on a new function and 4–9 later. The first run (limit 8, bursts of 64–200 parallel 2 s requests queueing up to 145 s) is **not reliable**: the laptop generating the load hit TCP connect timeouts even against a static CloudFront file. See the load test below.                                         |
 | 10  | `AWS_LAMBDA_HTTP_ENDPOINT`  | `0.0.0.0:3000`. The request id arrives as header `lambda-web-request-id` (also `x-amz-cf-id`, `x-forwarded-for`, `via`).                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+
+**Load test.** Production peaks at 76 requests in one second. The test route did one 40 ms database round trip on a
+shared pool. An open-loop generator ran in AWS CloudShell in `eu-central-1` against the CloudFront URL.
+
+| Run                                        | Client side                                | Function side                                 |
+| ------------------------------------------ | ------------------------------------------ | --------------------------------------------- |
+| 80 req/s × 15 s, 3 rounds                  | all 200; p50 51–52 ms, p99 216–710 ms      | 7 environments, up to 13 requests each        |
+| 240 req/s × 15 s                           | all 200; p50 51 ms, p99 838 ms, max 1.2 s  | 12 environments, up to 14 requests each       |
+| 200 parallel requests that each wait 2 s   | all 200; p50 2.03 s, max 2.2 s             | all 200 reached the app within 2 s            |
+| 80 req/s after 10 min idle (all envs gone) | all 200; p50 52 ms, p99 738 ms, max 911 ms | 7 new environments, caught up within a second |
+
+No run produced a 429 or 5xx. The higher p99 values come from the first second of a run, while environments start.
+Earlier runs from a laptop showed multi-second stalls that the laptop's network caused: a control against a cached
+static file on CloudFront at the same rate failed with TCP connect timeouts.
 
 **Consequences for phase 2:**
 
-- **Webhook bursts are the main risk.** Today the Event Function scales to 41 environments in parallel; on the Web
-  Function the same burst queued for minutes in this test, and GitHub abandons a delivery after 10 s. Before the
-  cutover of `/api/import/*`, find out how scale-out and the per-environment limit behave under sustained load (or
-  whether `maxEnvironments` / a minimum changes it), or keep the webhook routes on the Event Function.
+- **Webhook bursts are not a blocker.** A cold function absorbed 80 req/s with a max of 0.9 s, 3× the production
+  peak stayed at p99 under 1 s, and 200 parallel slow requests did not queue. The webhook routes can move to the Web
+  Function; watch the latency of `/api/import/*` during the route-by-route cutover.
 - Tracing needs an in-process approach; the Insights and OTEL layers are gone. Production has tracing off today.
 - Powertools Logger must write through `process.stdout` (as it does with its own `Console` instance) so log lines stay
   JSON; verify in phase 2.
