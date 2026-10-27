@@ -26,4 +26,24 @@ describe('logger', () => {
         expect(output).toContain('[REDACTED]');
         expect(output).not.toMatch(/secret-(token|refresh|access)/);
     });
+
+    it('keeps keys of concurrent requests apart', async () => {
+        const {getLogger, runWithRequestLogger} = await vi.importActual<typeof import('./logger')>('./logger');
+        const lines = captureStdout();
+        const handleRequest = (requestId: string) =>
+            runWithRequestLogger({requestId}, async () => {
+                for (let step = 0; step < 3; step++) {
+                    await new Promise((resolve) => setTimeout(resolve, 5));
+                    getLogger().info('step', {expectedRequestId: requestId});
+                }
+            });
+
+        await Promise.all([handleRequest('req-1'), handleRequest('req-2')]);
+
+        const logs = lines.map((line) => JSON.parse(line));
+        expect(logs.map((log) => log.expectedRequestId)).toEqual(['req-1', 'req-2', 'req-1', 'req-2', 'req-1', 'req-2']);
+        for (const log of logs) {
+            expect(log.requestId).toBe(log.expectedRequestId);
+        }
+    });
 });

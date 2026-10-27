@@ -113,12 +113,14 @@ pnpm run pretty
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
 - Create a repo-root `.env`; every app's dev script reads it
-- Start local server: `pnpm run dev:api` from `apps/lambdas/api` (runs on port 8080)
+- Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/server.ts`, a Node HTTP server for the
+  same Hono app the Lambda handler wraps, on `127.0.0.1:8080` (or `AWS_LAMBDA_HTTP_ENDPOINT`)
 
 ### Environment Variables
 
 - `AWS_REGION`: AWS region for services
 - `RDS_*`: RDS connection configuration
+- `DB_POOL_MAX`: database pool size per process (default `1`)
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
 - See the repo-root `.env` for the full list
@@ -134,7 +136,8 @@ pnpm run pretty
 
 ### Lambda Functions
 
-One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint:
+One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint (the api app also has
+`src/server.ts`, which serves the same app over HTTP for local development):
 
 - **api**: REST API and webhook endpoints
 - **websocket**: WebSocket connection management

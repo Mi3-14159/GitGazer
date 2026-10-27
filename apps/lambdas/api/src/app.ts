@@ -17,8 +17,9 @@ import type {AppEnv} from '@/shared/hono/env';
 import {HttpError, NotFoundError} from '@/shared/hono/http-errors';
 import {authenticate} from '@/shared/middleware/authentication';
 import {originCheck} from '@/shared/middleware/origin-check';
-import config from '@gitgazer/backend-core/config';
-import {getLogger} from '@gitgazer/backend-core/logger';
+import config, {loadConfig} from '@gitgazer/backend-core/config';
+import {getLogger, runWithRequestLogger} from '@gitgazer/backend-core/logger';
+import {initDb} from '@gitgazer/db/client';
 import {Hono, type MiddlewareHandler} from 'hono';
 import {compress} from 'hono/compress';
 import {cors} from 'hono/cors';
@@ -49,6 +50,9 @@ export const createBaseApp = (): Hono<AppEnv> => {
 // Hono's compress only checks the threshold against Content-Length, which c.json() does not set
 const setContentLength: MiddlewareHandler = async (c, next) => {
     await next();
+    if (!c.req.header('accept-encoding')) {
+        return;
+    }
     if (c.res.body && !c.res.headers.has('content-length')) {
         const body = await c.res.clone().arrayBuffer();
         c.res.headers.set('content-length', body.byteLength.toString());
@@ -74,6 +78,7 @@ export const createApp = (): Hono<AppEnv> => {
     logger.info('Setting up routes');
 
     const app = createBaseApp();
+    app.use((c, next) => runWithRequestLogger({requestId: c.req.header('lambda-web-request-id') ?? crypto.randomUUID()}, next));
     // Powertools compressed every content type above the threshold
     app.use(compress({encoding: 'gzip', threshold: 1024, contentTypeFilter: () => true}));
     app.use(setContentLength);
@@ -100,4 +105,15 @@ export const createApp = (): Hono<AppEnv> => {
     logger.info('Routes setup completed');
 
     return app;
+};
+
+let appPromise: Promise<Hono<AppEnv>> | null = null;
+
+export const initApp = (): Promise<Hono<AppEnv>> => {
+    appPromise ??= (async () => {
+        await initDb();
+        await loadConfig();
+        return createApp();
+    })();
+    return appPromise;
 };

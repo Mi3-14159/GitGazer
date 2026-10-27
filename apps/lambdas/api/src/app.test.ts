@@ -212,6 +212,17 @@ describe('createApp', () => {
         expect(result.headers?.['content-encoding']).toBeUndefined();
         expect(JSON.parse(result.body!)).toMatchObject({message: 'Route /api/nope for method GET not found'});
     });
+
+    it('only measures the body when the client accepts an encoding', async () => {
+        const app = createApp();
+
+        const plain = await send(app, 'GET', '/api/big');
+        const encoded = await send(app, 'GET', '/api/nope', {'accept-encoding': 'gzip'});
+
+        expect(plain.headers.has('content-length')).toBe(false);
+        expect(await plain.json()).toEqual(mocks.bigPayload);
+        expect(encoded.headers.get('content-length')).toBe(String((await encoded.arrayBuffer()).byteLength));
+    });
 });
 
 const appContext: AppContext = {userId: 7, username: 'octo', email: 'octo@example.com', name: 'Octo', nickname: 'octo', picture: ''};

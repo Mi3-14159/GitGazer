@@ -1,0 +1,113 @@
+import type {AppEnv} from '@/shared/hono/env';
+import type {AppContext} from '@gitgazer/backend-core/types';
+import type {MiddlewareHandler} from 'hono';
+import {createServer, type Server} from 'node:net';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+    initDb: vi.fn(),
+    loadConfig: vi.fn(),
+    closeDb: vi.fn(),
+    slowRouteEntered: vi.fn(),
+}));
+
+vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
+vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => [])}, loadConfig: mocks.loadConfig}));
+vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: mocks.initDb, closeDb: mocks.closeDb, withRlsTransaction: vi.fn()}));
+vi.mock('@/shared/middleware/authentication', () => ({
+    authenticate: (async (c, next) => {
+        c.set('appContext', {userId: Number(c.req.header('x-test-user'))} as AppContext);
+        await next();
+    }) satisfies MiddlewareHandler<AppEnv>,
+}));
+vi.mock('@/domains/overview/overview.routes', async () => {
+    const {Hono} = await import('hono');
+    const router = new Hono<AppEnv>();
+    router.get('/api/slow', async (c) => {
+        mocks.slowRouteEntered();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return c.json({userId: c.var.appContext?.userId});
+    });
+    return {default: router};
+});
+
+const freePort = async (): Promise<number> => {
+    const probe: Server = createServer();
+    await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve));
+    const {port} = probe.address() as {port: number};
+    await new Promise((resolve) => probe.close(resolve));
+    return port;
+};
+
+const getSlow = (port: number, userId: number) =>
+    fetch(`http://127.0.0.1:${port}/api/slow`, {headers: {'x-test-user': String(userId)}}).then((res) => res.json());
+
+describe('server', () => {
+    let sigtermListeners: unknown[];
+    let servers: {close: () => void}[];
+
+    beforeEach(() => {
+        vi.resetModules();
+        sigtermListeners = process.listeners('SIGTERM');
+        servers = [];
+    });
+
+    afterEach(() => {
+        for (const listener of process.listeners('SIGTERM')) {
+            if (!sigtermListeners.includes(listener)) {
+                process.removeListener('SIGTERM', listener);
+            }
+        }
+        servers.forEach((server) => server.close());
+        vi.restoreAllMocks();
+    });
+
+    const start = async (endpoint: string) => {
+        const {startServer} = await import('@/server');
+        const server = await startServer(endpoint);
+        servers.push(server);
+        return {server, port: (server.address() as {port: number}).port};
+    };
+
+    it('keeps two users apart under concurrency', async () => {
+        const {port} = await start('127.0.0.1:0');
+
+        const users = Array.from({length: 50}, (_, i) => (i % 2) + 1);
+        const bodies = await Promise.all(users.map((userId) => getSlow(port, userId)));
+
+        expect(bodies).toEqual(users.map((userId) => ({userId})));
+    });
+
+    it('runs init before accepting requests', async () => {
+        let finishInit = () => {};
+        mocks.initDb.mockReturnValue(new Promise<void>((resolve) => (finishInit = resolve)));
+        const port = await freePort();
+
+        const started = start(`127.0.0.1:${port}`);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        await expect(getSlow(port, 1)).rejects.toThrow();
+        expect(mocks.loadConfig).not.toHaveBeenCalled();
+
+        finishInit();
+        await started;
+
+        expect(mocks.loadConfig).toHaveBeenCalledOnce();
+        expect(await getSlow(port, 1)).toEqual({userId: 1});
+    });
+
+    it('drains in-flight requests on SIGTERM', async () => {
+        const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        const {port} = await start('127.0.0.1:0');
+
+        const inFlight = getSlow(port, 1);
+        await vi.waitFor(() => expect(mocks.slowRouteEntered).toHaveBeenCalled(), {interval: 1});
+        process.emit('SIGTERM');
+
+        await expect(getSlow(port, 2)).rejects.toThrow();
+        expect(mocks.closeDb).not.toHaveBeenCalled();
+        expect(await inFlight).toEqual({userId: 1});
+        await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+        expect(mocks.closeDb).toHaveBeenCalledOnce();
+    });
+});

@@ -14,7 +14,7 @@ vi.mock('@/app', async () => {
     const {Hono} = await import('hono');
     const app = new Hono();
     app.patch('/api/integrations/:integrationId/handles/:handleId', (c) => c.json({handleId: 'h-1', name: 'Ops', url: SLACK_URL}));
-    return {createApp: () => app};
+    return {initApp: async () => app};
 });
 
 import {handler} from '@/index';

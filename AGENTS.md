@@ -128,7 +128,7 @@ The bucket names come from the environment: `S3_BUCKET_LAMBDA_STORE` (lambdas), 
 ### Backend (`apps/lambdas/<name>/`)
 
 ```bash
-pnpm run dev:api          # api app only: local dev server (port 8080, requires AWS creds)
+pnpm run dev:api          # api app only: runs src/server.ts on 127.0.0.1:8080 (requires AWS creds)
 pnpm run test:unit        # Run Vitest unit tests
 pnpm run build            # Bundle the handler + package dist/gitgazer-<name>.zip
 pnpm run lint             # ESLint check

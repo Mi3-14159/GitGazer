@@ -22,6 +22,7 @@
     "migrate": "node --env-file=.env -r ts-node/register scripts/run-drizzle-migrations.ts",
     "pretty": "prettier --ignore-path ../../.prettierignore --write .",
     "pretty:check": "prettier --ignore-path ../../.prettierignore --check .",
+    "test:unit": "nx vitest:test -- --project unit --run",
     "typecheck": "tsc --noEmit -p tsconfig.json --rootDir ../.. --ignoreDeprecations 6.0"
   }
 }
