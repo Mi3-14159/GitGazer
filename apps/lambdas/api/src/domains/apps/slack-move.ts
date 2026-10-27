@@ -1,5 +1,5 @@
 import {findSlackTeamId, insertSlackHandle, loadHandles, loadSlackBotToken} from '@/domains/apps/apps.controller';
-import {BadRequestError, NotFoundError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, NotFoundError} from '@/shared/hono/http-errors';
 import {getChannel, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';

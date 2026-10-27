@@ -1,4 +1,4 @@
-import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import type {MetricName} from '@/domains/metrics/metrics.controller';
 import {getWidgetMetric, VALID_METRIC_NAMES} from '@/domains/metrics/metrics.controller';
 import type {AppEnv} from '@/shared/hono/env';
@@ -64,7 +64,7 @@ function jsonResponse(body: unknown, status: number = HttpStatusCodes.OK): Respo
     });
 }
 
-router.get('/api/metrics/widget', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/metrics/widget', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse({message: 'No integrations found for user'});
 
@@ -78,7 +78,7 @@ router.get('/api/metrics/widget', addUserIntegrationsToCtxHono, async (c) => {
     return jsonResponse(metric);
 });
 
-router.get('/api/metrics/repositories', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/metrics/repositories', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse([]);
 
@@ -86,7 +86,7 @@ router.get('/api/metrics/repositories', addUserIntegrationsToCtxHono, async (c) 
     return jsonResponse(repos);
 });
 
-router.get('/api/metrics/topics', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/metrics/topics', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse([]);
 

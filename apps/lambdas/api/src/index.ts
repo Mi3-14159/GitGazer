@@ -1,21 +1,21 @@
 import '@gitgazer/backend-core/bootstrap';
+import {createApp} from '@/app';
+import {redactHandleRouteBody, redactHandleRouteResult} from '@/shared/redact-handle-event';
 import {loadConfig} from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {redactHandleRouteBody, redactHandleRouteResult} from '@/shared/redact-handle-event';
-import {createApp} from '@/shared/router';
-import {Router} from '@aws-lambda-powertools/event-handler/http';
 import {initDb} from '@gitgazer/db/client';
+import {handle, type LambdaEvent} from '@hono/aws-lambda';
 import {APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context} from 'aws-lambda';
 
 const logger = getLogger();
 
-let app: Router | null = null;
+let lambdaHandler: ReturnType<typeof handle> | null = null;
 let initPromise: Promise<void> | null = null;
 
 const init = async (): Promise<void> => {
     await initDb();
     await loadConfig();
-    app = createApp();
+    lambdaHandler = handle(createApp());
 };
 
 export const handler = async (event: APIGatewayProxyEventV2, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
@@ -24,7 +24,7 @@ export const handler = async (event: APIGatewayProxyEventV2, context: Context): 
     }
     await initPromise;
 
-    if (!app) {
+    if (!lambdaHandler) {
         throw new Error('Application router failed to initialize');
     }
 
@@ -32,7 +32,8 @@ export const handler = async (event: APIGatewayProxyEventV2, context: Context): 
     logger.addContext(context);
     logger.logEventIfEnabled(redactHandleRouteBody(event));
 
-    const result = await app.resolve(event, context);
+    // Hono's event type requires requestContext.authorizer, which API Gateway omits on routes without an authorizer
+    const result = (await lambdaHandler(event as unknown as LambdaEvent, context)) as APIGatewayProxyStructuredResultV2;
 
     logger.debug('result', {result: redactHandleRouteResult(event, result)});
     return result;

@@ -1,7 +1,7 @@
 import {type McpCaller} from '@/domains/mcp/mcp.controller';
 import {validateMcpHeaders} from '@/domains/mcp/mcp.headers';
 import {MCP_TOOLS, McpToolError, runToolCall} from '@/domains/mcp/mcp.tools';
-import {HttpStatusCodes} from '@aws-lambda-powertools/event-handler/http';
+import {HttpStatusCodes} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ReadOnlyQueryError} from '@gitgazer/db/queries';
 import {DrizzleQueryError} from 'drizzle-orm/errors';

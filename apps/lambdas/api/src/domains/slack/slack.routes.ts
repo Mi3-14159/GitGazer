@@ -1,10 +1,10 @@
 import {completeSlackInstall} from '@/domains/apps/slack-install';
-import {addUserIntegrationsToCtxHono} from '@/domains/integrations/integrations.middleware';
+import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {buildSlackConnectRedirect, completeSlackSignIn, disconnectSlack} from '@/domains/slack/connect';
 import {buildClearStateCookie, extractTokenFromCookies, getRequestCookies, OAUTH_STATE_COOKIE_NAME} from '@/shared/helpers/cookies';
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpStatusCodes} from '@/shared/hono/http-errors';
-import {requireRole} from '@/shared/hono/require-role';
+import {requireRole} from '@/shared/middleware/require-role';
 import type {Context} from 'hono';
 import {Hono} from 'hono';
 
@@ -22,12 +22,12 @@ const callbackParams = (c: Context<AppEnv>) => ({
 const redirect = (location: string, cookie: string) =>
     new Response(null, {status: HttpStatusCodes.FOUND, headers: {Location: location, 'Set-Cookie': cookie}});
 
-router.get('/api/slack/oauth/callback', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/slack/oauth/callback', addUserIntegrationsToCtx, async (c) => {
     const {redirectUrl} = await completeSlackInstall(callbackParams(c));
     return redirect(redirectUrl, buildClearStateCookie());
 });
 
-router.get('/api/integrations/:integrationId/slack/connect', addUserIntegrationsToCtxHono, requireRole('viewer'), async (c) => {
+router.get('/api/integrations/:integrationId/slack/connect', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const {location, stateCookie} = buildSlackConnectRedirect({
         integrationId: c.req.param('integrationId'),
         userId: c.var.appContext!.userId,
@@ -36,12 +36,12 @@ router.get('/api/integrations/:integrationId/slack/connect', addUserIntegrations
     return redirect(location, stateCookie);
 });
 
-router.get('/api/slack/sign-in/callback', addUserIntegrationsToCtxHono, async (c) => {
+router.get('/api/slack/sign-in/callback', addUserIntegrationsToCtx, async (c) => {
     const {redirectUrl} = await completeSlackSignIn(callbackParams(c));
     return redirect(redirectUrl, buildClearStateCookie());
 });
 
-router.delete('/api/integrations/:integrationId/slack/connection', addUserIntegrationsToCtxHono, requireRole('viewer'), async (c) => {
+router.delete('/api/integrations/:integrationId/slack/connection', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     await disconnectSlack({
         integrationId: c.req.param('integrationId'),
         integrationIds: c.var.appContext?.integrations ?? [],

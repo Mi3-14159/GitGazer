@@ -1,10 +1,10 @@
-import type {APIGatewayProxyEventV2, Context} from 'aws-lambda';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({assertCognitoCaller: vi.fn(), exchangeGitHubOAuthToken: vi.fn(), fetchGitHubUser: vi.fn()}));
 
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => ['https://app.example.com'])}, loadConfig: vi.fn()}));
-vi.mock('@gitgazer/db/client', () => ({db: {}, withRlsTransaction: vi.fn()}));
+vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
+vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: vi.fn(), withRlsTransaction: vi.fn()}));
 vi.mock('@/domains/users/users.controller', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@/domains/users/users.controller')>()),
     assertCognitoCaller: mocks.assertCognitoCaller,
@@ -13,32 +13,10 @@ vi.mock('@/domains/users/users.controller', async (importOriginal) => ({
 }));
 
 import router from '@/domains/users/users.routes';
-import {testRequest} from '@/shared/hono/test-request';
-import {createApp} from '@/shared/router';
+import {handler} from '@/index';
+import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
 
 const appContext = {userId: 1, username: 'octo', email: 'o@example.com', name: 'Octo', nickname: 'oc', picture: 'p'};
-
-const tokenEvent = (body: string, isBase64Encoded: boolean): APIGatewayProxyEventV2 => ({
-    version: '2.0',
-    routeKey: '$default',
-    rawPath: '/api/auth/cognito/token',
-    rawQueryString: '',
-    headers: {host: 'api.example.com', 'content-type': 'application/x-www-form-urlencoded'},
-    requestContext: {
-        accountId: '123',
-        apiId: 'api',
-        domainName: 'api.example.com',
-        domainPrefix: 'api',
-        http: {method: 'POST', path: '/api/auth/cognito/token', protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'vitest'},
-        requestId: 'req-1',
-        routeKey: '$default',
-        stage: '$default',
-        time: '',
-        timeEpoch: 0,
-    },
-    body,
-    isBase64Encoded,
-});
 
 describe('users routes', () => {
     beforeEach(() => {
@@ -58,11 +36,17 @@ describe('users routes', () => {
         expect(mocks.exchangeGitHubOAuthToken).toHaveBeenCalledWith('abc123');
     });
 
-    it('POST /api/auth/cognito/token returns the parse status and body for a base64 event body through the bridge', async () => {
+    it('POST /api/auth/cognito/token returns the parse status and body for a base64 event body through the Lambda handler', async () => {
         mocks.exchangeGitHubOAuthToken.mockResolvedValue({access_token: 'gho'});
         const encoded = Buffer.from('client_id=id&client_secret=secret&code=xyz789', 'utf-8').toString('base64');
 
-        const res = await createApp().resolve(tokenEvent(encoded, true), {} as Context);
+        const event = apiGatewayEvent('POST', '/api/auth/cognito/token', {
+            headers: {'content-type': 'application/x-www-form-urlencoded'},
+            body: encoded,
+            isBase64Encoded: true,
+        });
+
+        const res = await handler(event, {} as Parameters<typeof handler>[1]);
 
         expect(res.statusCode).toBe(200);
         expect(JSON.parse(res.body!)).toEqual({access_token: 'gho'});

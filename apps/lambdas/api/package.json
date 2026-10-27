@@ -10,11 +10,11 @@
   },
   "description": "REST API lambda",
   "devDependencies": {
-    "@aws-lambda-powertools/event-handler": "catalog:",
     "@aws-lambda-powertools/metrics": "catalog:",
     "@aws-sdk/client-s3": "catalog:",
     "@aws-sdk/client-sesv2": "catalog:",
     "@aws-sdk/s3-request-presigner": "catalog:",
+    "@hono/aws-lambda": "catalog:",
     "@hono/node-server": "catalog:",
     "@octokit/webhooks": "catalog:",
     "@octokit/webhooks-types": "catalog:",

@@ -1,7 +1,7 @@
 import {mintSignedState, verifySignedState} from '@/domains/auth/auth.controller';
 import {validateRedirectUrl} from '@/domains/auth/auth.helpers';
 import {buildStateCookie} from '@/shared/helpers/cookies';
-import {BadRequestError, ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError, ForbiddenError} from '@/shared/hono/http-errors';
 
 type SlackState = {purpose: 'slack_install' | 'slack_sign_in'; integrationId: string; userId: number; redirect_url: string};
 

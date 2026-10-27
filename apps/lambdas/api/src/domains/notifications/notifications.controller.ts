@@ -1,7 +1,7 @@
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter, notificationHandles, notificationRuleDestinations, notificationRules} from '@gitgazer/db/schema';
 import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
-import {BadRequestError} from '@aws-lambda-powertools/event-handler/http';
+import {BadRequestError} from '@/shared/hono/http-errors';
 import {and, eq, inArray} from 'drizzle-orm';
 
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';

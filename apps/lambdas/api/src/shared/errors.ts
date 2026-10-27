@@ -2,7 +2,7 @@
  * Consistent error handling helpers.
  */
 
-import {HttpError, HttpStatusCodes, InternalServerError} from '@aws-lambda-powertools/event-handler/http';
+import {HttpError, HttpStatusCodes, InternalServerError} from '@/shared/hono/http-errors';
 
 /**
  * If `error` is already an HttpError, rethrow it. Otherwise wrap in InternalServerError.

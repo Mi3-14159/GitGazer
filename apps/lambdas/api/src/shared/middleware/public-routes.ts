@@ -9,7 +9,7 @@ import {publicPrefixes as authPrefixes} from '@/domains/auth/auth.routes';
 import {publicPrefixes as githubAppPrefixes} from '@/domains/github-app/github-app.routes';
 import {publicPrefixes as mcpPrefixes} from '@/domains/mcp/mcp.routes';
 import {publicPrefixes as webhookPrefixes} from '@/domains/webhooks/webhooks.routes';
-import {publicPrefixes as feFailoverPrefixes} from '@/shared/router/feFailover';
+import {publicPrefixes as feFailoverPrefixes} from '@/shared/fe-failover';
 
 export const publicRoutePrefixes: readonly string[] = [
     ...authPrefixes,

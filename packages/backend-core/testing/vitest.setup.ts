@@ -8,6 +8,9 @@ vi.mock('@gitgazer/backend-core/logger', () => ({
         warn: vi.fn(),
         error: vi.fn(),
         appendKeys: vi.fn(),
+        resetKeys: vi.fn(),
+        addContext: vi.fn(),
+        logEventIfEnabled: vi.fn(),
     })),
     newLogger: vi.fn(() => ({
         debug: vi.fn(),

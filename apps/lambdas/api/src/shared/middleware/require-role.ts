@@ -1,9 +1,9 @@
+import type {AppEnv} from '@/shared/hono/env';
+import {BadRequestError, ForbiddenError} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {AppRequestContext} from '@gitgazer/backend-core/types';
-import {BadRequestError, ForbiddenError} from '@aws-lambda-powertools/event-handler/http';
-import {Middleware, NextFunction} from '@aws-lambda-powertools/event-handler/lib/cjs/types/http';
 import {hasRole, type MemberRole} from '@gitgazer/db/types';
-import {APIGatewayProxyEventV2} from 'aws-lambda';
+import type {MiddlewareHandler} from 'hono';
+import {routePath} from 'hono/route';
 
 /**
  * Route-level middleware factory that enforces a minimum integration role.
@@ -13,13 +13,14 @@ import {APIGatewayProxyEventV2} from 'aws-lambda';
  *
  * Must be placed **after** `addUserIntegrationsToCtx` in the middleware chain.
  */
-export const requireRole = (minimumRole: MemberRole): Middleware => {
-    return async ({reqCtx, next}: {reqCtx: AppRequestContext; next: NextFunction}) => {
+export const requireRole = (minimumRole: MemberRole): MiddlewareHandler<AppEnv> => {
+    return async (c, next) => {
         const logger = getLogger();
-        const integrationId = reqCtx.params?.integrationId;
-        const userId = reqCtx.appContext?.userId;
-        const integrationRoles = reqCtx.appContext?.integrationRoles;
-        const {routeKey: action} = reqCtx.event as APIGatewayProxyEventV2;
+        const integrationId = c.req.param('integrationId');
+        const appContext = c.var.appContext;
+        const userId = appContext?.userId;
+        const integrationRoles = appContext?.integrationRoles;
+        const action = `${c.req.method} ${routePath(c, -1)}`;
 
         if (!integrationId) {
             logger.error('requireRole: missing integrationId path parameter — check route definition');
@@ -44,7 +45,7 @@ export const requireRole = (minimumRole: MemberRole): Middleware => {
         }
 
         // Attach resolved role for downstream controller logic
-        reqCtx.appContext!.role = userRole;
+        appContext!.role = userRole;
 
         logger.debug('authz', {userId, integrationId, role: userRole, minimumRole, action, allowed: true});
         await next();
