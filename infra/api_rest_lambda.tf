@@ -94,42 +94,6 @@ data "aws_iam_policy_document" "api" {
   statement {
     effect = "Allow"
     actions = [
-      "bedrock:InvokeModel",
-      "bedrock:InvokeModelWithResponseStream",
-    ]
-    resources = [
-      "arn:aws:bedrock:${var.aws_region}::foundation-model/*",
-      "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/*",
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "bedrock:GetPrompt",
-      "bedrock:RenderPrompt",
-    ]
-    resources = [
-      awscc_bedrock_prompt.query_generation.arn,
-      "${awscc_bedrock_prompt.query_generation.arn}:*",
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "bedrock:ApplyGuardrail",
-      "bedrock:GetGuardrail",
-    ]
-    resources = [
-      aws_bedrock_guardrail.query_generation.guardrail_arn,
-      "arn:aws:bedrock:*:${data.aws_caller_identity.current.account_id}:guardrail-profile/*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
       "secretsmanager:GetSecretValue",
     ]
     resources = [

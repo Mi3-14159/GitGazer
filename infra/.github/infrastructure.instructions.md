@@ -65,7 +65,6 @@ GitGazer uses AWS serverless architecture with the following components:
     - `worker_lambda.tf`: Worker Lambda for background jobs
     - `org_sync_scheduler.tf`: Org sync scheduler Lambda
     - `sqs_webhook_queue.tf`: SQS webhook queue
-    - `analytics_bedrock.tf`: Bedrock-based analytics configuration
     - `bedrock_logging.tf`: Bedrock logging configuration
     - `cloudfront.tf` / `cloudfront_docs.tf`: CDN configuration
     - `cognito.tf`: Authentication setup
