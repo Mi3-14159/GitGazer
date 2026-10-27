@@ -4,14 +4,12 @@ import {handleMcpRequest, type JsonRpcRequest} from '@/domains/mcp/mcp.protocol'
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpStatusCodes} from '@/shared/hono/http-errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import type {APIGatewayProxyEventV2} from 'aws-lambda';
 import type {Context} from 'hono';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
-// The API Gateway domain of the request, not the Host header: behind CloudFront the Host is the execute-api host either way.
-const requestOrigin = (c: Context<AppEnv>): string => `https://${(c.env?.event as APIGatewayProxyEventV2 | undefined)?.requestContext?.domainName}`;
+const requestOrigin = (c: Context<AppEnv>): string => `https://${new URL(c.req.url).host}`;
 
 const JSON_HEADERS = {'Content-Type': 'application/json', 'Cache-Control': 'no-store'} as const;
 

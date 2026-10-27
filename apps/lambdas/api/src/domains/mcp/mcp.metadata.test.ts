@@ -1,5 +1,5 @@
 import router from '@/domains/mcp/mcp.routes';
-import {createHonoApp} from '@/shared/hono/app';
+import {testRequest} from '@/shared/hono/test-request';
 import {describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => undefined)}}));
@@ -28,16 +28,13 @@ const AUTHORIZATION_SERVER_METADATA = {
     scopes_supported: ['openid', 'email', 'profile'],
 };
 
-// With no configured mcpServerUrl the origin comes from the API Gateway domain of the request, which testRequest cannot set.
-const getFromDomain = (path: string, domainName: string) =>
-    createHonoApp()
-        .route('/', router)
-        .request(path, {headers: {host: 'ignored.example.com'}}, {event: {requestContext: {domainName}} as never});
+// With no configured mcpServerUrl the origin is the host of the request URL.
+const getFromHost = (path: string) => testRequest(router, 'GET', `https://app.gitgazer.com${path}`);
 
 describe('MCP metadata documents', () => {
     it('keeps the MCP metadata documents unchanged', async () => {
-        const resource = await getFromDomain('/.well-known/oauth-protected-resource', 'app.gitgazer.com');
-        const authServer = await getFromDomain('/.well-known/oauth-authorization-server', 'app.gitgazer.com');
+        const resource = await getFromHost('/.well-known/oauth-protected-resource');
+        const authServer = await getFromHost('/.well-known/oauth-authorization-server');
 
         expect(resource.status).toBe(200);
         expect(await resource.json()).toEqual(PROTECTED_RESOURCE_METADATA);
