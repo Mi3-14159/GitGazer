@@ -187,6 +187,7 @@ resource "aws_lambda_function" "api" {
   role              = aws_iam_role.api.arn
   handler           = "index.handler"
   runtime           = "nodejs24.x"
+  architectures     = ["arm64"]
   s3_bucket         = module.lambda_store.s3_bucket_id
   s3_key            = data.aws_s3_object.api_lambda_function_archive.key
   s3_object_version = data.aws_s3_object.api_lambda_function_archive.version_id
@@ -207,7 +208,7 @@ resource "aws_lambda_function" "api" {
       NODE_OPTIONS                        = "--enable-source-maps"
     }
   }
-  layers = local.lambda_layers
+  layers = local.lambda_layers_arm64
   logging_config {
     log_group             = aws_cloudwatch_log_group.api.name
     log_format            = "JSON"

@@ -44,6 +44,10 @@ locals {
     "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
     "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []
+  lambda_layers_arm64 = var.enable_lambda_tracing ? [
+    "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension-Arm64:35",
+    "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
+  ] : []
   lambda_application_log_level = "INFO"
   lambda_enable_event_logging  = true
   cors_allowed_origins = compact([
