@@ -1,8 +1,8 @@
 locals {
   api_web_name = "${var.name_prefix}-api-web-${terraform.workspace}"
-  # Aurora db.t4g.medium allows 405 connections; at most half of them, minus 20 for the other Lambdas, at 5 per environment
+  # At most half of Aurora's connections, minus 20 for the other Lambdas, at 5 per environment
   api_web_db_pool_max      = 5
-  api_web_max_environments = min(10, floor((405 / 2 - 20) / local.api_web_db_pool_max))
+  api_web_max_environments = min(10, floor((var.db_max_connections / 2 - 20) / local.api_web_db_pool_max))
   awscc_default_tags       = [for k, v in local.default_tags : { key = k, value = tostring(v) }]
 }
 

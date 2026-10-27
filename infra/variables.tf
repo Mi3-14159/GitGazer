@@ -136,6 +136,12 @@ variable "enable_bedrock_invocation_logging" {
   default     = false
 }
 
+variable "db_max_connections" {
+  type        = number
+  description = "Aurora's max_connections (SHOW max_connections). Sizes the api Web Function's max_environments; 405 is the default for db.t4g.medium."
+  default     = 405
+}
+
 variable "db_config" {
   type = object({
     engine_version              = optional(string, "17.7")
