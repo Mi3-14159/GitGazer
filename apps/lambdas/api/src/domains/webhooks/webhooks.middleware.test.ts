@@ -38,7 +38,7 @@ async function post(headers: Record<string, string>, body?: string, path = '/tes
         next();
         return c.json({received: await c.req.json()});
     });
-    const res = await testRequest(app, 'POST', path, {headers, body, basePath: '/'});
+    const res = await testRequest(app, 'POST', path, {headers, body});
     return {res, next, json: await res.json()};
 }
 
@@ -56,7 +56,7 @@ describe('verifyGithubSign middleware', () => {
             return c.json({});
         });
 
-        const res = await testRequest(app, 'POST', '/test', {body: 'x', basePath: '/'});
+        const res = await testRequest(app, 'POST', '/test', {body: 'x'});
 
         expect(res.status).toBe(400);
         expect(await res.json()).toMatchObject({message: 'Missing integration ID in path parameters'});

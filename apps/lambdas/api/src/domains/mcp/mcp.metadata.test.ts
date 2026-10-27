@@ -29,7 +29,7 @@ const AUTHORIZATION_SERVER_METADATA = {
 };
 
 // With no configured mcpServerUrl the origin is the host of the request URL.
-const getFromHost = (path: string) => testRequest(wellKnownRoutes, 'GET', `https://app.gitgazer.com${path}`, {basePath: '/'});
+const getFromHost = (path: string) => testRequest(wellKnownRoutes, 'GET', `https://app.gitgazer.com${path}`);
 
 describe('MCP metadata documents', () => {
     it('keeps the MCP metadata documents unchanged', async () => {

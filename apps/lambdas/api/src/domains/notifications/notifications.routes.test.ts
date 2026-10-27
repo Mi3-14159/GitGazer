@@ -1,7 +1,11 @@
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import router from '@/domains/notifications/notifications.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+
+const app = new Hono<AppEnv>().route('/api', router);
 
 const mocks = vi.hoisted(() => ({getNotificationRules: vi.fn(), upsertNotificationRule: vi.fn(), deleteNotificationRule: vi.fn()}));
 
@@ -34,7 +38,7 @@ describe('notifications routes', () => {
     it('GET /api/notifications lists the rules of the user integrations', async () => {
         mocks.getNotificationRules.mockResolvedValue([{id: 'r1'}]);
 
-        const res = await testRequest(router, 'GET', '/api/notifications', {appContext});
+        const res = await testRequest(app, 'GET', '/api/notifications', {appContext});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{id: 'r1'}]);
@@ -44,7 +48,7 @@ describe('notifications routes', () => {
     it('POST creates a rule for the integration', async () => {
         mocks.upsertNotificationRule.mockResolvedValue({id: 'r1'});
 
-        const res = await testRequest(router, 'POST', '/api/integrations/int-1/notifications', {appContext, body: rule});
+        const res = await testRequest(app, 'POST', '/api/integrations/int-1/notifications', {appContext, body: rule});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({id: 'r1'});
@@ -52,9 +56,9 @@ describe('notifications routes', () => {
     });
 
     it('POST rejects a missing body, a malformed body and an invalid rule', async () => {
-        const missing = await testRequest(router, 'POST', '/api/integrations/int-1/notifications', {appContext});
-        const malformed = await testRequest(router, 'POST', '/api/integrations/int-1/notifications', {appContext, body: '{nope'});
-        const invalid = await testRequest(router, 'POST', '/api/integrations/int-1/notifications', {appContext, body: {label: 1}});
+        const missing = await testRequest(app, 'POST', '/api/integrations/int-1/notifications', {appContext});
+        const malformed = await testRequest(app, 'POST', '/api/integrations/int-1/notifications', {appContext, body: '{nope'});
+        const invalid = await testRequest(app, 'POST', '/api/integrations/int-1/notifications', {appContext, body: {label: 1}});
 
         expect(missing.status).toBe(400);
         expect((await missing.json()).message).toBe('Missing request body');
@@ -66,7 +70,7 @@ describe('notifications routes', () => {
     });
 
     it('POST is forbidden for a viewer', async () => {
-        const res = await testRequest(router, 'POST', '/api/integrations/other/notifications', {appContext, body: rule});
+        const res = await testRequest(app, 'POST', '/api/integrations/other/notifications', {appContext, body: rule});
 
         expect(res.status).toBe(403);
     });
@@ -74,14 +78,14 @@ describe('notifications routes', () => {
     it('PUT updates the rule', async () => {
         mocks.upsertNotificationRule.mockResolvedValue({id: 'r1'});
 
-        const res = await testRequest(router, 'PUT', '/api/integrations/int-1/notifications/r1', {appContext, body: rule});
+        const res = await testRequest(app, 'PUT', '/api/integrations/int-1/notifications/r1', {appContext, body: rule});
 
         expect(res.status).toBe(200);
         expect(mocks.upsertNotificationRule).toHaveBeenCalledWith({rule, integrationId: 'int-1', ruleId: 'r1'});
     });
 
     it('PUT rejects an invalid rule update', async () => {
-        const res = await testRequest(router, 'PUT', '/api/integrations/int-1/notifications/r1', {appContext, body: {label: 1}});
+        const res = await testRequest(app, 'PUT', '/api/integrations/int-1/notifications/r1', {appContext, body: {label: 1}});
 
         expect(res.status).toBe(400);
         expect((await res.json()).message).toBe('Invalid notification rule update');
@@ -90,7 +94,7 @@ describe('notifications routes', () => {
     it('DELETE removes the rule and returns success', async () => {
         mocks.deleteNotificationRule.mockResolvedValue(undefined);
 
-        const res = await testRequest(router, 'DELETE', '/api/integrations/int-1/notifications/r1', {appContext});
+        const res = await testRequest(app, 'DELETE', '/api/integrations/int-1/notifications/r1', {appContext});
 
         expect(res.status).toBe(200);
         expect(res.headers.get('content-type')).toBe('application/json');

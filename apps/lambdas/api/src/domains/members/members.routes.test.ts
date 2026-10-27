@@ -1,7 +1,11 @@
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import router from '@/domains/members/members.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+
+const app = new Hono<AppEnv>().route('/api', router);
 
 const mocks = vi.hoisted(() => ({
     acceptInvitation: vi.fn(),
@@ -40,7 +44,7 @@ describe('members routes', () => {
     it('GET members returns the members', async () => {
         mocks.getMembers.mockResolvedValue([{userId: 1}]);
 
-        const res = await testRequest(router, 'GET', `${base}/members`, {appContext: appContext()});
+        const res = await testRequest(app, 'GET', `${base}/members`, {appContext: appContext()});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{userId: 1}]);
@@ -48,13 +52,13 @@ describe('members routes', () => {
     });
 
     it('GET members is forbidden for a non-member integration', async () => {
-        const res = await testRequest(router, 'GET', '/api/integrations/other/members', {appContext: appContext()});
+        const res = await testRequest(app, 'GET', '/api/integrations/other/members', {appContext: appContext()});
 
         expect(res.status).toBe(403);
     });
 
     it('PATCH role changes the role and answers 204', async () => {
-        const res = await testRequest(router, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: {role: 'member'}});
+        const res = await testRequest(app, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: {role: 'member'}});
 
         expect(res.status).toBe(204);
         expect(mocks.changeRole).toHaveBeenCalledWith({
@@ -68,9 +72,9 @@ describe('members routes', () => {
     });
 
     it('PATCH role rejects an invalid user id, a malformed body and an invalid role', async () => {
-        const badId = await testRequest(router, 'PATCH', `${base}/members/x/role`, {appContext: appContext(), body: {role: 'member'}});
-        const malformed = await testRequest(router, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: '{nope'});
-        const badRole = await testRequest(router, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: {role: 'root'}});
+        const badId = await testRequest(app, 'PATCH', `${base}/members/x/role`, {appContext: appContext(), body: {role: 'member'}});
+        const malformed = await testRequest(app, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: '{nope'});
+        const badRole = await testRequest(app, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: {role: 'root'}});
 
         expect(badId.status).toBe(400);
         expect((await badId.json()).message).toBe('Invalid user ID');
@@ -84,13 +88,13 @@ describe('members routes', () => {
     it('PATCH role is forbidden below admin', async () => {
         mocks.role = 'member';
 
-        const res = await testRequest(router, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: {role: 'member'}});
+        const res = await testRequest(app, 'PATCH', `${base}/members/5/role`, {appContext: appContext(), body: {role: 'member'}});
 
         expect(res.status).toBe(403);
     });
 
     it('DELETE member removes the member and answers 204', async () => {
-        const res = await testRequest(router, 'DELETE', `${base}/members/5`, {appContext: appContext()});
+        const res = await testRequest(app, 'DELETE', `${base}/members/5`, {appContext: appContext()});
 
         expect(res.status).toBe(204);
         expect(mocks.removeMember).toHaveBeenCalledWith({
@@ -103,7 +107,7 @@ describe('members routes', () => {
     });
 
     it('DELETE member rejects an invalid user id', async () => {
-        const res = await testRequest(router, 'DELETE', `${base}/members/x`, {appContext: appContext()});
+        const res = await testRequest(app, 'DELETE', `${base}/members/x`, {appContext: appContext()});
 
         expect(res.status).toBe(400);
     });
@@ -111,7 +115,7 @@ describe('members routes', () => {
     it('POST leave lets a viewer leave and answers 204', async () => {
         mocks.role = 'viewer';
 
-        const res = await testRequest(router, 'POST', `${base}/leave`, {appContext: appContext()});
+        const res = await testRequest(app, 'POST', `${base}/leave`, {appContext: appContext()});
 
         expect(res.status).toBe(204);
         expect(mocks.leaveIntegration).toHaveBeenCalledWith({integrationId: 'int-1', userId: 7, integrationIds: ['int-1']});
@@ -121,7 +125,7 @@ describe('members routes', () => {
         mocks.role = 'member';
         mocks.getInvitations.mockResolvedValue([{id: 'i1', inviteToken: 'secret'}]);
 
-        const res = await testRequest(router, 'GET', `${base}/invitations`, {appContext: appContext()});
+        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{id: 'i1'}]);
@@ -130,7 +134,7 @@ describe('members routes', () => {
     it('GET invitations shows invite tokens to admins', async () => {
         mocks.getInvitations.mockResolvedValue([{id: 'i1', inviteToken: 'secret'}]);
 
-        const res = await testRequest(router, 'GET', `${base}/invitations`, {appContext: appContext()});
+        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
 
         expect(await res.json()).toEqual([{id: 'i1', inviteToken: 'secret'}]);
         expect(mocks.getInvitations).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1']});
@@ -139,7 +143,7 @@ describe('members routes', () => {
     it('POST invitations creates an invitation and answers 201', async () => {
         mocks.createInvitation.mockResolvedValue({id: 'i1'});
 
-        const res = await testRequest(router, 'POST', `${base}/invitations`, {
+        const res = await testRequest(app, 'POST', `${base}/invitations`, {
             appContext: appContext(),
             body: {email: 'a@example.com', role: 'member', sendEmail: true},
         });
@@ -155,9 +159,9 @@ describe('members routes', () => {
     });
 
     it('POST invitations rejects a malformed body, an invalid email and an invalid role', async () => {
-        const malformed = await testRequest(router, 'POST', `${base}/invitations`, {appContext: appContext(), body: '{nope'});
-        const badEmail = await testRequest(router, 'POST', `${base}/invitations`, {appContext: appContext(), body: {email: 1, role: 'member'}});
-        const badRole = await testRequest(router, 'POST', `${base}/invitations`, {appContext: appContext(), body: {role: 'root'}});
+        const malformed = await testRequest(app, 'POST', `${base}/invitations`, {appContext: appContext(), body: '{nope'});
+        const badEmail = await testRequest(app, 'POST', `${base}/invitations`, {appContext: appContext(), body: {email: 1, role: 'member'}});
+        const badRole = await testRequest(app, 'POST', `${base}/invitations`, {appContext: appContext(), body: {role: 'root'}});
 
         expect((await malformed.json()).message).toBe('Invalid request body');
         expect((await badEmail.json()).message).toBe('Invalid email');
@@ -166,7 +170,7 @@ describe('members routes', () => {
     });
 
     it('POST resend answers 204', async () => {
-        const res = await testRequest(router, 'POST', `${base}/invitations/inv-1/resend`, {appContext: appContext()});
+        const res = await testRequest(app, 'POST', `${base}/invitations/inv-1/resend`, {appContext: appContext()});
 
         expect(res.status).toBe(204);
         expect(mocks.resendInvitation).toHaveBeenCalledWith({
@@ -178,23 +182,23 @@ describe('members routes', () => {
     });
 
     it('DELETE invitation answers 204', async () => {
-        const res = await testRequest(router, 'DELETE', `${base}/invitations/inv-1`, {appContext: appContext()});
+        const res = await testRequest(app, 'DELETE', `${base}/invitations/inv-1`, {appContext: appContext()});
 
         expect(res.status).toBe(204);
         expect(mocks.revokeInvitation).toHaveBeenCalledWith({integrationId: 'int-1', invitationId: 'inv-1', integrationIds: ['int-1']});
     });
 
     it('POST accept accepts the invitation for the caller without an integration role', async () => {
-        const res = await testRequest(router, 'POST', '/api/invitations/accept', {appContext: appContext(), body: {inviteToken: 'tok'}});
+        const res = await testRequest(app, 'POST', '/api/invitations/accept', {appContext: appContext(), body: {inviteToken: 'tok'}});
 
         expect(res.status).toBe(204);
         expect(mocks.acceptInvitation).toHaveBeenCalledWith({inviteToken: 'tok', acceptingUserId: 7});
     });
 
     it('POST accept rejects a missing user, a malformed body and a missing token', async () => {
-        const anonymous = await testRequest(router, 'POST', '/api/invitations/accept', {body: {inviteToken: 'tok'}});
-        const malformed = await testRequest(router, 'POST', '/api/invitations/accept', {appContext: appContext(), body: '{nope'});
-        const noToken = await testRequest(router, 'POST', '/api/invitations/accept', {appContext: appContext(), body: {}});
+        const anonymous = await testRequest(app, 'POST', '/api/invitations/accept', {body: {inviteToken: 'tok'}});
+        const malformed = await testRequest(app, 'POST', '/api/invitations/accept', {appContext: appContext(), body: '{nope'});
+        const noToken = await testRequest(app, 'POST', '/api/invitations/accept', {appContext: appContext(), body: {}});
 
         expect((await anonymous.json()).message).toBe('Authentication required');
         expect((await malformed.json()).message).toBe('Invalid request body');

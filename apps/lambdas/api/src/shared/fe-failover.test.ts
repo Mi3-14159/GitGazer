@@ -17,7 +17,7 @@ describe('fe-failover routes', () => {
     });
 
     it('serves index.html for deep fe-failover paths', async () => {
-        const res = await testRequest(feFailover, 'GET', '/fe-failover/integrations/abc', {basePath: '/'});
+        const res = await testRequest(feFailover, 'GET', '/fe-failover/integrations/abc');
 
         expect(res.status).toBe(200);
         expect(await res.text()).toBe('<html>app</html>');
@@ -26,7 +26,7 @@ describe('fe-failover routes', () => {
     });
 
     it('returns 404 for the bare fe-failover path', async () => {
-        const res = await testRequest(feFailover, 'GET', '/fe-failover/', {basePath: '/'});
+        const res = await testRequest(feFailover, 'GET', '/fe-failover/');
 
         expect(res.status).toBe(404);
         expect(getIndexHtmlMock).not.toHaveBeenCalled();

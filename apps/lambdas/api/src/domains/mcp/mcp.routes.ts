@@ -16,7 +16,7 @@ const JSON_HEADERS = {'Content-Type': 'application/json', 'Cache-Control': 'no-s
 const jsonRpcError = (code: number, message: string, status: number): Response =>
     new Response(JSON.stringify({jsonrpc: '2.0', id: null, error: {code, message}}), {status, headers: JSON_HEADERS});
 
-router.post('/mcp', async (c) => {
+router.post('/', async (c) => {
     const logger = getLogger();
     const headers = c.req.header();
 
@@ -65,28 +65,28 @@ wellKnownRoutes.get('/.well-known/oauth-authorization-server', async (c) => {
     return new Response(JSON.stringify(buildAuthServerMetadata(requestOrigin(c))), {status: HttpStatusCodes.OK, headers: JSON_HEADERS});
 });
 
-router.post('/mcp/oauth/register', async (c) => {
+router.post('/oauth/register', async (c) => {
     return new Response(JSON.stringify(handleRegister(await c.req.text())), {
         status: HttpStatusCodes.CREATED,
         headers: JSON_HEADERS,
     });
 });
 
-router.get('/mcp/oauth/authorize', async (c) => {
+router.get('/oauth/authorize', async (c) => {
     return new Response(null, {
         status: HttpStatusCodes.FOUND,
         headers: {Location: handleAuthorize(requestOrigin(c), c.req.query()), 'Cache-Control': 'no-store'},
     });
 });
 
-router.get('/mcp/oauth/callback', async (c) => {
+router.get('/oauth/callback', async (c) => {
     return new Response(null, {
         status: HttpStatusCodes.FOUND,
         headers: {Location: handleCallback(requestOrigin(c), c.req.query()), 'Cache-Control': 'no-store'},
     });
 });
 
-router.post('/mcp/oauth/token', async (c) => {
+router.post('/oauth/token', async (c) => {
     const {status, body} = await handleToken(requestOrigin(c), await c.req.text());
     return new Response(body, {status, headers: JSON_HEADERS});
 });

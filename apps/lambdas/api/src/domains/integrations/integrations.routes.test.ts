@@ -1,6 +1,10 @@
 import router from '@/domains/integrations/integrations.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+const app = new Hono<AppEnv>().route('/api/integrations', router);
 
 const mocks = vi.hoisted(() => {
     const where = vi.fn();
@@ -34,7 +38,7 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLo
 vi.mock('@gitgazer/backend-services/org-member-resolver', () => ({resolveAndAssignOrgMembers: vi.fn()}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
-const link = async () => testRequest(router, 'POST', '/api/integrations/i1/github-app', {body: {installation_id: 42}});
+const link = async () => testRequest(app, 'POST', '/api/integrations/i1/github-app', {body: {installation_id: 42}});
 
 const installation = {installationId: 42, integrationId: null, accountLogin: 'acme', accountType: 'Organization', accountId: 500, senderId: 7};
 

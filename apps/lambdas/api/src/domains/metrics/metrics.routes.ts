@@ -64,7 +64,7 @@ function jsonResponse(body: unknown, status: number = HttpStatusCodes.OK): Respo
     });
 }
 
-router.get('/metrics/widget', addUserIntegrationsToCtx, async (c) => {
+router.get('/widget', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse({message: 'No integrations found for user'});
 
@@ -78,7 +78,7 @@ router.get('/metrics/widget', addUserIntegrationsToCtx, async (c) => {
     return jsonResponse(metric);
 });
 
-router.get('/metrics/repositories', addUserIntegrationsToCtx, async (c) => {
+router.get('/repositories', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse([]);
 
@@ -86,7 +86,7 @@ router.get('/metrics/repositories', addUserIntegrationsToCtx, async (c) => {
     return jsonResponse(repos);
 });
 
-router.get('/metrics/topics', addUserIntegrationsToCtx, async (c) => {
+router.get('/topics', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = resolveIntegrationIds(c);
     if (!integrationIds) return jsonResponse([]);
 

@@ -34,7 +34,7 @@ async function post(headers: Record<string, string>, body?: string) {
         next();
         return c.json({received: await c.req.json()});
     });
-    const res = await testRequest(app, 'POST', '/test/webhook', {headers, body, basePath: '/'});
+    const res = await testRequest(app, 'POST', '/test/webhook', {headers, body});
     return {res, next, json: await res.json()};
 }
 

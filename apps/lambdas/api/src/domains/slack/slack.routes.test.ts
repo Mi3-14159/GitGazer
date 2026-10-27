@@ -1,6 +1,10 @@
 import router from '@/domains/slack/slack.routes';
+import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+const app = new Hono<AppEnv>().route('/api', router);
 
 const mocks = vi.hoisted(() => ({
     completeSlackInstall: vi.fn(),
@@ -23,7 +27,7 @@ vi.mock('@/domains/integrations/integrations.middleware', () => ({
 }));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
-const request = (method: string, path: string) => testRequest(router, method, path, {cookies: ['oauthState=n']});
+const request = (method: string, path: string) => testRequest(app, method, path, {cookies: ['oauthState=n']});
 
 describe('slack routes', () => {
     beforeEach(() => {

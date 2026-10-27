@@ -28,8 +28,7 @@ export const testRequest = async (
         c.set('appContext', init.appContext);
         await next();
     });
-    // Domain routers are mounted under /api like in createApp; pass basePath '/' for routers served at the root
-    return base.route(init.basePath ?? '/api', app).request(path, {method, headers, body});
+    return base.route(init.basePath ?? '/', app).request(path, {method, headers, body});
 };
 
 export const apiGatewayEvent = (

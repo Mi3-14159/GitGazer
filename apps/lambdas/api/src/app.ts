@@ -74,23 +74,24 @@ const corsFor = (origins: string[]): MiddlewareHandler => {
     return (c, next) => (origins.includes(c.req.header('origin') ?? '') ? handler(c, next) : next());
 };
 
-/** All domain routers; their paths are relative to /api. */
+/** All domain routers; their paths are relative to /api, or to their own mount path where they have one. */
 const createApiRouter = (): Hono<AppEnv> => {
     const api = new Hono<AppEnv>();
-    api.route('/', eventLogRoutes);
-    api.route('/', workflowsRoutes);
-    api.route('/', overviewRoutes);
-    api.route('/', metricsRoutes);
+    api.route('/event-log', eventLogRoutes);
+    api.route('/workflows', workflowsRoutes);
+    api.route('/overview', overviewRoutes);
+    api.route('/metrics', metricsRoutes);
+    api.route('/auth', authRoutes);
+    api.route('/integrations', integrationsRoutes);
+    api.route('/integrations/:integrationId', appsRoutes);
+    api.route('/mcp', mcpRoutes);
+    api.route('/github', githubAppRoutes);
+    api.route('/import', importRoutes);
+    // These domains' routes span several prefixes, so their paths stay relative to /api
     api.route('/', notificationsRoutes);
     api.route('/', usersRoutes);
     api.route('/', membersRoutes);
-    api.route('/', authRoutes);
-    api.route('/', integrationsRoutes);
-    api.route('/', appsRoutes);
     api.route('/', slackRoutes);
-    api.route('/', mcpRoutes);
-    api.route('/', githubAppRoutes);
-    api.route('/', importRoutes);
     return api;
 };
 
