@@ -1,4 +1,7 @@
+import {Hono} from 'hono';
 import {describe, expect, it} from 'vitest';
+
+import type {AppEnv} from '@/shared/hono/env';
 
 import {createHonoApp} from '@/shared/hono/app';
 import {BadRequestError} from '@/shared/hono/http-errors';
@@ -77,5 +80,20 @@ describe('testRequest', () => {
         const res = await testRequest(app, 'POST', '/api/test', {cookies: ['a=1', 'b=2'], headers: {'x-custom': 'yes'}, body: {hello: 'world'}});
 
         expect(await res.json()).toEqual({cookie: 'a=1; b=2', custom: 'yes', type: 'application/json', body: {hello: 'world'}});
+    });
+
+    it('gives a bare domain router the bridged appContext and Powertools error bodies', async () => {
+        const router = new Hono<AppEnv>();
+        router.get('/api/test', (c) => c.json({userId: c.var.appContext?.userId}));
+        router.get('/api/fail', () => {
+            throw new BadRequestError('x');
+        });
+
+        const ok = await testRequest(router, 'GET', '/api/test', {appContext});
+        const failed = await testRequest(router, 'GET', '/api/fail');
+
+        expect(await ok.json()).toEqual({userId: 7});
+        expect(failed.status).toBe(400);
+        expect(await failed.json()).toEqual({statusCode: 400, error: 'BadRequestError', message: 'x'});
     });
 });

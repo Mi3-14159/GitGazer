@@ -5,7 +5,7 @@ import type {AppEnv} from '@/shared/hono/env';
 import {requireRole} from '@/shared/hono/require-role';
 import {testRequest} from '@/shared/hono/test-request';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import type {Context} from 'hono';
+import {Hono, type Context} from 'hono';
 
 import type {MemberRole} from '@gitgazer/db/types';
 
@@ -157,6 +157,17 @@ describe('requireRole middleware (hono)', () => {
                 allowed: false,
                 reason: 'not a member',
             });
+        });
+
+        it('logs the full route pattern when the router is mounted below the root', async () => {
+            const router = new Hono<AppEnv>();
+            router.get('/integrations/:integrationId', requireRole('viewer'), handler);
+            const app = new Hono<AppEnv>().route('/api', router);
+
+            await testRequest(app, 'GET', '/api/integrations/int-1', {appContext: {userId: 1, username: '', email: '', name: '', nickname: '', picture: '', integrationRoles: {'int-1': 'viewer'}}});
+
+            const logger = vi.mocked(getLogger).mock.results[0]!.value;
+            expect(logger.debug).toHaveBeenCalledWith('authz', expect.objectContaining({action: 'GET /api/integrations/:integrationId'}));
         });
 
         it('logs action from the route path', async () => {

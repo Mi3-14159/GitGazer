@@ -1,3 +1,4 @@
+import {createHonoApp} from '@/shared/hono/app';
 import type {AppEnv} from '@/shared/hono/env';
 import type {AppContext} from '@gitgazer/backend-core/types';
 import type {Hono} from 'hono';
@@ -21,5 +22,5 @@ export const testRequest = async (
         }
     }
 
-    return app.request(path, {method, headers, body}, {appContext: init.appContext});
+    return createHonoApp().route('/', app).request(path, {method, headers, body}, {appContext: init.appContext});
 };
