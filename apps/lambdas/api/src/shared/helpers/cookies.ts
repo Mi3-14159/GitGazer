@@ -2,12 +2,18 @@
  * Shared cookie utilities for parsing and building HTTP cookies.
  */
 
+import type {Context} from 'hono';
+
 const COOKIE_OPTIONS = 'Secure; HttpOnly; SameSite=Lax; Path=/';
 const REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 const STATE_COOKIE_MAX_AGE = 600; // 10 minutes — short-lived OAuth state nonce
 
 /** Cookie name holding the OAuth state nonce that binds the signed state token to the browser. */
 export const OAUTH_STATE_COOKIE_NAME = 'oauthState';
+
+export function getRequestCookies(c: Context): string[] {
+    return c.req.header('cookie')?.split('; ') ?? [];
+}
 
 export function extractTokenFromCookies(cookies: string[] | undefined, tokenName: string): string | null {
     if (!cookies || cookies.length === 0) {

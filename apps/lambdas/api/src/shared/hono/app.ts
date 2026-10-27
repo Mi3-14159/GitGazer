@@ -1,3 +1,4 @@
+import authRoutes from '@/domains/auth/auth.routes';
 import eventLogRoutes from '@/domains/event-log/event-log.routes';
 import membersRoutes from '@/domains/members/members.routes';
 import metricsRoutes from '@/domains/metrics/metrics.routes';
@@ -39,6 +40,7 @@ export const createHonoApp = (): Hono<AppEnv> => {
     app.route('/', notificationsRoutes);
     app.route('/', usersRoutes);
     app.route('/', membersRoutes);
+    app.route('/', authRoutes);
 
     return app;
 };
