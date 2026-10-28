@@ -15,6 +15,18 @@ resource "aws_cloudwatch_log_group" "api_web" {
   kms_key_id        = aws_kms_key.this.arn
 }
 
+# Lambda writes every log line here first and copies it into api_web afterwards
+resource "aws_cloudwatch_log_group" "api_web_local" {
+  name              = "${aws_cloudwatch_log_group.api_web.name}.local"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.this.arn
+}
+
+import {
+  to = aws_cloudwatch_log_group.api_web_local
+  id = "/aws/lambda/web/${local.api_web_name}.local"
+}
+
 data "aws_iam_policy_document" "api_assume_role" {
   statement {
     effect = "Allow"
@@ -40,7 +52,10 @@ data "aws_iam_policy_document" "api" {
       "logs:PutLogEvents",
       "logs:DescribeLogStreams",
     ]
-    resources = ["${aws_cloudwatch_log_group.api_web.arn}:*"]
+    resources = [
+      "${aws_cloudwatch_log_group.api_web.arn}:*",
+      "${aws_cloudwatch_log_group.api_web_local.arn}:*",
+    ]
   }
 
   dynamic "statement" {
