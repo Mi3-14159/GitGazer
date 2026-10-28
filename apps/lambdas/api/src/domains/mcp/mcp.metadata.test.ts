@@ -7,7 +7,6 @@ vi.mock('@/shared/middleware/token-verifier', () => ({getMcpAccessVerifier: () =
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
 vi.mock('@gitgazer/db/client', () => ({db: {select: vi.fn()}}));
 
-// Captured from the Powertools implementation before the move to Hono.
 const PROTECTED_RESOURCE_METADATA = {
     resource: 'https://app.gitgazer.com/api/mcp',
     authorization_servers: ['https://app.gitgazer.com'],

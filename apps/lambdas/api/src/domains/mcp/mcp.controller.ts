@@ -42,7 +42,7 @@ export const resolveMcpCaller = async (authorizationHeader: string | undefined):
 };
 
 // The public MCP URL is configured (the CloudFront/custom domain), because behind CloudFront
-// the API Gateway only sees its own execute-api host. Falls back to the request domain for
+// the web function only sees its own endpoint host. Falls back to the request domain for
 // local dev where mcpServerUrl is unset.
 export const mcpServerUrl = (requestOrigin: string): string => config.get('mcpServerUrl') || `${requestOrigin}/api/mcp`;
 

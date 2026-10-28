@@ -40,27 +40,14 @@ const send = (app: Hono<AppEnv>, method: string, path: string, headers: Record<s
     app.request(path, {method, headers: {cookie: authCookie, ...headers}});
 
 describe('createApp', () => {
-    it('returns the Powertools 404 body for an unknown route', async () => {
+    it('returns a JSON 404 body for an unknown route', async () => {
         const res = await send(createApp(), 'GET', '/api/nope');
 
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({statusCode: 404, error: 'NotFoundError', message: 'Route /api/nope for method GET not found'});
     });
 
-    it('keeps the raw path in the 404 message', async () => {
-        const res = await send(createApp(), 'GET', '/api/n%C3%B6pe');
-
-        expect(await res.json()).toMatchObject({message: 'Route /api/n%C3%B6pe for method GET not found'});
-    });
-
-    it('strips trailing slashes from the 404 path like Powertools', async () => {
-        const res = await send(createApp(), 'POST', '/api/nope/');
-
-        expect(res.status).toBe(404);
-        expect(await res.json()).toMatchObject({message: 'Route /api/nope for method POST not found'});
-    });
-
-    it('matches routes with a trailing slash like Powertools', async () => {
+    it('matches routes with a trailing slash', async () => {
         const app = createApp();
         app.get('/api/test', (c) => c.json({ok: true}));
 
@@ -69,7 +56,7 @@ describe('createApp', () => {
         expect(res.status).toBe(200);
     });
 
-    it('serializes thrown HttpErrors like Powertools', async () => {
+    it('serializes thrown HttpErrors', async () => {
         const app = createApp();
         app.get('/api/test', () => {
             throw new BadRequestError('x', {a: 1});
@@ -168,7 +155,7 @@ describe('createApp', () => {
         expect(publicRoute.status).toBe(404);
     });
 
-    it('answers CORS preflight like before', async () => {
+    it('answers CORS preflight for allowed origins only', async () => {
         const app = createApp();
         app.get('/api/test', (c) => c.json({ok: true}));
         const preflight = (origin: string) =>
@@ -181,44 +168,23 @@ describe('createApp', () => {
 
         expect(res.status).toBe(204);
         expect(res.headers.get('access-control-allow-origin')).toBe(allowedOrigin);
-        expect(res.headers.get('access-control-max-age')).toBe('300');
-        expect(res.headers.get('access-control-allow-methods')).toBe('DELETE,GET,HEAD,PATCH,POST,PUT');
-        expect(res.headers.get('access-control-allow-headers')).toBe('authorization,content-type,x-amz-date,x-api-key,x-amz-security-token');
-        expect(res.headers.has('access-control-allow-credentials')).toBe(false);
-        expect(res.headers.get('vary')).toContain('Origin');
-        expect(denied.status).toBe(401);
         expect(denied.headers.has('access-control-allow-origin')).toBe(false);
         expect(simple.headers.get('access-control-allow-origin')).toBe(allowedOrigin);
-        expect(simple.headers.has('access-control-expose-headers')).toBe(false);
         expect(unauthorized.status).toBe(401);
         expect(unauthorized.headers.get('access-control-allow-origin')).toBe(allowedOrigin);
     });
 
-    it('gzips large responses', async () => {
-        const res = await send(createApp(), 'GET', '/api/big', {'accept-encoding': 'gzip'});
-
-        expect(res.status).toBe(200);
-        expect(res.headers.get('content-encoding')).toBe('gzip');
-        expect(JSON.parse(gunzipSync(Buffer.from(await res.arrayBuffer())).toString('utf-8'))).toEqual(mocks.bigPayload);
-    });
-
-    it('leaves responses up to the 1 KB threshold uncompressed', async () => {
-        const res = await send(createApp(), 'GET', '/api/nope', {'accept-encoding': 'gzip'});
-
-        expect(res.status).toBe(404);
-        expect(res.headers.get('content-encoding')).toBeNull();
-        expect(await res.json()).toMatchObject({message: 'Route /api/nope for method GET not found'});
-    });
-
-    it('only measures the body when the client accepts an encoding', async () => {
+    it('gzips responses when the client accepts it', async () => {
         const app = createApp();
 
+        const encoded = await send(app, 'GET', '/api/big', {'accept-encoding': 'gzip'});
         const plain = await send(app, 'GET', '/api/big');
-        const encoded = await send(app, 'GET', '/api/nope', {'accept-encoding': 'gzip'});
 
-        expect(plain.headers.has('content-length')).toBe(false);
+        expect(encoded.status).toBe(200);
+        expect(encoded.headers.get('content-encoding')).toBe('gzip');
+        expect(JSON.parse(gunzipSync(Buffer.from(await encoded.arrayBuffer())).toString('utf-8'))).toEqual(mocks.bigPayload);
+        expect(plain.headers.get('content-encoding')).toBeNull();
         expect(await plain.json()).toEqual(mocks.bigPayload);
-        expect(encoded.headers.get('content-length')).toBe(String((await encoded.arrayBuffer()).byteLength));
     });
 });
 
@@ -240,7 +206,7 @@ describe('testRequest', () => {
         expect(await res.json()).toEqual({cookie: 'a=1; b=2', custom: 'yes', type: 'application/json', body: {hello: 'world'}});
     });
 
-    it('gives a bare domain router the appContext and Powertools error bodies', async () => {
+    it('gives a bare domain router the appContext and JSON error bodies', async () => {
         const router = new Hono<AppEnv>();
         router.get('/test', (c) => c.json({userId: c.var.appContext?.userId}));
         router.get('/fail', () => {

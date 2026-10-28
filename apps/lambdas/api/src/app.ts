@@ -20,13 +20,12 @@ import {originCheck} from '@/shared/middleware/origin-check';
 import config, {loadConfig} from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {initDb} from '@gitgazer/db/client';
-import {Hono, type MiddlewareHandler} from 'hono';
+import {Hono} from 'hono';
 import {compress} from 'hono/compress';
 import {cors} from 'hono/cors';
 
-/** Router with the Powertools-compatible error and not-found responses, without middleware or routes. */
+/** Router with the JSON error and not-found responses, without middleware or routes. */
 export const createBaseApp = (): Hono<AppEnv> => {
-    // strict: false matches Powertools, which ignores trailing slashes when matching routes
     const app = new Hono<AppEnv>({strict: false});
 
     app.onError((error) => {
@@ -38,40 +37,9 @@ export const createBaseApp = (): Hono<AppEnv> => {
         return Response.json({statusCode: 500, error: 'Internal Server Error', message: 'Internal Server Error'}, {status: 500});
     });
 
-    app.notFound((c) => {
-        // c.req.path is percent-decoded; Powertools reported the raw path
-        const rawPath = new URL(c.req.url).pathname;
-        const path = rawPath === '/' ? rawPath : rawPath.replace(/\/+$/, '');
-        return new NotFoundError(`Route ${path} for method ${c.req.method} not found`).toWebResponse();
-    });
+    app.notFound((c) => new NotFoundError(`Route ${c.req.path} for method ${c.req.method} not found`).toWebResponse());
 
     return app;
-};
-
-// Hono's compress only checks the threshold against Content-Length, which c.json() does not set
-const setContentLength: MiddlewareHandler = async (c, next) => {
-    await next();
-    if (!c.req.header('accept-encoding')) {
-        return;
-    }
-    if (c.res.body && !c.res.headers.has('content-length')) {
-        const body = await c.res.clone().arrayBuffer();
-        c.res.headers.set('content-length', body.byteLength.toString());
-    }
-};
-
-// Powertools' cors defaults; Hono's would reflect any requested header
-const corsFor = (origins: string[]): MiddlewareHandler => {
-    const handler = cors({
-        origin: origins,
-        maxAge: 300,
-        allowMethods: ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'],
-        allowHeaders: ['authorization', 'content-type', 'x-amz-date', 'x-api-key', 'x-amz-security-token'],
-        exposeHeaders: [],
-        credentials: false,
-    });
-    // Like Powertools, requests from other origins get no CORS headers and continue down the chain
-    return (c, next) => (origins.includes(c.req.header('origin') ?? '') ? handler(c, next) : next());
 };
 
 /** All domain routers; their paths are relative to /api, or to their own mount path where they have one. */
@@ -100,10 +68,8 @@ export const createApp = (): Hono<AppEnv> => {
     logger.info('Setting up routes');
 
     const app = createBaseApp();
-    // Powertools compressed every content type above the threshold
-    app.use(compress({encoding: 'gzip', threshold: 1024, contentTypeFilter: () => true}));
-    app.use(setContentLength);
-    app.use(corsFor(config.get('corsOrigins')));
+    app.use(compress());
+    app.use(cors({origin: config.get('corsOrigins')}));
     app.use(authenticate);
     app.use(originCheck);
 

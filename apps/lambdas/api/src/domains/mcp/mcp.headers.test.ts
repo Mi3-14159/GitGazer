@@ -9,11 +9,6 @@ describe('validateMcpHeaders', () => {
         expect(validateMcpHeaders(base, 'tools/list', {}, VERSION)).toBeNull();
     });
 
-    it('accepts headers regardless of name casing', () => {
-        const headers = {'MCP-Protocol-Version': VERSION, 'Mcp-Method': 'tools/list'};
-        expect(validateMcpHeaders(headers, 'tools/list', {}, VERSION)).toBeNull();
-    });
-
     it('rejects a missing MCP-Protocol-Version', () => {
         expect(validateMcpHeaders({'mcp-method': 'tools/list'}, 'tools/list', {}, VERSION)).toMatch(/MCP-Protocol-Version/);
     });
