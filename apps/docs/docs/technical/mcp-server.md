@@ -135,12 +135,12 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
-2. **Role GRANTs** — queries run as `gitgazer_mcp` (`NOINHERIT`, not a superuser or table owner), as long as the query cannot switch `role` (see layer 7). Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
+2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so there is no other role the session could switch to. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
 3. **Row-level security** — every exposed table carries a tenant policy keyed on `rls.integration_ids`; you only see rows for integrations you belong to.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`; no writes or DDL.
 5. **Single-statement structural guard** — the query is wrapped as `SELECT * FROM (<your sql>) _mcp LIMIT <cap+1>`, which structurally forbids statement stacking and non-`SELECT` statements.
 6. **Blocked-function + escape guard** — `set_config`, functions that run a SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), `pg_sleep`, `pg_stat_activity`, file/host functions, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
-7. **`set_config` REVOKE** — the real boundary for the `rls.*` settings and `role` is that `gitgazer_mcp` cannot execute `pg_catalog.set_config`. Migration `0056` attempts that revoke, but it is best-effort and may have been a no-op on Aurora; this is not verified yet. If `set_config` is executable, a query that reaches it can rewrite `rls.integration_ids` or `rls.integration_roles`, or run `set_config('role', …)` to switch to the session user, which owns the tables and is not subject to RLS (no table uses `FORCE ROW LEVEL SECURITY`).
+7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. The `rls.*` settings are therefore protected only by layers 5 and 6; a query that reached `set_config` could rewrite `rls.integration_ids` or `rls.integration_roles`.
 8. **Resource caps** — a `statement_timeout` and a row cap bound each query.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
@@ -154,7 +154,7 @@ To open a table with a role requirement:
 - **Column gate**: expose the table through a view that returns admin-only columns only when `github.mcp_has_role(integration_id, 'admin')` and `NULL` otherwise, and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter on `rls.integration_ids` (or it returns every tenant's rows) and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
 - **Global tables** (no `integration_id`): expose them only through a view scoped to the caller's integrations.
 
-No table uses this yet. Do not open a table with `mcpRolePolicy` until it is verified that `gitgazer_mcp` cannot execute `set_config` (see layer 7): otherwise the caller can rewrite `rls.integration_roles`.
+No table uses this yet. Role gates rely on `rls.integration_roles`, which only layers 5 and 6 protect (see layer 7); weigh that before opening a table with an admin-only gate.
 
 ## Limits and budget
 
@@ -199,7 +199,9 @@ Database (Drizzle migrations):
 - `0053` — creates the `gitgazer_mcp` role and per-table tenant policies.
 - `0054` — grants `SELECT` on the nine exposed relations (column-scoped for `integrations`).
 - `0055` — the `mcp_query_usage` quota table.
-- `0056` — best-effort `REVOKE EXECUTE` on `set_config`.
+- `0056` — best-effort `REVOKE EXECUTE` on `set_config` (a no-op on Aurora).
+- `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper.
+- `20261028130000_mcp_login` — lets `gitgazer_mcp` log in with IAM auth, for its own connection.
 
 ## Related
 

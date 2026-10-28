@@ -106,16 +106,13 @@ Each id is validated as a UUID and each role against `MEMBER_ROLES` before inter
 **Who can change it.** `SET`/`RESET` need a second statement, which the `;` check rejects, and the setting is
 `LOCAL`, so it ends with the transaction. `assertReadOnlySelect` also blocks `set_config` and the functions that run a
 caller-supplied SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), but that is a blocklist: a mitigation, not a
-proof. The real boundary for the `rls.*` settings and `role` is that `gitgazer_mcp` cannot execute
-`pg_catalog.set_config`. The revoke in migration `20260721204116_tough_black_bolt` only warns when it lacks
-permission and may have been a no-op on Aurora; this is to be verified. If `set_config` is executable, a query that
-reaches it can rewrite these settings, or run `set_config('role', …)` to switch to the session user, which owns the
-tables and is not subject to RLS (no `FORCE ROW LEVEL SECURITY`). No table is opened with `mcpRolePolicy` until this is
-verified and closed.
+proof. The revoke of `set_config` in migration `20260721204116_tough_black_bolt` turned out to be a no-op on Aurora
+(verified 2026-10-28), so `set_config` stays executable and the `rls.*` settings rest on that guard.
 
-**Role.** MCP queries keep running as `gitgazer_mcp` (owner): its explicit grants, its own policies and a working
-`set_config` lockdown (see above) are what make arbitrary caller SQL safe. Per-app-role database roles are not an option, since
-one query can span integrations where the caller holds different roles.
+**Role.** MCP queries keep running as `gitgazer_mcp` (owner decision), and on their own connection that logs in as
+`gitgazer_mcp` (migration `20261028130000_mcp_login`, IAM auth): with the app's login user as session user, a query
+that reached `set_config('role', …)` could switch back to the table owner. Per-app-role database roles are not an
+option, since one query can span integrations where the caller holds different roles.
 
 **The helper.** A migration adds a SQL function, e.g.
 
