@@ -1,5 +1,4 @@
 import {initDb, withRlsTransaction} from '@gitgazer/db/client';
-import type {MemberRole} from '@gitgazer/db/types/members';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -9,7 +8,6 @@ vi.mock('drizzle-orm/aws-data-api/pg', () => ({drizzle: () => ({transaction})}))
 vi.mock('@aws-sdk/client-rds-data', () => ({RDSDataClient: class {}}));
 
 const ID_A = '11111111-1111-1111-1111-111111111111';
-const ID_B = '22222222-2222-2222-2222-222222222222';
 const noop = async (): Promise<void> => undefined;
 
 const dialect = new PgDialect();
@@ -43,34 +41,9 @@ describe('withRlsTransaction', () => {
         await expect(withRlsTransaction({integrationIds: [ID_A], lockTimeoutS: 0, callback: noop})).rejects.toThrow(/lockTimeoutS/);
     });
 
-    it('sets rls.integration_roles from the role map', async () => {
-        await withRlsTransaction({integrationIds: [ID_A, ID_B], integrationRoles: {[ID_A]: 'admin', [ID_B]: 'viewer'}, callback: noop});
-        expect(executedSql()).toContain(`SET LOCAL rls.integration_roles = '${ID_A}:admin,${ID_B}:viewer';`);
-    });
-
-    it('sets both settings to empty strings for a caller without integrations', async () => {
-        await withRlsTransaction({integrationIds: [], integrationRoles: {}, callback: noop});
+    it('sets rls.integration_ids to an empty string for a caller without integrations', async () => {
+        await withRlsTransaction({integrationIds: [], callback: noop});
         expect(executedSql()).toContain(`SET LOCAL rls.integration_ids = '';`);
-        expect(executedSql()).toContain(`SET LOCAL rls.integration_roles = '';`);
-    });
-
-    it('rejects an unknown role before starting the transaction', async () => {
-        await expect(
-            withRlsTransaction({integrationIds: [ID_A], integrationRoles: {[ID_A]: 'superuser' as MemberRole}, callback: noop}),
-        ).rejects.toThrow('Invalid integration role');
-        expect(transaction).not.toHaveBeenCalled();
-    });
-
-    it('rejects a role map key that is not a UUID', async () => {
-        await expect(withRlsTransaction({integrationIds: [], integrationRoles: {"x'; RESET ROLE; --": 'admin'}, callback: noop})).rejects.toThrow(
-            /Invalid integration ID/,
-        );
-        expect(transaction).not.toHaveBeenCalled();
-    });
-
-    it('does not set rls.integration_roles when no role map is given', async () => {
-        await withRlsTransaction({integrationIds: [ID_A], callback: noop});
-        expect(executedSql().join('\n')).not.toContain('rls.integration_roles');
     });
 
     it('runs the transaction on the given client instead of the default connection', async () => {

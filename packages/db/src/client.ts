@@ -6,7 +6,6 @@ import {drizzle as drizzleNodePg, type NodePgDatabase} from 'drizzle-orm/node-po
 import pg from 'pg';
 import {dbRelations, type DbRelations} from './schema/relations';
 import {gitgazerMcp, gitgazerReader} from './schema';
-import {isMemberRole, type MemberRole} from './types/members';
 
 type DbClient = NodePgDatabase<DbRelations>;
 type ConnectionMode = 'rds-proxy' | 'data-api';
@@ -131,13 +130,14 @@ export const db: DbClient = lazyDb(() => _db);
 /** Connection logged in as gitgazer_mcp, for running MCP callers' SQL. */
 export const mcpDb: DbClient = lazyDb(() => _mcpDb);
 
+export const hasSeparateMcpLogin = (): boolean => _mcpDb !== null && _mcpDb !== _db;
+
 export type RdsTransaction = Parameters<Parameters<DbClient['transaction']>[0]>[0];
 
-const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
-    integrationRoles?: Record<string, MemberRole>;
     userName?: string;
     lockTimeoutS?: number;
     statementTimeoutS?: number;
@@ -145,16 +145,7 @@ export const withRlsTransaction = async <T>(params: {
     client?: DbClient;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
-    const {
-        integrationIds,
-        integrationRoles,
-        userName = gitgazerReader.name,
-        callback,
-        lockTimeoutS = 5,
-        statementTimeoutS,
-        readOnly = false,
-        client = db,
-    } = params;
+    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5, statementTimeoutS, readOnly = false, client = db} = params;
     if (!Number.isInteger(lockTimeoutS) || lockTimeoutS <= 0) {
         throw new Error('lockTimeoutS must be a positive integer');
     }
@@ -169,15 +160,6 @@ export const withRlsTransaction = async <T>(params: {
         }
     }
 
-    for (const [id, role] of Object.entries(integrationRoles ?? {})) {
-        if (!INTEGRATION_ID_PATTERN.test(id)) {
-            throw new Error(`Invalid integration ID: ${id}`);
-        }
-        if (!isMemberRole(role)) {
-            throw new Error(`Invalid integration role: ${role}`);
-        }
-    }
-
     return await client.transaction(async (tx) => {
         // Must be declared before the transaction's first query.
         if (readOnly) {
@@ -185,10 +167,6 @@ export const withRlsTransaction = async <T>(params: {
         }
         await tx.execute(sql`SET LOCAL ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
-        if (integrationRoles) {
-            const pairs = Object.entries(integrationRoles).map(([id, role]) => `${id}:${role}`);
-            await tx.execute(sql.raw(`SET LOCAL rls.integration_roles = '${pairs.join(',')}';`));
-        }
         await tx.execute(sql.raw(`SET LOCAL lock_timeout = '${lockTimeoutS}s';`));
         if (statementTimeoutS !== undefined) {
             await tx.execute(sql.raw(`SET LOCAL statement_timeout = '${statementTimeoutS}s';`));

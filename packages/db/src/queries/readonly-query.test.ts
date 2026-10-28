@@ -1,23 +1,71 @@
 import type {PGlite} from '@electric-sql/pglite';
 import {PgDialect} from 'drizzle-orm/pg-core';
+import {readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
-import {mcpDb} from '../client';
+import {db, mcpDb} from '../client';
+import {mcpTenantSeparationPolicy} from '../schema/github/misc';
 import {BYTE_BUDGET, runReadOnlyQuery, wrapReadOnlyQuery} from './readonlyQuery';
 
 vi.mock('../client', async (importOriginal) => {
     const {PGlite} = await import('@electric-sql/pglite');
+    // @ts-expect-error -- moduleResolution "node" ignores the package's exports map, which is where this subpath lives.
+    const {pgcrypto} = await import('@electric-sql/pglite/contrib/pgcrypto');
     const {drizzle} = await import('drizzle-orm/pglite');
-    return {...(await importOriginal<typeof import('../client')>()), mcpDb: drizzle({client: new PGlite()})};
+    return {
+        ...(await importOriginal<typeof import('../client')>()),
+        db: drizzle({client: new PGlite({extensions: {pgcrypto}})}),
+        mcpDb: drizzle({client: new PGlite({extensions: {pgcrypto}})}),
+        hasSeparateMcpLogin: () => true,
+    };
 });
 
 const client = (mcpDb as unknown as {$client: PGlite}).$client;
-const integrationRoles = {'11111111-1111-1111-1111-111111111111': 'member' as const};
+const appClient = (db as unknown as {$client: PGlite}).$client;
+const A = '11111111-1111-1111-1111-111111111111';
+const B = '22222222-2222-2222-2222-222222222222';
+const integrationRoles = {[A]: 'member' as const};
+
+// The app and the MCP connection are separate databases here, so both get the same fixed key instead of a random one.
+const migration = readFileSync(join(__dirname, '../../drizzle/20261029090000_mcp_signed_context/migration.sql'), 'utf8')
+    .split('--> statement-breakpoint')
+    .filter((statement) => !/^\s*(?:ALTER POLICY|DROP FUNCTION)/.test(statement))
+    .join('\n')
+    .replace('public.gen_random_bytes(32)', `'\\x${'ab'.repeat(32)}'::bytea`);
+
+const setUp = async (pg: PGlite) => {
+    await pg.exec(`
+        CREATE EXTENSION pgcrypto;
+        CREATE ROLE root SUPERUSER;
+        CREATE ROLE gitgazer_mcp;
+        CREATE ROLE gitgazer_user;
+        CREATE ROLE gitgazer_reader;
+        CREATE ROLE gitgazer_writer;
+        SET ROLE root;
+        CREATE SCHEMA github;
+        CREATE SCHEMA gitgazer;
+        GRANT USAGE ON SCHEMA github TO gitgazer_mcp;
+    `);
+    await pg.exec(migration);
+    await pg.exec('RESET ROLE');
+};
 
 beforeAll(async () => {
-    await client.exec('CREATE ROLE gitgazer_mcp');
+    await setUp(client);
+    await setUp(appClient);
+    await client.exec(`
+        CREATE TABLE github.t (integration_id uuid, v int);
+        ALTER TABLE github.t ENABLE ROW LEVEL SECURITY;
+        CREATE POLICY "tenant separation mcp" ON github.t FOR SELECT TO gitgazer_mcp USING (${new PgDialect().sqlToQuery(mcpTenantSeparationPolicy().using!).sql});
+        GRANT SELECT ON github.t TO gitgazer_mcp;
+        INSERT INTO github.t VALUES ('${A}', 1), ('${B}', 2);
+    `);
 });
 
-afterAll(() => client.close());
+afterAll(async () => {
+    await client.close();
+    await appClient.close();
+});
 
 // PGlite.query() always speaks the extended protocol and PGlite.exec() the simple one, so these tests show what
 // Postgres does with the wrapped query in each protocol, not which one node-postgres picks.
@@ -84,6 +132,11 @@ describe('runReadOnlyQuery against Postgres', () => {
             (e: unknown) => e,
         );
         expect((error as {cause?: unknown}).cause).toMatchObject({message: expect.stringMatching(/must be at the top level/)});
+    });
+
+    it('returns only the rows of the integrations in the signed context', async () => {
+        const result = await runReadOnlyQuery({sql: 'SELECT v FROM github.t ORDER BY v', integrationRoles: {[A]: 'member'}});
+        expect(result.rows).toEqual([{v: 1}]);
     });
 
     it('does not flag a query that matched nothing', async () => {

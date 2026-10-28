@@ -135,26 +135,30 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
-2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. This holds in the IAM connection mode used in AWS; the Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
-3. **Row-level security** — every exposed table carries a tenant policy keyed on `rls.integration_ids`; you only see rows for integrations you belong to.
+2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
+3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.mcp_context`, which the database trusts only with a valid signature:
+    - The key lives in the database (`gitgazer.mcp_context_key`, generated at migration time and readable only by the app login), never in the repository, Terraform or the app config.
+    - Before the caller's query, the app reads the MCP session's backend PID and transaction start, has the app login sign the caller's integrations and roles for exactly that session and transaction (`gitgazer.mcp_sign_context`, which only the app login may execute), and sets `rls.mcp_context` to `<payload>|<signature>`.
+    - `github.mcp_context()` verifies the signature once per statement, not per row (the policies call it through a sub-select, so Postgres runs it as an InitPlan).
+    - A missing, malformed, altered or replayed context (copied from another session or transaction) yields no rows, never other tenants' rows, and no error.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
 5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH`, or that contains `;` or a `$1`-style placeholder, is rejected before it runs.
 6. **Blocked-function + escape guard** — `set_config` and `pg_settings`, functions that run a SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), advisory locks (a session lock would outlive the transaction on the pooled connection), `pg_sleep*`, `pg_stat_*`, file, large-object and backend-control functions, nested block comments at the start of the query, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
-7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. The `rls.*` settings are therefore protected only by layers 5 and 6; a query that reached `set_config` could rewrite `rls.integration_ids` or `rls.integration_roles`.
+7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.mcp_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.
 8. **Resource caps** — a `statement_timeout`, a 2-second `lock_timeout`, a row cap and a result byte budget bound each query. The byte budget is enforced inside the query, so an oversized row never leaves the database.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
 ### Role-aware access
 
-Besides the tenant list, each query transaction receives the caller's role per integration as `rls.integration_roles` (`<integration-uuid>:<role>` pairs joined by `,`). The SQL helper `github.mcp_has_role(integration_id, minimum_role)` returns `true` only when the caller holds at least `minimum_role` (`owner`, `admin`, `member`, `viewer`) in that integration, and `false` for unknown integrations, unknown roles, or an unset setting.
+The signed context carries the caller's role per integration (`<integration-uuid>:<role>` pairs joined by `,`). The SQL helper `github.mcp_integration_ids(minimum_role)` returns the verified integrations where the caller holds at least `minimum_role` (`owner`, `admin`, `member`, `viewer`; the default `viewer` means all of them), and none for an unknown role or an invalid context.
 
 To open a table with a role requirement:
 
-- **Row gate**: attach `mcpRolePolicy(minimumRole)` instead of `mcpTenantSeparationPolicy()`. It combines the tenant check with `github.mcp_has_role`.
-- **Column gate**: expose the table through a view that returns admin-only columns only when `github.mcp_has_role(integration_id, 'admin')` and `NULL` otherwise, and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter on `rls.integration_ids` (or it returns every tenant's rows) and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
+- **Row gate**: attach `mcpRolePolicy(minimumRole)` instead of `mcpTenantSeparationPolicy()`. It checks `integration_id = ANY ((SELECT github.mcp_integration_ids('<minimumRole>'))::uuid[])`.
+- **Column gate**: expose the table through a view that returns admin-only columns only `CASE WHEN integration_id = ANY ((SELECT github.mcp_integration_ids('admin'))::uuid[]) THEN … END` (`NULL` otherwise), and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter, `integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[])` (or it returns every tenant's rows), and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
 - **Global tables** (no `integration_id`): expose them only through a view scoped to the caller's integrations.
 
-No table uses this yet. Role gates rely on `rls.integration_roles`, which only layers 5 and 6 protect (see layer 7); weigh that before opening a table with an admin-only gate.
+Always call `github.mcp_integration_ids` through a sub-select as above, so the signature is verified once per statement, not once per row. No table uses a role gate yet.
 
 ## Limits and budget
 
@@ -191,6 +195,8 @@ Application settings (convict; loaded from Secrets Manager, overridable by env v
 | `mcpQuota.maxQuerySeconds` | `MCP_QUERY_MAX_SECONDS`          | `20`                   | Max duration of a single `run_sql` (statement timeout).   |
 | `mcpAllowedRedirectHosts`  | `MCP_ALLOWED_REDIRECT_HOSTS`     | `vscode.dev,claude.ai` | Hosted OAuth redirect hosts (loopback is always allowed). |
 
+The MCP tools need `DB_CONNECTION_MODE=rds-proxy` (the default), where MCP queries log in as `gitgazer_mcp`. In `data-api` mode they refuse to run with an error.
+
 Infrastructure (Terraform):
 
 - `var.mcp_allowed_redirect_hosts` — feeds `mcpAllowedRedirectHosts`; add a client's hosted callback host here to onboard it without a code change.
@@ -203,8 +209,9 @@ Database (Drizzle migrations):
 - `0054` — grants `SELECT` on the nine exposed relations (column-scoped for `integrations`).
 - `0055` — the `mcp_query_usage` quota table.
 - `0056` — best-effort `REVOKE EXECUTE` on `set_config` (a no-op on Aurora).
-- `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper.
+- `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper, replaced by `github.mcp_integration_ids` in `20261029090000_mcp_signed_context`.
 - `20261028130000_mcp_login` — lets `gitgazer_mcp` log in with IAM auth, for its own connection.
+- `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()`; the MCP tenant policies now read the signed context.
 
 ## Related
 
