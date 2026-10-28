@@ -74,6 +74,24 @@ describe('runReadOnlyQuery', () => {
             }
         });
 
+        it.each([
+            ['the *_to_xml family', `SELECT table_to_xml('github.workflow_runs', true, false, '')`],
+            ['dblink', `SELECT * FROM dblink_connect('host=x')`],
+            ['pg_sleep variants', `SELECT pg_sleep_for('1 second')`],
+            ['session advisory locks', 'SELECT pg_advisory_lock(1)'],
+            ['try advisory locks', 'SELECT pg_try_advisory_xact_lock(1)'],
+            ['large objects', 'SELECT lo_get(1)'],
+            ['loread', 'SELECT loread(0, 1)'],
+            ['pg_ls_*', 'SELECT * FROM pg_ls_waldir()'],
+            ['pg_settings', 'SELECT * FROM pg_settings'],
+        ])('rejects %s', (_family, q) => {
+            expect(() => mod.assertReadOnlySelect(q)).toThrow(/blocked/);
+        });
+
+        it('rejects a nested block comment in the leading comments (Postgres nests them, the regex does not)', () => {
+            expect(() => mod.assertReadOnlySelect('/* /* */ SELECT 1 */ DELETE FROM x')).toThrow(/nested block comments/);
+        });
+
         it('rejects statement stacking that would break out of the subquery wrap (cross-tenant read)', () => {
             // The wrapped query runs with no bind params -> simple query protocol -> multiple `;`
             // statements would execute, so an embedded `;` must be rejected outright.

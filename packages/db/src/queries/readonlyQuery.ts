@@ -24,16 +24,24 @@ export class ReadOnlyQueryError extends Error {
 // Leading whitespace/comments — stripped only to inspect the first keyword.
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
-// Blocklist of host-reading / cross-tenant-leaking FUNCTIONS callable inside a SELECT: `set_config`
-// (could overwrite the rls.integration_ids / rls.integration_roles GUCs), the functions that
-// execute a caller-supplied SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), where a concatenated
-// `'set_con' || 'fig(...)'` never shows the literal token, and the `pg_stat_*` family (leaks other
-// tenants' in-flight SQL + UUIDs, since every request shares the gitgazer_mcp role). set_config stays
-// executable on Aurora (the revoke migration is a no-op there), so this list is what guards the GUCs.
+// PostgreSQL nests block comments and LEADING_NOISE does not: in `/* /* */ SELECT 1 */ DELETE …` the regex
+// sees a SELECT while Postgres sees the DELETE. Rejected rather than parsed; no real query needs it.
+const NESTED_BLOCK_COMMENT = /\/\*(?:(?!\*\/)[\s\S])*\/\*/;
+
+// Defence in depth, not the boundary (that is the gitgazer_mcp login, RLS and the read-only transaction), and a
+// text match cannot see a name assembled at runtime. It still guards the rls.integration_ids / rls.integration_roles
+// GUCs, because set_config stays executable on Aurora (the revoke migration is a no-op there):
+// - `set_config` and `pg_settings`, whose UPDATE rule reaches set_config without naming it;
+// - functions that execute a caller-supplied SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), where a
+//   concatenated `'set_con' || 'fig(...)'` never shows the literal token;
+// - `pg_advisory_*`: a session-level lock is legal in a READ ONLY transaction and outlives it, so it goes
+//   back into the pool with the connection;
+// - `pg_stat_*`, which leaks other tenants' in-flight SQL + UUIDs since every request shares the gitgazer_mcp role;
+// - file, large-object, sleep and backend-control functions.
 // The `SET`/`RESET` statements are deliberately NOT listed — they need a `;` to run, which
 // assertReadOnlySelect already rejects, and blocklisting the words would false-positive on `%reset%`.
 const BLOCKED_TOKENS =
-    /\b(?:set_config|query_to_xml\w*|ts_stat|ts_rewrite|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_\w+|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
+    /\b(?:set_config|pg_settings|\w*_to_xml\w*|ts_stat|ts_rewrite|dblink\w*|pg_(?:try_)?advisory_\w*|pg_sleep\w*|pg_read_file|pg_read_binary_file|pg_ls_\w+|pg_stat_\w+|lo_\w+|loread|lowrite|pg_terminate_backend|pg_cancel_backend)\b/i;
 
 // SQL-standard Unicode-escape introducer (`U&'…'` / `U&"…"`). It lets an identifier or string be
 // spelled with `\XXXX` character escapes — e.g. `U&"\0073et_config"` resolves to the identifier
@@ -61,8 +69,11 @@ export function assertReadOnlySelect(rawSql: string): string {
     if (trimmed.includes(';')) {
         throw new ReadOnlyQueryError('Only a single statement is allowed (no ";")');
     }
-    const firstKeyword = trimmed.replace(LEADING_NOISE, '');
-    if (!/^(?:select|with)\b/i.test(firstKeyword)) {
+    const leading = LEADING_NOISE.exec(trimmed)?.[0] ?? '';
+    if (NESTED_BLOCK_COMMENT.test(leading)) {
+        throw new ReadOnlyQueryError('Query uses nested block comments, which are not supported');
+    }
+    if (!/^(?:select|with)\b/i.test(trimmed.slice(leading.length))) {
         throw new ReadOnlyQueryError('Only read-only SELECT/WITH queries are allowed');
     }
     if (UNICODE_ESCAPE.test(trimmed)) {
