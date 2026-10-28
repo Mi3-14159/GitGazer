@@ -114,13 +114,15 @@ export async function closeDb(): Promise<void> {
     await Promise.all(_pools.map((pool) => pool.end()));
 }
 
+const NOT_INITIALIZED = 'Database not initialized. Call initDb() before accessing db.';
+
 // Proxies preserve the synchronous exports so all existing consumers work unchanged.
 // Handlers must call `await initDb()` during cold-start before any DB access.
 const lazyDb = (get: () => DbClient | null): DbClient =>
     new Proxy({} as DbClient, {
         get(_, prop) {
             const client = get();
-            if (!client) throw new Error('Database not initialized. Call initDb() before accessing db.');
+            if (!client) throw new Error(NOT_INITIALIZED);
             return (client as never)[prop];
         },
     });
@@ -130,7 +132,11 @@ export const db: DbClient = lazyDb(() => _db);
 /** Connection logged in as gitgazer_mcp, for running MCP callers' SQL. */
 export const mcpDb: DbClient = lazyDb(() => _mcpDb);
 
-export const hasSeparateMcpLogin = (): boolean => _mcpDb !== null && _mcpDb !== _db;
+// Throws before initDb(), so an MCP query reports that instead of being refused as Data API mode.
+export const hasSeparateMcpLogin = (): boolean => {
+    if (!_db) throw new Error(NOT_INITIALIZED);
+    return _mcpDb !== null && _mcpDb !== _db;
+};
 
 export type RdsTransaction = Parameters<Parameters<DbClient['transaction']>[0]>[0];
 

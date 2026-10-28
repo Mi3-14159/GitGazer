@@ -65,7 +65,8 @@ describe('db client', () => {
 
     it('reports a separate mcp login only after initDb() in rds-proxy mode', async () => {
         const client = await loadClient();
-        expect(client.hasSeparateMcpLogin()).toBe(false);
+        const {runReadOnlyQuery} = await import('./queries/readonlyQuery');
+        await expect(runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {}})).rejects.toThrow('Database not initialized');
 
         await client.initDb();
 
