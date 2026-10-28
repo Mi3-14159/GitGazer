@@ -7,8 +7,8 @@ vi.mock('@/domains/mcp/mcp.quota', () => ({
     QuotaExceededError: class QuotaExceededError extends Error {},
 }));
 
-const IDS = ['11111111-1111-1111-1111-111111111111'];
-const CALLER = {userId: 42, integrationIds: IDS};
+const ID_A = '11111111-1111-1111-1111-111111111111';
+const CALLER = {userId: 42, integrationRoles: {[ID_A]: 'viewer' as const}};
 const RESERVATION = {
     userId: 42,
     budgetMs: 600_000,
@@ -43,7 +43,11 @@ describe('mcp tools', () => {
     it('run_sql reserves budget, runs with the max-query timeout, charges, and returns the budget', async () => {
         const res = await mod.runToolCall('run_sql', {sql: 'SELECT 1 AS x'}, CALLER);
         expect(quota.reserveQueryBudget).toHaveBeenCalledWith(42);
-        expect(readonly.runReadOnlyQuery).toHaveBeenCalledWith({sql: 'SELECT 1 AS x', integrationIds: IDS, statementTimeoutS: 60});
+        expect(readonly.runReadOnlyQuery).toHaveBeenCalledWith({
+            sql: 'SELECT 1 AS x',
+            integrationRoles: CALLER.integrationRoles,
+            statementTimeoutS: 60,
+        });
         expect(quota.chargeQueryBudget).toHaveBeenCalledWith(RESERVATION, expect.any(Number));
         expect(JSON.parse(res.content[0].text)).toEqual({columns: ['x'], rows: [{x: 1}], rowCount: 1, truncated: false, budget: BUDGET});
     });

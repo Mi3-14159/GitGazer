@@ -6,6 +6,7 @@ import {drizzle as drizzleNodePg, type NodePgDatabase} from 'drizzle-orm/node-po
 import pg from 'pg';
 import {dbRelations, type DbRelations} from './schema/relations';
 import {gitgazerReader} from './schema';
+import {isMemberRole, type MemberRole} from './types/members';
 
 type DbClient = NodePgDatabase<DbRelations>;
 type ConnectionMode = 'rds-proxy' | 'data-api';
@@ -128,13 +129,22 @@ const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
+    integrationRoles?: Record<string, MemberRole>;
     userName?: string;
     lockTimeoutS?: number;
     statementTimeoutS?: number;
     readOnly?: boolean;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
-    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5, statementTimeoutS, readOnly = false} = params;
+    const {
+        integrationIds,
+        integrationRoles,
+        userName = gitgazerReader.name,
+        callback,
+        lockTimeoutS = 5,
+        statementTimeoutS,
+        readOnly = false,
+    } = params;
     if (!Number.isInteger(lockTimeoutS) || lockTimeoutS <= 0) {
         throw new Error('lockTimeoutS must be a positive integer');
     }
@@ -149,6 +159,15 @@ export const withRlsTransaction = async <T>(params: {
         }
     }
 
+    for (const [id, role] of Object.entries(integrationRoles ?? {})) {
+        if (!INTEGRATION_ID_PATTERN.test(id)) {
+            throw new Error(`Invalid integration ID: ${id}`);
+        }
+        if (!isMemberRole(role)) {
+            throw new Error(`Invalid integration role: ${role}`);
+        }
+    }
+
     return await db.transaction(async (tx) => {
         // Must be declared before the transaction's first query.
         if (readOnly) {
@@ -156,6 +175,10 @@ export const withRlsTransaction = async <T>(params: {
         }
         await tx.execute(sql`SET LOCAL ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
+        if (integrationRoles) {
+            const pairs = Object.entries(integrationRoles).map(([id, role]) => `${id}:${role}`);
+            await tx.execute(sql.raw(`SET LOCAL rls.integration_roles = '${pairs.join(',')}';`));
+        }
         await tx.execute(sql.raw(`SET LOCAL lock_timeout = '${lockTimeoutS}s';`));
         if (statementTimeoutS !== undefined) {
             await tx.execute(sql.raw(`SET LOCAL statement_timeout = '${statementTimeoutS}s';`));

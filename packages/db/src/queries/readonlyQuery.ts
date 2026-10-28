@@ -1,6 +1,7 @@
 import {sql} from 'drizzle-orm';
 import {withRlsTransaction} from '../client';
 import {gitgazerMcp} from '../schema';
+import type {MemberRole} from '../types/members';
 
 export const DEFAULT_ROW_CAP = 1000;
 export const DEFAULT_STATEMENT_TIMEOUT_S = 10;
@@ -129,7 +130,7 @@ const findPgError = (error: unknown): PgError | undefined => {
  */
 export async function runReadOnlyQuery(params: {
     sql: string;
-    integrationIds: string[];
+    integrationRoles: Record<string, MemberRole>;
     rowCap?: number;
     statementTimeoutS?: number;
 }): Promise<ReadOnlyQueryResult> {
@@ -142,7 +143,8 @@ export async function runReadOnlyQuery(params: {
 
     try {
         return await withRlsTransaction({
-            integrationIds: params.integrationIds,
+            integrationIds: Object.keys(params.integrationRoles),
+            integrationRoles: params.integrationRoles,
             userName: gitgazerMcp.name,
             readOnly: true,
             statementTimeoutS,

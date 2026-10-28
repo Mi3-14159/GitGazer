@@ -35,7 +35,7 @@ describe('resolveMcpCaller', () => {
         mockUserRows([{id: 7}]);
         asMock(integrations.getUserIntegrationRoles).mockResolvedValue({i1: 'admin', i2: 'viewer'});
 
-        await expect(ctrl.resolveMcpCaller('Bearer abc.def.ghi')).resolves.toEqual({userId: 7, integrationIds: ['i1', 'i2']});
+        await expect(ctrl.resolveMcpCaller('Bearer abc.def.ghi')).resolves.toEqual({userId: 7, integrationRoles: {i1: 'admin', i2: 'viewer'}});
     });
 
     it('rejects a missing Authorization header', async () => {

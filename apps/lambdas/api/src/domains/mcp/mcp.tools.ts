@@ -63,7 +63,7 @@ const toResult = (result: ReadOnlyQueryResult): McpToolResult => ({content: [{ty
 /** Dispatch a tool call. Every tool runs through `runReadOnlyQuery`, so the gitgazer_mcp
  * role GRANTs + RLS are the single enforcement point. */
 export const runToolCall = async (name: string, args: Record<string, unknown>, caller: McpCaller): Promise<McpToolResult> => {
-    const {integrationIds} = caller;
+    const {integrationRoles} = caller;
     switch (name) {
         case 'run_sql': {
             const sql = args.sql;
@@ -76,7 +76,7 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             });
             // Charge on every outcome (success, error, or timeout) so expensive queries can't run for free.
             const start = Date.now();
-            const outcome = await runReadOnlyQuery({sql, integrationIds, statementTimeoutS: reservation.maxQuerySeconds}).then(
+            const outcome = await runReadOnlyQuery({sql, integrationRoles, statementTimeoutS: reservation.maxQuerySeconds}).then(
                 (result) => ({result}),
                 (error: unknown) => ({error}),
             );
@@ -88,7 +88,7 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             return toResult(
                 await runReadOnlyQuery({
                     sql: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'github' ORDER BY table_name",
-                    integrationIds,
+                    integrationRoles,
                 }),
             );
         case 'describe_table': {
@@ -99,7 +99,7 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             return toResult(
                 await runReadOnlyQuery({
                     sql: `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'github' AND table_name = '${table}' ORDER BY ordinal_position`,
-                    integrationIds,
+                    integrationRoles,
                 }),
             );
         }
@@ -107,7 +107,7 @@ export const runToolCall = async (name: string, args: Record<string, unknown>, c
             return toResult(
                 await runReadOnlyQuery({
                     sql: 'SELECT integration_id, label, created_at FROM github.integrations ORDER BY label',
-                    integrationIds,
+                    integrationRoles,
                 }),
             );
         default:

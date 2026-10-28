@@ -89,17 +89,18 @@ describe('runReadOnlyQuery', () => {
 
     it('runs under the mcp role, read-only, with a statement timeout', async () => {
         mockRun([{a: 1}], [{name: 'a'}]);
-        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationIds: [INTEGRATION_ID], statementTimeoutS: 7});
+        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, statementTimeoutS: 7});
 
         expect(capture.params?.userName).toBe('gitgazer_mcp');
         expect(capture.params?.readOnly).toBe(true);
         expect(capture.params?.statementTimeoutS).toBe(7);
         expect(capture.params?.integrationIds).toEqual([INTEGRATION_ID]);
+        expect(capture.params?.integrationRoles).toEqual({[INTEGRATION_ID]: 'member'});
     });
 
     it('wraps the user SQL in a subquery with a row-cap+1 LIMIT', async () => {
         mockRun([{a: 1}]);
-        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationIds: [INTEGRATION_ID], rowCap: 500});
+        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 500});
 
         const rendered = renderSql(capture.execArg as SQL);
         expect(rendered).toContain('SELECT * FROM (');
@@ -110,7 +111,7 @@ describe('runReadOnlyQuery', () => {
     it('flags truncation and caps the returned rows at rowCap', async () => {
         // rowCap 2 → LIMIT 3 → 3 rows returned means "more exist".
         mockRun([{n: 1}, {n: 2}, {n: 3}], [{name: 'n'}]);
-        const result = await mod.runReadOnlyQuery({sql: 'SELECT n FROM t', integrationIds: [INTEGRATION_ID], rowCap: 2});
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT n FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 2});
 
         expect(result.truncated).toBe(true);
         expect(result.rowCount).toBe(2);
@@ -120,26 +121,28 @@ describe('runReadOnlyQuery', () => {
 
     it('does not flag truncation when rows fit within rowCap', async () => {
         mockRun([{n: 1}], [{name: 'n'}]);
-        const result = await mod.runReadOnlyQuery({sql: 'SELECT n FROM t', integrationIds: [INTEGRATION_ID], rowCap: 2});
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT n FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 2});
         expect(result.truncated).toBe(false);
         expect(result.rowCount).toBe(1);
     });
 
     it('derives columns from the first row when field metadata is absent', async () => {
         mockRun([{x: 1, y: 2}]);
-        const result = await mod.runReadOnlyQuery({sql: 'SELECT x, y FROM t', integrationIds: [INTEGRATION_ID]});
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT x, y FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
         expect(result.columns).toEqual(['x', 'y']);
     });
 
     it('rejects an invalid rowCap before touching the database', async () => {
         mockRun([]);
-        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID], rowCap: 0})).rejects.toThrow(/rowCap/);
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 0})).rejects.toThrow(/rowCap/);
         expect(rds.withRlsTransaction).not.toHaveBeenCalled();
     });
 
     it('rejects a non-SELECT query before touching the database', async () => {
         mockRun([]);
-        await expect(mod.runReadOnlyQuery({sql: 'DELETE FROM workflow_runs', integrationIds: [INTEGRATION_ID]})).rejects.toThrow(/read-only SELECT/);
+        await expect(mod.runReadOnlyQuery({sql: 'DELETE FROM workflow_runs', integrationRoles: {[INTEGRATION_ID]: 'member'}})).rejects.toThrow(
+            /read-only SELECT/,
+        );
         expect(rds.withRlsTransaction).not.toHaveBeenCalled();
     });
 
@@ -150,7 +153,9 @@ describe('runReadOnlyQuery', () => {
         const wrapped = Object.assign(new Error('Failed query: SELECT * FROM (…)'), {cause: pgError});
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
 
-        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID], statementTimeoutS: 10}).catch((e: unknown) => e);
+        const error = await mod
+            .runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}, statementTimeoutS: 10})
+            .catch((e: unknown) => e);
 
         expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
         expect((error as Error).message).toMatch(/exceeded the 10s statement timeout/);
@@ -163,7 +168,7 @@ describe('runReadOnlyQuery', () => {
         const wrapped = Object.assign(new Error('Failed query: SELECT 1 FRM t'), {cause: pgError});
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
 
-        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 FRM t', integrationIds: [INTEGRATION_ID]}).catch((e: unknown) => e);
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 FRM t', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
         expect((error as Error).message).toBe('Query failed: syntax error at or near "FRM"');
         // The drizzle wrapper's "Failed query: <sql>" text must never reach the client.
@@ -176,7 +181,9 @@ describe('runReadOnlyQuery', () => {
             Object.assign(new Error('Failed query: …'), {cause: pgError}),
         );
 
-        const error = await mod.runReadOnlyQuery({sql: 'SELECT athor FROM t', integrationIds: [INTEGRATION_ID]}).catch((e: unknown) => e);
+        const error = await mod
+            .runReadOnlyQuery({sql: 'SELECT athor FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}})
+            .catch((e: unknown) => e);
         expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
         expect((error as Error).message).toBe('Query failed: column "athor" does not exist');
     });
@@ -187,7 +194,9 @@ describe('runReadOnlyQuery', () => {
             Object.assign(new Error('Failed query: …'), {cause: pgError}),
         );
 
-        const error = await mod.runReadOnlyQuery({sql: "SELECT 'nope'::uuid", integrationIds: [INTEGRATION_ID]}).catch((e: unknown) => e);
+        const error = await mod
+            .runReadOnlyQuery({sql: "SELECT 'nope'::uuid", integrationRoles: {[INTEGRATION_ID]: 'member'}})
+            .catch((e: unknown) => e);
         expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
         expect((error as Error).message).toBe('Query failed: invalid input syntax for type uuid: "nope"');
     });
@@ -199,7 +208,10 @@ describe('runReadOnlyQuery', () => {
         );
 
         const error = await mod
-            .runReadOnlyQuery({sql: 'WITH x AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM x', integrationIds: [INTEGRATION_ID]})
+            .runReadOnlyQuery({
+                sql: 'WITH x AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM x',
+                integrationRoles: {[INTEGRATION_ID]: 'member'},
+            })
             .catch((e: unknown) => e);
         expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
         expect((error as Error).message).toBe('Query failed: cannot execute INSERT in a read-only transaction');
@@ -211,12 +223,12 @@ describe('runReadOnlyQuery', () => {
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
 
         // Rethrown as-is -> the MCP layer logs it and returns a generic "Tool execution failed".
-        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID]})).rejects.toBe(wrapped);
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}})).rejects.toBe(wrapped);
     });
 
     it('passes a driver error with no SQLSTATE through unchanged', async () => {
         const boom = new Error('connection reset by peer');
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(boom);
-        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationIds: [INTEGRATION_ID]})).rejects.toBe(boom);
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}})).rejects.toBe(boom);
     });
 });
