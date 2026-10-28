@@ -5,15 +5,18 @@ import {drizzle as drizzleDataApi} from 'drizzle-orm/aws-data-api/pg';
 import {drizzle as drizzleNodePg, type NodePgDatabase} from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import {dbRelations, type DbRelations} from './schema/relations';
-import {gitgazerReader} from './schema';
+import {gitgazerMcp, gitgazerReader} from './schema';
+import {isMemberRole, type MemberRole} from './types/members';
 
 type DbClient = NodePgDatabase<DbRelations>;
 type ConnectionMode = 'rds-proxy' | 'data-api';
 
 let _db: DbClient | null = null;
-let _pool: pg.Pool | null = null;
+let _mcpDb: DbClient | null = null;
+const _pools: pg.Pool[] = [];
+// Counted in the api's connection budget in infra/api_web_function.tf
+const MCP_POOL_MAX = 2;
 let _initPromise: Promise<void> | null = null;
-let _signer: Signer | null = null;
 
 function getConnectionMode(): ConnectionMode {
     const mode = process.env['DB_CONNECTION_MODE'] || 'rds-proxy';
@@ -42,30 +45,27 @@ function initializeRdsProxy(): void {
         throw new Error('Missing required environment variables: RDS_HOST, RDS_DATABASE, RDS_DB_USER, RDS_HOSTNAME');
     }
 
-    _signer = new Signer({
-        hostname: rdsHostname,
-        port: 5432,
-        username: dbUser,
-    });
+    const createDb = (user: string, max: number): DbClient => {
+        const signer = new Signer({hostname: rdsHostname, port: 5432, username: user});
+        const pool = new pg.Pool({
+            host: rdsHost,
+            port: rdsPort,
+            database,
+            user,
+            password: () => signer.getAuthToken(),
+            ssl: {rejectUnauthorized: false},
+            max,
+            // Fail fast instead of hanging until the Lambda timeout when every connection is held, e.g. by open transactions
+            connectionTimeoutMillis: 5000,
+            idleTimeoutMillis: 10 * 60 * 1000, // recycle idle connections before IAM token expiry (15 min)
+        });
+        _pools.push(pool);
+        return drizzleNodePg({client: pool, relations: dbRelations, logger: process.env['DB_LOGGING'] === 'true'});
+    };
 
-    _pool = new pg.Pool({
-        host: rdsHost,
-        port: rdsPort,
-        database,
-        user: dbUser,
-        password: () => _signer!.getAuthToken(),
-        ssl: {rejectUnauthorized: false},
-        max: getPoolMax(),
-        // Fail fast instead of hanging until the Lambda timeout when every connection is held, e.g. by open transactions
-        connectionTimeoutMillis: 5000,
-        idleTimeoutMillis: 10 * 60 * 1000, // recycle idle connections before IAM token expiry (15 min)
-    });
-
-    _db = drizzleNodePg({
-        client: _pool,
-        relations: dbRelations,
-        logger: process.env['DB_LOGGING'] === 'true',
-    });
+    _db = createDb(dbUser, getPoolMax());
+    // MCP queries log in as gitgazer_mcp itself: a session whose login user owns the tables could switch its role back to it.
+    _mcpDb = createDb(gitgazerMcp.name, MCP_POOL_MAX);
 }
 
 function initializeDataApi(): void {
@@ -89,6 +89,8 @@ function initializeDataApi(): void {
         relations: dbRelations,
         logger: process.env['DB_LOGGING'] === 'true',
     }) as unknown as DbClient;
+    // The Data API authenticates with one secret, so there is no separate MCP login in this mode.
+    _mcpDb = _db;
 }
 
 async function initialize(): Promise<void> {
@@ -110,17 +112,24 @@ export async function initDb(): Promise<void> {
 }
 
 export async function closeDb(): Promise<void> {
-    await _pool?.end();
+    await Promise.all(_pools.map((pool) => pool.end()));
 }
 
-// Proxy preserves the synchronous `db` export so all existing consumers work unchanged.
+// Proxies preserve the synchronous exports so all existing consumers work unchanged.
 // Handlers must call `await initDb()` during cold-start before any DB access.
-export const db: DbClient = new Proxy({} as DbClient, {
-    get(_, prop) {
-        if (!_db) throw new Error('Database not initialized. Call initDb() before accessing db.');
-        return (_db as never)[prop];
-    },
-});
+const lazyDb = (get: () => DbClient | null): DbClient =>
+    new Proxy({} as DbClient, {
+        get(_, prop) {
+            const client = get();
+            if (!client) throw new Error('Database not initialized. Call initDb() before accessing db.');
+            return (client as never)[prop];
+        },
+    });
+
+export const db: DbClient = lazyDb(() => _db);
+
+/** Connection logged in as gitgazer_mcp, for running MCP callers' SQL. */
+export const mcpDb: DbClient = lazyDb(() => _mcpDb);
 
 export type RdsTransaction = Parameters<Parameters<DbClient['transaction']>[0]>[0];
 
@@ -128,13 +137,24 @@ const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
+    integrationRoles?: Record<string, MemberRole>;
     userName?: string;
     lockTimeoutS?: number;
     statementTimeoutS?: number;
     readOnly?: boolean;
+    client?: DbClient;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
-    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5, statementTimeoutS, readOnly = false} = params;
+    const {
+        integrationIds,
+        integrationRoles,
+        userName = gitgazerReader.name,
+        callback,
+        lockTimeoutS = 5,
+        statementTimeoutS,
+        readOnly = false,
+        client = db,
+    } = params;
     if (!Number.isInteger(lockTimeoutS) || lockTimeoutS <= 0) {
         throw new Error('lockTimeoutS must be a positive integer');
     }
@@ -149,13 +169,26 @@ export const withRlsTransaction = async <T>(params: {
         }
     }
 
-    return await db.transaction(async (tx) => {
+    for (const [id, role] of Object.entries(integrationRoles ?? {})) {
+        if (!INTEGRATION_ID_PATTERN.test(id)) {
+            throw new Error(`Invalid integration ID: ${id}`);
+        }
+        if (!isMemberRole(role)) {
+            throw new Error(`Invalid integration role: ${role}`);
+        }
+    }
+
+    return await client.transaction(async (tx) => {
         // Must be declared before the transaction's first query.
         if (readOnly) {
             await tx.execute(sql.raw('SET TRANSACTION READ ONLY;'));
         }
         await tx.execute(sql`SET LOCAL ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
+        if (integrationRoles) {
+            const pairs = Object.entries(integrationRoles).map(([id, role]) => `${id}:${role}`);
+            await tx.execute(sql.raw(`SET LOCAL rls.integration_roles = '${pairs.join(',')}';`));
+        }
         await tx.execute(sql.raw(`SET LOCAL lock_timeout = '${lockTimeoutS}s';`));
         if (statementTimeoutS !== undefined) {
             await tx.execute(sql.raw(`SET LOCAL statement_timeout = '${statementTimeoutS}s';`));

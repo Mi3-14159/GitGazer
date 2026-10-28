@@ -1,5 +1,6 @@
 import {sql} from 'drizzle-orm';
 import {pgPolicy, pgSchema} from 'drizzle-orm/pg-core';
+import type {MemberRole} from '../../types/members';
 import {gitgazerMcp, gitgazerReader, gitgazerWriter} from '../app';
 
 export const githubSchema = pgSchema('github');
@@ -28,4 +29,12 @@ export const mcpTenantSeparationPolicy = () =>
         to: gitgazerMcp,
         for: 'select',
         using,
+    });
+
+export const mcpRolePolicy = (minimumRole: MemberRole) =>
+    pgPolicy(`tenant separation mcp ${minimumRole}`, {
+        as: 'permissive',
+        to: gitgazerMcp,
+        for: 'select',
+        using: sql`(${using}) AND github.mcp_has_role(integration_id, ${sql.raw(`'${minimumRole}'`)})`,
     });

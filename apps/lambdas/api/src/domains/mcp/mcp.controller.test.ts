@@ -1,61 +1,66 @@
+import {OAuthError, OAuthErrorCode} from '@modelcontextprotocol/server';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {verify} = vi.hoisted(() => ({verify: vi.fn()}));
+const {verify, usersLookup, logError} = vi.hoisted(() => ({verify: vi.fn(), usersLookup: vi.fn(), logError: vi.fn()}));
 
 vi.mock('@/shared/middleware/token-verifier', () => ({
     getMcpAccessVerifier: () => ({verify}),
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
-vi.mock('@gitgazer/db/client', () => ({db: {select: vi.fn()}}));
+vi.mock('@gitgazer/db/client', () => ({db: {select: () => ({from: () => ({where: () => ({limit: usersLookup})})})}}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: logError})}));
 vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: vi.fn((key: string) => (key === 'mcpServerUrl' ? 'https://app.gitgazer.com/api/mcp' : {userPoolId: 'eu-central-1_ABC123'}))},
 }));
 
 let ctrl: typeof import('@/domains/mcp/mcp.controller');
-let integrations: typeof import('@/domains/integrations/integrations.controller');
-let rds: typeof import('@gitgazer/db/client');
 
-const asMock = (fn: unknown): ReturnType<typeof vi.fn> => fn as ReturnType<typeof vi.fn>;
-
-const mockUserRows = (rows: {id: number}[]): void => {
-    asMock(rds.db.select).mockReturnValue({from: () => ({where: () => ({limit: () => Promise.resolve(rows)})})});
-};
-
-describe('resolveMcpCaller', () => {
+describe('mcpTokenVerifier', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         verify.mockReset();
+        usersLookup.mockReset();
         ctrl = await import('@/domains/mcp/mcp.controller');
-        integrations = await import('@/domains/integrations/integrations.controller');
-        rds = await import('@gitgazer/db/client');
     });
 
-    it('resolves the user id + integrations from a valid bearer token', async () => {
-        verify.mockResolvedValue({sub: 'cognito-sub'});
-        mockUserRows([{id: 7}]);
-        asMock(integrations.getUserIntegrationRoles).mockResolvedValue({i1: 'admin', i2: 'viewer'});
-
-        await expect(ctrl.resolveMcpCaller('Bearer abc.def.ghi')).resolves.toEqual({userId: 7, integrationIds: ['i1', 'i2']});
+    it('returns AuthInfo with expiry, client id and the GitGazer user id', async () => {
+        verify.mockResolvedValue({sub: 'cognito-sub', client_id: 'mcp-client', exp: 1_900_000_000, scope: 'openid email'});
+        usersLookup.mockResolvedValue([{id: 7}]);
+        await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).resolves.toEqual({
+            token: 'tok',
+            clientId: 'mcp-client',
+            scopes: ['openid', 'email'],
+            expiresAt: 1_900_000_000,
+            extra: {userId: 7},
+        });
     });
-
-    it('rejects a missing Authorization header', async () => {
-        await expect(ctrl.resolveMcpCaller(undefined)).rejects.toThrow(ctrl.McpAuthError);
-    });
-
-    it('rejects a non-Bearer header', async () => {
-        await expect(ctrl.resolveMcpCaller('token abc')).rejects.toThrow(/Malformed/);
-    });
-
-    it('rejects an invalid or expired token', async () => {
+    it('rejects an invalid or expired token as invalid_token', async () => {
         verify.mockRejectedValue(new Error('expired'));
-        await expect(ctrl.resolveMcpCaller('Bearer bad')).rejects.toThrow(/Invalid or expired/);
+        await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).rejects.toMatchObject({code: OAuthErrorCode.InvalidToken});
+    });
+    it('rejects a token for a user that has never signed in as invalid_token', async () => {
+        verify.mockResolvedValue({sub: 'cognito-sub', client_id: 'c', exp: 1_900_000_000});
+        usersLookup.mockResolvedValue([]);
+        await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).rejects.toMatchObject({code: OAuthErrorCode.InvalidToken});
+    });
+    it('logs a failed user lookup and rethrows it as a non-OAuth error', async () => {
+        const dbError = new Error('connection timeout');
+        verify.mockResolvedValue({sub: 'cognito-sub', client_id: 'c', exp: 1_900_000_000});
+        usersLookup.mockRejectedValue(dbError);
+        const rejection = await ctrl.mcpTokenVerifier.verifyAccessToken('tok').catch((error: unknown) => error);
+        expect(rejection).toBe(dbError);
+        expect(rejection).not.toBeInstanceOf(OAuthError);
+        expect(logError).toHaveBeenCalledWith('MCP user lookup failed', {error: dbError});
+    });
+});
+
+describe('mcpUserId', () => {
+    beforeEach(async () => {
+        ctrl = await import('@/domains/mcp/mcp.controller');
     });
 
-    it('rejects a token for a user that has never signed in', async () => {
-        verify.mockResolvedValue({sub: 'nope'});
-        mockUserRows([]);
-        await expect(ctrl.resolveMcpCaller('Bearer abc')).rejects.toThrow(/Unknown user/);
-    });
+    it('reads the user id from AuthInfo.extra', () => expect(ctrl.mcpUserId({token: 't', clientId: 'c', scopes: [], extra: {userId: 7}})).toBe(7));
+    it('throws when AuthInfo carries no user id', () => expect(() => ctrl.mcpUserId(undefined)).toThrow());
 });
 
 describe('buildProtectedResourceMetadata', () => {
