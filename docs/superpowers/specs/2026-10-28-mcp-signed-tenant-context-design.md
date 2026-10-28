@@ -53,8 +53,9 @@ replayed context yields no rows, never other tenants' rows.
 DEFINER`, owner `root`, `SET search_path = pg_catalog, pg_temp`. Returns the hex HMAC-SHA256 (pgcrypto `hmac`) over
   `p_payload || '|' || p_pid || '|' || <p_txn_start as text in a fixed format, e.g. extract(epoch …)>` with the key.
 - `REVOKE EXECUTE … FROM PUBLIC` (we own this function, so the revoke takes effect on Aurora, unlike `set_config`), and
-  no grant to `gitgazer_mcp`. The app calls it on the `db` connection (login `root`). The migration fails if
-  `current_user` is not the app's login user, so a migration run by another user cannot lock the app out (my call).
+  no grant to `gitgazer_mcp`. The app calls it on the `db` connection, which must log in as the user that ran the
+  migration (the owner). No guard checks this, as new environments may run migrations with a master user that is not
+  called `root`; with another login, MCP queries fail closed.
 - Flow in `runReadOnlyQuery`, inside the MCP transaction on `mcpDb`:
     1. `SELECT pg_backend_pid(), now()` on the MCP connection (the session and transaction the caller's query will run in).
     2. On the app connection: `SELECT gitgazer.mcp_sign_context($payload, $pid, $now)`.

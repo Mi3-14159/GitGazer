@@ -214,10 +214,4 @@ describe('signed mcp tenant context', () => {
             expect(row.qual).toContain('github.mcp_integration_ids()');
         }
     });
-
-    it('refuses to run the migration as another user than root', async () => {
-        const other = new PGlite({extensions: {pgcrypto}});
-        await expect(other.exec(migration)).rejects.toThrow(/root/);
-        await other.close();
-    });
 });

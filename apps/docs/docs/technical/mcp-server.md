@@ -197,6 +197,8 @@ Application settings (convict; loaded from Secrets Manager, overridable by env v
 
 The MCP tools need `DB_CONNECTION_MODE=rds-proxy` (the default), where MCP queries log in as `gitgazer_mcp`. In `data-api` mode they refuse to run with an error.
 
+The app must log in with the same database user that ran the migrations, which owns the signing key and `gitgazer.mcp_sign_context`. Otherwise MCP queries fail closed: the caller gets "Tool execution failed" and the cause is logged.
+
 Infrastructure (Terraform):
 
 - `var.mcp_allowed_redirect_hosts` — feeds `mcpAllowedRedirectHosts`; add a client's hosted callback host here to onboard it without a code change.

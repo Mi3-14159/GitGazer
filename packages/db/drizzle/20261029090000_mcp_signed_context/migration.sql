@@ -1,12 +1,4 @@
 -- Custom SQL migration file, put your code below! --
--- The functions below run as their owner, and only the owner may call the sign function, so the owner must be the app's login.
-DO $$
-BEGIN
-    IF current_user <> 'root' THEN
-        RAISE EXCEPTION 'run this migration as root, the app login, not as %', current_user;
-    END IF;
-END
-$$;--> statement-breakpoint
 CREATE TABLE "gitgazer"."mcp_context_key" (
 	"id" smallint PRIMARY KEY,
 	"key" bytea NOT NULL
