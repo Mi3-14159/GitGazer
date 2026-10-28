@@ -59,6 +59,20 @@ describe('runReadOnlyQuery', () => {
             expect(() => mod.assertReadOnlySelect(`SELECT "set_config"('rls.integration_ids', 'other', true)`)).toThrow(/blocked/);
         });
 
+        it('rejects functions that run a caller-supplied SQL string (a concatenated set_config would evade the blocklist)', () => {
+            const id = '11111111-1111-1111-1111-111111111111';
+            for (const q of [
+                `SELECT query_to_xml('select set_con'||'fig(''rls.integration_roles'','''||'${id}'||':owner'',true)', true, false, '') AS a, query_to_xml('select * from github.t', true, false, '') AS b`,
+                `SELECT (SELECT count(*) FROM ts_stat('select to_tsvector(set_con'||'fig(''rls.integration_roles'',''x:owner'',true))')) AS n`,
+                `SELECT pg_catalog.query_to_xml('select 1', true, false, '')`,
+                `SELECT query_to_xmlschema('select 1', true, false, '')`,
+                `SELECT query_to_xml_and_xmlschema('select 1', true, false, '')`,
+                `SELECT ts_rewrite(to_tsquery('a'), 'select to_tsquery(''a''), to_tsquery(''b'')')`,
+            ]) {
+                expect(() => mod.assertReadOnlySelect(q)).toThrow(/blocked/);
+            }
+        });
+
         it('rejects statement stacking that would break out of the subquery wrap (cross-tenant read)', () => {
             // The wrapped query runs with no bind params -> simple query protocol -> multiple `;`
             // statements would execute, so an embedded `;` must be rejected outright.

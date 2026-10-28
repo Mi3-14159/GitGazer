@@ -25,12 +25,15 @@ export class ReadOnlyQueryError extends Error {
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
 // Blocklist of host-reading / cross-tenant-leaking FUNCTIONS callable inside a SELECT: `set_config`
-// (could overwrite the rls.integration_ids tenant GUC) and the `pg_stat_*` family (leaks other
-// tenants' in-flight SQL + UUIDs, since every request shares the gitgazer_mcp role). The `SET`/`RESET`
-// statements are deliberately NOT listed — they need a `;` to run, which assertReadOnlySelect already
-// rejects, and blocklisting the words would false-positive on searches like `%reset%`.
+// (could overwrite the rls.integration_ids / rls.integration_roles GUCs or `role`), the functions that
+// execute a caller-supplied SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), where a concatenated
+// `'set_con' || 'fig(...)'` never shows the literal token, and the `pg_stat_*` family (leaks other
+// tenants' in-flight SQL + UUIDs, since every request shares the gitgazer_mcp role). A blocklist is a
+// mitigation, not a proof; the real boundary is gitgazer_mcp lacking EXECUTE on pg_catalog.set_config.
+// The `SET`/`RESET` statements are deliberately NOT listed — they need a `;` to run, which
+// assertReadOnlySelect already rejects, and blocklisting the words would false-positive on `%reset%`.
 const BLOCKED_TOKENS =
-    /\b(?:set_config|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_\w+|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
+    /\b(?:set_config|query_to_xml\w*|ts_stat|ts_rewrite|pg_sleep|pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_\w+|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend)\b/i;
 
 // SQL-standard Unicode-escape introducer (`U&'…'` / `U&"…"`). It lets an identifier or string be
 // spelled with `\XXXX` character escapes — e.g. `U&"\0073et_config"` resolves to the identifier
@@ -123,10 +126,13 @@ const findPgError = (error: unknown): PgError | undefined => {
  * role permissions and a per-query budget.
  *
  * Tenant isolation is layered (defense-in-depth):
- *  1. assertReadOnlySelect — the single-SELECT guarantee (this, NOT the wrap, stops `;` stacking).
+ *  1. assertReadOnlySelect — the single-SELECT guarantee (this, NOT the wrap, stops `;` stacking) plus a
+ *     function blocklist, which is a mitigation, not a proof.
  *  2. subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — SELECT context + row cap.
- *  3. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` (RLS),
- *     and a statement_timeout — the actual tenant / permission / DoS boundary.
+ *  3. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` and
+ *     `rls.integration_roles` (RLS), and a statement_timeout — the tenant / permission / DoS boundary.
+ *     It holds only while gitgazer_mcp cannot execute pg_catalog.set_config: otherwise a query can
+ *     rewrite those settings or `role`.
  */
 export async function runReadOnlyQuery(params: {
     sql: string;
