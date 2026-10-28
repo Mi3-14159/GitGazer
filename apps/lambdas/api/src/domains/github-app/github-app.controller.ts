@@ -1,5 +1,5 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
-import {sendOrgMemberSyncTask} from '@gitgazer/backend-core/clients/sqs.client';
+import {sendOrgMemberSyncTask, sendRepoWebhookProvisioningTask} from '@gitgazer/backend-core/clients/sqs.client';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
@@ -16,7 +16,6 @@ import {
     OrganizationMemberRemovedEvent,
 } from '@octokit/webhooks-types';
 import {and, eq} from 'drizzle-orm';
-import {provisionWebhooksForRepos} from './webhook-provisioning';
 
 export const handleGithubAppEvent = async (eventType: string, payload: unknown): Promise<void> => {
     const logger = getLogger();
@@ -132,18 +131,23 @@ const handleInstallationRepositoriesEvent = async (event: InstallationRepositori
     }
 
     if (action === 'added' && repositories_added.length > 0) {
-        logger.info(`${repositories_added.length} repos added to installation ${installation.id}`);
-        await provisionWebhooksForRepos(
-            existing.integrationId,
-            installation.id,
-            repositories_added.map((r) => ({
+        logger.info('Dispatching repo webhook provisioning to worker', {
+            installationId: installation.id,
+            integrationId: existing.integrationId,
+            repoCount: repositories_added.length,
+        });
+        await sendRepoWebhookProvisioningTask(config.get('webhookQueueUrl'), {
+            taskType: 'repo_webhook_provisioning',
+            integrationId: existing.integrationId,
+            installationId: installation.id,
+            repos: repositories_added.map((r) => ({
                 id: r.id,
                 name: r.name,
                 fullName: r.full_name,
                 owner: r.full_name.split('/')[0],
                 private: r.private,
             })),
-        );
+        });
     }
 
     if (action === 'removed' && repositories_removed.length > 0) {

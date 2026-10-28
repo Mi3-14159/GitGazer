@@ -1,4 +1,4 @@
-import {getGithubSettings} from '@/domains/apps/github-settings';
+import {getGithubSettings} from '@gitgazer/backend-services/github-app/github-settings';
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, InternalServerError, UnauthorizedError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';

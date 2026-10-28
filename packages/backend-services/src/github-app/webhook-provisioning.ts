@@ -17,7 +17,7 @@ import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {githubAppInstallations, githubAppWebhooks} from '@gitgazer/db/schema/github/workflows';
 import {and, eq, inArray} from 'drizzle-orm';
-import {getGithubSettings, GithubSettings} from '@/domains/apps/github-settings';
+import {getGithubSettings, GithubSettings} from './github-settings';
 
 const getWebhookUrl = (integrationId: string): string => {
     const importUrlBase = config.get('importUrlBase');

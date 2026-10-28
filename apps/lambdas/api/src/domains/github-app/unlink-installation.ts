@@ -1,4 +1,4 @@
-import {deprovisionWebhooks} from '@/domains/github-app/webhook-provisioning';
+import {deprovisionWebhooks} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {db} from '@gitgazer/db/client';
