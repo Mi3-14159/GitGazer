@@ -60,6 +60,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_bedrock_model_invocation_logging_configuration.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/bedrock_model_invocation_logging_configuration)         | resource    |
 | [aws_cloudfront_distribution.docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution)                                                       | resource    |
 | [aws_cloudfront_distribution.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution)                                                       | resource    |
+| [aws_cloudfront_function.api_web_query_spaces](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_function)                                               | resource    |
 | [aws_cloudfront_function.docs_url_rewrite](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_function)                                                   | resource    |
 | [aws_cloudfront_origin_access_control.api_web](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control)                                  | resource    |
 | [aws_cloudfront_origin_access_control.docs_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control)                              | resource    |

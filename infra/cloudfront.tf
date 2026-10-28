@@ -92,6 +92,28 @@ locals {
   ]
 }
 
+# The Web Function endpoint rejects CloudFront's signature when a query value encodes a space as "+"; "%20" passes
+resource "aws_cloudfront_function" "api_web_query_spaces" {
+  name    = "${var.name_prefix}-api-web-query-spaces-${terraform.workspace}"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOF
+    function handler(event) {
+      var request = event.request;
+      for (var key in request.querystring) {
+        var param = request.querystring[key];
+        param.value = param.value.replace(/\+/g, '%20');
+        if (param.multiValue) {
+          param.multiValue.forEach(function (entry) {
+            entry.value = entry.value.replace(/\+/g, '%20');
+          });
+        }
+      }
+      return request;
+    }
+  EOF
+}
+
 resource "aws_cloudfront_origin_access_control" "api_web" {
   name                              = "${var.name_prefix}-api-web-${terraform.workspace}"
   origin_access_control_origin_type = "lambda"
@@ -214,6 +236,14 @@ resource "aws_cloudfront_distribution" "this" {
       cache_policy_id            = data.aws_cloudfront_cache_policy.managed_caching_disabled.id
       origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.managed_all_viewer_except_host_header.id
       response_headers_policy_id = behavior.value.response_headers_policy_id
+
+      dynamic "function_association" {
+        for_each = local.api_cutover[behavior.value.group] == "web" ? [1] : []
+        content {
+          event_type   = "viewer-request"
+          function_arn = aws_cloudfront_function.api_web_query_spaces.arn
+        }
+      }
     }
   }
 
