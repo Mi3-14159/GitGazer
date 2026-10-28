@@ -4,7 +4,6 @@ import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domai
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ReadOnlyQueryError, runReadOnlyQuery} from '@gitgazer/db/queries';
 import type {CallToolResult, McpServer, ServerContext} from '@modelcontextprotocol/server';
-import {DrizzleQueryError} from 'drizzle-orm/errors';
 import {z} from 'zod';
 
 export class McpToolError extends Error {
@@ -21,10 +20,7 @@ const textResult = (text: string, isError?: true): CallToolResult => ({content: 
 
 // Only messages from trusted error types are echoed; anything else (raw DB/Postgres errors) is
 // logged server-side and returned generically so schema/role internals don't leak to the client.
-const isSafeError = (error: unknown): error is Error =>
-    error instanceof McpToolError ||
-    error instanceof ReadOnlyQueryError ||
-    (error instanceof DrizzleQueryError && error.cause != null && 'code' in error.cause && error.cause.code === '42501'); // permission denied
+const isSafeError = (error: unknown): error is Error => error instanceof McpToolError || error instanceof ReadOnlyQueryError;
 
 /** Resolves the caller, runs the tool, and reports failures in-band (MCP convention) instead of as JSON-RPC errors. */
 const toolHandler =

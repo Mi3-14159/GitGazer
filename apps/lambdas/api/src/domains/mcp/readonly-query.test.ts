@@ -436,13 +436,14 @@ describe('runReadOnlyQuery', () => {
         expect((error as Error).message).toBe('Query failed: cannot execute INSERT in a read-only transaction');
     });
 
-    it('does NOT surface insufficient-privilege (SQLSTATE 42501) — stays generic to avoid leaking schema/role internals', async () => {
+    it('reports insufficient privilege (SQLSTATE 42501) without the object name or the query', async () => {
         const pgError = Object.assign(new Error('permission denied for table secrets'), {code: '42501'});
         const wrapped = Object.assign(new Error('Failed query: SELECT * FROM secrets'), {cause: pgError});
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(wrapped);
 
-        // Rethrown as-is -> the MCP layer logs it and returns a generic "Tool execution failed".
-        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}})).rejects.toBe(wrapped);
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toBe('Query failed: permission denied. Only the tables listed by list_tables can be read.');
     });
 
     it('passes a driver error with no SQLSTATE through unchanged', async () => {

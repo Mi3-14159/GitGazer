@@ -146,9 +146,7 @@ const limitRows = (rows: Record<string, unknown>[], rowCap: number): Pick<ReadOn
 // specially below with a bespoke, actionable message rather than the raw driver text.
 const STATEMENT_TIMEOUT_CODE = '57014';
 
-// Insufficient-privilege: deliberately NOT surfaced. Its message can reveal tables/roles a tenant
-// cannot see, so it stays a generic "Tool execution failed" (logged server-side by the MCP layer).
-// Flip this by dropping it from isClientActionable if you decide the clearer message is worth it.
+// Insufficient-privilege: reported with a fixed message, since Postgres' own names the object the caller can't read.
 const INSUFFICIENT_PRIVILEGE_CODE = '42501';
 
 // Read-only-transaction violation — e.g. a write smuggled in via a data-modifying CTE that slips
@@ -160,7 +158,7 @@ const READ_ONLY_VIOLATION_CODE = '25006';
  * Whether a SQLSTATE's primary message is safe + useful to echo back so an (LLM) caller can
  * self-correct: class 22 (data exceptions — bad literals, division by zero, …) and class 42
  * (syntax errors, undefined column/table/function), plus the read-only violation. 42501
- * (insufficient_privilege) is excluded on purpose to avoid leaking schema/role internals.
+ * (insufficient_privilege) is excluded: it gets a fixed message instead.
  */
 const isClientActionable = (code: string): boolean => {
     if (code === INSUFFICIENT_PRIVILEGE_CODE) return false;
@@ -299,6 +297,9 @@ export async function runReadOnlyQuery(params: {
                 `Query canceled: it exceeded the ${statementTimeoutS}s statement timeout. ` +
                     'Simplify it or narrow the scope — add filters (e.g. integration_id, repository, a date range) or a smaller LIMIT.',
             );
+        }
+        if (pg?.code === INSUFFICIENT_PRIVILEGE_CODE) {
+            throw new ReadOnlyQueryError('Query failed: permission denied. Only the tables listed by list_tables can be read.');
         }
         if (pg && pg.message && isClientActionable(pg.code)) {
             throw new ReadOnlyQueryError(`Query failed: ${pg.message}`);
