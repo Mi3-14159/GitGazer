@@ -195,6 +195,16 @@ describe('signed mcp tenant context', () => {
             await expect(asRole(role, 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(/permission denied for table mcp_context_key/);
         });
 
+        // Predefined roles such as pg_read_all_data are skipped themselves, but any role granted one still shows up here
+        it('leaves the key readable only by its owner and superusers', async () => {
+            const {rows} = await db.query<{rolname: string}>(
+                `SELECT rolname FROM pg_roles
+                 WHERE NOT rolsuper AND rolname <> 'root' AND rolname NOT LIKE 'pg\\_%'
+                   AND has_table_privilege(oid, 'gitgazer.mcp_context_key', 'SELECT')`,
+            );
+            expect(rows).toEqual([]);
+        });
+
         it.each(['mcp_context', 'mcp_integration_ids'])('keeps github.%s from gitgazer_reader', async (fn) => {
             await expect(asRole('gitgazer_reader', `SELECT github.${fn}()`)).rejects.toThrow(`permission denied for function ${fn}`);
         });
