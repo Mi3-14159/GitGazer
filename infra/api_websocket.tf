@@ -45,8 +45,6 @@ resource "aws_apigatewayv2_stage" "websocket_ws" {
       })
     }
   }
-
-  depends_on = [aws_cloudwatch_log_group.gw_access_logs]
 }
 
 resource "aws_apigatewayv2_integration" "websocket" {

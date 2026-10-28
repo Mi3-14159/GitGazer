@@ -1,5 +1,4 @@
 import {createBaseApp} from '@/app';
-import type {handler} from '@/index';
 import type {AppEnv} from '@/shared/hono/env';
 import type {AppContext} from '@gitgazer/backend-core/types';
 import type {Hono} from 'hono';
@@ -29,34 +28,4 @@ export const testRequest = async (
         await next();
     });
     return base.route(init.basePath ?? '/', app).request(path, {method, headers, body});
-};
-
-export const apiGatewayEvent = (
-    method: string,
-    path: string,
-    init: {headers?: Record<string, string>; cookies?: string[]; body?: string; isBase64Encoded?: boolean} = {},
-): Parameters<typeof handler>[0] => {
-    const [rawPath, rawQueryString = ''] = path.split('?');
-    return {
-        version: '2.0',
-        routeKey: '$default',
-        rawPath,
-        rawQueryString,
-        cookies: init.cookies,
-        headers: {host: 'api.example.com', ...init.headers},
-        requestContext: {
-            accountId: '123',
-            apiId: 'api',
-            domainName: 'api.example.com',
-            domainPrefix: 'api',
-            http: {method, path: rawPath, protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'vitest'},
-            requestId: 'req-1',
-            routeKey: '$default',
-            stage: '$default',
-            time: '',
-            timeEpoch: 0,
-        },
-        body: init.body,
-        isBase64Encoded: init.isBase64Encoded ?? false,
-    };
 };

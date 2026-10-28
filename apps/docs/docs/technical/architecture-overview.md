@@ -18,8 +18,7 @@ graph TB
 
     subgraph AWS["AWS Cloud"]
         subgraph Ingress
-            APIGW["API Gateway (HTTP)"]
-            REST["REST Lambda"]
+            REST["REST Web Function"]
         end
 
         subgraph Async["Async Processing"]
@@ -50,8 +49,8 @@ graph TB
         SPA["Vue 3 SPA"]
     end
 
-    GH -- "Webhook events" --> APIGW
-    APIGW --> REST
+    GH -- "Webhook events" --> CF
+    CF -- "/api/*" --> REST
     REST -- "Enqueue" --> SQS
     SQS --> WORKER
     SQS -- "Failed messages" --> DLQ
@@ -60,9 +59,8 @@ graph TB
     WORKER -- "Push updates" --> WSGW
     REST -- "Read/Write" --> PROXY
     CF --> S3
-    SPA -- "HTTPS" --> APIGW
     SPA -- "WSS" --> WSGW
-    SPA -- "Static assets" --> CF
+    SPA -- "HTTPS (static assets, /api/*)" --> CF
     WSGW --> WSLAMBDA
     WSLAMBDA -- "Connection state" --> PROXY
     SPA -. "OAuth" .-> COGNITO
@@ -71,7 +69,7 @@ graph TB
 
 ## Request Flow
 
-1. **Webhook ingress** — GitHub sends webhook events to API Gateway. The REST Lambda validates the HMAC signature and enqueues the event to an SQS FIFO queue.
+1. **Webhook ingress** — GitHub sends webhook events through CloudFront to the REST Web Function, which validates the HMAC signature and enqueues the event to an SQS FIFO queue.
 2. **Async processing** — The Worker Lambda consumes events from SQS, inserts/upserts data into Aurora PostgreSQL, and triggers side effects (WebSocket push, alerting).
 3. **Real-time updates** — The Worker pushes workflow updates to connected WebSocket clients via the API Gateway Management API.
 4. **Frontend** — The Vue 3 SPA is served from S3 via CloudFront. It communicates with the REST API over HTTPS and receives live updates over WebSocket.
@@ -135,13 +133,13 @@ Infrastructure alerting and monitoring configuration is documented in [Infrastru
 
 GitGazer deploys multiple Lambda functions, each with a distinct responsibility:
 
-| Lambda         | Trigger                  | Purpose                                                                                        |
-| -------------- | ------------------------ | ---------------------------------------------------------------------------------------------- |
-| **REST API**   | API Gateway HTTP         | Handles all REST API requests (auth, integrations, workflows, notifications, etc.)             |
-| **WebSocket**  | API Gateway WebSocket    | Manages `$connect` and `$disconnect` lifecycle events                                          |
-| **Worker**     | SQS event source         | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts |
-| **Org Sync**   | EventBridge schedule     | Periodically syncs GitHub organization members to integration memberships                      |
-| **HTTP Proxy** | Lambda invoke (internal) | Optional outbound proxy for IPv4-only upstreams (for example GitHub and Slack)                 |
+| Lambda         | Trigger                   | Purpose                                                                                        |
+| -------------- | ------------------------- | ---------------------------------------------------------------------------------------------- |
+| **REST API**   | CloudFront (Web Function) | Handles all REST API requests (auth, integrations, workflows, notifications, etc.)             |
+| **WebSocket**  | API Gateway WebSocket     | Manages `$connect` and `$disconnect` lifecycle events                                          |
+| **Worker**     | SQS event source          | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts |
+| **Org Sync**   | EventBridge schedule      | Periodically syncs GitHub organization members to integration memberships                      |
+| **HTTP Proxy** | Lambda invoke (internal)  | Optional outbound proxy for IPv4-only upstreams (for example GitHub and Slack)                 |
 
 ## Database Connectivity (Optional RDS Proxy)
 

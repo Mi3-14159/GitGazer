@@ -45,9 +45,8 @@ pnpm run pretty
 ### Router Pattern
 
 - The api app is a [Hono](https://hono.dev) app built by `createApp()` in `apps/lambdas/api/src/app.ts`; `src/index.ts`
-  wraps it for API Gateway with `@hono/aws-lambda` and, when `AWS_LAMBDA_HTTP_ENDPOINT` is set (Lambda Web Functions,
-  `dev:api`), starts `src/server.ts`, which serves it over HTTP, running each request
-  under its own child logger (`runWithRequestLogger`) because it serves requests concurrently
+  starts `src/server.ts`, which serves it over HTTP on `AWS_LAMBDA_HTTP_ENDPOINT` (a Lambda Web Function behind
+  CloudFront), running each request under its own child logger (`runWithRequestLogger`) because it serves requests concurrently
 - Routes defined per domain in `src/domains/<domain>/<domain>.routes.ts` as a `new Hono<AppEnv>()` router
   (`AppEnv` from `@/shared/hono/env`) mounted in
   `createApiRouter()` in `src/app.ts` at its own path with `api.route('/<domain>', <router>)`, with route paths relative to that
@@ -128,8 +127,8 @@ pnpm run pretty
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
 - Create a repo-root `.env`; every app's dev script reads it
-- Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/index.ts` with
-  `AWS_LAMBDA_HTTP_ENDPOINT=127.0.0.1:8080`, which starts the same HTTP server the Web Function runs
+- Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/index.ts`, the same HTTP
+  server the Web Function runs, on `127.0.0.1:8080`
 
 ### Environment Variables
 
@@ -151,8 +150,8 @@ pnpm run pretty
 
 ### Lambda Functions
 
-One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint (the api app's entrypoint also
-starts `src/server.ts`, its HTTP server, when `AWS_LAMBDA_HTTP_ENDPOINT` is set):
+One app per function under `apps/lambdas/`, each with a single `src/index.ts` entrypoint (the api app's entrypoint
+starts `src/server.ts`, its HTTP server, for a Lambda Web Function):
 
 - **api**: REST API and webhook endpoints
 - **websocket**: WebSocket connection management

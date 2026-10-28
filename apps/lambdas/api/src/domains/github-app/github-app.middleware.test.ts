@@ -1,6 +1,5 @@
 import type {AppEnv} from '@/shared/hono/env';
-import {handler} from '@/index';
-import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {testRequest} from '@/shared/hono/test-request';
 import * as crypto from 'crypto';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -84,20 +83,5 @@ describe('verifyGithubAppSignature middleware', () => {
         expect(res.status).toBe(200);
         expect(next).toHaveBeenCalledTimes(1);
         expect(json).toEqual({received: {name: 'Zoë ü ☃ 😀', n: 1}});
-    });
-
-    it('accepts a base64-encoded API Gateway body', async () => {
-        const rawBody = Buffer.from('{ "action":  "created", "who": "Zoë ☃" }', 'utf-8');
-        const event = apiGatewayEvent('POST', '/api/github/webhook', {
-            headers: {'x-hub-signature-256': signatureFor(rawBody, 'shh'), 'x-github-event': 'installation'},
-            body: rawBody.toString('base64'),
-            isBase64Encoded: true,
-        });
-
-        const res = await handler(event, {} as Parameters<typeof handler>[1]);
-
-        expect(res.statusCode).toBe(200);
-        expect(JSON.parse(res.body!)).toEqual({message: 'ok'});
-        expect(handleGithubAppEventMock).toHaveBeenCalledWith('installation', {action: 'created', who: 'Zoë ☃'});
     });
 });

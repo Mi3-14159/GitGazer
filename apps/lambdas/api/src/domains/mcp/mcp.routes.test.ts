@@ -1,8 +1,6 @@
 import router from '@/domains/mcp/mcp.routes';
 import type {AppEnv} from '@/shared/hono/env';
-import {handleToken} from '@/domains/mcp/mcp-oauth.controller';
-import {handler} from '@/index';
-import {apiGatewayEvent, testRequest} from '@/shared/hono/test-request';
+import {testRequest} from '@/shared/hono/test-request';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -111,23 +109,5 @@ describe('POST /api/mcp', () => {
         const res = await post(modernBody('tools/list'), modernHeaders('tools/list'));
         expect(res.status).toBe(401);
         expect(res.headers.get('www-authenticate')).toContain('resource_metadata=');
-    });
-});
-
-describe('mcp oauth token through the Lambda handler', () => {
-    it('decodes a base64-encoded form body before it reaches the controller', async () => {
-        vi.mocked(handleToken).mockResolvedValue({status: 200, body: JSON.stringify({access_token: 'at'})});
-        const form = 'grant_type=authorization_code&code=abc&redirect_uri=https%3A%2F%2Fclient.example%2Fcb';
-        const event = apiGatewayEvent('POST', '/api/mcp/oauth/token', {
-            headers: {'content-type': 'application/x-www-form-urlencoded'},
-            body: Buffer.from(form, 'utf-8').toString('base64'),
-            isBase64Encoded: true,
-        });
-
-        const result = await handler(event, {} as Parameters<typeof handler>[1]);
-
-        expect(result.statusCode).toBe(200);
-        expect(JSON.parse(result.body!)).toEqual({access_token: 'at'});
-        expect(handleToken).toHaveBeenCalledWith('https://api.example.com', form);
     });
 });

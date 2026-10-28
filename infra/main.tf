@@ -44,10 +44,6 @@ locals {
     "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:64",
     "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
   ] : []
-  lambda_layers_arm64 = var.enable_lambda_tracing ? [
-    "arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension-Arm64:35",
-    "arn:aws:lambda:eu-central-1:615299751070:layer:AWSOpenTelemetryDistroJs:10",
-  ] : []
   lambda_application_log_level = "INFO"
   lambda_enable_event_logging  = true
   cors_allowed_origins = compact([
@@ -73,10 +69,6 @@ locals {
     NODE_OPTIONS                = "--enable-source-maps"
   }
   monitored_lambda_alarm_config = merge({
-    api = {
-      function_name         = aws_lambda_function.api.function_name
-      duration_threshold_ms = 24000
-    }
     api_websocket = {
       function_name         = aws_lambda_function.api_websocket.function_name
       duration_threshold_ms = 8000
@@ -102,7 +94,6 @@ locals {
     } : {}
   )
   monitored_lambda_log_groups = merge({
-    api                = aws_cloudwatch_log_group.api.name
     api_web            = aws_cloudwatch_log_group.api_web.name
     api_websocket      = aws_cloudwatch_log_group.api_websocket.name
     worker             = aws_cloudwatch_log_group.worker.name
