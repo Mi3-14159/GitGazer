@@ -92,10 +92,9 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
-        run: terraform plan -lock=false
+        run: terraform plan -lock=false -out=tfplan
 
       - name: Terraform apply
         if: inputs.apply || github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
         run: |
-          terraform plan -input=false -out=tfplan
           terraform apply -input=false tfplan
