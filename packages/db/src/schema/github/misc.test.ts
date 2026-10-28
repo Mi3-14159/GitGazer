@@ -1,15 +1,28 @@
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {describe, expect, it} from 'vitest';
 import {gitgazerMcp} from '../app';
-import {mcpRolePolicy} from './misc';
+import {mcpRolePolicy, mcpTenantSeparationPolicy} from './misc';
+
+const render = (policy: ReturnType<typeof mcpTenantSeparationPolicy>) => new PgDialect().sqlToQuery(policy.using!).sql;
+
+describe('mcpTenantSeparationPolicy', () => {
+    it('is a select-only policy for gitgazer_mcp that checks the signed context once per table, not per row', () => {
+        const policy = mcpTenantSeparationPolicy();
+        expect(policy.to).toBe(gitgazerMcp);
+        expect(policy.for).toBe('select');
+        const using = render(policy);
+        expect(using).toContain('(SELECT github.mcp_integration_ids())::uuid[]');
+        expect(using).not.toContain('mcp_has_role');
+    });
+});
 
 describe('mcpRolePolicy', () => {
-    it('is a select-only policy for gitgazer_mcp that combines the tenant check with the role check', () => {
+    it('is a select-only policy for gitgazer_mcp limited to integrations where the caller has the role', () => {
         const policy = mcpRolePolicy('admin');
         expect(policy.to).toBe(gitgazerMcp);
         expect(policy.for).toBe('select');
-        const using = new PgDialect().sqlToQuery(policy.using!).sql;
-        expect(using).toContain("current_setting('rls.integration_ids', TRUE)");
-        expect(using).toContain("github.mcp_has_role(integration_id, 'admin')");
+        const using = render(policy);
+        expect(using).toContain("(SELECT github.mcp_integration_ids('admin'))::uuid[]");
+        expect(using).not.toContain('mcp_has_role');
     });
 });

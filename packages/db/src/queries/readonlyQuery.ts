@@ -1,7 +1,7 @@
 import {sql, TransactionRollbackError, type SQL} from 'drizzle-orm';
-import {mcpDb, withRlsTransaction} from '../client';
+import {db, hasSeparateMcpLogin, INTEGRATION_ID_PATTERN, mcpDb, withRlsTransaction, type RdsTransaction} from '../client';
 import {gitgazerMcp} from '../schema';
-import type {MemberRole} from '../types/members';
+import {isMemberRole, type MemberRole} from '../types/members';
 
 export const DEFAULT_ROW_CAP = 1000;
 export const DEFAULT_STATEMENT_TIMEOUT_S = 10;
@@ -22,6 +22,17 @@ export class ReadOnlyQueryError extends Error {
     }
 }
 
+/** A server-side failure to sign the tenant context: never the caller's fault, so never echoed to the caller. */
+export class McpContextError extends Error {
+    constructor(
+        message: string,
+        readonly cause?: unknown,
+    ) {
+        super(message);
+        this.name = 'McpContextError';
+    }
+}
+
 // Leading whitespace/comments — stripped only to inspect the first keyword.
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
@@ -29,9 +40,10 @@ const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 // sees a SELECT while Postgres sees the DELETE. Rejected rather than parsed; no real query needs it.
 const NESTED_BLOCK_COMMENT = /\/\*(?:(?!\*\/)[\s\S])*\/\*/;
 
-// Defence in depth, not the boundary (that is the gitgazer_mcp login, RLS and the read-only transaction), and a
-// text match cannot see a name assembled at runtime. It still guards the rls.integration_ids / rls.integration_roles
-// GUCs, because set_config stays executable on Aurora (the revoke migration is a no-op there):
+// Defence in depth, not the boundary (that is the gitgazer_mcp login, RLS on the signed rls.mcp_context and the
+// read-only transaction), and a text match cannot see a name assembled at runtime. set_config stays executable on
+// Aurora (the revoke migration is a no-op there); a query that reached it could overwrite rls.mcp_context, but not
+// make it valid. Still blocked:
 // - `set_config` and `pg_settings`, whose UPDATE rule reaches set_config without naming it;
 // - functions that execute a caller-supplied SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), where a
 //   concatenated `'set_con' || 'fig(...)'` never shows the literal token;
@@ -55,7 +67,7 @@ const UNICODE_ESCAPE = /u&['"]/i;
  * trailing semicolons removed. Throws `ReadOnlyQueryError` otherwise.
  *
  * Rejecting an embedded `;` is defence in depth with a clear message: the bind parameters in
- * wrapReadOnlyQuery are what stop a caller from stacking `SET rls.integration_ids` after the wrap.
+ * wrapReadOnlyQuery are what stop a caller from stacking a second statement after the wrap.
  */
 export function assertReadOnlySelect(rawSql: string): string {
     const trimmed = rawSql
@@ -177,6 +189,43 @@ const findPgError = (error: unknown): PgError | undefined => {
     return undefined;
 };
 
+const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/;
+
+/** The verifier in github.mcp_context() accepts only lowercase UUIDs, so the ids are lowercased. */
+const contextPayload = (integrationRoles: Record<string, MemberRole>): string =>
+    Object.entries(integrationRoles)
+        .map(([id, role]) => {
+            if (!INTEGRATION_ID_PATTERN.test(id)) {
+                throw new Error(`Invalid integration ID: ${id}`);
+            }
+            if (!isMemberRole(role)) {
+                throw new Error(`Invalid integration role: ${role}`);
+            }
+            return `${id.toLowerCase()}:${role}`;
+        })
+        .join(',');
+
+/**
+ * Sign the payload for the session and transaction `tx` runs in and set it as rls.mcp_context. Only the app login may
+ * execute the sign function, so it runs on `db`; the bigint transaction start stays a string to keep its precision.
+ */
+const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<void> => {
+    const session = (await tx.execute(
+        sql`SELECT pg_backend_pid() AS pid, (extract(epoch FROM now()) * 1000000)::bigint::text AS txn_start_us`,
+    )) as unknown as {rows: {pid: number; txn_start_us: string}[]};
+    const {pid, txn_start_us} = session.rows[0];
+    const signed = (await db
+        .execute(sql`SELECT gitgazer.mcp_sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
+        .catch((error: unknown) => {
+            throw new McpContextError('Could not sign the MCP tenant context', error);
+        })) as unknown as {rows: {signature?: unknown}[]};
+    const signature = signed.rows[0]?.signature;
+    if (typeof signature !== 'string' || !SIGNATURE_PATTERN.test(signature)) {
+        throw new McpContextError('Signing the MCP tenant context returned an invalid signature');
+    }
+    await tx.execute(sql.raw(`SET LOCAL rls.mcp_context = '${payload}|${signature}';`));
+};
+
 /**
  * Execute an arbitrary read-only SQL query for an MCP client, bounded by the caller's Postgres
  * role permissions and a per-query budget.
@@ -188,10 +237,10 @@ const findPgError = (error: unknown): PgError | undefined => {
  *     budget as $2 — the bound parameters force the extended protocol, so Postgres refuses stacked statements; the
  *     subquery gives SELECT context, the row cap and the in-database byte budget.
  *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session cannot switch to a role that owns
- *     the tables or bypasses RLS (IAM connection mode; the Data API mode has no separate login).
- *  4. READ ONLY txn that is always rolled back, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids`
- *     and `rls.integration_roles` (RLS), and statement and lock timeouts. set_config stays executable on Aurora,
- *     so those settings rest on guard 1.
+ *     the tables or bypasses RLS. The Data API mode has no separate login, so queries refuse to run there.
+ *  4. READ ONLY txn that is always rolled back, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `rls.mcp_context` signed by
+ *     the app login for this session and transaction (RLS), and statement and lock timeouts. A caller can overwrite
+ *     the context through set_config, but not make it valid, so guard 1 is defence in depth.
  */
 export async function runReadOnlyQuery(params: {
     sql: string;
@@ -205,18 +254,24 @@ export async function runReadOnlyQuery(params: {
     }
     const statementTimeoutS = params.statementTimeoutS ?? DEFAULT_STATEMENT_TIMEOUT_S;
     const userSql = assertReadOnlySelect(params.sql);
+    if (!hasSeparateMcpLogin()) {
+        throw new ReadOnlyQueryError(
+            'MCP queries are not available in Data API mode: they need the separate gitgazer_mcp login (DB_CONNECTION_MODE=rds-proxy).',
+        );
+    }
+    const payload = contextPayload(params.integrationRoles);
 
     let result: ReadOnlyQueryResult | undefined;
     try {
         return await withRlsTransaction({
-            integrationIds: Object.keys(params.integrationRoles),
-            integrationRoles: params.integrationRoles,
+            integrationIds: [],
             userName: gitgazerMcp.name,
             client: mcpDb,
             readOnly: true,
             statementTimeoutS,
             lockTimeoutS: 2,
             callback: async (tx) => {
+                await setSignedContext(tx, payload);
                 const raw = (await tx.execute(wrapReadOnlyQuery(userSql, rowCap))) as {
                     rows?: Record<string, unknown>[];
                     fields?: {name: string}[];
@@ -232,6 +287,8 @@ export async function runReadOnlyQuery(params: {
     } catch (error) {
         // tx.rollback() ends every successful run by throwing this; nothing an MCP query does is meant to persist.
         if (error instanceof TransactionRollbackError && result) return result;
+        // findPgError walks `cause`, so a signing failure would otherwise pass for an error in the caller's SQL.
+        if (error instanceof McpContextError) throw error;
 
         // Translate caller-caused Postgres errors into ReadOnlyQueryError so the MCP layer echoes an
         // actionable message to the client instead of a generic "Tool execution failed". Anything not

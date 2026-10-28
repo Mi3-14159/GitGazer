@@ -20,6 +20,8 @@ vi.mock('@aws-sdk/rds-signer', () => ({
     },
 }));
 vi.mock('drizzle-orm/node-postgres', () => ({drizzle: () => ({})}));
+vi.mock('drizzle-orm/aws-data-api/pg', () => ({drizzle: () => ({})}));
+vi.mock('@aws-sdk/client-rds-data', () => ({RDSDataClient: class {}}));
 
 const loadClient = async () => {
     vi.resetModules();
@@ -59,6 +61,27 @@ describe('db client', () => {
         vi.stubEnv('DB_POOL_MAX', 'ten');
 
         await expect((await loadClient()).initDb()).rejects.toThrow('Invalid DB_POOL_MAX: ten');
+    });
+
+    it('reports a separate mcp login only after initDb() in rds-proxy mode', async () => {
+        const client = await loadClient();
+        const {runReadOnlyQuery} = await import('./queries/readonlyQuery');
+        await expect(runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {}})).rejects.toThrow('Database not initialized');
+
+        await client.initDb();
+
+        expect(client.hasSeparateMcpLogin()).toBe(true);
+    });
+
+    it('reports no separate mcp login in data-api mode', async () => {
+        vi.stubEnv('DB_CONNECTION_MODE', 'data-api');
+        vi.stubEnv('RDS_RESOURCE_ARN', 'arn');
+        vi.stubEnv('RDS_SECRET_ARN', 'arn');
+        const client = await loadClient();
+
+        await client.initDb();
+
+        expect(client.hasSeparateMcpLogin()).toBe(false);
     });
 
     it('ends both pools on close', async () => {

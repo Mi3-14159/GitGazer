@@ -1,15 +1,21 @@
 import {TransactionRollbackError, type SQL} from 'drizzle-orm';
 import {PgDialect} from 'drizzle-orm/pg-core';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi, type Mock} from 'vitest';
 
-vi.mock('@gitgazer/db/client', () => ({
+vi.mock('@gitgazer/db/client', async (importOriginal) => ({
+    INTEGRATION_ID_PATTERN: (await importOriginal<typeof import('@gitgazer/db/client')>()).INTEGRATION_ID_PATTERN,
     withRlsTransaction: vi.fn(),
     mcpDb: {name: 'mcp connection'},
+    db: {execute: vi.fn()},
+    hasSeparateMcpLogin: vi.fn(() => true),
 }));
 
 const dialect = new PgDialect();
 
 const INTEGRATION_ID = '11111111-1111-1111-1111-111111111111';
+const PID = 4242;
+const TXN_START_US = '1793000000123456';
+const SIGNATURE = 'ab'.repeat(32);
 
 let rds: typeof import('@gitgazer/db/client');
 let mod: typeof import('@gitgazer/db/queries/readonlyQuery');
@@ -121,6 +127,9 @@ describe('runReadOnlyQuery', () => {
             const tx = {
                 execute: vi.fn(async (query: SQL) => {
                     capture.execArgs.push(query);
+                    if (dialect.sqlToQuery(query).sql.includes('pg_backend_pid')) {
+                        return {rows: [{pid: PID, txn_start_us: TXN_START_US}]};
+                    }
                     return {
                         rows: rows.map((row) => ({_mcp_bytes: 0, _mcp_more: null, _mcp_any: true, ...row})),
                         fields: fields && [...fields, {name: '_mcp_bytes'}, {name: '_mcp_more'}, {name: '_mcp_any'}],
@@ -133,7 +142,10 @@ describe('runReadOnlyQuery', () => {
             capture.rollback = tx.rollback;
             return await (params.callback as (tx: unknown) => Promise<unknown>)(tx);
         });
+        signExecute().mockResolvedValue({rows: [{signature: SIGNATURE}]});
     };
+    const signExecute = () => rds.db.execute as unknown as Mock;
+    const executedSql = () => capture.execArgs.map((query) => dialect.sqlToQuery(query).sql);
 
     it('runs on the gitgazer_mcp login under the mcp role, read-only, with statement and lock timeouts', async () => {
         mockRun([{a: 1}], [{name: 'a'}]);
@@ -144,8 +156,100 @@ describe('runReadOnlyQuery', () => {
         expect(capture.params?.readOnly).toBe(true);
         expect(capture.params?.statementTimeoutS).toBe(7);
         expect(capture.params?.lockTimeoutS).toBe(2);
-        expect(capture.params?.integrationIds).toEqual([INTEGRATION_ID]);
-        expect(capture.params?.integrationRoles).toEqual({[INTEGRATION_ID]: 'member'});
+        expect(capture.params?.integrationIds).toEqual([]);
+        expect(capture.params).not.toHaveProperty('integrationRoles');
+    });
+
+    it('signs the context on the app connection for the session and transaction of the query', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(executedSql()[0]).toBe('SELECT pg_backend_pid() AS pid, (extract(epoch FROM now()) * 1000000)::bigint::text AS txn_start_us');
+        expect(signExecute()).toHaveBeenCalledOnce();
+        const {sql: rendered, params} = dialect.sqlToQuery(signExecute().mock.calls[0][0]);
+        expect(rendered).toBe('SELECT gitgazer.mcp_sign_context($1, $2::integer, $3::bigint) AS signature');
+        expect(params).toEqual([`${INTEGRATION_ID}:member`, PID, TXN_START_US]);
+    });
+
+    it('sets the signed context before the wrapped query', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        const executed = executedSql();
+        expect(executed).toHaveLength(3);
+        expect(executed[1]).toBe(`SET LOCAL rls.mcp_context = '${INTEGRATION_ID}:member|${SIGNATURE}';`);
+        expect(executed[2]).toMatch(/^WITH _mcp AS MATERIALIZED/);
+    });
+
+    it('lowercases the integration ids in the signed payload', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {'AAAAAAAA-1111-1111-1111-111111111111': 'admin'}});
+
+        expect(dialect.sqlToQuery(signExecute().mock.calls[0][0]).params[0]).toBe('aaaaaaaa-1111-1111-1111-111111111111:admin');
+    });
+
+    it('signs an empty payload for a caller without integrations and still runs the query', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {}});
+
+        expect(dialect.sqlToQuery(signExecute().mock.calls[0][0]).params[0]).toBe('');
+        expect(executedSql()[1]).toBe(`SET LOCAL rls.mcp_context = '|${SIGNATURE}';`);
+        expect(executedSql()[2]).toMatch(/^WITH _mcp AS MATERIALIZED/);
+    });
+
+    it('never runs the query when signing fails', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        const boom = new Error('sign failed');
+        signExecute().mockRejectedValue(boom);
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(mod.McpContextError);
+        expect((error as {cause?: unknown}).cause).toBe(boom);
+        expect(executedSql()).toHaveLength(1);
+    });
+
+    it('does not report a signing failure from Postgres as an error in the caller query', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        const pgError = Object.assign(new Error('function gitgazer.mcp_sign_context(unknown, integer, bigint) does not exist'), {code: '42883'});
+        signExecute().mockRejectedValue(Object.assign(new Error('Failed query: SELECT gitgazer.mcp_sign_context(…)'), {cause: pgError}));
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(mod.McpContextError);
+        expect(error).not.toBeInstanceOf(mod.ReadOnlyQueryError);
+    });
+
+    it('rejects a signature that is not 64 hex characters before setting the context', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        signExecute().mockResolvedValue({rows: [{signature: "x'; RESET ROLE; --"}]});
+
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}})).rejects.toThrow(/signature/);
+        expect(executedSql()).toHaveLength(1);
+    });
+
+    it('rejects an invalid integration id or role before touching the database', async () => {
+        mockRun([]);
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {"x'; RESET ROLE; --": 'admin'}})).rejects.toThrow(
+            /Invalid integration ID/,
+        );
+        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'superuser' as never}})).rejects.toThrow(
+            /Invalid integration role/,
+        );
+        expect(rds.withRlsTransaction).not.toHaveBeenCalled();
+    });
+
+    it('refuses to run in Data API mode, where there is no separate mcp login', async () => {
+        mockRun([]);
+        (rds.hasSeparateMcpLogin as unknown as Mock).mockReturnValueOnce(false);
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
+        expect((error as Error).message).toBe(
+            'MCP queries are not available in Data API mode: they need the separate gitgazer_mcp login (DB_CONNECTION_MODE=rds-proxy).',
+        );
+        expect(rds.withRlsTransaction).not.toHaveBeenCalled();
     });
 
     it('rolls the transaction back and still returns the result', async () => {
@@ -160,8 +264,8 @@ describe('runReadOnlyQuery', () => {
         mockRun([{a: 1}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 500});
 
-        expect(capture.execArgs).toHaveLength(1);
-        const {sql: rendered, params} = dialect.sqlToQuery(capture.execArgs[0]);
+        expect(capture.execArgs).toHaveLength(3);
+        const {sql: rendered, params} = dialect.sqlToQuery(capture.execArgs[2]);
         // The LIMIT must sit inside the window, or Postgres reads the whole input to evaluate the budget filter.
         expect(rendered).toMatch(/^WITH _mcp AS MATERIALIZED \(SELECT \* FROM \(\nSELECT 1 AS a\n\) AS _mcp_inner LIMIT \$1\) /);
         expect(rendered).toContain('sum(octet_length((_mcp.*)::text))');
@@ -175,7 +279,7 @@ describe('runReadOnlyQuery', () => {
         const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
 
         expect(result).toEqual({columns: ['s'], rows: [], rowCount: 0, truncated: true});
-        expect(capture.execArgs).toHaveLength(1);
+        expect(capture.execArgs).toHaveLength(3);
     });
 
     it('does not flag a genuinely empty result', async () => {
