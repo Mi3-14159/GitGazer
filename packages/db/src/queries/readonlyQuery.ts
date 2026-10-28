@@ -1,16 +1,17 @@
-import {sql, type SQL} from 'drizzle-orm';
+import {sql, TransactionRollbackError, type SQL} from 'drizzle-orm';
 import {mcpDb, withRlsTransaction} from '../client';
 import {gitgazerMcp} from '../schema';
 import type {MemberRole} from '../types/members';
 
 export const DEFAULT_ROW_CAP = 1000;
 export const DEFAULT_STATEMENT_TIMEOUT_S = 10;
+export const BYTE_BUDGET = 128 * 1024;
 
 export type ReadOnlyQueryResult = {
     columns: string[];
     rows: Record<string, unknown>[];
     rowCount: number;
-    /** True when more rows existed than `rowCap`; `rows` is capped to `rowCap`. */
+    /** True when rows were dropped by the row cap or the byte budget. */
     truncated: boolean;
 };
 
@@ -84,11 +85,35 @@ export function assertReadOnlySelect(rawSql: string): string {
 }
 
 /**
- * The LIMIT is a bind parameter on purpose: with parameters node-postgres uses the extended query protocol, where
- * Postgres refuses more than one command per statement, which is what makes statement stacking impossible. Never
- * interpolate it. The newline before `)` neutralizes a trailing line comment in userSql.
+ * The byte budget and LIMIT are bind parameters on purpose: with parameters node-postgres uses the extended query
+ * protocol, where Postgres refuses more than one command per statement, which is what makes statement stacking
+ * impossible. Never interpolate them. The newline before `)` neutralizes a trailing line comment in userSql.
+ *
+ * The running byte sum has to filter in the database: node-postgres buffers the whole result before any JavaScript
+ * sees it, so a huge row must never leave Postgres. The filter drops a suffix, invisible to the row count, so
+ * `_mcp_more` (a one-row look-ahead) on the last kept row tells the caller that a following row was dropped.
  */
-export const wrapReadOnlyQuery = (userSql: string, rowCap: number): SQL => sql`SELECT * FROM (\n${sql.raw(userSql)}\n) AS _mcp LIMIT ${rowCap + 1}`;
+export const wrapReadOnlyQuery = (userSql: string, rowCap: number): SQL =>
+    sql`SELECT * FROM (SELECT _mcp.*, sum(octet_length(_mcp::text)) OVER (ROWS UNBOUNDED PRECEDING) AS _mcp_bytes, lead(1) OVER () AS _mcp_more FROM (\n${sql.raw(userSql)}\n) AS _mcp) AS _mcp_budget WHERE _mcp_bytes <= ${BYTE_BUDGET} LIMIT ${rowCap + 1}`;
+
+/**
+ * Strip the wrap's bookkeeping columns and apply both limits again to what came back, so the payload never exceeds
+ * BYTE_BUDGET: a row that does not fit is dropped, even the first one.
+ */
+const limitRows = (rows: Record<string, unknown>[], rowCap: number): Pick<ReadOnlyQueryResult, 'rows' | 'truncated'> => {
+    let truncated = rows.length > rowCap || rows[rows.length - 1]?._mcp_more != null;
+    const kept: Record<string, unknown>[] = [];
+    let bytes = 0;
+    for (const {_mcp_bytes, _mcp_more, ...row} of rows.slice(0, rowCap)) {
+        bytes += Buffer.byteLength(JSON.stringify(row));
+        if (bytes > BYTE_BUDGET) {
+            truncated = true;
+            break;
+        }
+        kept.push(row);
+    }
+    return {rows: kept, truncated};
+};
 
 // Postgres SQLSTATE for a statement aborted by `statement_timeout` (query_canceled). Handled
 // specially below with a bespoke, actionable message rather than the raw driver text.
@@ -148,8 +173,8 @@ const findPgError = (error: unknown): PgError | undefined => {
  *     so Postgres refuses stacked statements; the subquery gives SELECT context and the row cap.
  *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session cannot switch to a role that owns
  *     the tables or bypasses RLS (IAM connection mode; the Data API mode has no separate login).
- *  4. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` and
- *     `rls.integration_roles` (RLS), and a statement_timeout. set_config stays executable on Aurora,
+ *  4. READ ONLY txn that is always rolled back, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids`
+ *     and `rls.integration_roles` (RLS), and statement and lock timeouts. set_config stays executable on Aurora,
  *     so those settings rest on guard 1.
  */
 export async function runReadOnlyQuery(params: {
@@ -165,6 +190,7 @@ export async function runReadOnlyQuery(params: {
     const statementTimeoutS = params.statementTimeoutS ?? DEFAULT_STATEMENT_TIMEOUT_S;
     const userSql = assertReadOnlySelect(params.sql);
 
+    let result: ReadOnlyQueryResult | undefined;
     try {
         return await withRlsTransaction({
             integrationIds: Object.keys(params.integrationRoles),
@@ -173,21 +199,24 @@ export async function runReadOnlyQuery(params: {
             client: mcpDb,
             readOnly: true,
             statementTimeoutS,
+            lockTimeoutS: 2,
             callback: async (tx) => {
-                const result = (await tx.execute(wrapReadOnlyQuery(userSql, rowCap))) as {
+                const raw = (await tx.execute(wrapReadOnlyQuery(userSql, rowCap))) as {
                     rows?: Record<string, unknown>[];
                     fields?: {name: string}[];
                 };
 
-                const allRows = result.rows ?? [];
-                const truncated = allRows.length > rowCap;
-                const rows = truncated ? allRows.slice(0, rowCap) : allRows;
-                const columns = result.fields?.map((f) => f.name) ?? (rows[0] ? Object.keys(rows[0]) : []);
+                const {rows, truncated} = limitRows(raw.rows ?? [], rowCap);
+                const columns = raw.fields?.slice(0, -2).map((f) => f.name) ?? Object.keys(rows[0] ?? {});
+                result = {columns, rows, rowCount: rows.length, truncated};
 
-                return {columns, rows, rowCount: rows.length, truncated};
+                return tx.rollback();
             },
         });
     } catch (error) {
+        // tx.rollback() ends every successful run by throwing this; nothing an MCP query does is meant to persist.
+        if (error instanceof TransactionRollbackError && result) return result;
+
         // Translate caller-caused Postgres errors into ReadOnlyQueryError so the MCP layer echoes an
         // actionable message to the client instead of a generic "Tool execution failed". Anything not
         // recognized here is rethrown as-is (logged server-side, returned generically to the client).

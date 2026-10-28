@@ -47,8 +47,9 @@ export const registerMcpTools = (server: McpServer): void => {
             description:
                 'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data in the "github" schema: ' +
                 'workflow_runs, workflow_jobs, workflow_run_pull_requests, pull_requests, repositories, organizations, ' +
-                'enterprises, "user", and integrations. Tenant isolation, row caps and a statement timeout are enforced ' +
-                'automatically. Use list_tables and describe_table to explore what is available.',
+                'enterprises, "user", and integrations. Tenant isolation, a row cap, a 128 KB result size limit and a statement ' +
+                'timeout are enforced automatically; truncated: true means rows were dropped. Use list_tables and ' +
+                'describe_table to explore what is available.',
             inputSchema: z.object({sql: z.string().min(1).describe('A single read-only SELECT or WITH statement.')}),
             annotations: {readOnlyHint: true},
         },

@@ -137,11 +137,11 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. This holds in the IAM connection mode used in AWS; the Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
 3. **Row-level security** — every exposed table carries a tenant policy keyed on `rls.integration_ids`; you only see rows for integrations you belong to.
-4. **Read-only transaction** — `SET TRANSACTION READ ONLY`; no writes or DDL.
-5. **Single-statement structural guard** — the query is wrapped as `SELECT * FROM (<your sql>) _mcp LIMIT <cap+1>`, which structurally forbids statement stacking and non-`SELECT` statements.
-6. **Blocked-function + escape guard** — `set_config`, functions that run a SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), `pg_sleep`, `pg_stat_activity`, file/host functions, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
+4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
+5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH` or that contains `;` is rejected before it runs.
+6. **Blocked-function + escape guard** — `set_config` and `pg_settings`, functions that run a SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), advisory locks (a session lock would outlive the transaction on the pooled connection), `pg_sleep*`, `pg_stat_*`, file, large-object and backend-control functions, nested block comments at the start of the query, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
 7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. The `rls.*` settings are therefore protected only by layers 5 and 6; a query that reached `set_config` could rewrite `rls.integration_ids` or `rls.integration_roles`.
-8. **Resource caps** — a `statement_timeout` and a row cap bound each query.
+8. **Resource caps** — a `statement_timeout`, a 2-second `lock_timeout`, a row cap and a result byte budget bound each query. The byte budget is enforced inside the query, so an oversized row never leaves the database.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
 ### Role-aware access
@@ -161,10 +161,12 @@ No table uses this yet. Role gates rely on `rls.integration_roles`, which only l
 | Limit             | Default                | Applies to         |
 | ----------------- | ---------------------- | ------------------ |
 | Row cap           | 1000 rows              | every `run_sql`    |
+| Result size       | 128 KB                 | every `run_sql`    |
 | Statement timeout | 20 seconds             | every `run_sql`    |
+| Lock timeout      | 2 seconds              | every `run_sql`    |
 | Query budget      | 600 query-seconds/hour | `run_sql` per user |
 
-When more rows exist than the cap, results are truncated to the cap and `truncated: true` is returned.
+When more rows exist than the cap, or the rows exceed the result size, the result stops at the last row that fits and `truncated: true` is returned. A row that alone exceeds the result size is dropped; if it is the first row, the result is empty and not flagged as truncated, because the database drops it before any row can report it.
 
 Each `run_sql` costs the duration of the query. Every `run_sql` result includes the query-time budget (all values in **seconds**):
 

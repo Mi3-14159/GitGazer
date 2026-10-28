@@ -1,4 +1,4 @@
-import {type SQL} from 'drizzle-orm';
+import {TransactionRollbackError, type SQL} from 'drizzle-orm';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -107,18 +107,29 @@ describe('runReadOnlyQuery', () => {
         });
     });
 
-    const capture: {params?: Record<string, unknown>; execArg?: SQL} = {};
+    const capture: {params?: Record<string, unknown>; execArg?: SQL; rollback?: ReturnType<typeof vi.fn>} = {};
+    // Rows get the wrap's bookkeeping columns like the database adds them; a row may override `_mcp_more`.
     const mockRun = (rows: Record<string, unknown>[], fields?: {name: string}[]) => {
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (params: Record<string, unknown>) => {
             capture.params = params;
-            const tx = {execute: vi.fn().mockResolvedValue({rows, fields})};
-            const result = await (params.callback as (tx: unknown) => Promise<unknown>)(tx);
-            capture.execArg = tx.execute.mock.calls[0][0] as SQL;
-            return result;
+            const tx = {
+                execute: vi.fn(async (query: SQL) => {
+                    capture.execArg = query;
+                    return {
+                        rows: rows.map((row) => ({_mcp_bytes: 0, _mcp_more: null, ...row})),
+                        fields: fields && [...fields, {name: '_mcp_bytes'}, {name: '_mcp_more'}],
+                    };
+                }),
+                rollback: vi.fn(() => {
+                    throw new TransactionRollbackError();
+                }),
+            };
+            capture.rollback = tx.rollback;
+            return await (params.callback as (tx: unknown) => Promise<unknown>)(tx);
         });
     };
 
-    it('runs on the gitgazer_mcp login under the mcp role, read-only, with a statement timeout', async () => {
+    it('runs on the gitgazer_mcp login under the mcp role, read-only, with statement and lock timeouts', async () => {
         mockRun([{a: 1}], [{name: 'a'}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, statementTimeoutS: 7});
 
@@ -126,18 +137,65 @@ describe('runReadOnlyQuery', () => {
         expect(capture.params?.userName).toBe('gitgazer_mcp');
         expect(capture.params?.readOnly).toBe(true);
         expect(capture.params?.statementTimeoutS).toBe(7);
+        expect(capture.params?.lockTimeoutS).toBe(2);
         expect(capture.params?.integrationIds).toEqual([INTEGRATION_ID]);
         expect(capture.params?.integrationRoles).toEqual({[INTEGRATION_ID]: 'member'});
     });
 
-    it('wraps the user SQL in a subquery with a row-cap+1 LIMIT bound as a parameter (extended query protocol)', async () => {
+    it('rolls the transaction back and still returns the result', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(capture.rollback).toHaveBeenCalledTimes(1);
+        expect(result).toEqual({columns: ['a'], rows: [{a: 1}], rowCount: 1, truncated: false});
+    });
+
+    it('wraps the user SQL in a subquery with the byte budget and row-cap+1 LIMIT bound as parameters (extended query protocol)', async () => {
         mockRun([{a: 1}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 500});
 
         const {sql: rendered, params} = dialect.sqlToQuery(capture.execArg as SQL);
-        expect(rendered).toContain('SELECT * FROM (\nSELECT 1 AS a\n) AS _mcp');
-        expect(rendered).toContain('LIMIT $1');
-        expect(params).toEqual([501]);
+        expect(rendered).toContain('FROM (\nSELECT 1 AS a\n) AS _mcp');
+        expect(rendered).toContain('WHERE _mcp_bytes <= $1 LIMIT $2');
+        expect(params).toEqual([128 * 1024, 501]);
+    });
+
+    it('never returns the bookkeeping columns', async () => {
+        mockRun([{a: 1}, {a: 2}], [{name: 'a'}]);
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT a FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(result.columns).toEqual(['a']);
+        expect(result.rows).toEqual([{a: 1}, {a: 2}]);
+    });
+
+    it('flags truncation when the database dropped the following rows for the byte budget', async () => {
+        // A non-null look-ahead on the last row means a row followed it but did not pass the budget filter.
+        mockRun([{a: 1}, {a: 2, _mcp_more: 1}], [{name: 'a'}]);
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT a FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(result.truncated).toBe(true);
+        expect(result.rows).toEqual([{a: 1}, {a: 2}]);
+    });
+
+    it('stops at the byte budget in the returned rows', async () => {
+        const big = 'x'.repeat(20_000);
+        mockRun(
+            Array.from({length: 50}, () => ({s: big})),
+            [{name: 's'}],
+        );
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(result.truncated).toBe(true);
+        expect(result.rowCount).toBe(result.rows.length);
+        expect(result.rowCount).toBeLessThan(50);
+        expect(Buffer.byteLength(JSON.stringify(result.rows))).toBeLessThanOrEqual(128 * 1024);
+    });
+
+    it('drops and flags a single row larger than the byte budget', async () => {
+        mockRun([{s: 'y'.repeat(128 * 1024 * 2)}], [{name: 's'}]);
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(result).toEqual({columns: ['s'], rows: [], rowCount: 0, truncated: true});
     });
 
     it('flags truncation and caps the returned rows at rowCap', async () => {
