@@ -84,6 +84,9 @@ catalogs:
     '@mdx-js/react':
       specifier: ^3.0.0
       version: 3.1.1
+    '@modelcontextprotocol/server':
+      specifier: 2.4.0
+      version: 2.4.0
     '@nx/eslint':
       specifier: 23.3.0
       version: 23.3.0
@@ -243,6 +246,9 @@ catalogs:
     vue-tsc:
       specifier: ^3.3.13
       version: 3.3.13
+    zod:
+      specifier: ^4.2.0
+      version: 4.6.7
 
 overrides:
   '@types/node': ^26.6.5
@@ -367,6 +373,9 @@ importers:
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.5(hono@4.13.13)
+      '@modelcontextprotocol/server':
+        specifier: 'catalog:'
+        version: 2.4.0
       '@octokit/webhooks':
         specifier: 'catalog:'
         version: 14.2.0
@@ -378,7 +387,7 @@ importers:
         version: 5.2.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       hono:
         specifier: 'catalog:'
         version: 4.13.13
@@ -388,6 +397,9 @@ importers:
       tsconfig-paths:
         specifier: 'catalog:'
         version: 4.2.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   apps/lambdas/backfill-worker:
     dependencies:
@@ -409,7 +421,7 @@ importers:
         version: 8.10.164
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.5)(typescript@6.0.3)
@@ -434,7 +446,7 @@ importers:
     devDependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   apps/lambdas/websocket:
     dependencies:
@@ -450,7 +462,7 @@ importers:
         version: 8.10.164
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   apps/lambdas/worker:
     dependencies:
@@ -596,7 +608,7 @@ importers:
         version: 6.2.5
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
     devDependencies:
       '@types/convict':
         specifier: 'catalog:'
@@ -618,7 +630,7 @@ importers:
         version: 14.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   packages/db:
     dependencies:
@@ -630,7 +642,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       pg:
         specifier: 'catalog:'
         version: 8.23.1
@@ -670,7 +682,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)
+        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   packages/import:
     devDependencies:
@@ -2770,6 +2782,14 @@ packages:
 
   '@mermaid-js/parser@1.2.0':
     resolution: {integrity: sha512-oYPyv8A4As1yH5Bx+04iQEQxXuIQDe0GKCNSRgao6z8AM9jixXIfP0vsppRLvGf+nKIOb9/LdpWA4YuJiVvESA==}
+
+  '@modelcontextprotocol/core@2.4.0':
+    resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
+    engines: {node: '>=20'}
+
+  '@modelcontextprotocol/server@2.4.0':
+    resolution: {integrity: sha512-rgR9yxSaAJ+bcsi/XroT/S2AfPiIWloXAnrdfYSCms9ivVju0ishu/wW0J21Ho6+ZOR1r7RyeRbjiRuF87ix5Q==}
+    engines: {node: '>=20'}
 
   '@module-federation/error-codes@0.22.0':
     resolution: {integrity: sha512-xF9SjnEy7vTdx+xekjPCV5cIHOGCkdn3pIxo9vU7gEZMIw0SvAEdsy6Uh17xaCpm8V0FWvR0SZoK9Ik6jGOaug==}
@@ -9693,6 +9713,9 @@ packages:
     resolution: {integrity: sha512-4LCcse/U2MHZ63HAJVE+v71o7yOdIe4cZ70Wpf8D/IyjDKYQLV5GD46B+hSTjJsvV5PztjvHoU580EftxjDZFQ==}
     engines: {node: '>=12.20'}
 
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
   zrender@6.1.0:
     resolution: {integrity: sha512-oEGMDB6pOP2S6OwRR4PdVv610zrjnA3Bh+JnSG12fYJlBKjtNAoEb5fSUoCOOINlH96I2fU38/A2UpRKs67xYQ==}
 
@@ -12976,6 +12999,15 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
+  '@modelcontextprotocol/core@2.4.0':
+    dependencies:
+      zod: 4.6.7
+
+  '@modelcontextprotocol/server@2.4.0':
+    dependencies:
+      '@modelcontextprotocol/core': 2.4.0
+      zod: 4.6.7
+
   '@module-federation/error-codes@0.22.0': {}
 
   '@module-federation/runtime-core@0.22.0':
@@ -16064,12 +16096,13 @@ snapshots:
       get-tsconfig: 4.14.2
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1):
+  drizzle-orm@1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1152.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7):
     optionalDependencies:
       '@aws-sdk/client-rds-data': 3.1152.0
       '@electric-sql/pglite': 0.5.12
       '@types/pg': 8.23.1
       pg: 8.23.1
+      zod: 4.6.7
 
   dunder-proto@1.0.1:
     dependencies:
@@ -20748,6 +20781,8 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   yocto-queue@1.2.2: {}
+
+  zod@4.6.7: {}
 
   zrender@6.1.0:
     dependencies:

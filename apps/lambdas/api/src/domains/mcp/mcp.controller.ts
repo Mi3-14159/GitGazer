@@ -4,6 +4,7 @@ import {getMcpAccessVerifier} from '@/shared/middleware/token-verifier';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import type {MemberRole} from '@gitgazer/db/types/members';
+import {OAuthError, OAuthErrorCode, type AuthInfo, type OAuthTokenVerifier} from '@modelcontextprotocol/server';
 import {eq} from 'drizzle-orm';
 
 /** Raised when an MCP request cannot be authenticated. Mapped to 401 by the route. */
@@ -40,6 +41,35 @@ export const resolveMcpCaller = async (authorizationHeader: string | undefined):
 
     const roles = await getUserIntegrationRoles(rows[0].id);
     return {userId: rows[0].id, integrationRoles: roles};
+};
+
+/** Verifies a Cognito access token for the SDK's `requireBearerAuth` and resolves the GitGazer user. */
+export const mcpTokenVerifier: OAuthTokenVerifier = {
+    async verifyAccessToken(token) {
+        let payload;
+        try {
+            payload = await getMcpAccessVerifier().verify(token);
+        } catch {
+            throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid or expired access token');
+        }
+
+        const rows = await db.select({id: users.id}).from(users).where(eq(users.cognitoId, payload.sub)).limit(1);
+        if (rows.length === 0) throw new OAuthError(OAuthErrorCode.InvalidToken, 'Unknown user, sign in to GitGazer via the web app first');
+
+        return {
+            token,
+            clientId: String(payload.client_id),
+            scopes: typeof payload.scope === 'string' ? payload.scope.split(' ') : [],
+            expiresAt: payload.exp,
+            extra: {userId: rows[0].id},
+        };
+    },
+};
+
+export const mcpUserId = (authInfo: AuthInfo | undefined): number => {
+    const userId = authInfo?.extra?.userId;
+    if (typeof userId !== 'number') throw new Error('Missing user id in auth info');
+    return userId;
 };
 
 // The public MCP URL is configured (the CloudFront/custom domain), because behind CloudFront

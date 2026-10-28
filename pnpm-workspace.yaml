@@ -32,6 +32,7 @@ catalog:
   '@hono/node-server': '2.1.5'
   '@lucide/vue': '^1.59.0'
   '@mdx-js/react': '^3.0.0'
+  '@modelcontextprotocol/server': '2.4.0'
   '@nx/eslint': '23.3.0'
   '@nx/vite': '23.3.0'
   '@nx/vitest': '23.3.0'
@@ -86,6 +87,7 @@ catalog:
   'vue-echarts': '^8.3.2'
   'vue-router': '^5.4.0'
   'vue-tsc': '^3.3.13'
+  'zod': '^4.2.0'
 
 # sitemap@7 (via @docusaurus/plugin-sitemap) depends on @types/node ^17.0.5, which kept a second,
 # much older copy of it in the lockfile. Two @types/node versions means conflicting globals, and it
