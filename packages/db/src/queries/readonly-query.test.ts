@@ -22,8 +22,8 @@ afterAll(() => client.close());
 // PGlite.query() always speaks the extended protocol and PGlite.exec() the simple one, so these tests show what
 // Postgres does with the wrapped query in each protocol, not which one node-postgres picks.
 describe('wrapReadOnlyQuery against Postgres', () => {
-    // Closes the wrap's two subqueries, then reopens them, so every statement is valid SQL on its own.
-    const stacked = 'SELECT 1 AS a) AS _mcp) AS y; SELECT 2; SELECT * FROM (SELECT 1 AS _mcp_bytes FROM (SELECT 1';
+    // Closes the wrap's three subqueries, then reopens them, so every statement is valid SQL on its own.
+    const stacked = 'SELECT 1 AS a) AS _mcp_inner) AS _mcp) AS y; SELECT 2; SELECT * FROM (SELECT 1 AS _mcp_bytes FROM (SELECT * FROM (SELECT 1';
 
     it('is refused by Postgres when a statement is stacked into it', async () => {
         const error = await mcpDb.execute(wrapReadOnlyQuery(stacked, 10)).catch((e: unknown) => e);
@@ -34,7 +34,7 @@ describe('wrapReadOnlyQuery against Postgres', () => {
 
     it('would run the stacked statements over the simple protocol', async () => {
         const text = new PgDialect().sqlToQuery(wrapReadOnlyQuery(stacked, 10)).sql;
-        const results = await client.exec(text.replace('$1', String(BYTE_BUDGET)).replace('$2', '11'));
+        const results = await client.exec(text.replace('$1', '11').replace('$2', String(BYTE_BUDGET)));
         expect(results).toHaveLength(3);
     });
 });
@@ -51,5 +51,20 @@ describe('runReadOnlyQuery against Postgres', () => {
         expect(result.rowCount).toBe(2);
         expect(result.truncated).toBe(true);
         expect(Object.keys(result.rows[0])).toEqual(['s']);
+    });
+
+    it('flags truncation at the row cap', async () => {
+        const result = await runReadOnlyQuery({sql: 'SELECT n FROM generate_series(1, 5) AS n', integrationRoles, rowCap: 2});
+        expect(result).toEqual({columns: ['n'], rows: [{n: 1}, {n: 2}], rowCount: 2, truncated: true});
+    });
+
+    it('flags a first row larger than the byte budget instead of reporting an empty result', async () => {
+        const result = await runReadOnlyQuery({sql: "SELECT repeat('x', 200000) AS s", integrationRoles});
+        expect(result).toEqual({columns: ['s'], rows: [], rowCount: 0, truncated: true});
+    });
+
+    it('does not flag a query that matched nothing', async () => {
+        const result = await runReadOnlyQuery({sql: 'SELECT 1 AS n WHERE false', integrationRoles});
+        expect(result).toEqual({columns: ['n'], rows: [], rowCount: 0, truncated: false});
     });
 });

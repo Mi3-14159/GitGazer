@@ -107,14 +107,17 @@ describe('runReadOnlyQuery', () => {
         });
     });
 
-    const capture: {params?: Record<string, unknown>; execArg?: SQL; rollback?: ReturnType<typeof vi.fn>} = {};
+    const capture: {params?: Record<string, unknown>; execArgs: SQL[]; rollback?: ReturnType<typeof vi.fn>} = {execArgs: []};
     // Rows get the wrap's bookkeeping columns like the database adds them; a row may override `_mcp_more`.
-    const mockRun = (rows: Record<string, unknown>[], fields?: {name: string}[]) => {
+    // A follow-up query (the empty-result probe) answers `found`.
+    const mockRun = (rows: Record<string, unknown>[], fields?: {name: string}[], found = false) => {
+        capture.execArgs = [];
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (params: Record<string, unknown>) => {
             capture.params = params;
             const tx = {
                 execute: vi.fn(async (query: SQL) => {
-                    capture.execArg = query;
+                    capture.execArgs.push(query);
+                    if (capture.execArgs.length > 1) return {rows: [{found}]};
                     return {
                         rows: rows.map((row) => ({_mcp_bytes: 0, _mcp_more: null, ...row})),
                         fields: fields && [...fields, {name: '_mcp_bytes'}, {name: '_mcp_more'}],
@@ -150,14 +153,40 @@ describe('runReadOnlyQuery', () => {
         expect(result).toEqual({columns: ['a'], rows: [{a: 1}], rowCount: 1, truncated: false});
     });
 
-    it('wraps the user SQL in a subquery with the byte budget and row-cap+1 LIMIT bound as parameters (extended query protocol)', async () => {
+    it('caps the user SQL at row-cap+1 inside the byte-budget window, both bound as parameters (extended query protocol)', async () => {
         mockRun([{a: 1}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 500});
 
-        const {sql: rendered, params} = dialect.sqlToQuery(capture.execArg as SQL);
-        expect(rendered).toContain('FROM (\nSELECT 1 AS a\n) AS _mcp');
-        expect(rendered).toContain('WHERE _mcp_bytes <= $1 LIMIT $2');
-        expect(params).toEqual([128 * 1024, 501]);
+        const {sql: rendered, params} = dialect.sqlToQuery(capture.execArgs[0]);
+        // The LIMIT must sit inside the window, or Postgres reads the whole input to evaluate the budget filter.
+        expect(rendered).toContain('FROM (SELECT * FROM (\nSELECT 1 AS a\n) AS _mcp_inner LIMIT $1) AS _mcp)');
+        expect(rendered).toMatch(/WHERE _mcp_bytes <= \$2$/);
+        expect(params).toEqual([501, 128 * 1024]);
+    });
+
+    it('flags an empty result as truncated when the query has rows the byte budget dropped', async () => {
+        mockRun([], [{name: 's'}], true);
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(result).toEqual({columns: ['s'], rows: [], rowCount: 0, truncated: true});
+        const probe = dialect.sqlToQuery(capture.execArgs[1]);
+        expect(probe.sql).toBe('SELECT EXISTS (SELECT 1 FROM (\nSELECT s FROM t\n) AS _mcp LIMIT $1) AS found');
+        expect(probe.params).toEqual([1]);
+    });
+
+    it('does not flag a genuinely empty result', async () => {
+        mockRun([], [{name: 's'}], false);
+        const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(result.truncated).toBe(false);
+        expect(capture.execArgs).toHaveLength(2);
+    });
+
+    it('does not probe when the budgeted query returned rows', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        await mod.runReadOnlyQuery({sql: 'SELECT a FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
+
+        expect(capture.execArgs).toHaveLength(1);
     });
 
     it('never returns the bookkeeping columns', async () => {

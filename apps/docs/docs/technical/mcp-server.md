@@ -166,7 +166,7 @@ No table uses this yet. Role gates rely on `rls.integration_roles`, which only l
 | Lock timeout      | 2 seconds              | every `run_sql`    |
 | Query budget      | 600 query-seconds/hour | `run_sql` per user |
 
-When more rows exist than the cap, or the rows exceed the result size, the result stops at the last row that fits and `truncated: true` is returned. A row that alone exceeds the result size is dropped; if it is the first row, the result is empty and not flagged as truncated, because the database drops it before any row can report it.
+When more rows exist than the cap, or the rows exceed the result size, the result stops at the last row that fits and `truncated: true` is returned. A row that alone exceeds the result size is dropped and flagged the same way, even when it is the first row and the result is empty.
 
 Each `run_sql` costs the duration of the query. Every `run_sql` result includes the query-time budget (all values in **seconds**):
 

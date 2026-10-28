@@ -92,9 +92,11 @@ export function assertReadOnlySelect(rawSql: string): string {
  * The running byte sum has to filter in the database: node-postgres buffers the whole result before any JavaScript
  * sees it, so a huge row must never leave Postgres. The filter drops a suffix, invisible to the row count, so
  * `_mcp_more` (a one-row look-ahead) on the last kept row tells the caller that a following row was dropped.
+ * The LIMIT sits inside the window: Postgres cannot tell that the running sum only grows, so a LIMIT above the
+ * filter would not stop it from reading and text-converting the whole input.
  */
 export const wrapReadOnlyQuery = (userSql: string, rowCap: number): SQL =>
-    sql`SELECT * FROM (SELECT _mcp.*, sum(octet_length(_mcp::text)) OVER (ROWS UNBOUNDED PRECEDING) AS _mcp_bytes, lead(1) OVER () AS _mcp_more FROM (\n${sql.raw(userSql)}\n) AS _mcp) AS _mcp_budget WHERE _mcp_bytes <= ${BYTE_BUDGET} LIMIT ${rowCap + 1}`;
+    sql`SELECT * FROM (SELECT _mcp.*, sum(octet_length(_mcp::text)) OVER (ROWS UNBOUNDED PRECEDING) AS _mcp_bytes, lead(1) OVER () AS _mcp_more FROM (SELECT * FROM (\n${sql.raw(userSql)}\n) AS _mcp_inner LIMIT ${rowCap + 1}) AS _mcp) AS _mcp_budget WHERE _mcp_bytes <= ${BYTE_BUDGET}`;
 
 /**
  * Strip the wrap's bookkeeping columns and apply both limits again to what came back, so the payload never exceeds
@@ -208,7 +210,14 @@ export async function runReadOnlyQuery(params: {
 
                 const {rows, truncated} = limitRows(raw.rows ?? [], rowCap);
                 const columns = raw.fields?.slice(0, -2).map((f) => f.name) ?? Object.keys(rows[0] ?? {});
-                result = {columns, rows, rowCount: rows.length, truncated};
+                // An empty result can mean the budget filter dropped an oversized first row, which leaves no row to
+                // carry `_mcp_more`. The bound LIMIT keeps this query on the extended protocol too.
+                let firstRowDropped = false;
+                if (!raw.rows?.length) {
+                    const probe = sql`SELECT EXISTS (SELECT 1 FROM (\n${sql.raw(userSql)}\n) AS _mcp LIMIT ${1}) AS found`;
+                    firstRowDropped = ((await tx.execute(probe)) as {rows: {found: boolean}[]}).rows[0]?.found === true;
+                }
+                result = {columns, rows, rowCount: rows.length, truncated: truncated || firstRowDropped};
 
                 return tx.rollback();
             },
