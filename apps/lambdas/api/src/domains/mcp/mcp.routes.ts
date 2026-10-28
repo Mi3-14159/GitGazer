@@ -20,9 +20,7 @@ router.post('/', async (c) => {
     const request = c.req.raw;
     const auth = await requireBearerAuth({verifier: mcpTokenVerifier, resourceMetadataUrl: protectedResourceMetadataUrl(requestOrigin(c))})(request);
     if (auth instanceof Response) {
-        // A verifier failure that is not an OAuthError (e.g. the user lookup) surfaces here as a 500.
-        if (auth.status >= 500) getLogger().error('MCP token verification failed', {status: auth.status});
-        else getLogger().info('MCP request unauthenticated', {status: auth.status});
+        getLogger().info('MCP request unauthenticated', {status: auth.status});
         return auth;
     }
 

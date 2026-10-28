@@ -1,4 +1,5 @@
 import config from '@gitgazer/backend-core/config';
+import {getLogger} from '@gitgazer/backend-core/logger';
 import {getMcpAccessVerifier} from '@/shared/middleware/token-verifier';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
@@ -18,7 +19,16 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
             throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid or expired access token');
         }
 
-        const rows = await db.select({id: users.id}).from(users).where(eq(users.cognitoId, payload.sub)).limit(1);
+        // requireBearerAuth turns any non-OAuthError into a bare 500, dropping the cause, so log it here.
+        const rows = await db
+            .select({id: users.id})
+            .from(users)
+            .where(eq(users.cognitoId, payload.sub))
+            .limit(1)
+            .catch((error: unknown) => {
+                getLogger().error('MCP user lookup failed', {error});
+                throw error;
+            });
         if (rows.length === 0) throw new OAuthError(OAuthErrorCode.InvalidToken, 'Unknown user, sign in to GitGazer via the web app first');
 
         return {

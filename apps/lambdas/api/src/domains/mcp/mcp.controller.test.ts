@@ -1,13 +1,14 @@
-import {OAuthErrorCode} from '@modelcontextprotocol/server';
+import {OAuthError, OAuthErrorCode} from '@modelcontextprotocol/server';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {verify, usersLookup} = vi.hoisted(() => ({verify: vi.fn(), usersLookup: vi.fn()}));
+const {verify, usersLookup, logError} = vi.hoisted(() => ({verify: vi.fn(), usersLookup: vi.fn(), logError: vi.fn()}));
 
 vi.mock('@/shared/middleware/token-verifier', () => ({
     getMcpAccessVerifier: () => ({verify}),
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
 vi.mock('@gitgazer/db/client', () => ({db: {select: () => ({from: () => ({where: () => ({limit: usersLookup})})})}}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: logError})}));
 vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: vi.fn((key: string) => (key === 'mcpServerUrl' ? 'https://app.gitgazer.com/api/mcp' : {userPoolId: 'eu-central-1_ABC123'}))},
 }));
@@ -41,6 +42,15 @@ describe('mcpTokenVerifier', () => {
         verify.mockResolvedValue({sub: 'cognito-sub', client_id: 'c', exp: 1_900_000_000});
         usersLookup.mockResolvedValue([]);
         await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).rejects.toMatchObject({code: OAuthErrorCode.InvalidToken});
+    });
+    it('logs a failed user lookup and rethrows it as a non-OAuth error', async () => {
+        const dbError = new Error('connection timeout');
+        verify.mockResolvedValue({sub: 'cognito-sub', client_id: 'c', exp: 1_900_000_000});
+        usersLookup.mockRejectedValue(dbError);
+        const rejection = await ctrl.mcpTokenVerifier.verifyAccessToken('tok').catch((error: unknown) => error);
+        expect(rejection).toBe(dbError);
+        expect(rejection).not.toBeInstanceOf(OAuthError);
+        expect(logError).toHaveBeenCalledWith('MCP user lookup failed', {error: dbError});
     });
 });
 
