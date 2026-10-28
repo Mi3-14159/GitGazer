@@ -23,19 +23,16 @@ For the end-user walkthrough (how to connect a client), see [Querying Data with 
 
 `<your-gitgazer-domain>` is the same host as the GitGazer web app (the CloudFront/custom domain).
 
-The server is **dual-era**: revision `2026-07-28` removed the `initialize` handshake and moved the
-protocol version into per-request `_meta`, so which era a request belongs to is decided per request.
+The endpoint is served by the official MCP TypeScript SDK (`@modelcontextprotocol/server`), which
+owns the wire format. It is **dual-era**, decided per request:
 
-- A request carrying `_meta["io.modelcontextprotocol/protocolVersion"]` is served as `2026-07-28`.
-  It must also mirror `MCP-Protocol-Version`, `Mcp-Method` and (for `tools/call`) `Mcp-Name` into
-  HTTP headers; a mismatch is rejected with `400` and JSON-RPC error `-32020`. An unsupported
-  version returns `400` and `-32022` listing the versions the server does support, and an unknown
-  method returns `404` and `-32601`.
-- Any other request is served as `2025-11-25`: `initialize` and `ping` remain available, and every
-  JSON-RPC message — including errors — is returned with HTTP `200`.
+- A request carrying the per-request `_meta` envelope (`io.modelcontextprotocol/protocolVersion`)
+  is served as `2026-07-28` by the SDK's `createMcpHandler`, including `server/discover` and the
+  `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` header checks.
+- Any other request is served as `2025-11-25` by a stateless SDK transport: `initialize` remains
+  available but is not required before `tools/list` or `tools/call`, since no session is kept.
 
-`server/discover` is answered in both eras and reports the supported versions, capabilities and
-server identity in a single call.
+Every response is `application/json`; the server never opens an SSE stream.
 
 ## Authentication
 
@@ -86,12 +83,11 @@ Key points:
 
 All tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations.
 
-| Tool                | Input       | Description                                        | Counts against budget |
-| ------------------- | ----------- | -------------------------------------------------- | --------------------- |
-| `run_sql`           | `{ sql }`   | Run a single read-only `SELECT` / `WITH … SELECT`. | ✅ yes                |
-| `list_tables`       | —           | List the tables you may query (schema + name).     | ❌ no                 |
-| `describe_table`    | `{ table }` | List a table's columns (name, type, nullability).  | ❌ no                 |
-| `list_integrations` | —           | List the integrations (tenants) you can access.    | ❌ no                 |
+| Tool             | Input       | Description                                        | Counts against budget |
+| ---------------- | ----------- | -------------------------------------------------- | --------------------- |
+| `run_sql`        | `{ sql }`   | Run a single read-only `SELECT` / `WITH … SELECT`. | ✅ yes                |
+| `list_tables`    | —           | List the tables you may query (schema + name).     | ❌ no                 |
+| `describe_table` | `{ table }` | List a table's columns (name, type, nullability).  | ❌ no                 |
 
 `run_sql` returns the columns, rows, a `rowCount`, a `truncated` flag, and the query-time `budget` (see [Limits](#limits-and-budget)).
 
@@ -173,7 +169,7 @@ Each `run_sql` costs the duration of the query. Every `run_sql` result includes 
 }
 ```
 
-A query is charged whether it succeeds or fails (including hitting the statement timeout), so expensive queries can't run for free. The window is a rolling `windowSeconds` (default 1 hour) that starts on a user's first query and resets once it elapses; exceeding the budget returns a tool error until then. The discovery tools (`list_tables`, `describe_table`, `list_integrations`) do not consume budget.
+A query is charged whether it succeeds or fails (including hitting the statement timeout), so expensive queries can't run for free. The window is a rolling `windowSeconds` (default 1 hour) that starts on a user's first query and resets once it elapses; exceeding the budget returns a tool error until then. The discovery tools (`list_tables` and `describe_table`) do not consume budget.
 
 ## Configuration
 

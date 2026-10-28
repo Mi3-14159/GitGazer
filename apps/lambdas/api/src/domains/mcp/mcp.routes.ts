@@ -1,9 +1,10 @@
 import {buildAuthServerMetadata, handleAuthorize, handleCallback, handleRegister, handleToken} from '@/domains/mcp/mcp-oauth.controller';
-import {buildProtectedResourceMetadata, McpAuthError, protectedResourceMetadataUrl, resolveMcpCaller} from '@/domains/mcp/mcp.controller';
-import {handleMcpRequest, type JsonRpcRequest} from '@/domains/mcp/mcp.protocol';
+import {buildProtectedResourceMetadata, mcpTokenVerifier, protectedResourceMetadataUrl} from '@/domains/mcp/mcp.controller';
+import {createMcpServer} from '@/domains/mcp/mcp.server';
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpStatusCodes} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {createMcpHandler, isLegacyRequest, requireBearerAuth, WebStandardStreamableHTTPServerTransport} from '@modelcontextprotocol/server';
 import type {Context} from 'hono';
 import {Hono} from 'hono';
 
@@ -13,43 +14,24 @@ const requestOrigin = (c: Context<AppEnv>): string => `https://${new URL(c.req.u
 
 const JSON_HEADERS = {'Content-Type': 'application/json', 'Cache-Control': 'no-store'} as const;
 
-const jsonRpcError = (code: number, message: string, status: number): Response =>
-    new Response(JSON.stringify({jsonrpc: '2.0', id: null, error: {code, message}}), {status, headers: JSON_HEADERS});
+const modernHandler = createMcpHandler(() => createMcpServer(), {legacy: 'reject', responseMode: 'json'});
 
 router.post('/', async (c) => {
-    const logger = getLogger();
-    const headers = c.req.header();
-
-    let caller;
-    try {
-        caller = await resolveMcpCaller(headers['authorization']);
-    } catch (error) {
-        if (error instanceof McpAuthError) {
-            logger.info('MCP request unauthenticated', {message: error.message});
-            return new Response(JSON.stringify({error: 'unauthorized', message: error.message}), {
-                status: HttpStatusCodes.UNAUTHORIZED,
-                headers: {...JSON_HEADERS, 'WWW-Authenticate': `Bearer resource_metadata="${protectedResourceMetadataUrl(requestOrigin(c))}"`},
-            });
-        }
-        throw error;
+    const request = c.req.raw;
+    const auth = await requireBearerAuth({verifier: mcpTokenVerifier, resourceMetadataUrl: protectedResourceMetadataUrl(requestOrigin(c))})(request);
+    if (auth instanceof Response) {
+        // A verifier failure that is not an OAuthError (e.g. the user lookup) surfaces here as a 500.
+        if (auth.status >= 500) getLogger().error('MCP token verification failed', {status: auth.status});
+        else getLogger().info('MCP request unauthenticated', {status: auth.status});
+        return auth;
     }
 
-    let rpc: unknown;
-    try {
-        rpc = await c.req.json();
-    } catch {
-        return jsonRpcError(-32700, 'Parse error', HttpStatusCodes.OK);
+    if (await isLegacyRequest(request)) {
+        const transport = new WebStandardStreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
+        await createMcpServer().connect(transport);
+        return transport.handleRequest(request, {authInfo: auth});
     }
-    // A JSON-RPC batch (array) or a bare scalar parses cleanly but is not a request object.
-    if (typeof rpc !== 'object' || rpc === null || Array.isArray(rpc)) {
-        return jsonRpcError(-32600, 'Invalid Request: expected a single JSON-RPC object', HttpStatusCodes.BAD_REQUEST);
-    }
-
-    const outcome = await handleMcpRequest(rpc as JsonRpcRequest, caller, headers);
-    if (outcome === null) {
-        return new Response(null, {status: HttpStatusCodes.ACCEPTED});
-    }
-    return new Response(JSON.stringify(outcome.response), {status: outcome.status, headers: JSON_HEADERS});
+    return modernHandler.fetch(request, {authInfo: auth});
 });
 
 // Served outside /api, where MCP clients look for them.
