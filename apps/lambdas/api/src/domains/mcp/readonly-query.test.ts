@@ -4,6 +4,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/db/client', () => ({
     withRlsTransaction: vi.fn(),
+    mcpDb: {name: 'mcp connection'},
 }));
 
 const dialect = new PgDialect();
@@ -101,10 +102,11 @@ describe('runReadOnlyQuery', () => {
         });
     };
 
-    it('runs under the mcp role, read-only, with a statement timeout', async () => {
+    it('runs on the gitgazer_mcp login under the mcp role, read-only, with a statement timeout', async () => {
         mockRun([{a: 1}], [{name: 'a'}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, statementTimeoutS: 7});
 
+        expect(capture.params?.client).toBe(rds.mcpDb);
         expect(capture.params?.userName).toBe('gitgazer_mcp');
         expect(capture.params?.readOnly).toBe(true);
         expect(capture.params?.statementTimeoutS).toBe(7);

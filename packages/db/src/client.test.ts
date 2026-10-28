@@ -37,8 +37,15 @@ describe('db client', () => {
         vi.stubEnv('DB_POOL_MAX', undefined);
         await (await loadClient()).initDb();
 
-        expect(mocks.Pool).toHaveBeenNthCalledWith(1, expect.objectContaining({max: 10, connectionTimeoutMillis: 5000}));
-        expect(mocks.Pool).toHaveBeenNthCalledWith(2, expect.objectContaining({max: 1, connectionTimeoutMillis: 5000}));
+        expect(mocks.Pool).toHaveBeenNthCalledWith(1, expect.objectContaining({user: 'gitgazer_app', max: 10, connectionTimeoutMillis: 5000}));
+        expect(mocks.Pool).toHaveBeenNthCalledWith(3, expect.objectContaining({user: 'gitgazer_app', max: 1, connectionTimeoutMillis: 5000}));
+    });
+
+    it('opens a separate single-connection pool that logs in as gitgazer_mcp', async () => {
+        await (await loadClient()).initDb();
+
+        expect(mocks.Pool).toHaveBeenCalledTimes(2);
+        expect(mocks.Pool).toHaveBeenNthCalledWith(2, expect.objectContaining({user: 'gitgazer_mcp', max: 1, database: 'gitgazer'}));
     });
 
     it('rejects a DB_POOL_MAX that is not a positive integer', async () => {
@@ -47,12 +54,12 @@ describe('db client', () => {
         await expect((await loadClient()).initDb()).rejects.toThrow('Invalid DB_POOL_MAX: ten');
     });
 
-    it('ends the pool on close', async () => {
+    it('ends both pools on close', async () => {
         const client = await loadClient();
         await client.initDb();
 
         await client.closeDb();
 
-        expect(mocks.end).toHaveBeenCalledOnce();
+        expect(mocks.end).toHaveBeenCalledTimes(2);
     });
 });

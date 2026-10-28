@@ -1,5 +1,5 @@
 import {sql} from 'drizzle-orm';
-import {withRlsTransaction} from '../client';
+import {mcpDb, withRlsTransaction} from '../client';
 import {gitgazerMcp} from '../schema';
 import type {MemberRole} from '../types/members';
 
@@ -25,11 +25,11 @@ export class ReadOnlyQueryError extends Error {
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
 // Blocklist of host-reading / cross-tenant-leaking FUNCTIONS callable inside a SELECT: `set_config`
-// (could overwrite the rls.integration_ids / rls.integration_roles GUCs or `role`), the functions that
+// (could overwrite the rls.integration_ids / rls.integration_roles GUCs), the functions that
 // execute a caller-supplied SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), where a concatenated
 // `'set_con' || 'fig(...)'` never shows the literal token, and the `pg_stat_*` family (leaks other
-// tenants' in-flight SQL + UUIDs, since every request shares the gitgazer_mcp role). A blocklist is a
-// mitigation, not a proof; the real boundary is gitgazer_mcp lacking EXECUTE on pg_catalog.set_config.
+// tenants' in-flight SQL + UUIDs, since every request shares the gitgazer_mcp role). set_config stays
+// executable on Aurora (the revoke migration is a no-op there), so this list is what guards the GUCs.
 // The `SET`/`RESET` statements are deliberately NOT listed — they need a `;` to run, which
 // assertReadOnlySelect already rejects, and blocklisting the words would false-positive on `%reset%`.
 const BLOCKED_TOKENS =
@@ -129,10 +129,10 @@ const findPgError = (error: unknown): PgError | undefined => {
  *  1. assertReadOnlySelect — the single-SELECT guarantee (this, NOT the wrap, stops `;` stacking) plus a
  *     function blocklist, which is a mitigation, not a proof.
  *  2. subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — SELECT context + row cap.
- *  3. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` and
- *     `rls.integration_roles` (RLS), and a statement_timeout — the tenant / permission / DoS boundary.
- *     It holds only while gitgazer_mcp cannot execute pg_catalog.set_config: otherwise a query can
- *     rewrite those settings or `role`.
+ *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session has no other role to switch to.
+ *  4. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` and
+ *     `rls.integration_roles` (RLS), and a statement_timeout. set_config stays executable on Aurora,
+ *     so those settings rest on guard 1.
  */
 export async function runReadOnlyQuery(params: {
     sql: string;
@@ -152,6 +152,7 @@ export async function runReadOnlyQuery(params: {
             integrationIds: Object.keys(params.integrationRoles),
             integrationRoles: params.integrationRoles,
             userName: gitgazerMcp.name,
+            client: mcpDb,
             readOnly: true,
             statementTimeoutS,
             callback: async (tx) => {
