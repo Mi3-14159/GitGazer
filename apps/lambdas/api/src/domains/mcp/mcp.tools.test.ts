@@ -135,6 +135,21 @@ describe('mcp tools', () => {
         expect(await callTool('run_sql', {sql: 'SELECT 1'})).toEqual({content: [{type: 'text', text: 'Tool execution failed'}], isError: true});
     });
 
+    it('does not echo a raw permission error, which carries the full query', async () => {
+        const {DrizzleQueryError} = await import('drizzle-orm/errors');
+        const denied = new DrizzleQueryError(
+            'WITH _mcp AS (SELECT * FROM (SELECT * FROM gitgazer.users) AS _mcp_inner LIMIT $1) SELECT * FROM _mcp',
+            [101],
+            Object.assign(new Error('permission denied for schema gitgazer'), {code: '42501'}),
+        );
+        asMock(readonly.runReadOnlyQuery).mockRejectedValue(denied);
+
+        expect(await callTool('run_sql', {sql: 'SELECT * FROM gitgazer.users'})).toEqual({
+            content: [{type: 'text', text: 'Tool execution failed'}],
+            isError: true,
+        });
+    });
+
     it('echoes a ReadOnlyQueryError message', async () => {
         asMock(readonly.runReadOnlyQuery).mockRejectedValue(new readonly.ReadOnlyQueryError('Only read-only SELECT/WITH queries are allowed'));
         expect(await callTool('run_sql', {sql: 'DELETE FROM x'})).toMatchObject({
