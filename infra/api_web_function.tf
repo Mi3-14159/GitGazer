@@ -1,8 +1,9 @@
 locals {
   api_web_name = "${var.name_prefix}-api-web-${terraform.workspace}"
-  # At most half of Aurora's connections, minus 20 for the other Lambdas, at 5 per environment
+  # At most half of Aurora's connections, minus 20 for the other Lambdas, at 5 per environment plus 2 for the
+  # MCP pool (MCP_POOL_MAX in packages/db/src/client.ts)
   api_web_db_pool_max      = 5
-  api_web_max_environments = min(10, floor((var.db_max_connections / 2 - 20) / local.api_web_db_pool_max))
+  api_web_max_environments = min(10, floor((var.db_max_connections / 2 - 20) / (local.api_web_db_pool_max + 2)))
   awscc_default_tags       = [for k, v in local.default_tags : { key = k, value = tostring(v) }]
   # MCP run_sql statement_timeout (seconds), written into the Lambda config secret (mcpQuota.maxQuerySeconds).
   # Keep below the revision's timeout_seconds so a timed-out query is charged before the request is cut off.
