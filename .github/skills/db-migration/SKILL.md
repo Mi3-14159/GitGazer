@@ -19,8 +19,8 @@ Add or change database schema safely. GitGazer uses Drizzle ORM against Aurora P
 - **Two schemas**: `gitgazer` (app data — [packages/db/src/schema/gitgazer.ts](../../../packages/db/src/schema/gitgazer.ts)) and `github` (mirrored GitHub entities — [packages/db/src/schema/github/](../../../packages/db/src/schema/github/)). Both are filtered in [packages/db/drizzle.config.ts](../../../packages/db/drizzle.config.ts) (`schemaFilter: ['gitgazer', 'github']`).
 - **Migrations are generated from the schema**, never hand-written for ordinary DDL. Output goes to [packages/db/drizzle/](../../../packages/db/drizzle/).
 - **RLS is defined in the Drizzle schema**, not in raw SQL. drizzle-kit generates the `ENABLE ROW LEVEL SECURITY` + `CREATE POLICY` statements from the schema helpers. See the policy helpers in [packages/db/src/schema/github/misc.ts](../../../packages/db/src/schema/github/misc.ts).
-- **Grants auto-apply.** `ALTER DEFAULT PRIVILEGES` was set once (migrations `0002`, `0024`, `0026`), so a new table in an existing schema **inherits grants automatically** — do NOT add manual GRANT statements for new tables.
-- **Roles**: `gitgazer_writer` (read/write), `gitgazer_reader` (read-only, the default), `gitgazer_mcp` (read-only, the MCP server's SQL surface). The RLS transaction sets the role per request — see `withRlsTransaction` in [packages/db/src/client.ts](../../../packages/db/src/client.ts).
+- **Grants auto-apply** for `gitgazer_reader`, `gitgazer_writer` and `gitgazer_user`. `ALTER DEFAULT PRIVILEGES` was set once (migrations `0002`, `0024`, `0026`), so a new table in an existing schema **inherits their grants automatically** — do NOT add manual GRANT statements for them. `gitgazer_mcp` is deliberately left out: its `GRANT SELECT` list is the allowlist of what MCP callers can read, so exposing a table to the MCP needs an explicit grant (see below).
+- **Roles**: `gitgazer_writer` (read/write), `gitgazer_reader` (read-only, the default), `gitgazer_mcp` (read-only, the MCP server's SQL surface). The app's transactions switch role per request — see `withRlsTransaction` in [packages/db/src/client.ts](../../../packages/db/src/client.ts). MCP queries instead run on their own connection that logs in as `gitgazer_mcp`, and its policies trust only a signed tenant context, not `rls.integration_ids` (see [apps/docs/docs/technical/mcp-server.md](../../../apps/docs/docs/technical/mcp-server.md), security model).
 
 ## The Tenant-Separation Rule (most important)
 
@@ -31,7 +31,7 @@ Any table holding tenant data **must**:
 3. Attach the policy helpers and call `.enableRLS()`:
     - `writerTenantSeparationPolicy()` — always
     - `readerTenantSeparationPolicy()` — always
-    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories)
+    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories); use `mcpRolePolicy(minimumRole)` instead when only callers with at least that role in the integration may see the rows. Exposing a table also needs `GRANT SELECT ON <table> TO gitgazer_mcp` (column-scoped if it has secrets) in a custom migration, since no default privilege covers `gitgazer_mcp`. Admin-only columns go through a view, never a grant on the base table — see the column-gate pattern in the MCP server doc.
 
 Use the bundled template: [assets/tenant-table.template.ts](./assets/tenant-table.template.ts).
 
@@ -82,9 +82,9 @@ Then edit the new file under `packages/db/drizzle/`. Separate statements with `-
 
 - [ ] Tenant table has `integrationId` FK (`onDelete: 'cascade'`) + composite PK with `integrationId` first
 - [ ] `writerTenantSeparationPolicy()` + `readerTenantSeparationPolicy()` attached and `.enableRLS()` called
-- [ ] `mcpTenantSeparationPolicy()` added only if the MCP server should expose the table
+- [ ] `mcpTenantSeparationPolicy()` / `mcpRolePolicy(minimumRole)` added only if the MCP server should expose the table, together with an explicit `GRANT SELECT ... TO gitgazer_mcp`
 - [ ] Relation added to `packages/db/src/schema/relations.ts` if the table is queried with `.with`
-- [ ] Generated SQL reviewed; no manual GRANTs for new tables
+- [ ] Generated SQL reviewed; no manual GRANTs for new tables apart from the `gitgazer_mcp` grant above
 - [ ] Indexes are prefixed with `integrationId` for tenant-scoped lookups
 - [ ] Migration applied locally and a query verified under `withRlsTransaction`
 
