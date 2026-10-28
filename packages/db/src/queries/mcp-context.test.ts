@@ -42,14 +42,13 @@ describe('signed mcp tenant context', () => {
             CREATE EXTENSION pgcrypto;
             CREATE ROLE root SUPERUSER;
             CREATE ROLE gitgazer_mcp;
-            CREATE ROLE gitgazer_user;
             CREATE ROLE gitgazer_reader;
             CREATE ROLE gitgazer_writer;
             SET ROLE root;
             CREATE SCHEMA github;
             CREATE SCHEMA gitgazer;
-            GRANT USAGE ON SCHEMA gitgazer TO gitgazer_user, gitgazer_reader, gitgazer_writer;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT ON TABLES TO gitgazer_user, gitgazer_reader, gitgazer_writer;
+            GRANT USAGE ON SCHEMA gitgazer TO gitgazer_reader, gitgazer_writer;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT ON TABLES TO gitgazer_reader, gitgazer_writer;
             GRANT USAGE ON SCHEMA github TO gitgazer_mcp, gitgazer_reader;
             GRANT USAGE ON SCHEMA gitgazer TO gitgazer_mcp;
             CREATE FUNCTION github.mcp_has_role(uuid, text) RETURNS boolean LANGUAGE sql AS 'SELECT FALSE';
@@ -192,7 +191,7 @@ describe('signed mcp tenant context', () => {
             );
         });
 
-        it.each(['gitgazer_user', 'gitgazer_reader', 'gitgazer_writer'])('keeps the key from %s', async (role) => {
+        it.each(['gitgazer_reader', 'gitgazer_writer'])('keeps the key from %s', async (role) => {
             await expect(asRole(role, 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(/permission denied for table mcp_context_key/);
         });
 

@@ -39,7 +39,6 @@ const setUp = async (pg: PGlite) => {
         CREATE EXTENSION pgcrypto;
         CREATE ROLE root SUPERUSER;
         CREATE ROLE gitgazer_mcp;
-        CREATE ROLE gitgazer_user;
         CREATE ROLE gitgazer_reader;
         CREATE ROLE gitgazer_writer;
         SET ROLE root;

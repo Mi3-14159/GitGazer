@@ -5,7 +5,7 @@ CREATE TABLE "gitgazer"."mcp_context_key" (
 );
 --> statement-breakpoint
 INSERT INTO gitgazer.mcp_context_key (id, key) VALUES (1, public.gen_random_bytes(32));--> statement-breakpoint
-REVOKE ALL ON gitgazer.mcp_context_key FROM PUBLIC, gitgazer_user, gitgazer_reader, gitgazer_writer;--> statement-breakpoint
+REVOKE ALL ON gitgazer.mcp_context_key FROM PUBLIC, gitgazer_reader, gitgazer_writer;--> statement-breakpoint
 CREATE FUNCTION gitgazer.mcp_sign_context(p_payload text, p_pid integer, p_txn_start_us bigint)
 RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER

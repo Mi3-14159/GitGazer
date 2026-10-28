@@ -44,7 +44,7 @@ replayed context yields no rows, never other tenants' rows.
   the database at migration time, so it never appears in the repo, in Terraform or in the app config.
 - Only its owner (the migration user, `root`) can read it. Default privileges on schema `gitgazer` (migrations
   `20260228093008_grants`, `20260310163205_grant_permissions_to_new_users`) would give `SELECT` on every new table to
-  `gitgazer_user`, `gitgazer_reader` and `gitgazer_writer`, so the migration revokes all privileges on the key table
+  `gitgazer_reader` and `gitgazer_writer` (the only default grantees in production), so the migration revokes all privileges on the key table
   from those roles and `PUBLIC` explicitly (my call).
 
 ### Signing (app side, on the app's own connection)
