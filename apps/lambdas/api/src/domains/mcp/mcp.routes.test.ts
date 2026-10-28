@@ -133,4 +133,12 @@ describe('POST /api/mcp', () => {
         expect((await res.json()).result.isError).toBeUndefined();
         expect(runReadOnlyQuery).toHaveBeenCalledWith(expect.objectContaining({integrationRoles: {[ID_A]: 'viewer'}}));
     });
+
+    it('finishes a 2026-07-28 subscriptions/listen instead of holding the stream open', async () => {
+        const res = await post(modernBody('subscriptions/listen', {notifications: {toolsListChanged: true}}), modernHeaders('subscriptions/listen'));
+        expect(res.status).toBe(200);
+        const body = await res.text();
+        expect(body).toContain('"notifications":{}');
+        expect(body).toContain('"resultType":"complete"');
+    });
 });

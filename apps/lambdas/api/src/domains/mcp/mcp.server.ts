@@ -8,7 +8,9 @@ const INSTRUCTIONS = [
 ].join(' ');
 
 export const createMcpServer = (): McpServer => {
-    const server = new McpServer({name: 'gitgazer-mcp', version: '1.0.0'}, {instructions: INSTRUCTIONS});
+    // The SDK defaults tools.listChanged to true, which makes subscriptions/listen hold an SSE stream open
+    // until the Lambda times out; the tool list never changes, so there is nothing to listen for.
+    const server = new McpServer({name: 'gitgazer-mcp', version: '1.0.0'}, {instructions: INSTRUCTIONS, capabilities: {tools: {listChanged: false}}});
     registerMcpTools(server);
     return server;
 };
