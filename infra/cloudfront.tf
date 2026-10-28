@@ -65,7 +65,7 @@ resource "aws_cloudfront_response_headers_policy" "cors_policy" {
 locals {
   # Which backend serves each route group: "apigw" or "web"
   api_cutover = {
-    well_known = "apigw" # /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server
+    well_known = "web"   # /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server
     ui         = "apigw" # /api/* without the groups below, and the fe-failover member of the origin group
     public     = "apigw" # /api/auth/*, /api/slack/*, /api/mcp, /api/mcp/*
     webhooks   = "apigw" # /api/import/*, /api/github/*
