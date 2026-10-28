@@ -14,6 +14,8 @@ type ConnectionMode = 'rds-proxy' | 'data-api';
 let _db: DbClient | null = null;
 let _mcpDb: DbClient | null = null;
 const _pools: pg.Pool[] = [];
+// Counted in the api's connection budget in infra/api_web_function.tf
+const MCP_POOL_MAX = 2;
 let _initPromise: Promise<void> | null = null;
 
 function getConnectionMode(): ConnectionMode {
@@ -63,7 +65,7 @@ function initializeRdsProxy(): void {
 
     _db = createDb(dbUser, getPoolMax());
     // MCP queries log in as gitgazer_mcp itself: a session whose login user owns the tables could switch its role back to it.
-    _mcpDb = createDb(gitgazerMcp.name, 1);
+    _mcpDb = createDb(gitgazerMcp.name, MCP_POOL_MAX);
 }
 
 function initializeDataApi(): void {

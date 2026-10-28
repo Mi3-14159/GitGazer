@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mocks = vi.hoisted(() => ({Pool: vi.fn(), end: vi.fn()}));
+const mocks = vi.hoisted(() => ({Pool: vi.fn(), Signer: vi.fn(), end: vi.fn()}));
 
 vi.mock('pg', () => ({
     default: {
@@ -12,7 +12,13 @@ vi.mock('pg', () => ({
         },
     },
 }));
-vi.mock('@aws-sdk/rds-signer', () => ({Signer: class {}}));
+vi.mock('@aws-sdk/rds-signer', () => ({
+    Signer: class {
+        constructor(options: unknown) {
+            mocks.Signer(options);
+        }
+    },
+}));
 vi.mock('drizzle-orm/node-postgres', () => ({drizzle: () => ({})}));
 
 const loadClient = async () => {
@@ -41,11 +47,12 @@ describe('db client', () => {
         expect(mocks.Pool).toHaveBeenNthCalledWith(3, expect.objectContaining({user: 'gitgazer_app', max: 1, connectionTimeoutMillis: 5000}));
     });
 
-    it('opens a separate single-connection pool that logs in as gitgazer_mcp', async () => {
+    it('opens a separate pool that logs in as gitgazer_mcp with its own IAM token', async () => {
         await (await loadClient()).initDb();
 
         expect(mocks.Pool).toHaveBeenCalledTimes(2);
-        expect(mocks.Pool).toHaveBeenNthCalledWith(2, expect.objectContaining({user: 'gitgazer_mcp', max: 1, database: 'gitgazer'}));
+        expect(mocks.Pool).toHaveBeenNthCalledWith(2, expect.objectContaining({user: 'gitgazer_mcp', max: 2, database: 'gitgazer'}));
+        expect(mocks.Signer).toHaveBeenNthCalledWith(2, expect.objectContaining({username: 'gitgazer_mcp'}));
     });
 
     it('rejects a DB_POOL_MAX that is not a positive integer', async () => {

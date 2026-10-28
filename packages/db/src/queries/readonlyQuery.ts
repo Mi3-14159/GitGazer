@@ -129,7 +129,8 @@ const findPgError = (error: unknown): PgError | undefined => {
  *  1. assertReadOnlySelect — the single-SELECT guarantee (this, NOT the wrap, stops `;` stacking) plus a
  *     function blocklist, which is a mitigation, not a proof.
  *  2. subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — SELECT context + row cap.
- *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session has no other role to switch to.
+ *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session cannot switch to a role that owns
+ *     the tables or bypasses RLS (IAM connection mode; the Data API mode has no separate login).
  *  4. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` and
  *     `rls.integration_roles` (RLS), and a statement_timeout. set_config stays executable on Aurora,
  *     so those settings rest on guard 1.

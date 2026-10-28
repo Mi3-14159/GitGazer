@@ -72,4 +72,11 @@ describe('withRlsTransaction', () => {
         await withRlsTransaction({integrationIds: [ID_A], callback: noop});
         expect(executedSql().join('\n')).not.toContain('rls.integration_roles');
     });
+
+    it('runs the transaction on the given client instead of the default connection', async () => {
+        const client = {transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback({execute}))};
+        await withRlsTransaction({integrationIds: [ID_A], client: client as never, callback: noop});
+        expect(client.transaction).toHaveBeenCalledOnce();
+        expect(transaction).not.toHaveBeenCalled();
+    });
 });
