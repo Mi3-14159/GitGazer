@@ -9,8 +9,9 @@ import {BYTE_BUDGET, runReadOnlyQuery, wrapReadOnlyQuery} from './readonlyQuery'
 
 vi.mock('../client', async (importOriginal) => {
     const {PGlite} = await import('@electric-sql/pglite');
-    // @ts-expect-error -- moduleResolution "node" ignores the package's exports map, which is where this subpath lives.
-    const {pgcrypto} = await import('@electric-sql/pglite/contrib/pgcrypto');
+    // A variable specifier, because only some of the tsconfigs that check this file resolve the package's exports map.
+    const pgcryptoPath = '@electric-sql/pglite/contrib/pgcrypto';
+    const {pgcrypto} = (await import(pgcryptoPath)) as {pgcrypto: import('@electric-sql/pglite').Extension};
     const {drizzle} = await import('drizzle-orm/pglite');
     return {
         ...(await importOriginal<typeof import('../client')>()),

@@ -1,6 +1,4 @@
-import {PGlite, type Transaction} from '@electric-sql/pglite';
-// @ts-expect-error -- moduleResolution "node" ignores the package's exports map, which is where this subpath lives.
-import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
+import {PGlite, type Extension, type Transaction} from '@electric-sql/pglite';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -29,12 +27,16 @@ const mcpTables = [
     'workflow_runs',
 ];
 
+// A variable specifier, because only some of the tsconfigs that check this file resolve the package's exports map.
+const PGCRYPTO = '@electric-sql/pglite/contrib/pgcrypto';
+
 const signContext = `gitgazer.mcp_sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
 
 describe('signed mcp tenant context', () => {
     let db: PGlite;
 
     beforeAll(async () => {
+        const {pgcrypto} = (await import(PGCRYPTO)) as {pgcrypto: Extension};
         db = new PGlite({extensions: {pgcrypto}});
         await db.exec(`
             CREATE EXTENSION pgcrypto;
