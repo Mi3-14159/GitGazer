@@ -92,6 +92,8 @@ describe('mcp tools', () => {
     it('run_sql rejects a non-string / empty sql before touching budget or the DB', async () => {
         expect(tools.get('run_sql')!.config.inputSchema.safeParse({sql: 123}).success).toBe(false);
         expect(tools.get('run_sql')!.config.inputSchema.safeParse({sql: ''}).success).toBe(false);
+        expect(tools.get('run_sql')!.config.inputSchema.safeParse({sql: `SELECT ${'1'.repeat(10_000)}`}).success).toBe(false);
+        expect(tools.get('run_sql')!.config.inputSchema.safeParse({sql: 'SELECT 1'}).success).toBe(true);
         expect((await callTool('run_sql', {sql: '   '})).isError).toBe(true);
         expect(quota.reserveQueryBudget).not.toHaveBeenCalled();
         expect(readonly.runReadOnlyQuery).not.toHaveBeenCalled();

@@ -14,6 +14,9 @@ export class McpToolError extends Error {
     }
 }
 
+// Bounds the work assertReadOnlySelect does per call; no real query comes close.
+const SQL_MAX_LENGTH = 10_000;
+
 const textResult = (text: string, isError?: true): CallToolResult => ({content: [{type: 'text', text}], ...(isError && {isError})});
 
 // Only messages from trusted error types are echoed; anything else (raw DB/Postgres errors) is
@@ -50,7 +53,9 @@ export const registerMcpTools = (server: McpServer): void => {
                 'enterprises, "user", and integrations. Tenant isolation, a row cap, a 128 KB result size limit and a statement ' +
                 'timeout are enforced automatically; truncated: true means rows were dropped. Use list_tables and ' +
                 'describe_table to explore what is available.',
-            inputSchema: z.object({sql: z.string().min(1).describe('A single read-only SELECT or WITH statement.')}),
+            inputSchema: z.object({
+                sql: z.string().min(1).max(SQL_MAX_LENGTH).describe('A single read-only SELECT or WITH statement.'),
+            }),
             annotations: {readOnlyHint: true},
         },
         toolHandler('run_sql', async ({sql}, caller) => {

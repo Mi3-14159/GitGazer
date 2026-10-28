@@ -160,6 +160,7 @@ No table uses this yet. Role gates rely on `rls.integration_roles`, which only l
 
 | Limit             | Default                | Applies to         |
 | ----------------- | ---------------------- | ------------------ |
+| Query length      | 10,000 characters      | every `run_sql`    |
 | Row cap           | 1000 rows              | every `run_sql`    |
 | Result size       | 128 KB                 | every `run_sql`    |
 | Statement timeout | 20 seconds             | every `run_sql`    |
