@@ -135,7 +135,7 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
-2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so there is no other role the session could switch to. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
+2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. This holds in the IAM connection mode used in AWS; the Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
 3. **Row-level security** — every exposed table carries a tenant policy keyed on `rls.integration_ids`; you only see rows for integrations you belong to.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`; no writes or DDL.
 5. **Single-statement structural guard** — the query is wrapped as `SELECT * FROM (<your sql>) _mcp LIMIT <cap+1>`, which structurally forbids statement stacking and non-`SELECT` statements.
