@@ -6,11 +6,15 @@ vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => logger}));
 
 const mockSyncOrgMembers = vi.fn();
 const mockLinkIntegrationMembers = vi.fn();
+const mockProvisionWebhooksForRepos = vi.fn();
 const mockInsertEvent = vi.fn();
 const mockPostToConnections = vi.fn();
 
 vi.mock('@gitgazer/backend-services/org-member-sync', () => ({
     syncOrgMembers: (...args: any[]) => mockSyncOrgMembers(...args),
+}));
+vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
+    provisionWebhooksForRepos: (...args: any[]) => mockProvisionWebhooksForRepos(...args),
 }));
 vi.mock('@gitgazer/backend-services/slack/links', () => ({
     linkIntegrationMembers: (...args: any[]) => mockLinkIntegrationMembers(...args),
@@ -29,6 +33,7 @@ const makeRecord = (body: unknown): SQSRecord => ({body: JSON.stringify(body)}) 
 beforeEach(async () => {
     mockSyncOrgMembers.mockReset().mockResolvedValue(undefined);
     mockLinkIntegrationMembers.mockReset().mockResolvedValue({linked: 1, checked: 2});
+    mockProvisionWebhooksForRepos.mockReset().mockResolvedValue(1);
     mockInsertEvent.mockReset().mockResolvedValue({data: {}, stale: false});
     mockPostToConnections.mockReset().mockResolvedValue(undefined);
     batchProcessor = await import('./batch-processor');
@@ -56,6 +61,19 @@ describe('processRecord', () => {
 
         expect(mockLinkIntegrationMembers).toHaveBeenCalledWith('T1', 'int-1');
         expect(mockSyncOrgMembers).not.toHaveBeenCalled();
+        expect(mockInsertEvent).not.toHaveBeenCalled();
+        expect(result).toBeNull();
+    });
+
+    it('routes a repo_webhook_provisioning task to provisionWebhooksForRepos and skips the importer', async () => {
+        const repos = [{id: 1, name: 'repo', fullName: 'acme/repo', owner: 'acme', private: false}];
+
+        const result = await batchProcessor.processRecord(
+            makeRecord({taskType: 'repo_webhook_provisioning', integrationId: 'int-1', installationId: 42, repos}),
+        );
+
+        expect(mockProvisionWebhooksForRepos).toHaveBeenCalledWith('int-1', 42, repos);
+        expect(logger.info).toHaveBeenCalledWith('Provisioned repo webhooks', {integrationId: 'int-1', installationId: 42, requested: 1, created: 1});
         expect(mockInsertEvent).not.toHaveBeenCalled();
         expect(result).toBeNull();
     });

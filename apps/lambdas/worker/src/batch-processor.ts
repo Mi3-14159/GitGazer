@@ -1,8 +1,9 @@
+import {provisionWebhooksForRepos} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {syncOrgMembers} from '@gitgazer/backend-services/org-member-sync';
 import {linkIntegrationMembers} from '@gitgazer/backend-services/slack/links';
 import {insertEvent} from '@gitgazer/github-import/index';
 import {postToConnections} from '@gitgazer/backend-services/webhooks.controller';
-import {type OrgMemberSyncTask, type SlackLookupTask} from '@gitgazer/backend-core/clients/sqs.client';
+import {type OrgMemberSyncTask, type RepoWebhookProvisioningTask, type SlackLookupTask} from '@gitgazer/backend-core/clients/sqs.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {EventPayloadMap, WorkflowJobWithRelations} from '@gitgazer/db/types';
 import type {EmitterWebhookEventName} from '@octokit/webhooks';
@@ -17,7 +18,7 @@ type WebhookMessage = {
     source?: 'backfill';
 };
 
-type SQSMessage = WebhookMessage | OrgMemberSyncTask | SlackLookupTask;
+type SQSMessage = WebhookMessage | OrgMemberSyncTask | SlackLookupTask | RepoWebhookProvisioningTask;
 
 const isOrgMemberSyncTask = (message: SQSMessage): message is OrgMemberSyncTask => {
     return 'taskType' in message && message.taskType === 'org_member_sync';
@@ -25,6 +26,10 @@ const isOrgMemberSyncTask = (message: SQSMessage): message is OrgMemberSyncTask 
 
 const isSlackLookupTask = (message: SQSMessage): message is SlackLookupTask => {
     return 'taskType' in message && message.taskType === 'slack_lookup';
+};
+
+const isRepoWebhookProvisioningTask = (message: SQSMessage): message is RepoWebhookProvisioningTask => {
+    return 'taskType' in message && message.taskType === 'repo_webhook_provisioning';
 };
 
 export const processRecord = async (record: SQSRecord): Promise<WorkflowJobWithRelations | null> => {
@@ -37,6 +42,13 @@ export const processRecord = async (record: SQSRecord): Promise<WorkflowJobWithR
 
     if (isSlackLookupTask(message)) {
         await linkIntegrationMembers(message.teamId, message.integrationId);
+        return null;
+    }
+
+    if (isRepoWebhookProvisioningTask(message)) {
+        const {integrationId, installationId, repos} = message;
+        const created = await provisionWebhooksForRepos(integrationId, installationId, repos);
+        logger.info('Provisioned repo webhooks', {integrationId, installationId, requested: repos.length, created});
         return null;
     }
 

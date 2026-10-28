@@ -52,18 +52,16 @@ vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     },
 }));
 
+const mockSendRepoWebhookProvisioningTask = vi.fn();
 vi.mock('@gitgazer/backend-core/clients/sqs.client', () => ({
     sendOrgMemberSyncTask: vi.fn(),
+    sendRepoWebhookProvisioningTask: (...args: any[]) => mockSendRepoWebhookProvisioningTask(...args),
 }));
 
 vi.mock('@gitgazer/backend-core/config', () => ({
     default: {
         get: vi.fn().mockReturnValue('https://sqs.queue.url'),
     },
-}));
-
-vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
-    provisionWebhooksForRepos: vi.fn(),
 }));
 
 const mockCreateEventLogEntry = vi.fn().mockResolvedValue(undefined);
@@ -411,5 +409,42 @@ describe('github-app.controller — organization events', () => {
 
             await expect(controller.handleGithubAppEvent('organization', event)).resolves.not.toThrow();
         });
+    });
+});
+
+describe('github-app.controller — installation_repositories events', () => {
+    const addedEvent = {
+        action: 'added',
+        installation: {id: 42, repository_selection: 'selected'},
+        repositories_added: [{id: 7, name: 'repo', full_name: 'acme/repo', private: true}],
+        repositories_removed: [],
+    };
+
+    beforeEach(async () => {
+        vi.restoreAllMocks();
+        mockSendRepoWebhookProvisioningTask.mockReset();
+        mockDb.update.mockReturnValue({set: () => ({where: vi.fn().mockResolvedValue(undefined)})});
+        controller = await import('./github-app.controller');
+    });
+
+    it('dispatches webhook provisioning for added repos to the worker', async () => {
+        mockDb.select.mockReturnValue(buildSelectChain([{installationId: 42, integrationId: 'int-1'}]));
+
+        await controller.handleGithubAppEvent('installation_repositories', addedEvent);
+
+        expect(mockSendRepoWebhookProvisioningTask).toHaveBeenCalledWith('https://sqs.queue.url', {
+            taskType: 'repo_webhook_provisioning',
+            integrationId: 'int-1',
+            installationId: 42,
+            repos: [{id: 7, name: 'repo', fullName: 'acme/repo', owner: 'acme', private: true}],
+        });
+    });
+
+    it('does not dispatch when the installation is not linked', async () => {
+        mockDb.select.mockReturnValue(buildSelectChain([{installationId: 42, integrationId: null}]));
+
+        await controller.handleGithubAppEvent('installation_repositories', addedEvent);
+
+        expect(mockSendRepoWebhookProvisioningTask).not.toHaveBeenCalled();
     });
 });

@@ -6,6 +6,7 @@ import {
     SQSClient,
 } from '@aws-sdk/client-sqs';
 import {randomUUID} from 'crypto';
+import type {RepoInfo} from './github-app.client';
 
 const client = new SQSClient({
     region: process.env.AWS_REGION,
@@ -31,6 +32,13 @@ export interface SlackLookupTask {
     taskType: 'slack_lookup';
     teamId: string;
     integrationId: string;
+}
+
+export interface RepoWebhookProvisioningTask {
+    taskType: 'repo_webhook_provisioning';
+    integrationId: string;
+    installationId: number;
+    repos: RepoInfo[];
 }
 
 export const sendWebhookEvent = async (queueUrl: string, message: WebhookMessage): Promise<void> => {
@@ -61,6 +69,17 @@ export const sendSlackLookupTask = async (queueUrl: string, task: SlackLookupTas
             QueueUrl: queueUrl,
             MessageBody: JSON.stringify(task),
             MessageGroupId: `slack-lookup-${task.teamId}`,
+            MessageDeduplicationId: randomUUID(),
+        }),
+    );
+};
+
+export const sendRepoWebhookProvisioningTask = async (queueUrl: string, task: RepoWebhookProvisioningTask): Promise<void> => {
+    await client.send(
+        new SendMessageCommand({
+            QueueUrl: queueUrl,
+            MessageBody: JSON.stringify(task),
+            MessageGroupId: `repo-webhooks-${task.installationId}`,
             MessageDeduplicationId: randomUUID(),
         }),
     );
