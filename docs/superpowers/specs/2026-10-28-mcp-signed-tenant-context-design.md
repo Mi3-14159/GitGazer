@@ -33,7 +33,7 @@ replayed context yields no rows, never other tenants' rows.
 - **No secret in the repository, in a migration, or in Terraform state readable by the MCP role.**
 - **Fail closed.** Any parse error, missing setting, wrong signature, other session or other transaction → the
   verified context is empty → policies match nothing.
-- **No per-row signature check.** Verification runs once per statement, not once per row.
+- **No per-row signature check.** Verification runs once per protected table in a query (an InitPlan per relation), not once per row.
 
 ## Design (my calls, the owner opted out of the questions)
 
@@ -84,7 +84,7 @@ DEFINER`, owner `root`, `SET search_path = pg_catalog, pg_temp`. Returns the hex
 
 - `mcpTenantSeparationPolicy()` becomes `integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[])` and
   `mcpRolePolicy(minimumRole)` becomes the same with `github.mcp_integration_ids('<minimumRole>')`. The sub-select
-  makes Postgres evaluate it once per statement (InitPlan, confirmed in PGlite), not per row; the `::uuid[]` cast is
+  makes Postgres evaluate it once per relation (InitPlan, confirmed in PGlite), not per row; the `::uuid[]` cast is
   needed, without it Postgres reads `ANY (subquery)` and fails with `uuid = uuid[]`.
 - Column gates in views use the same id lists (`CASE WHEN integration_id = ANY ((SELECT
 github.mcp_integration_ids('admin'))::uuid[]) THEN … END`), never a per-row function call.

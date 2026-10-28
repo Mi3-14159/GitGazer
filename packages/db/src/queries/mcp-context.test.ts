@@ -205,7 +205,7 @@ describe('signed mcp tenant context', () => {
         });
     });
 
-    it('verifies the context once per statement, not per row', async () => {
+    it('verifies the context in an InitPlan, not per row', async () => {
         const plan = await db.transaction(async (tx) => {
             await tx.exec('SET LOCAL ROLE gitgazer_mcp');
             const {rows} = await tx.query<{'QUERY PLAN': string}>('EXPLAIN (COSTS OFF) SELECT * FROM github.t');

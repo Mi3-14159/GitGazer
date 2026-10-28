@@ -138,8 +138,9 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
 3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.mcp_context`, which the database trusts only with a valid signature:
     - The key lives in the database (`gitgazer.mcp_context_key`, generated at migration time and readable only by the app login), never in the repository, Terraform or the app config.
+    - To rotate the key, run `UPDATE gitgazer.mcp_context_key SET key = public.gen_random_bytes(32) WHERE id = 1` as the migration user; MCP queries in flight at that moment fail closed.
     - Before the caller's query, the app reads the MCP session's backend PID and transaction start, has the app login sign the caller's integrations and roles for exactly that session and transaction (`gitgazer.mcp_sign_context`, which only the app login may execute), and sets `rls.mcp_context` to `<payload>|<signature>`.
-    - `github.mcp_context()` verifies the signature once per statement, not per row (the policies call it through a sub-select, so Postgres runs it as an InitPlan).
+    - `github.mcp_context()` verifies the signature once per protected table the query references, not per row (each policy calls it through a sub-select, which Postgres runs as one InitPlan per relation).
     - A missing, malformed, altered or replayed context (copied from another session or transaction) yields no rows, never other tenants' rows, and no error.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
 5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH`, or that contains `;` or a `$1`-style placeholder, is rejected before it runs.
@@ -158,7 +159,7 @@ To open a table with a role requirement:
 - **Column gate**: expose the table through a view that returns admin-only columns only `CASE WHEN integration_id = ANY ((SELECT github.mcp_integration_ids('admin'))::uuid[]) THEN … END` (`NULL` otherwise), and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter, `integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[])` (or it returns every tenant's rows), and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
 - **Global tables** (no `integration_id`): expose them only through a view scoped to the caller's integrations.
 
-Always call `github.mcp_integration_ids` through a sub-select as above, so the signature is verified once per statement, not once per row. No table uses a role gate yet.
+Always call `github.mcp_integration_ids` through a sub-select as above, so the signature is verified once per protected table in the query, not once per row. No table uses a role gate yet.
 
 ## Limits and budget
 
@@ -203,6 +204,7 @@ Infrastructure (Terraform):
 
 - `var.mcp_allowed_redirect_hosts` — feeds `mcpAllowedRedirectHosts`; add a client's hosted callback host here to onboard it without a code change.
 - `var.mcp_throttling` — edge throttle on `POST /api/mcp` (default 20 req/s, burst 40).
+- `var.enable_rds_proxy` — before enabling the proxy, re-check that `pg_backend_pid()` stays stable within a transaction through it, since the signed context is bound to the backend PID.
 - `aws_cognito_user_pool_client.mcp` — the public PKCE client; its ID is plumbed to the Lambda via Secrets Manager and handed to clients by the `/register` endpoint (no manual paste needed).
 
 Database (Drizzle migrations):

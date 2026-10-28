@@ -6,7 +6,7 @@ import {mcpRolePolicy, mcpTenantSeparationPolicy} from './misc';
 const render = (policy: ReturnType<typeof mcpTenantSeparationPolicy>) => new PgDialect().sqlToQuery(policy.using!).sql;
 
 describe('mcpTenantSeparationPolicy', () => {
-    it('is a select-only policy for gitgazer_mcp that checks the signed context once per statement', () => {
+    it('is a select-only policy for gitgazer_mcp that checks the signed context once per table, not per row', () => {
         const policy = mcpTenantSeparationPolicy();
         expect(policy.to).toBe(gitgazerMcp);
         expect(policy.for).toBe('select');
