@@ -60,7 +60,7 @@ describe('POST /api/mcp', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         controller = await import('@/domains/mcp/mcp.controller');
-        (controller.resolveMcpCaller as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({userId: 1, integrationIds: ['i1']});
+        (controller.resolveMcpCaller as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({userId: 1, integrationRoles: {i1: 'viewer'}});
     });
 
     it('forwards request headers so modern header validation is actually enforced', async () => {

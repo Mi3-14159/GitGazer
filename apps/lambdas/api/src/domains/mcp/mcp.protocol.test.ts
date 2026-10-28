@@ -7,7 +7,7 @@ vi.mock('@/domains/mcp/mcp.tools', () => ({
 }));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
-const CALLER = {userId: 1, integrationIds: ['i1']};
+const CALLER = {userId: 1, integrationRoles: {i1: 'viewer' as const}};
 const MODERN_VERSION = '2026-07-28';
 
 let tools: typeof import('@/domains/mcp/mcp.tools');
