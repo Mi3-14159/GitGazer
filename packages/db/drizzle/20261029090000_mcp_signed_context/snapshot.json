@@ -46,6 +46,12 @@
     },
     {
       "isRlsEnabled": false,
+      "name": "mcp_context_key",
+      "entityType": "tables",
+      "schema": "gitgazer"
+    },
+    {
+      "isRlsEnabled": false,
       "name": "mcp_query_usage",
       "entityType": "tables",
       "schema": "gitgazer"
@@ -589,6 +595,32 @@
       "entityType": "columns",
       "schema": "gitgazer",
       "table": "integration_invitations"
+    },
+    {
+      "type": "smallint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "gitgazer",
+      "table": "mcp_context_key"
+    },
+    {
+      "type": "bytea",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "key",
+      "entityType": "columns",
+      "schema": "gitgazer",
+      "table": "mcp_context_key"
     },
     {
       "type": "bigint",
@@ -4881,6 +4913,16 @@
       "entityType": "pks",
       "schema": "github",
       "table": "workflow_runs"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "mcp_context_key_pkey",
+      "schema": "gitgazer",
+      "table": "mcp_context_key",
+      "entityType": "pks"
     },
     {
       "columns": [

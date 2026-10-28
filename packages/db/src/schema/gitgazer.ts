@@ -1,5 +1,21 @@
 import {sql} from 'drizzle-orm';
-import {bigint, boolean, foreignKey, index, integer, jsonb, pgSchema, primaryKey, text, timestamp, unique, uuid, varchar} from 'drizzle-orm/pg-core';
+import {
+    bigint,
+    boolean,
+    bytea,
+    foreignKey,
+    index,
+    integer,
+    jsonb,
+    pgSchema,
+    primaryKey,
+    smallint,
+    text,
+    timestamp,
+    unique,
+    uuid,
+    varchar,
+} from 'drizzle-orm/pg-core';
 import {
     EVENT_LOG_CATEGORIES,
     EVENT_LOG_TYPES,
@@ -41,6 +57,13 @@ export const mcpQueryUsage = gitgazerSchema.table(
     },
     (table) => [primaryKey({columns: [table.userId, table.windowStart]})],
 );
+
+// Signs the MCP tenant context. Readable only by its owner: migration 20261029090000_mcp_signed_context revokes the
+// default grants and inserts the key row, which Drizzle cannot express.
+export const mcpContextKey = gitgazerSchema.table('mcp_context_key', {
+    id: smallint('id').primaryKey(),
+    key: bytea('key').notNull(),
+});
 
 export const wsConnections = gitgazerSchema.table(
     'ws_connections',
