@@ -48,7 +48,8 @@ describe('signed mcp tenant context', () => {
             CREATE SCHEMA gitgazer;
             GRANT USAGE ON SCHEMA gitgazer TO gitgazer_user, gitgazer_reader, gitgazer_writer;
             ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT ON TABLES TO gitgazer_user, gitgazer_reader, gitgazer_writer;
-            GRANT USAGE ON SCHEMA github TO gitgazer_mcp;
+            GRANT USAGE ON SCHEMA github TO gitgazer_mcp, gitgazer_reader;
+            GRANT USAGE ON SCHEMA gitgazer TO gitgazer_mcp;
             CREATE FUNCTION github.mcp_has_role(uuid, text) RETURNS boolean LANGUAGE sql AS 'SELECT FALSE';
             ${mcpTables
                 .map(
@@ -178,15 +179,23 @@ describe('signed mcp tenant context', () => {
             });
 
         it('keeps the key from gitgazer_mcp', async () => {
-            await expect(asRole('gitgazer_mcp', 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(/permission denied/);
+            await expect(asRole('gitgazer_mcp', 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(
+                /permission denied for table mcp_context_key/,
+            );
         });
 
         it('keeps the sign function from gitgazer_mcp', async () => {
-            await expect(asRole('gitgazer_mcp', `SELECT gitgazer.mcp_sign_context('x', 1, 1)`)).rejects.toThrow(/permission denied/);
+            await expect(asRole('gitgazer_mcp', `SELECT gitgazer.mcp_sign_context('x', 1, 1)`)).rejects.toThrow(
+                /permission denied for function mcp_sign_context/,
+            );
         });
 
         it.each(['gitgazer_user', 'gitgazer_reader', 'gitgazer_writer'])('keeps the key from %s', async (role) => {
             await expect(asRole(role, 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(/permission denied for table mcp_context_key/);
+        });
+
+        it.each(['mcp_context', 'mcp_integration_ids'])('keeps github.%s from gitgazer_reader', async (fn) => {
+            await expect(asRole('gitgazer_reader', `SELECT github.${fn}()`)).rejects.toThrow(`permission denied for function ${fn}`);
         });
 
         it('keeps the sign function from gitgazer_reader', async () => {

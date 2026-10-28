@@ -37,6 +37,7 @@ AS $$
     SELECT split_part(entry, ':', 1)::uuid, split_part(entry, ':', 2)
     FROM verified, unnest(string_to_array(verified.payload, ',')) AS entry
 $$;--> statement-breakpoint
+REVOKE EXECUTE ON FUNCTION github.mcp_context() FROM PUBLIC;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION github.mcp_context() TO gitgazer_mcp;--> statement-breakpoint
 CREATE FUNCTION github.mcp_integration_ids(p_minimum_role text DEFAULT 'viewer')
 RETURNS uuid[]
@@ -50,6 +51,7 @@ AS $$
     JOIN ranks AS required ON required.role = p_minimum_role
     WHERE caller.rank <= required.rank
 $$;--> statement-breakpoint
+REVOKE EXECUTE ON FUNCTION github.mcp_integration_ids(text) FROM PUBLIC;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION github.mcp_integration_ids(text) TO gitgazer_mcp;--> statement-breakpoint
 ALTER POLICY "tenant separation mcp" ON "github"."enterprises" TO "gitgazer_mcp" USING (integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[]));--> statement-breakpoint
 ALTER POLICY "tenant separation mcp" ON "github"."integrations" TO "gitgazer_mcp" USING (integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[]));--> statement-breakpoint
