@@ -202,8 +202,22 @@ describe('runReadOnlyQuery', () => {
         const boom = new Error('sign failed');
         signExecute().mockRejectedValue(boom);
 
-        await expect(mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}})).rejects.toBe(boom);
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(mod.McpContextError);
+        expect((error as {cause?: unknown}).cause).toBe(boom);
         expect(executedSql()).toHaveLength(1);
+    });
+
+    it('does not report a signing failure from Postgres as an error in the caller query', async () => {
+        mockRun([{a: 1}], [{name: 'a'}]);
+        const pgError = Object.assign(new Error('function gitgazer.mcp_sign_context(unknown, integer, bigint) does not exist'), {code: '42883'});
+        signExecute().mockRejectedValue(Object.assign(new Error('Failed query: SELECT gitgazer.mcp_sign_context(…)'), {cause: pgError}));
+
+        const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(mod.McpContextError);
+        expect(error).not.toBeInstanceOf(mod.ReadOnlyQueryError);
     });
 
     it('rejects a signature that is not 64 hex characters before setting the context', async () => {
@@ -232,7 +246,9 @@ describe('runReadOnlyQuery', () => {
         const error = await mod.runReadOnlyQuery({sql: 'SELECT 1', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
 
         expect(error).toBeInstanceOf(mod.ReadOnlyQueryError);
-        expect((error as Error).message).toMatch(/Data API mode/);
+        expect((error as Error).message).toBe(
+            'MCP queries are not available in Data API mode: they need the separate gitgazer_mcp login (DB_CONNECTION_MODE=rds-proxy).',
+        );
         expect(rds.withRlsTransaction).not.toHaveBeenCalled();
     });
 

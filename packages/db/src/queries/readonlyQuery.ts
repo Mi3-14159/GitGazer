@@ -22,6 +22,17 @@ export class ReadOnlyQueryError extends Error {
     }
 }
 
+/** A server-side failure to sign the tenant context: never the caller's fault, so never echoed to the caller. */
+export class McpContextError extends Error {
+    constructor(
+        message: string,
+        readonly cause?: unknown,
+    ) {
+        super(message);
+        this.name = 'McpContextError';
+    }
+}
+
 // Leading whitespace/comments — stripped only to inspect the first keyword.
 const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 
@@ -203,12 +214,14 @@ const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<vo
         sql`SELECT pg_backend_pid() AS pid, (extract(epoch FROM now()) * 1000000)::bigint::text AS txn_start_us`,
     )) as unknown as {rows: {pid: number; txn_start_us: string}[]};
     const {pid, txn_start_us} = session.rows[0];
-    const signed = (await db.execute(
-        sql`SELECT gitgazer.mcp_sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`,
-    )) as unknown as {rows: {signature?: unknown}[]};
+    const signed = (await db
+        .execute(sql`SELECT gitgazer.mcp_sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
+        .catch((error: unknown) => {
+            throw new McpContextError('Could not sign the MCP tenant context', error);
+        })) as unknown as {rows: {signature?: unknown}[]};
     const signature = signed.rows[0]?.signature;
     if (typeof signature !== 'string' || !SIGNATURE_PATTERN.test(signature)) {
-        throw new Error('Signing the MCP tenant context returned an invalid signature');
+        throw new McpContextError('Signing the MCP tenant context returned an invalid signature');
     }
     await tx.execute(sql.raw(`SET LOCAL rls.mcp_context = '${payload}|${signature}';`));
 };
@@ -243,7 +256,7 @@ export async function runReadOnlyQuery(params: {
     const userSql = assertReadOnlySelect(params.sql);
     if (!hasSeparateMcpLogin()) {
         throw new ReadOnlyQueryError(
-            'run_sql is not available in Data API mode: MCP queries need the separate gitgazer_mcp login (DB_CONNECTION_MODE=rds-proxy).',
+            'MCP queries are not available in Data API mode: they need the separate gitgazer_mcp login (DB_CONNECTION_MODE=rds-proxy).',
         );
     }
     const payload = contextPayload(params.integrationRoles);
@@ -274,6 +287,8 @@ export async function runReadOnlyQuery(params: {
     } catch (error) {
         // tx.rollback() ends every successful run by throwing this; nothing an MCP query does is meant to persist.
         if (error instanceof TransactionRollbackError && result) return result;
+        // findPgError walks `cause`, so a signing failure would otherwise pass for an error in the caller's SQL.
+        if (error instanceof McpContextError) throw error;
 
         // Translate caller-caused Postgres errors into ReadOnlyQueryError so the MCP layer echoes an
         // actionable message to the client instead of a generic "Tool execution failed". Anything not
