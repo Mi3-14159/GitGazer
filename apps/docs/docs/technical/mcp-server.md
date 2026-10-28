@@ -143,6 +143,18 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 8. **Resource caps** — a `statement_timeout` and a row cap bound each query.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
+### Role-aware access
+
+Besides the tenant list, each query transaction receives the caller's role per integration as `rls.integration_roles` (`<integration-uuid>:<role>` pairs joined by `,`). The SQL helper `github.mcp_has_role(integration_id, minimum_role)` returns `true` only when the caller holds at least `minimum_role` (`owner`, `admin`, `member`, `viewer`) in that integration, and `false` for unknown integrations, unknown roles, or an unset setting.
+
+To open a table with a role requirement:
+
+- **Row gate**: attach `mcpRolePolicy(minimumRole)` instead of `mcpTenantSeparationPolicy()`. It combines the tenant check with `github.mcp_has_role`.
+- **Column gate**: expose the table through a `security_barrier` view that returns admin-only columns only when `github.mcp_has_role(integration_id, 'admin')` and `NULL` otherwise, and grant `gitgazer_mcp` the view rather than the table.
+- **Global tables** (no `integration_id`): expose them only through a view scoped to the caller's integrations.
+
+No table uses this yet.
+
 ## Limits and budget
 
 | Limit             | Default                | Applies to         |
