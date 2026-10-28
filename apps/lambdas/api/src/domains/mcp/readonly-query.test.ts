@@ -87,6 +87,11 @@ describe('runReadOnlyQuery', () => {
             expect(() => mod.assertReadOnlySelect(q)).toThrow(/blocked/);
         });
 
+        it('rejects bind-parameter placeholders, which would bind to the wrap parameters', () => {
+            expect(() => mod.assertReadOnlySelect('SELECT $1')).toThrow(/placeholders/);
+            expect(() => mod.assertReadOnlySelect('SELECT * FROM t WHERE a = $2')).toThrow(/placeholders/);
+        });
+
         it('rejects a nested block comment in the leading comments (Postgres nests them, the regex does not)', () => {
             expect(() => mod.assertReadOnlySelect('/* /* */ SELECT 1 */ DELETE FROM x')).toThrow(/nested block comments/);
         });
@@ -108,19 +113,17 @@ describe('runReadOnlyQuery', () => {
     });
 
     const capture: {params?: Record<string, unknown>; execArgs: SQL[]; rollback?: ReturnType<typeof vi.fn>} = {execArgs: []};
-    // Rows get the wrap's bookkeeping columns like the database adds them; a row may override `_mcp_more`.
-    // A follow-up query (the empty-result probe) answers `found`.
-    const mockRun = (rows: Record<string, unknown>[], fields?: {name: string}[], found = false) => {
+    // Rows get the wrap's bookkeeping columns like the database adds them; a row may override them.
+    const mockRun = (rows: Record<string, unknown>[], fields?: {name: string}[]) => {
         capture.execArgs = [];
         (rds.withRlsTransaction as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (params: Record<string, unknown>) => {
             capture.params = params;
             const tx = {
                 execute: vi.fn(async (query: SQL) => {
                     capture.execArgs.push(query);
-                    if (capture.execArgs.length > 1) return {rows: [{found}]};
                     return {
-                        rows: rows.map((row) => ({_mcp_bytes: 0, _mcp_more: null, ...row})),
-                        fields: fields && [...fields, {name: '_mcp_bytes'}, {name: '_mcp_more'}],
+                        rows: rows.map((row) => ({_mcp_bytes: 0, _mcp_more: null, _mcp_any: true, ...row})),
+                        fields: fields && [...fields, {name: '_mcp_bytes'}, {name: '_mcp_more'}, {name: '_mcp_any'}],
                     };
                 }),
                 rollback: vi.fn(() => {
@@ -157,36 +160,29 @@ describe('runReadOnlyQuery', () => {
         mockRun([{a: 1}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 500});
 
+        expect(capture.execArgs).toHaveLength(1);
         const {sql: rendered, params} = dialect.sqlToQuery(capture.execArgs[0]);
         // The LIMIT must sit inside the window, or Postgres reads the whole input to evaluate the budget filter.
-        expect(rendered).toContain('FROM (SELECT * FROM (\nSELECT 1 AS a\n) AS _mcp_inner LIMIT $1) AS _mcp)');
-        expect(rendered).toMatch(/WHERE _mcp_bytes <= \$2$/);
+        expect(rendered).toMatch(/^WITH _mcp AS MATERIALIZED \(SELECT \* FROM \(\nSELECT 1 AS a\n\) AS _mcp_inner LIMIT \$1\) /);
+        expect(rendered).toContain('sum(octet_length((_mcp.*)::text))');
+        expect(rendered).toMatch(/ON _mcp_bytes <= \$2$/);
         expect(params).toEqual([501, 128 * 1024]);
     });
 
-    it('flags an empty result as truncated when the query has rows the byte budget dropped', async () => {
-        mockRun([], [{name: 's'}], true);
+    it('flags an empty result as truncated when the byte budget dropped the first row', async () => {
+        // No row fits the budget: the LEFT JOIN returns one NULL sentinel row carrying `_mcp_any`.
+        mockRun([{s: null, _mcp_bytes: null, _mcp_any: true}], [{name: 's'}]);
         const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
 
         expect(result).toEqual({columns: ['s'], rows: [], rowCount: 0, truncated: true});
-        const probe = dialect.sqlToQuery(capture.execArgs[1]);
-        expect(probe.sql).toBe('SELECT EXISTS (SELECT 1 FROM (\nSELECT s FROM t\n) AS _mcp LIMIT $1) AS found');
-        expect(probe.params).toEqual([1]);
+        expect(capture.execArgs).toHaveLength(1);
     });
 
     it('does not flag a genuinely empty result', async () => {
-        mockRun([], [{name: 's'}], false);
+        mockRun([{s: null, _mcp_bytes: null, _mcp_any: false}], [{name: 's'}]);
         const result = await mod.runReadOnlyQuery({sql: 'SELECT s FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
 
-        expect(result.truncated).toBe(false);
-        expect(capture.execArgs).toHaveLength(2);
-    });
-
-    it('does not probe when the budgeted query returned rows', async () => {
-        mockRun([{a: 1}], [{name: 'a'}]);
-        await mod.runReadOnlyQuery({sql: 'SELECT a FROM t', integrationRoles: {[INTEGRATION_ID]: 'member'}});
-
-        expect(capture.execArgs).toHaveLength(1);
+        expect(result).toEqual({columns: ['s'], rows: [], rowCount: 0, truncated: false});
     });
 
     it('never returns the bookkeeping columns', async () => {

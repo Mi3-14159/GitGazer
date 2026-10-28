@@ -68,6 +68,10 @@ export function assertReadOnlySelect(rawSql: string): string {
     if (trimmed.includes(';')) {
         throw new ReadOnlyQueryError('Only a single statement is allowed (no ";")');
     }
+    // A `$n` would bind to the wrap's own parameters.
+    if (/\$\d/.test(trimmed)) {
+        throw new ReadOnlyQueryError('Bind-parameter placeholders ($1, $2, …) are not supported; inline the values');
+    }
     const leading = LEADING_NOISE.exec(trimmed)?.[0] ?? '';
     if (NESTED_BLOCK_COMMENT.test(leading)) {
         throw new ReadOnlyQueryError('Query uses nested block comments, which are not supported');
@@ -93,20 +97,29 @@ export function assertReadOnlySelect(rawSql: string): string {
  * sees it, so a huge row must never leave Postgres. The filter drops a suffix, invisible to the row count, so
  * `_mcp_more` (a one-row look-ahead) on the last kept row tells the caller that a following row was dropped.
  * The LIMIT sits inside the window: Postgres cannot tell that the running sum only grows, so a LIMIT above the
- * filter would not stop it from reading and text-converting the whole input.
+ * filter would not stop it from reading and text-converting the whole input. `(_mcp.*)::text` rather than
+ * `_mcp::text`, which would resolve to a caller column named `_mcp`.
+ *
+ * When no row fits the budget, the LEFT JOIN from the one-row anchor returns a single sentinel row of NULLs whose
+ * `_mcp_any` says whether the query had rows at all, so a dropped first row is still flagged in one statement.
+ * MATERIALIZED makes the anchor and the window read the same single evaluation of the caller's query.
  */
 export const wrapReadOnlyQuery = (userSql: string, rowCap: number): SQL =>
-    sql`SELECT * FROM (SELECT _mcp.*, sum(octet_length(_mcp::text)) OVER (ROWS UNBOUNDED PRECEDING) AS _mcp_bytes, lead(1) OVER () AS _mcp_more FROM (SELECT * FROM (\n${sql.raw(userSql)}\n) AS _mcp_inner LIMIT ${rowCap + 1}) AS _mcp) AS _mcp_budget WHERE _mcp_bytes <= ${BYTE_BUDGET}`;
+    sql`WITH _mcp AS MATERIALIZED (SELECT * FROM (\n${sql.raw(userSql)}\n) AS _mcp_inner LIMIT ${rowCap + 1}) SELECT _mcp_budget.*, _mcp_anchor._mcp_any FROM (SELECT EXISTS (SELECT FROM _mcp) AS _mcp_any) AS _mcp_anchor LEFT JOIN (SELECT _mcp.*, sum(octet_length((_mcp.*)::text)) OVER (ROWS UNBOUNDED PRECEDING) AS _mcp_bytes, lead(1) OVER () AS _mcp_more FROM _mcp) AS _mcp_budget ON _mcp_bytes <= ${BYTE_BUDGET}`;
 
 /**
  * Strip the wrap's bookkeeping columns and apply both limits again to what came back, so the payload never exceeds
  * BYTE_BUDGET: a row that does not fit is dropped, even the first one.
  */
 const limitRows = (rows: Record<string, unknown>[], rowCap: number): Pick<ReadOnlyQueryResult, 'rows' | 'truncated'> => {
+    // A real row always has a byte count; NULL marks the sentinel.
+    if (rows[0] && rows[0]._mcp_bytes == null) {
+        return {rows: [], truncated: rows[0]._mcp_any === true};
+    }
     let truncated = rows.length > rowCap || rows[rows.length - 1]?._mcp_more != null;
     const kept: Record<string, unknown>[] = [];
     let bytes = 0;
-    for (const {_mcp_bytes, _mcp_more, ...row} of rows.slice(0, rowCap)) {
+    for (const {_mcp_bytes, _mcp_more, _mcp_any, ...row} of rows.slice(0, rowCap)) {
         bytes += Buffer.byteLength(JSON.stringify(row));
         if (bytes > BYTE_BUDGET) {
             truncated = true;
@@ -169,10 +182,11 @@ const findPgError = (error: unknown): PgError | undefined => {
  * role permissions and a per-query budget.
  *
  * Tenant isolation is layered (defense-in-depth):
- *  1. assertReadOnlySelect — SELECT/WITH shape, `;` rejection and a function blocklist, which is a
+ *  1. assertReadOnlySelect — SELECT/WITH shape, `;` and `$n` rejection and a function blocklist, which is a
  *     mitigation, not a proof.
- *  2. wrapReadOnlyQuery `SELECT * FROM (<sql>) _mcp LIMIT $1` — the bound LIMIT forces the extended protocol,
- *     so Postgres refuses stacked statements; the subquery gives SELECT context and the row cap.
+ *  2. wrapReadOnlyQuery `WITH _mcp AS MATERIALIZED (SELECT * FROM (<sql>) _mcp_inner LIMIT $1) …` with the byte
+ *     budget as $2 — the bound parameters force the extended protocol, so Postgres refuses stacked statements; the
+ *     subquery gives SELECT context, the row cap and the in-database byte budget.
  *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session cannot switch to a role that owns
  *     the tables or bypasses RLS (IAM connection mode; the Data API mode has no separate login).
  *  4. READ ONLY txn that is always rolled back, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids`
@@ -209,15 +223,8 @@ export async function runReadOnlyQuery(params: {
                 };
 
                 const {rows, truncated} = limitRows(raw.rows ?? [], rowCap);
-                const columns = raw.fields?.slice(0, -2).map((f) => f.name) ?? Object.keys(rows[0] ?? {});
-                // An empty result can mean the budget filter dropped an oversized first row, which leaves no row to
-                // carry `_mcp_more`. The bound LIMIT keeps this query on the extended protocol too.
-                let firstRowDropped = false;
-                if (!raw.rows?.length) {
-                    const probe = sql`SELECT EXISTS (SELECT 1 FROM (\n${sql.raw(userSql)}\n) AS _mcp LIMIT ${1}) AS found`;
-                    firstRowDropped = ((await tx.execute(probe)) as {rows: {found: boolean}[]}).rows[0]?.found === true;
-                }
-                result = {columns, rows, rowCount: rows.length, truncated: truncated || firstRowDropped};
+                const columns = raw.fields?.slice(0, -3).map((f) => f.name) ?? Object.keys(rows[0] ?? {});
+                result = {columns, rows, rowCount: rows.length, truncated};
 
                 return tx.rollback();
             },
