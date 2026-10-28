@@ -16,7 +16,7 @@ import {
     OrganizationMemberRemovedEvent,
 } from '@octokit/webhooks-types';
 import {and, eq} from 'drizzle-orm';
-import {provisionWebhooksForRepos} from './webhook-provisioning';
+import {provisionWebhooksForRepos} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 
 export const handleGithubAppEvent = async (eventType: string, payload: unknown): Promise<void> => {
     const logger = getLogger();

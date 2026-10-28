@@ -82,7 +82,7 @@ vi.mock('@gitgazer/db/client', () => ({
 
 const mockGetGithubSettings = vi.fn();
 const mockInstallGithubApp = vi.fn();
-vi.mock('@/domains/apps/github-settings', () => ({
+vi.mock('@gitgazer/backend-services/github-app/github-settings', () => ({
     getGithubSettings: (...args: unknown[]) => mockGetGithubSettings(...args),
     installGithubApp: (...args: unknown[]) => mockInstallGithubApp(...args),
 }));

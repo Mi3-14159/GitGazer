@@ -18,8 +18,8 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
 }));
 
 const mockGetGithubSettings = vi.fn();
-vi.mock('@/domains/apps/github-settings', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@/domains/apps/github-settings')>()),
+vi.mock('@gitgazer/backend-services/github-app/github-settings', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@gitgazer/backend-services/github-app/github-settings')>()),
     getGithubSettings: (...args: any[]) => mockGetGithubSettings(...args),
 }));
 
@@ -42,7 +42,7 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
 }));
 
-vi.mock('@/domains/github-app/webhook-provisioning', () => ({
+vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
     deprovisionAllWebhooks: vi.fn(),
     updateWebhookSecrets: vi.fn(),
 }));
@@ -185,7 +185,7 @@ describe('integrations controller', () => {
                 }
                 return params.callback({query: {integrations: {findMany: () => Promise.resolve([{integrationId: 'int-1'}])}}});
             });
-            const webhooks = await import('@/domains/github-app/webhook-provisioning');
+            const webhooks = await import('@gitgazer/backend-services/github-app/webhook-provisioning');
             const schema = await import('@gitgazer/db/schema/gitgazer');
 
             await controller.rotateSecret({integrationId: 'int-1', integrationIds: ['int-1']});
@@ -208,7 +208,7 @@ describe('integrations controller', () => {
                 if (params.userName) return params.callback(rotationTx([WEBHOOK_5A], order));
                 return params.callback({query: {integrations: {findMany: () => Promise.resolve([{integrationId: 'int-1'}])}}});
             });
-            const webhooks = await import('@/domains/github-app/webhook-provisioning');
+            const webhooks = await import('@gitgazer/backend-services/github-app/webhook-provisioning');
             vi.mocked(webhooks.updateWebhookSecrets).mockImplementation(async () => {
                 // A reinstall recorded after the commit is not part of the captured set
                 order.push('github');

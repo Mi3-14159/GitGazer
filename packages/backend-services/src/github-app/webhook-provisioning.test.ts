@@ -22,7 +22,7 @@ vi.mock('drizzle-orm', async (importOriginal) => {
 });
 vi.mock('@gitgazer/db/schema/app', () => ({gitgazerWriter: {name: 'gitgazer_writer'}}));
 const getGithubSettings = vi.fn();
-vi.mock('@/domains/apps/github-settings', () => ({getGithubSettings}));
+vi.mock('./github-settings', () => ({getGithubSettings}));
 const logger = {debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()};
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => logger}));
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({

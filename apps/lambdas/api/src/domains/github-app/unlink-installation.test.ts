@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockDeprovision = vi.fn();
-vi.mock('@/domains/github-app/webhook-provisioning', () => ({
+vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
     deprovisionWebhooks: (...args: unknown[]) => mockDeprovision(...args),
 }));
 

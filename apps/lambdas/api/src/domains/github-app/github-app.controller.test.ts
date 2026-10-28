@@ -62,7 +62,7 @@ vi.mock('@gitgazer/backend-core/config', () => ({
     },
 }));
 
-vi.mock('./webhook-provisioning', () => ({
+vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
     provisionWebhooksForRepos: vi.fn(),
 }));
 

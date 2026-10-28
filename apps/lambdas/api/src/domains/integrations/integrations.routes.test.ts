@@ -18,8 +18,11 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@gitgazer/db/client', () => ({db: {select: mocks.select, update: mocks.update, transaction: mocks.transaction}}));
-vi.mock('@/domains/apps/github-settings', () => ({getGithubSettings: mocks.getGithubSettings}));
-vi.mock('@/domains/github-app/webhook-provisioning', () => ({provisionWebhooks: mocks.provisionWebhooks, updateAllWebhookEvents: vi.fn()}));
+vi.mock('@gitgazer/backend-services/github-app/github-settings', () => ({getGithubSettings: mocks.getGithubSettings}));
+vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
+    provisionWebhooks: mocks.provisionWebhooks,
+    updateAllWebhookEvents: vi.fn(),
+}));
 vi.mock('@/domains/github-app/unlink-installation', () => ({unlinkInstallation: vi.fn()}));
 vi.mock('@/domains/integrations/integrations.controller', () => ({
     deleteIntegration: vi.fn(),

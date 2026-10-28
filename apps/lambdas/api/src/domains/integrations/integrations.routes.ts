@@ -1,6 +1,6 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
-import {provisionWebhooks, updateAllWebhookEvents} from '@/domains/github-app/webhook-provisioning';
+import {provisionWebhooks, updateAllWebhookEvents} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {
     deleteIntegration,
     getIntegrations,
@@ -8,7 +8,7 @@ import {
     updateOrgSyncSettings,
     upsertIntegration,
 } from '@/domains/integrations/integrations.controller';
-import {getGithubSettings} from '@/domains/apps/github-settings';
+import {getGithubSettings} from '@gitgazer/backend-services/github-app/github-settings';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
