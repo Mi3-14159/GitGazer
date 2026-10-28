@@ -29,7 +29,7 @@ catalog:
   '@docusaurus/types': '3.10.2'
   '@easyops-cn/docusaurus-search-local': '^0.55.2'
   '@hono/aws-lambda': '1.0.1'
-  '@hono/node-server': '2.1.4'
+  '@hono/node-server': '2.1.5'
   '@lucide/vue': '^1.59.0'
   '@mdx-js/react': '^3.0.0'
   '@nx/eslint': '23.3.0'
