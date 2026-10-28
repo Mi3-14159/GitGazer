@@ -8,7 +8,6 @@ vi.mock('@gitgazer/db/client', () => ({
 }));
 
 const dialect = new PgDialect();
-const renderSql = (query: SQL): string => dialect.sqlToQuery(query).sql;
 
 const INTEGRATION_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -93,8 +92,7 @@ describe('runReadOnlyQuery', () => {
         });
 
         it('rejects statement stacking that would break out of the subquery wrap (cross-tenant read)', () => {
-            // The wrapped query runs with no bind params -> simple query protocol -> multiple `;`
-            // statements would execute, so an embedded `;` must be rejected outright.
+            // Postgres already refuses these for the bound wrap; the text check is defence in depth.
             expect(() => mod.assertReadOnlySelect('SELECT 1; SELECT 2')).toThrow(/single statement/);
             // The real exploit: break out of `SELECT * FROM (<sql>) _mcp`, flip the RLS GUC, re-select.
             const breakout = `SELECT 1) x; SET rls.integration_ids='00000000-0000-0000-0000-000000000000'; SELECT * FROM (SELECT * FROM github.workflow_runs`;
@@ -132,14 +130,14 @@ describe('runReadOnlyQuery', () => {
         expect(capture.params?.integrationRoles).toEqual({[INTEGRATION_ID]: 'member'});
     });
 
-    it('wraps the user SQL in a subquery with a row-cap+1 LIMIT', async () => {
+    it('wraps the user SQL in a subquery with a row-cap+1 LIMIT bound as a parameter (extended query protocol)', async () => {
         mockRun([{a: 1}]);
         await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}, rowCap: 500});
 
-        const rendered = renderSql(capture.execArg as SQL);
-        expect(rendered).toContain('SELECT * FROM (');
-        expect(rendered).toContain(') AS _mcp LIMIT 501');
-        expect(rendered).toContain('SELECT 1 AS a');
+        const {sql: rendered, params} = dialect.sqlToQuery(capture.execArg as SQL);
+        expect(rendered).toContain('SELECT * FROM (\nSELECT 1 AS a\n) AS _mcp');
+        expect(rendered).toContain('LIMIT $1');
+        expect(params).toEqual([501]);
     });
 
     it('flags truncation and caps the returned rows at rowCap', async () => {

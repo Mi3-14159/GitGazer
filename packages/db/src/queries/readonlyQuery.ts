@@ -1,4 +1,4 @@
-import {sql} from 'drizzle-orm';
+import {sql, type SQL} from 'drizzle-orm';
 import {mcpDb, withRlsTransaction} from '../client';
 import {gitgazerMcp} from '../schema';
 import type {MemberRole} from '../types/members';
@@ -38,8 +38,8 @@ const NESTED_BLOCK_COMMENT = /\/\*(?:(?!\*\/)[\s\S])*\/\*/;
 //   back into the pool with the connection;
 // - `pg_stat_*`, which leaks other tenants' in-flight SQL + UUIDs since every request shares the gitgazer_mcp role;
 // - file, large-object, sleep and backend-control functions.
-// The `SET`/`RESET` statements are deliberately NOT listed — they need a `;` to run, which
-// assertReadOnlySelect already rejects, and blocklisting the words would false-positive on `%reset%`.
+// The `SET`/`RESET` statements are deliberately NOT listed — they need a second statement, which Postgres refuses
+// for the bound wrapReadOnlyQuery, and blocklisting the words would false-positive on `%reset%`.
 const BLOCKED_TOKENS =
     /\b(?:set_config|pg_settings|\w*_to_xml\w*|ts_stat|ts_rewrite|dblink\w*|pg_(?:try_)?advisory_\w*|pg_sleep\w*|pg_read_file|pg_read_binary_file|pg_ls_\w+|pg_stat_\w+|lo_\w+|loread|lowrite|pg_terminate_backend|pg_cancel_backend)\b/i;
 
@@ -53,10 +53,8 @@ const UNICODE_ESCAPE = /u&['"]/i;
  * Validate that a string is a SINGLE read-only SELECT/WITH statement and return it with any
  * trailing semicolons removed. Throws `ReadOnlyQueryError` otherwise.
  *
- * Rejecting an embedded `;` is the crux of the tenant boundary: `runReadOnlyQuery` executes the
- * wrapped query with no bind parameters, so node-postgres uses the simple query protocol, which
- * would otherwise run multiple `;`-separated statements — letting a caller break out of the wrap
- * and `SET rls.integration_ids` to another tenant. The subquery-wrap alone does NOT prevent this.
+ * Rejecting an embedded `;` is defence in depth with a clear message: the bind parameters in
+ * wrapReadOnlyQuery are what stop a caller from stacking `SET rls.integration_ids` after the wrap.
  */
 export function assertReadOnlySelect(rawSql: string): string {
     const trimmed = rawSql
@@ -84,6 +82,13 @@ export function assertReadOnlySelect(rawSql: string): string {
     }
     return trimmed;
 }
+
+/**
+ * The LIMIT is a bind parameter on purpose: with parameters node-postgres uses the extended query protocol, where
+ * Postgres refuses more than one command per statement, which is what makes statement stacking impossible. Never
+ * interpolate it. The newline before `)` neutralizes a trailing line comment in userSql.
+ */
+export const wrapReadOnlyQuery = (userSql: string, rowCap: number): SQL => sql`SELECT * FROM (\n${sql.raw(userSql)}\n) AS _mcp LIMIT ${rowCap + 1}`;
 
 // Postgres SQLSTATE for a statement aborted by `statement_timeout` (query_canceled). Handled
 // specially below with a bespoke, actionable message rather than the raw driver text.
@@ -137,9 +142,10 @@ const findPgError = (error: unknown): PgError | undefined => {
  * role permissions and a per-query budget.
  *
  * Tenant isolation is layered (defense-in-depth):
- *  1. assertReadOnlySelect — the single-SELECT guarantee (this, NOT the wrap, stops `;` stacking) plus a
- *     function blocklist, which is a mitigation, not a proof.
- *  2. subquery-wrap `SELECT * FROM (<sql>) _mcp LIMIT <cap+1>` — SELECT context + row cap.
+ *  1. assertReadOnlySelect — SELECT/WITH shape, `;` rejection and a function blocklist, which is a
+ *     mitigation, not a proof.
+ *  2. wrapReadOnlyQuery `SELECT * FROM (<sql>) _mcp LIMIT $1` — the bound LIMIT forces the extended protocol,
+ *     so Postgres refuses stacked statements; the subquery gives SELECT context and the row cap.
  *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session cannot switch to a role that owns
  *     the tables or bypasses RLS (IAM connection mode; the Data API mode has no separate login).
  *  4. READ ONLY txn, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `SET LOCAL rls.integration_ids` and
@@ -168,9 +174,10 @@ export async function runReadOnlyQuery(params: {
             readOnly: true,
             statementTimeoutS,
             callback: async (tx) => {
-                // The newline before `)` neutralizes any trailing line comment in userSql.
-                const wrapped = sql.raw(`SELECT * FROM (\n${userSql}\n) AS _mcp LIMIT ${rowCap + 1}`);
-                const result = (await tx.execute(wrapped)) as {rows?: Record<string, unknown>[]; fields?: {name: string}[]};
+                const result = (await tx.execute(wrapReadOnlyQuery(userSql, rowCap))) as {
+                    rows?: Record<string, unknown>[];
+                    fields?: {name: string}[];
+                };
 
                 const allRows = result.rows ?? [];
                 const truncated = allRows.length > rowCap;
