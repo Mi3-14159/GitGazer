@@ -103,14 +103,18 @@ SET LOCAL rls.integration_roles = '<uuid>:<role>,<uuid>:<role>,...';
 Each id is validated as a UUID and each role against `MEMBER_ROLES` before interpolation, as
 `withRlsTransaction` already does for ids. Only the MCP path sets it; the reader and writer roles are untouched.
 
-**Why the caller can't change it.** `assertReadOnlySelect` blocks `set_config`, and `SET`/`RESET` need a second
-statement, which the `;` check rejects. The setting is `LOCAL`, so it ends with the transaction. The revoke of
-`set_config` from `gitgazer_mcp` (migration `20260721204116_tough_black_bolt`) only warns when it lacks permission
-and may have been a no-op on Aurora; the builder checks its effect in dev and notes the result, but the design does
-not depend on it.
+**Who can change it.** `SET`/`RESET` need a second statement, which the `;` check rejects, and the setting is
+`LOCAL`, so it ends with the transaction. `assertReadOnlySelect` also blocks `set_config` and the functions that run a
+caller-supplied SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), but that is a blocklist: a mitigation, not a
+proof. The real boundary for the `rls.*` settings and `role` is that `gitgazer_mcp` cannot execute
+`pg_catalog.set_config`. The revoke in migration `20260721204116_tough_black_bolt` only warns when it lacks
+permission and may have been a no-op on Aurora; this is to be verified. If `set_config` is executable, a query that
+reaches it can rewrite these settings, or run `set_config('role', …)` to switch to the session user, which owns the
+tables and is not subject to RLS (no `FORCE ROW LEVEL SECURITY`). No table is opened with `mcpRolePolicy` until this is
+verified and closed.
 
-**Role.** MCP queries keep running as `gitgazer_mcp` (owner): its explicit grants, its own policies and its
-`set_config` lockdown are what make arbitrary caller SQL safe. Per-app-role database roles are not an option, since
+**Role.** MCP queries keep running as `gitgazer_mcp` (owner): its explicit grants, its own policies and a working
+`set_config` lockdown (see above) are what make arbitrary caller SQL safe. Per-app-role database roles are not an option, since
 one query can span integrations where the caller holds different roles.
 
 **The helper.** A migration adds a SQL function, e.g.
@@ -130,9 +134,10 @@ github.mcp_has_role(integration_id, '<min role>'))`, plus `GRANT SELECT`. A tabl
   existing `mcpTenantSeparationPolicy()` with `'viewer'` semantics, i.e. the tenant check alone.
 - _Column gate:_ a table with admin-only columns is **not** granted directly. It is exposed through a
   `security_barrier` view that returns the column only when `github.mcp_has_role(integration_id, 'admin')` and
-  `NULL` otherwise. The view is owned so that the base table's RLS still applies to the MCP caller (the builder picks
-  between `security_invoker = true` with the base table granted column-wise, or an owner-run view with its own
-  tenant filter, and documents why).
+  `NULL` otherwise. `security_invoker = true` does not work here: it needs `gitgazer_mcp` to hold `SELECT` on the
+  admin-only column, and `run_sql` could then read it from the base table directly. The view runs as its owner, which
+  owns the base table and bypasses its RLS, so it must carry its own tenant filter on `rls.integration_ids` (or it
+  returns every tenant's rows), and `security_barrier` keeps a caller's predicate from running below that filter.
 - _Global tables without RLS_ (e.g. `gitgazer.users`, `gitgazer.slack_workspaces`) are only ever exposed through a
   view that scopes them to the caller's integrations.
 

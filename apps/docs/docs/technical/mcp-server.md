@@ -32,7 +32,12 @@ owns the wire format. It is **dual-era**, decided per request:
 - Any other request is served as `2025-11-25` by a stateless SDK transport: `initialize` remains
   available but is not required before `tools/list` or `tools/call`, since no session is kept.
 
-Every response is `application/json`; the server never opens an SSE stream.
+Responses are `application/json`. The one exception is a `2026-07-28` `subscriptions/listen`, which
+the SDK always answers over SSE; the server advertises no list changes, so that stream closes
+immediately with a complete result.
+
+Clients must send `Accept: application/json, text/event-stream`, or the SDK answers `406`. Claude
+Code and Claude Desktop already do.
 
 ## Authentication
 
@@ -130,12 +135,12 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
-2. **Role GRANTs** — queries run as `gitgazer_mcp` (`NOINHERIT`, not a superuser or table owner). Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
+2. **Role GRANTs** — queries run as `gitgazer_mcp` (`NOINHERIT`, not a superuser or table owner), as long as the query cannot switch `role` (see layer 7). Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns.
 3. **Row-level security** — every exposed table carries a tenant policy keyed on `rls.integration_ids`; you only see rows for integrations you belong to.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`; no writes or DDL.
 5. **Single-statement structural guard** — the query is wrapped as `SELECT * FROM (<your sql>) _mcp LIMIT <cap+1>`, which structurally forbids statement stacking and non-`SELECT` statements.
-6. **Blocked-function + escape guard** — `set_config`, `pg_sleep`, `pg_stat_activity`, file/host functions, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected, so the `rls.integration_ids` GUC cannot be overwritten mid-query.
-7. **`set_config` REVOKE** — migration `0056` additionally attempts to revoke `EXECUTE` on `set_config` (best-effort; may be a no-op on managed PostgreSQL, which is why layer 6 is the authoritative control).
+6. **Blocked-function + escape guard** — `set_config`, functions that run a SQL string (`query_to_xml*`, `ts_stat`, `ts_rewrite`), `pg_sleep`, `pg_stat_activity`, file/host functions, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
+7. **`set_config` REVOKE** — the real boundary for the `rls.*` settings and `role` is that `gitgazer_mcp` cannot execute `pg_catalog.set_config`. Migration `0056` attempts that revoke, but it is best-effort and may have been a no-op on Aurora; this is not verified yet. If `set_config` is executable, a query that reaches it can rewrite `rls.integration_ids` or `rls.integration_roles`, or run `set_config('role', …)` to switch to the session user, which owns the tables and is not subject to RLS (no table uses `FORCE ROW LEVEL SECURITY`).
 8. **Resource caps** — a `statement_timeout` and a row cap bound each query.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
@@ -146,10 +151,10 @@ Besides the tenant list, each query transaction receives the caller's role per i
 To open a table with a role requirement:
 
 - **Row gate**: attach `mcpRolePolicy(minimumRole)` instead of `mcpTenantSeparationPolicy()`. It combines the tenant check with `github.mcp_has_role`.
-- **Column gate**: expose the table through a `security_barrier` view that returns admin-only columns only when `github.mcp_has_role(integration_id, 'admin')` and `NULL` otherwise, and grant `gitgazer_mcp` the view rather than the table.
+- **Column gate**: expose the table through a view that returns admin-only columns only when `github.mcp_has_role(integration_id, 'admin')` and `NULL` otherwise, and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter on `rls.integration_ids` (or it returns every tenant's rows) and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
 - **Global tables** (no `integration_id`): expose them only through a view scoped to the caller's integrations.
 
-No table uses this yet.
+No table uses this yet. Do not open a table with `mcpRolePolicy` until it is verified that `gitgazer_mcp` cannot execute `set_config` (see layer 7): otherwise the caller can rewrite `rls.integration_roles`.
 
 ## Limits and budget
 
