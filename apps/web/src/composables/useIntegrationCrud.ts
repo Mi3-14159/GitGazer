@@ -22,6 +22,7 @@ export function useIntegrationCrud() {
     const showAppLinkDialog = ref(false);
     const callbackInstallationId = ref<number | null>(null);
     const appLinkError = ref('');
+    const isLinkingApp = ref(false);
 
     // Leave dialog
     const showLeaveConfirm = ref(false);
@@ -66,6 +67,7 @@ export function useIntegrationCrud() {
 
     async function handleLinkToExisting(integrationId: string, installationId: number) {
         appLinkError.value = '';
+        isLinkingApp.value = true;
         try {
             await linkInstallation(integrationId, installationId);
             await refreshIntegrations();
@@ -73,11 +75,14 @@ export function useIntegrationCrud() {
             callbackInstallationId.value = null;
         } catch (e) {
             appLinkError.value = e instanceof Error ? e.message : 'Failed to link installation';
+        } finally {
+            isLinkingApp.value = false;
         }
     }
 
     async function handleCreateAndLink(label: string, installationId: number) {
         appLinkError.value = '';
+        isLinkingApp.value = true;
         try {
             const created = await createIntegration(label);
             await linkInstallation(created.integrationId, installationId);
@@ -86,6 +91,8 @@ export function useIntegrationCrud() {
             callbackInstallationId.value = null;
         } catch (e) {
             appLinkError.value = e instanceof Error ? e.message : 'Failed to link installation';
+        } finally {
+            isLinkingApp.value = false;
         }
     }
 
@@ -124,6 +131,7 @@ export function useIntegrationCrud() {
         showAppLinkDialog,
         callbackInstallationId,
         appLinkError,
+        isLinkingApp,
         handleLinkToExisting,
         handleCreateAndLink,
         // Leave

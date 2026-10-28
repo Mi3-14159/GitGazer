@@ -17,6 +17,7 @@
         preselectedIntegrationId?: string | null;
         integrations: Integration[];
         error?: string;
+        linking?: boolean;
     }>();
 
     const emit = defineEmits<{
@@ -206,12 +207,14 @@
             <div class="flex justify-end gap-2 mt-6">
                 <Button
                     variant="outline"
+                    :disabled="linking"
                     @click="close"
                 >
                     Cancel
                 </Button>
                 <Button
                     :disabled="isConfirmDisabled"
+                    :loading="linking"
                     @click="handleConfirm"
                 >
                     {{ linkMode === 'existing' ? 'Link to Integration' : 'Create and Link' }}

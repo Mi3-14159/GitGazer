@@ -25,6 +25,7 @@
         showAppLinkDialog,
         callbackInstallationId,
         appLinkError,
+        isLinkingApp,
         handleLinkToExisting,
         handleCreateAndLink,
         refreshIntegrations,
@@ -140,6 +141,7 @@
             :preselected-integration-id="callbackIntegrationId"
             :integrations="integrations.filter((i) => hasRole(i.role, 'admin'))"
             :error="appLinkError"
+            :linking="isLinkingApp"
             @update:open="showAppLinkDialog = $event"
             @link-to-existing="handleLinkToExisting"
             @create-and-link="handleCreateAndLink"
