@@ -13,17 +13,16 @@ import {
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
-import {hasRole, isMemberRole} from '@gitgazer/db/types';
+import {isMemberRole} from '@gitgazer/db/types';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
 router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const integrationIds = c.var.appContext?.integrations ?? [];
-    const callerRole = c.var.appContext?.integrationRoles?.[integrationId];
+    const integrationRoles = c.var.appContext?.integrationRoles ?? {};
 
-    const members = await getMembers({integrationId, integrationIds, canSeeEmails: callerRole !== undefined && hasRole(callerRole, 'admin')});
+    const members = await getMembers({integrationId, integrationRoles});
 
     return new Response(JSON.stringify(members), {
         status: HttpStatusCodes.OK,
@@ -97,23 +96,12 @@ router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, requ
 
 router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const integrationIds = c.var.appContext?.integrations ?? [];
-    const callerRole = c.var.appContext?.integrationRoles?.[integrationId];
+    const integrationRoles = c.var.appContext?.integrationRoles ?? {};
 
-    const invitations = await getInvitations({integrationId, integrationIds});
+    // integration_invitations_view and users_view mask invite tokens and emails below admin
+    const invitations = await getInvitations({integrationId, integrationRoles});
 
-    // Only admins+ can see invite tokens (needed for copy-link and resend actions) and emails
-    const isAdmin = callerRole && hasRole(callerRole, 'admin');
-    const result = isAdmin
-        ? invitations
-        : invitations.map(({inviteToken: _token, ...rest}) => ({
-              ...rest,
-              email: null,
-              invitedByUser: rest.invitedByUser && {...rest.invitedByUser, email: null},
-              invitee: rest.invitee && {...rest.invitee, email: null},
-          }));
-
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(invitations), {
         status: HttpStatusCodes.OK,
         headers: {'Content-Type': 'application/json'},
     });

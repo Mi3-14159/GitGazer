@@ -48,21 +48,20 @@ describe('members routes', () => {
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{userId: 1}]);
-        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: true});
+        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationRoles: {'int-1': 'admin'}});
     });
 
-    it.each([
-        ['viewer', false],
-        ['member', false],
-        ['admin', true],
-        ['owner', true],
-    ])('GET members as %s passes canSeeEmails=%s', async (role, canSeeEmails) => {
+    // The emails are masked by gitgazer.users_view (proven in packages/db configuration-views.test.ts), not here.
+    it.each(['viewer', 'member', 'admin', 'owner'])('GET members as %s passes the caller roles and returns the result as is', async (role) => {
         mocks.role = role;
-        mocks.getMembers.mockResolvedValue([]);
+        const members = [{userId: 1, user: {id: 1, email: role === 'viewer' ? null : 'a@example.com'}}];
+        mocks.getMembers.mockResolvedValue(members);
 
-        await testRequest(app, 'GET', `${base}/members`, {appContext: appContext()});
+        const res = await testRequest(app, 'GET', `${base}/members`, {appContext: appContext()});
 
-        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails});
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual(members);
+        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationRoles: {'int-1': role}});
     });
 
     it('GET members is forbidden for a non-member integration', async () => {
@@ -135,73 +134,26 @@ describe('members routes', () => {
         expect(mocks.leaveIntegration).toHaveBeenCalledWith({integrationId: 'int-1', userId: 7, integrationIds: ['int-1']});
     });
 
-    it('GET invitations hides invite tokens from non-admins', async () => {
-        mocks.role = 'member';
-        mocks.getInvitations.mockResolvedValue([{id: 'i1', inviteToken: 'secret', email: null, invitedByUser: null, invitee: null}]);
+    // Tokens and emails are masked by gitgazer.integration_invitations_view and gitgazer.users_view, not here.
+    it.each(['member', 'admin', 'owner'])('GET invitations as %s passes the caller roles and returns the result as is', async (role) => {
+        mocks.role = role;
+        const invitations = [{id: 'i1', email: 'a@example.com', invitedByUser: {name: 'Ada', email: 'ada@example.com'}, invitee: null}];
+        mocks.getInvitations.mockResolvedValue(invitations);
 
         const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
 
         expect(res.status).toBe(200);
-        expect(await res.json()).toEqual([{id: 'i1', email: null, invitedByUser: null, invitee: null}]);
+        expect(await res.json()).toEqual(invitations);
+        expect(mocks.getInvitations).toHaveBeenCalledWith({integrationId: 'int-1', integrationRoles: {'int-1': role}});
     });
 
-    it('GET invitations hides emails from non-admins', async () => {
-        mocks.role = 'member';
-        mocks.getInvitations.mockResolvedValue([
-            {
-                id: 'i1',
-                inviteToken: 'secret',
-                email: 'a@example.com',
-                invitedByUser: {name: 'Ada', email: 'ada@example.com'},
-                invitee: {name: 'Bob', email: 'bob@example.com'},
-            },
-        ]);
+    it('GET invitations is forbidden for a viewer', async () => {
+        mocks.role = 'viewer';
 
         const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
 
-        expect(await res.json()).toEqual([{id: 'i1', email: null, invitedByUser: {name: 'Ada', email: null}, invitee: {name: 'Bob', email: null}}]);
-    });
-
-    it('GET invitations shows emails to admins', async () => {
-        mocks.getInvitations.mockResolvedValue([
-            {
-                id: 'i1',
-                inviteToken: 'secret',
-                email: 'a@example.com',
-                invitedByUser: {name: 'Ada', email: 'ada@example.com'},
-                invitee: {name: 'Bob', email: 'bob@example.com'},
-            },
-        ]);
-
-        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
-
-        expect(await res.json()).toEqual([
-            {
-                id: 'i1',
-                inviteToken: 'secret',
-                email: 'a@example.com',
-                invitedByUser: {name: 'Ada', email: 'ada@example.com'},
-                invitee: {name: 'Bob', email: 'bob@example.com'},
-            },
-        ]);
-    });
-
-    it('GET invitations keeps a missing invitee and a link-only invitation null for non-admins', async () => {
-        mocks.role = 'member';
-        mocks.getInvitations.mockResolvedValue([{id: 'i1', email: null, invitedByUser: null, invitee: null}]);
-
-        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
-
-        expect(await res.json()).toEqual([{id: 'i1', email: null, invitedByUser: null, invitee: null}]);
-    });
-
-    it('GET invitations shows invite tokens to admins', async () => {
-        mocks.getInvitations.mockResolvedValue([{id: 'i1', inviteToken: 'secret'}]);
-
-        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
-
-        expect(await res.json()).toEqual([{id: 'i1', inviteToken: 'secret'}]);
-        expect(mocks.getInvitations).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1']});
+        expect(res.status).toBe(403);
+        expect(mocks.getInvitations).not.toHaveBeenCalled();
     });
 
     it('POST invitations creates an invitation and answers 201', async () => {

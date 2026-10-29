@@ -8,13 +8,6 @@ export const memberQueryRelations = {
     user: {columns: {id: true, email: true, name: true, picture: true, githubLogin: true, lastActiveAt: true}},
 } as const;
 
-const invitationUserColumns = {id: true, name: true, picture: true, githubLogin: true, email: true} as const;
-
-export const invitationQueryRelations = {
-    invitedByUser: {columns: invitationUserColumns},
-    invitee: {columns: invitationUserColumns},
-} as const;
-
 export const integrationsQueryRelations = {
     githubAppInstallations: {
         with: {
