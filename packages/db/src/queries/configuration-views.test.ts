@@ -85,6 +85,8 @@ const seed = `
     INSERT INTO gitgazer.notification_rule_destinations SELECT i, gen_random_uuid(), gen_random_uuid() ${each};
     INSERT INTO gitgazer.integration_invitations
         SELECT i, gen_random_uuid(), 'invitee@example.com', 'member', 1, 2, gen_random_uuid(), 'pending', now(), now() ${each};
+    INSERT INTO gitgazer.integration_invitations
+        SELECT i, gen_random_uuid(), 'accepted@example.com', 'member', 1, 2, NULL, 'accepted', now(), now() ${each};
     INSERT INTO gitgazer.event_log_entries SELECT i, gen_random_uuid(), 'notification', 'info', 'title', 'message', '{}', false, now() ${each};
 `;
 
@@ -153,7 +155,7 @@ describe('role-aware configuration views', () => {
         // The prod defaults from 20260310163205, which apply to views as well.
         await db.exec(`
             ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_reader;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_writer;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gitgazer_writer;
         `);
         await db.exec(readMigration('20261029120000_role_aware_views'));
         await db.exec(seed);
@@ -219,6 +221,7 @@ describe('role-aware configuration views', () => {
         expect(asAdmin[0].integration_id).toBe(A);
         expect(asAdmin[0].invite_token).not.toBeNull();
         expect(asAdmin[0].email).toBe('invitee@example.com');
+        expect(asAdmin.map((r) => r.email)).not.toContain('accepted@example.com');
         expect(await invitations(`${A}:member`)).toEqual([{integration_id: A, invite_token: null, email: null}]);
     });
 

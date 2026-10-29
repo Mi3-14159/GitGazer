@@ -67,7 +67,7 @@ CREATE VIEW "github"."integration_apps" WITH (security_barrier = true) AS (SELEC
 --> statement-breakpoint
 GRANT SELECT ON github.integration_apps TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."integration_invitations" WITH (security_barrier = true) AS (SELECT integration_id, id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN email END AS email, role, invited_by, invitee_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN invite_token END AS invite_token, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE integration_id = ANY ((SELECT github.integration_ids('member'))::uuid[]));
+CREATE VIEW "github"."integration_invitations" WITH (security_barrier = true) AS (SELECT integration_id, id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN email END AS email, role, invited_by, invitee_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN invite_token END AS invite_token, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE status <> 'accepted' AND integration_id = ANY ((SELECT github.integration_ids('member'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.integration_invitations TO gitgazer_mcp;
 --> statement-breakpoint

@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "fcdc632d-24ac-461b-9fb8-42574f423761",
+  "id": "7bf3d65c-223e-49bd-af43-5dec9a332593",
   "prevIds": [
     "5e63957c-7e38-4ea7-98c3-c5c17fa1c51e"
   ],
@@ -5990,7 +5990,7 @@
       "schema": "github"
     },
     {
-      "definition": "SELECT integration_id, id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN email END AS email, role, invited_by, invitee_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN invite_token END AS invite_token, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE integration_id = ANY ((SELECT github.integration_ids('member'))::uuid[])",
+      "definition": "SELECT integration_id, id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN email END AS email, role, invited_by, invitee_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN invite_token END AS invite_token, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE status <> 'accepted' AND integration_id = ANY ((SELECT github.integration_ids('member'))::uuid[])",
       "with": {
         "checkOption": null,
         "securityBarrier": true,

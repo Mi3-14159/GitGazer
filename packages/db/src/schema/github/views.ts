@@ -133,7 +133,7 @@ export const integrationInvitationsView = githubSchema
     .with({securityBarrier: true})
     .as(
         sql.raw(
-            `SELECT integration_id, id, ${onlyFor('admin', 'email')}, role, invited_by, invitee_id, ${onlyFor('admin', 'invite_token')}, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE ${rowsFor('member')}`,
+            `SELECT integration_id, id, ${onlyFor('admin', 'email')}, role, invited_by, invitee_id, ${onlyFor('admin', 'invite_token')}, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE status <> 'accepted' AND ${rowsFor('member')}`,
         ),
     );
 
