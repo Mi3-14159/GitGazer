@@ -20,6 +20,7 @@ Learn how to use GitGazer — from signing in to configuring notifications.
 
 - [Getting Started](user-guide/getting-started)
 - [Setting Up Integrations](user-guide/integrations)
+- [Apps Overview](user-guide/apps)
 - [Monitoring Workflows](user-guide/workflows)
 - [Configuring Notifications](user-guide/notifications)
 - [Slack App](user-guide/slack-app)
