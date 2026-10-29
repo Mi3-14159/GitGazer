@@ -9,13 +9,7 @@ type TokenVerifiers = {
 
 let verifiers: TokenVerifiers | null = null;
 
-/**
- * Lazily create and cache the Cognito access + id token verifiers.
- *
- * Lives in its own module (rather than the auth middleware) so it can be shared by
- * both the cookie-based `authenticate` middleware and the MCP bearer-token auth
- * without creating an import cycle through the public-routes registry.
- */
+/** Lazily create and cache the web client's access + id token verifiers for the cookie-based `authenticate` middleware. */
 export const getVerifiers = (): TokenVerifiers => {
     if (!verifiers) {
         const {userPoolId, clientId} = config.get('cognito');
