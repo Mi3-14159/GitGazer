@@ -67,6 +67,20 @@ resource "aws_cognito_user_pool_client" "this" {
   allowed_oauth_scopes = ["email", "openid", "profile"]
 }
 
+# Marks access tokens as meant for the MCP server, which rejects tokens without `gitgazer-mcp/read`.
+# No workspace suffix: identifiers are unique per user pool, and the API hardcodes the scope in
+# apps/lambdas/api/src/shared/mcp-scope.ts.
+resource "aws_cognito_resource_server" "mcp" {
+  identifier   = "gitgazer-mcp"
+  name         = "GitGazer MCP"
+  user_pool_id = aws_cognito_user_pool.this.id
+
+  scope {
+    scope_name        = "read"
+    scope_description = "Read GitGazer data through the MCP server"
+  }
+}
+
 # Public (PKCE, no secret) app client for MCP clients (VS Code, etc.) to obtain access tokens
 # via the OAuth 2.1 authorization-code flow. Separate from the confidential web client so it
 # can be a public client with the MCP clients' redirect URIs.
@@ -86,7 +100,7 @@ resource "aws_cognito_user_pool_client" "mcp" {
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["email", "openid", "profile"]
+  allowed_oauth_scopes                 = concat(["email", "openid", "profile"], aws_cognito_resource_server.mcp.scope_identifiers)
 
   # MCP tokens live on many developer machines; bound the blast radius of a leaked refresh token.
   enable_token_revocation = true
