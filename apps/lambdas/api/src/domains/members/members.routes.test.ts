@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     resendInvitation: vi.fn(),
     revokeInvitation: vi.fn(),
     role: 'admin',
+    otherRoles: {} as Record<string, string>,
 }));
 
 vi.mock('@/domains/members/members.controller', () => mocks);
@@ -26,8 +27,8 @@ vi.mock('@/domains/integrations/integrations.middleware', () => ({
         c: {var: {appContext?: {integrations?: string[]; integrationRoles?: Record<string, string>}}},
         next: () => Promise<void>,
     ) => {
-        c.var.appContext!.integrations = ['int-1'];
-        c.var.appContext!.integrationRoles = {'int-1': mocks.role};
+        c.var.appContext!.integrationRoles = {'int-1': mocks.role, ...mocks.otherRoles};
+        c.var.appContext!.integrations = Object.keys(c.var.appContext!.integrationRoles);
         await next();
     },
 }));
@@ -39,6 +40,20 @@ describe('members routes', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.role = 'admin';
+        mocks.otherRoles = {};
+    });
+
+    it.each([
+        ['members', 'viewer', mocks.getMembers],
+        ['invitations', 'member', mocks.getInvitations],
+    ])("GET %s signs only the route's integration with the caller's role in it", async (path, role, controller) => {
+        mocks.role = role;
+        mocks.otherRoles = {'int-2': 'owner'};
+        controller.mockResolvedValue([]);
+
+        await testRequest(app, 'GET', `${base}/${path}`, {appContext: appContext()});
+
+        expect(controller).toHaveBeenCalledWith({integrationId: 'int-1', integrationRoles: {'int-1': role}});
     });
 
     it('GET members returns the members', async () => {

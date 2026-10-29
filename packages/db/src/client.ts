@@ -188,8 +188,7 @@ export const withRlsTransaction = async <T>(params: {
         if (readOnly) {
             await tx.execute(sql.raw('SET TRANSACTION READ ONLY;'));
         }
-        // Signed on this connection while it still runs as the app login: waiting for a second pooled connection
-        // while holding this one would deadlock a busy pool (DB_POOL_MAX defaults to 1).
+        // Still the app login here, so sign on this connection: waiting for a second pooled one would deadlock the pool
         if (signedPayload !== undefined) {
             await setSignedContext(tx, signedPayload, tx);
         }

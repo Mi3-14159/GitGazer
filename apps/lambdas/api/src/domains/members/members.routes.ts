@@ -20,9 +20,8 @@ const router = new Hono<AppEnv>();
 
 router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const integrationRoles = c.var.appContext?.integrationRoles ?? {};
-
-    const members = await getMembers({integrationId, integrationRoles});
+    // Only this integration, so the views mask by the caller's role here and not by roles elsewhere
+    const members = await getMembers({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
 
     return new Response(JSON.stringify(members), {
         status: HttpStatusCodes.OK,
@@ -96,10 +95,8 @@ router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, requ
 
 router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const integrationRoles = c.var.appContext?.integrationRoles ?? {};
-
-    // integration_invitations_view and users_view mask invite tokens and emails below admin
-    const invitations = await getInvitations({integrationId, integrationRoles});
+    // integration_invitations_view and users_view mask invite tokens and emails below admin in this integration
+    const invitations = await getInvitations({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
 
     return new Response(JSON.stringify(invitations), {
         status: HttpStatusCodes.OK,
