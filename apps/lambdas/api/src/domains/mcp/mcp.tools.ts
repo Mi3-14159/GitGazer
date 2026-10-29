@@ -86,13 +86,13 @@ export const registerMcpTools = (server: McpServer): void => {
     server.registerTool(
         'list_tables',
         {
-            description: 'List the tables you are allowed to query (schema + table name).',
+            description: 'List the tables you are allowed to query (schema, table name, description).',
             inputSchema: z.object({}),
             annotations: {readOnlyHint: true},
         },
         toolHandler('list_tables', (_args, {integrationRoles}) =>
             runReadOnlyQuery({
-                sql: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('github', 'gitgazer') ORDER BY table_name",
+                sql: "SELECT table_schema, table_name, obj_description(format('%I.%I', table_schema, table_name)::regclass, 'pg_class') AS description FROM information_schema.tables WHERE table_schema IN ('github', 'gitgazer') ORDER BY table_name",
                 integrationRoles,
             }),
         ),
@@ -101,7 +101,7 @@ export const registerMcpTools = (server: McpServer): void => {
     server.registerTool(
         'describe_table',
         {
-            description: 'List the columns (name, type, nullability) of a table you can query.',
+            description: 'List the columns (name, type, nullability, description) of a table you can query.',
             // The table name is interpolated into a fixed introspection query; restricting it to a bare
             // identifier closes the surface (the role + read-only txn are the real guard).
             inputSchema: z.object({
@@ -114,7 +114,7 @@ export const registerMcpTools = (server: McpServer): void => {
         },
         toolHandler('describe_table', ({table}, {integrationRoles}) =>
             runReadOnlyQuery({
-                sql: `SELECT table_schema, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
+                sql: `SELECT table_schema, column_name, data_type, is_nullable, col_description(format('%I.%I', table_schema, table_name)::regclass, ordinal_position::int) AS description FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
                 integrationRoles,
             }),
         ),
