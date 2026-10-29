@@ -98,7 +98,7 @@ All tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped
 
 ## Queryable data
 
-Queries run against the `github` schema. Because no default `search_path` is set for the role, **tables must be schema-qualified** (`github.workflow_runs`, not `workflow_runs`).
+Queries run against the `github` schema and the configuration views in `gitgazer`. Because no default `search_path` is set for the role, **tables and views must be schema-qualified** (`github.workflow_runs`, not `workflow_runs`).
 
 | Table                               | Notes                                                          |
 | ----------------------------------- | -------------------------------------------------------------- |
@@ -113,27 +113,27 @@ Queries run against the `github` schema. Because no default `search_path` is set
 | `github."user"`                     | GitHub users/actors. `user` is a reserved word — **quote it**. |
 | `github.integrations`               | Column-scoped: only `integration_id`, `label`, `created_at`.   |
 
-The configuration lives in the `gitgazer` schema, which the MCP cannot reach. It is exposed through one view per table in the `github` schema. Each view returns the rows and fields the GitGazer API shows the same person. The minimum role is per integration; a column below its role is `NULL` while the row stays visible.
+The configuration lives in tables the MCP cannot read, mostly in `gitgazer`. Each is exposed through a `<table>_view` in the table's own schema. Each view returns the rows and fields the GitGazer API shows the same person. The minimum role is per integration; a column below its role is `NULL` while the row stays visible.
 
-| View                                     | Rows for | Column limits                                                                                                      |
-| ---------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `github.integration_apps`                | viewer   | None. Apps connected to an integration.                                                                            |
-| `github.integration_app_github_settings` | viewer   | `secret` (webhook secret): admin.                                                                                  |
-| `github.integration_app_slack_settings`  | viewer   | None. The Slack workspace (`team_id`) an app is linked to.                                                         |
-| `github.notification_handles`            | viewer   | None. Notification targets.                                                                                        |
-| `github.webhook_handle_details`          | viewer   | `url`: admin.                                                                                                      |
-| `github.slack_handle_details`            | viewer   | None. Slack channel of a handle.                                                                                   |
-| `github.notification_rules`              | viewer   | None.                                                                                                              |
-| `github.notification_rule_destinations`  | viewer   | None. Which handles a rule notifies.                                                                               |
-| `github.integration_invitations`         | member   | `email`, `invite_token`: admin.                                                                                    |
-| `github.event_log_entries`               | viewer   | None.                                                                                                              |
-| `github.user_assignments`                | viewer   | None. Members and roles per integration. Named apart from the `"user-assignments"` table, which shares the schema. |
-| `github.users`                           | viewer   | Users in the caller's integrations. `email`: admin, in an integration the user belongs to.                         |
-| `github.slack_workspaces`                | viewer   | Workspaces linked to the caller's integrations. `installed_by`: only if that user is visible in `github.users`.    |
+| View                                            | Rows for | Column limits                                                                                                          |
+| ----------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `gitgazer.integration_apps_view`                | viewer   | None. Apps connected to an integration.                                                                                |
+| `gitgazer.integration_app_github_settings_view` | viewer   | `secret` (webhook secret): admin.                                                                                      |
+| `gitgazer.integration_app_slack_settings_view`  | viewer   | None. The Slack workspace (`team_id`) an app is linked to.                                                             |
+| `gitgazer.notification_handles_view`            | viewer   | None. Notification targets.                                                                                            |
+| `gitgazer.webhook_handle_details_view`          | viewer   | `url`: admin.                                                                                                          |
+| `gitgazer.slack_handle_details_view`            | viewer   | None. Slack channel of a handle.                                                                                       |
+| `gitgazer.notification_rules_view`              | viewer   | None.                                                                                                                  |
+| `gitgazer.notification_rule_destinations_view`  | viewer   | None. Which handles a rule notifies.                                                                                   |
+| `gitgazer.integration_invitations_view`         | member   | `email`, `invite_token`: admin.                                                                                        |
+| `gitgazer.event_log_entries_view`               | viewer   | None.                                                                                                                  |
+| `github.user_assignments_view`                  | viewer   | None. Members and roles per integration.                                                                               |
+| `gitgazer.users_view`                           | viewer   | Users in the caller's integrations. `email`: admin, in an integration the user belongs to.                             |
+| `gitgazer.slack_workspaces_view`                | viewer   | Workspaces linked to the caller's integrations. `installed_by`: only if that user is visible in `gitgazer.users_view`. |
 
-Views have no cross-table columns, so join them on `integration_id` plus the ids. `github.users` and `github.slack_workspaces` have no `integration_id`; join `github.users` through `github.user_assignments`.
+Views have no cross-table columns, so join them on `integration_id` plus the ids. `gitgazer.users_view` and `gitgazer.slack_workspaces_view` have no `integration_id`; join `gitgazer.users_view` through `github.user_assignments_view`.
 
-Not exposed: the `gitgazer` base tables themselves, the Slack bot token, `cognito_id` and `github_id` of users, the `mcp_query_usage` quota table and the signing key.
+Not exposed: the `gitgazer` base tables themselves (the role has `USAGE` on the schema, but `SELECT` only on the views), the Slack bot token, `cognito_id` and `github_id` of users, the `mcp_query_usage` quota table and the signing key.
 
 Example — failing runs per repository over the last week:
 
@@ -182,7 +182,7 @@ To open a table with a role requirement:
 
 Always call `github.integration_ids` through a sub-select as above, so the signature is verified once per protected table in the query, not once per row.
 
-The configuration views in [Queryable data](#queryable-data) use the column gate. They are defined in `packages/db/src/schema/views.ts`, and the migration grants `gitgazer_mcp` `SELECT` on them and revokes the default reader and writer grants that new `github` tables get. No table uses a row gate yet.
+The configuration views in [Queryable data](#queryable-data) use the column gate. They are defined in `packages/db/src/schema/views.ts`, and the migration grants `gitgazer_mcp` `SELECT` on them and revokes the default reader and writer grants that new `github` and `gitgazer` tables get. It also grants `gitgazer_mcp` `USAGE` on the `gitgazer` schema, and nothing else there. No table uses a row gate yet.
 
 ## Limits and budget
 
@@ -239,11 +239,11 @@ Database (Drizzle migrations):
 - `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper, replaced by `github.mcp_integration_ids` in `20261029090000_mcp_signed_context`.
 - `20261028130000_mcp_login` — lets `gitgazer_mcp` log in with IAM auth, for its own connection.
 - `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()` (renamed in the next migration); the MCP tenant policies now read the signed context.
-- `20261029120000_role_aware_views` — renames the signed-context objects without the `mcp_` prefix (`github.integration_ids`, `github.signed_context`, `gitgazer.sign_context`, `gitgazer.context_key`, setting `rls.signed_context`) and adds the 13 configuration views.
+- `20261029120000_role_aware_views` — renames the signed-context objects without the `mcp_` prefix (`github.integration_ids`, `github.signed_context`, `gitgazer.sign_context`, `gitgazer.context_key`, setting `rls.signed_context`), adds the 13 configuration views and grants `gitgazer_mcp` `USAGE` on `gitgazer`.
 
 The migration runs by hand right before the deploy, as the migration user. Because CI deploys on merge, the migration runs before the merge reaches main. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. It fails closed, and only the MCP is affected.
 
-To roll back, revert both the code and the database: drop the 13 views, rename the table and the three functions back, re-create the functions with the old bodies from `20261029090000_mcp_signed_context/migration.sql`, and delete the migration's row from the drizzle migrations table.
+To roll back, revert both the code and the database: drop the 13 views (`gitgazer.*_view` and `github.user_assignments_view`), run `REVOKE USAGE ON SCHEMA gitgazer FROM gitgazer_mcp`, rename the table and the three functions back, re-create the functions with the old bodies from `20261029090000_mcp_signed_context/migration.sql`, and delete the migration's row from the drizzle migrations table.
 
 ## Related
 

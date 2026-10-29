@@ -3,6 +3,7 @@ import type {QueryBuilder} from 'drizzle-orm/pg-core';
 import type {MemberRole} from '../types';
 import {
     eventLogEntries,
+    gitgazerSchema,
     integrationAppGithubSettings,
     integrationApps,
     integrationAppSlackSettings,
@@ -27,8 +28,8 @@ const onlyFor = <T>(integrationId: AnyColumn, minimumRole: MemberRole, column: A
 const usersFor = (qb: QueryBuilder, minimumRole: MemberRole) =>
     qb.select({userId: userAssignments.userId}).from(userAssignments).where(rowsFor(userAssignments.integrationId, minimumRole));
 
-export const integrationAppsView = githubSchema
-    .view('integration_apps')
+export const integrationAppsView = gitgazerSchema
+    .view('integration_apps_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -42,8 +43,8 @@ export const integrationAppsView = githubSchema
             .where(rowsFor(integrationApps.integrationId, 'viewer')),
     );
 
-export const integrationAppGithubSettingsView = githubSchema
-    .view('integration_app_github_settings')
+export const integrationAppGithubSettingsView = gitgazerSchema
+    .view('integration_app_github_settings_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -57,8 +58,8 @@ export const integrationAppGithubSettingsView = githubSchema
             .where(rowsFor(integrationAppGithubSettings.integrationId, 'viewer')),
     );
 
-export const integrationAppSlackSettingsView = githubSchema
-    .view('integration_app_slack_settings')
+export const integrationAppSlackSettingsView = gitgazerSchema
+    .view('integration_app_slack_settings_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -71,8 +72,8 @@ export const integrationAppSlackSettingsView = githubSchema
             .where(rowsFor(integrationAppSlackSettings.integrationId, 'viewer')),
     );
 
-export const notificationHandlesView = githubSchema
-    .view('notification_handles')
+export const notificationHandlesView = gitgazerSchema
+    .view('notification_handles_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -88,8 +89,8 @@ export const notificationHandlesView = githubSchema
             .where(rowsFor(notificationHandles.integrationId, 'viewer')),
     );
 
-export const webhookHandleDetailsView = githubSchema
-    .view('webhook_handle_details')
+export const webhookHandleDetailsView = gitgazerSchema
+    .view('webhook_handle_details_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -102,8 +103,8 @@ export const webhookHandleDetailsView = githubSchema
             .where(rowsFor(webhookHandleDetails.integrationId, 'viewer')),
     );
 
-export const slackHandleDetailsView = githubSchema
-    .view('slack_handle_details')
+export const slackHandleDetailsView = gitgazerSchema
+    .view('slack_handle_details_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -117,8 +118,8 @@ export const slackHandleDetailsView = githubSchema
             .where(rowsFor(slackHandleDetails.integrationId, 'viewer')),
     );
 
-export const notificationRulesView = githubSchema
-    .view('notification_rules')
+export const notificationRulesView = gitgazerSchema
+    .view('notification_rules_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -137,8 +138,8 @@ export const notificationRulesView = githubSchema
             .where(rowsFor(notificationRules.integrationId, 'viewer')),
     );
 
-export const notificationRuleDestinationsView = githubSchema
-    .view('notification_rule_destinations')
+export const notificationRuleDestinationsView = gitgazerSchema
+    .view('notification_rule_destinations_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -151,8 +152,8 @@ export const notificationRuleDestinationsView = githubSchema
             .where(rowsFor(notificationRuleDestinations.integrationId, 'viewer')),
     );
 
-export const integrationInvitationsView = githubSchema
-    .view('integration_invitations')
+export const integrationInvitationsView = gitgazerSchema
+    .view('integration_invitations_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -172,8 +173,8 @@ export const integrationInvitationsView = githubSchema
             .where(and(ne(integrationInvitations.status, 'accepted'), rowsFor(integrationInvitations.integrationId, 'member'))),
     );
 
-export const eventLogEntriesView = githubSchema
-    .view('event_log_entries')
+export const eventLogEntriesView = gitgazerSchema
+    .view('event_log_entries_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -192,9 +193,8 @@ export const eventLogEntriesView = githubSchema
             .where(rowsFor(eventLogEntries.integrationId, 'viewer')),
     );
 
-// Named apart from the "user-assignments" table, which shares the schema.
 export const userAssignmentsView = githubSchema
-    .view('user_assignments')
+    .view('user_assignments_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -209,8 +209,8 @@ export const userAssignmentsView = githubSchema
             .where(rowsFor(userAssignments.integrationId, 'viewer')),
     );
 
-export const usersView = githubSchema
-    .view('users')
+export const usersView = gitgazerSchema
+    .view('users_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb
@@ -226,8 +226,8 @@ export const usersView = githubSchema
             .where(inArray(users.id, usersFor(qb, 'viewer'))),
     );
 
-export const slackWorkspacesView = githubSchema
-    .view('slack_workspaces')
+export const slackWorkspacesView = gitgazerSchema
+    .view('slack_workspaces_view')
     .with({securityBarrier: true})
     .as((qb) =>
         qb

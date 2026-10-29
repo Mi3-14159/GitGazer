@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "c2520cc5-6bf5-41fe-8648-aef88604ccde",
+  "id": "ce2ee143-2409-40a1-85bd-b5304f53e8c4",
   "prevIds": [
     "5e63957c-7e38-4ea7-98c3-c5c17fa1c51e"
   ],
@@ -5886,9 +5886,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "event_log_entries",
+      "name": "event_log_entries_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"app_id\", CASE WHEN \"gitgazer\".\"integration_app_github_settings\".\"integration_id\" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN \"secret\" END as \"secret\", \"org_sync_default_role\" from \"gitgazer\".\"integration_app_github_settings\" where \"gitgazer\".\"integration_app_github_settings\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -5919,9 +5919,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "integration_app_github_settings",
+      "name": "integration_app_github_settings_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"app_id\", \"team_id\" from \"gitgazer\".\"integration_app_slack_settings\" where \"gitgazer\".\"integration_app_slack_settings\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -5952,9 +5952,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "integration_app_slack_settings",
+      "name": "integration_app_slack_settings_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"app_id\", \"type\", \"created_at\" from \"gitgazer\".\"integration_apps\" where \"gitgazer\".\"integration_apps\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -5985,9 +5985,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "integration_apps",
+      "name": "integration_apps_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"id\", CASE WHEN \"gitgazer\".\"integration_invitations\".\"integration_id\" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN \"email\" END as \"email\", \"role\", \"invited_by\", \"invitee_id\", CASE WHEN \"gitgazer\".\"integration_invitations\".\"integration_id\" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN \"invite_token\" END as \"invite_token\", \"status\", \"created_at\", \"expires_at\" from \"gitgazer\".\"integration_invitations\" where ((\"gitgazer\".\"integration_invitations\".\"status\" <> 'accepted') and (\"gitgazer\".\"integration_invitations\".\"integration_id\" = ANY ((SELECT github.integration_ids('member'))::uuid[])))",
@@ -6018,9 +6018,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "integration_invitations",
+      "name": "integration_invitations_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"handle_id\", \"app_id\", \"name\", \"created_at\", \"updated_at\" from \"gitgazer\".\"notification_handles\" where \"gitgazer\".\"notification_handles\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -6051,9 +6051,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "notification_handles",
+      "name": "notification_handles_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"rule_id\", \"handle_id\" from \"gitgazer\".\"notification_rule_destinations\" where \"gitgazer\".\"notification_rule_destinations\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -6084,9 +6084,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "notification_rule_destinations",
+      "name": "notification_rule_destinations_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"id\", \"label\", \"enabled\", \"ignore_dependabot\", \"include_log_details\", \"rule\", \"created_at\", \"updated_at\" from \"gitgazer\".\"notification_rules\" where \"gitgazer\".\"notification_rules\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -6117,9 +6117,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "notification_rules",
+      "name": "notification_rules_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"handle_id\", \"channel_id\", \"channel_name\" from \"gitgazer\".\"slack_handle_details\" where \"gitgazer\".\"slack_handle_details\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -6150,9 +6150,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "slack_handle_details",
+      "name": "slack_handle_details_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"team_id\", \"team_name\", \"bot_user_id\", CASE WHEN \"gitgazer\".\"slack_workspaces\".\"installed_by\" in (select \"user_id\" from \"github\".\"user-assignments\" where \"github\".\"user-assignments\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])) THEN \"installed_by\" END as \"installed_by\", \"installed_at\", \"disconnected_at\" from \"gitgazer\".\"slack_workspaces\" where \"gitgazer\".\"slack_workspaces\".\"team_id\" in (select \"team_id\" from \"gitgazer\".\"integration_app_slack_settings\" where \"gitgazer\".\"integration_app_slack_settings\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]))",
@@ -6183,9 +6183,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "slack_workspaces",
+      "name": "slack_workspaces_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"user_id\", \"role\", \"source\", \"created_at\" from \"github\".\"user-assignments\" where \"github\".\"user-assignments\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -6216,7 +6216,7 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "user_assignments",
+      "name": "user_assignments_view",
       "entityType": "views",
       "schema": "github"
     },
@@ -6249,9 +6249,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "users",
+      "name": "users_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     },
     {
       "definition": "select \"integration_id\", \"handle_id\", CASE WHEN \"gitgazer\".\"webhook_handle_details\".\"integration_id\" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN \"url\" END as \"url\" from \"gitgazer\".\"webhook_handle_details\" where \"gitgazer\".\"webhook_handle_details\".\"integration_id\" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])",
@@ -6282,9 +6282,9 @@
       "using": null,
       "tablespace": null,
       "materialized": false,
-      "name": "webhook_handle_details",
+      "name": "webhook_handle_details_view",
       "entityType": "views",
-      "schema": "github"
+      "schema": "gitgazer"
     }
   ],
   "renames": []

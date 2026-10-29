@@ -91,29 +91,39 @@ const seed = `
 `;
 
 const viewerViews = [
-    'integration_apps',
-    'integration_app_github_settings',
-    'integration_app_slack_settings',
-    'notification_handles',
-    'webhook_handle_details',
-    'slack_handle_details',
-    'notification_rules',
-    'notification_rule_destinations',
-    'event_log_entries',
-    'user_assignments',
+    'gitgazer.integration_apps_view',
+    'gitgazer.integration_app_github_settings_view',
+    'gitgazer.integration_app_slack_settings_view',
+    'gitgazer.notification_handles_view',
+    'gitgazer.webhook_handle_details_view',
+    'gitgazer.slack_handle_details_view',
+    'gitgazer.notification_rules_view',
+    'gitgazer.notification_rule_destinations_view',
+    'gitgazer.event_log_entries_view',
+    'github.user_assignments_view',
 ];
-const allViews = [...viewerViews, 'integration_invitations', 'users', 'slack_workspaces'];
+const allViews = [...viewerViews, 'gitgazer.integration_invitations_view', 'gitgazer.users_view', 'gitgazer.slack_workspaces_view'];
 
 const viewColumns: Record<string, string[]> = {
-    integration_apps: ['integration_id', 'app_id', 'type', 'created_at'],
-    integration_app_github_settings: ['integration_id', 'app_id', 'secret', 'org_sync_default_role'],
-    integration_app_slack_settings: ['integration_id', 'app_id', 'team_id'],
-    notification_handles: ['integration_id', 'handle_id', 'app_id', 'name', 'created_at', 'updated_at'],
-    webhook_handle_details: ['integration_id', 'handle_id', 'url'],
-    slack_handle_details: ['integration_id', 'handle_id', 'channel_id', 'channel_name'],
-    notification_rules: ['integration_id', 'id', 'label', 'enabled', 'ignore_dependabot', 'include_log_details', 'rule', 'created_at', 'updated_at'],
-    notification_rule_destinations: ['integration_id', 'rule_id', 'handle_id'],
-    integration_invitations: [
+    'gitgazer.integration_apps_view': ['integration_id', 'app_id', 'type', 'created_at'],
+    'gitgazer.integration_app_github_settings_view': ['integration_id', 'app_id', 'secret', 'org_sync_default_role'],
+    'gitgazer.integration_app_slack_settings_view': ['integration_id', 'app_id', 'team_id'],
+    'gitgazer.notification_handles_view': ['integration_id', 'handle_id', 'app_id', 'name', 'created_at', 'updated_at'],
+    'gitgazer.webhook_handle_details_view': ['integration_id', 'handle_id', 'url'],
+    'gitgazer.slack_handle_details_view': ['integration_id', 'handle_id', 'channel_id', 'channel_name'],
+    'gitgazer.notification_rules_view': [
+        'integration_id',
+        'id',
+        'label',
+        'enabled',
+        'ignore_dependabot',
+        'include_log_details',
+        'rule',
+        'created_at',
+        'updated_at',
+    ],
+    'gitgazer.notification_rule_destinations_view': ['integration_id', 'rule_id', 'handle_id'],
+    'gitgazer.integration_invitations_view': [
         'integration_id',
         'id',
         'email',
@@ -125,10 +135,10 @@ const viewColumns: Record<string, string[]> = {
         'created_at',
         'expires_at',
     ],
-    event_log_entries: ['integration_id', 'id', 'category', 'type', 'title', 'message', 'metadata', 'read', 'created_at'],
-    user_assignments: ['integration_id', 'user_id', 'role', 'source', 'created_at'],
-    users: ['id', 'email', 'name', 'picture', 'github_login', 'last_active_at'],
-    slack_workspaces: ['team_id', 'team_name', 'bot_user_id', 'installed_by', 'installed_at', 'disconnected_at'],
+    'gitgazer.event_log_entries_view': ['integration_id', 'id', 'category', 'type', 'title', 'message', 'metadata', 'read', 'created_at'],
+    'github.user_assignments_view': ['integration_id', 'user_id', 'role', 'source', 'created_at'],
+    'gitgazer.users_view': ['id', 'email', 'name', 'picture', 'github_login', 'last_active_at'],
+    'gitgazer.slack_workspaces_view': ['team_id', 'team_name', 'bot_user_id', 'installed_by', 'installed_at', 'disconnected_at'],
 };
 
 const signContext = `gitgazer.sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
@@ -152,10 +162,12 @@ describe('role-aware configuration views', () => {
         `);
         await db.exec(readMigration('20261029090000_mcp_signed_context'));
         await db.exec(baseTables);
-        // The prod defaults from 20260310163205, which apply to views as well.
+        // The prod defaults from 20260228093008 and 20260310163205, which apply to views as well.
         await db.exec(`
             ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_reader;
             ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gitgazer_writer;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT ON TABLES TO gitgazer_reader;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gitgazer_writer;
         `);
         await db.exec(readMigration('20261029120000_role_aware_views'));
         await db.exec(seed);
@@ -184,37 +196,37 @@ describe('role-aware configuration views', () => {
     const callerRoles = `${A}:admin,${B}:viewer`;
 
     it.each(viewerViews)('%s returns the rows of A and B only', async (view) => {
-        const rows = await asCaller<{integration_id: string}>(callerRoles, `SELECT integration_id FROM github.${view}`);
+        const rows = await asCaller<{integration_id: string}>(callerRoles, `SELECT integration_id FROM ${view}`);
         expect(rows.map((row) => row.integration_id).sort()).toEqual([A, B]);
     });
 
     const byIntegration = async (view: string, column: string) => {
         const rows = await asCaller<{integration_id: string; value: unknown}>(
             callerRoles,
-            `SELECT integration_id, ${column} AS value FROM github.${view} ORDER BY integration_id`,
+            `SELECT integration_id, ${column} AS value FROM ${view} ORDER BY integration_id`,
         );
         return rows.map((row) => [row.integration_id, row.value !== null]);
     };
 
-    it('integration_app_github_settings.secret is set for A and NULL for B', async () => {
-        expect(await byIntegration('integration_app_github_settings', 'secret')).toEqual([
+    it('integration_app_github_settings_view.secret is set for A and NULL for B', async () => {
+        expect(await byIntegration('gitgazer.integration_app_github_settings_view', 'secret')).toEqual([
             [A, true],
             [B, false],
         ]);
     });
 
-    it('webhook_handle_details.url is set for A and NULL for B', async () => {
-        expect(await byIntegration('webhook_handle_details', 'url')).toEqual([
+    it('webhook_handle_details_view.url is set for A and NULL for B', async () => {
+        expect(await byIntegration('gitgazer.webhook_handle_details_view', 'url')).toEqual([
             [A, true],
             [B, false],
         ]);
     });
 
-    it('integration_invitations: rows only where the caller is member+, token and email only for admin+', async () => {
+    it('integration_invitations_view: rows only where the caller is member+, token and email only for admin+', async () => {
         const invitations = (roles: string) =>
             asCaller<{integration_id: string; invite_token: string | null; email: string | null}>(
                 roles,
-                'SELECT integration_id, invite_token, email FROM github.integration_invitations',
+                'SELECT integration_id, invite_token, email FROM gitgazer.integration_invitations_view',
             );
         const asAdmin = await invitations(callerRoles);
         expect(asAdmin).toHaveLength(1);
@@ -225,32 +237,32 @@ describe('role-aware configuration views', () => {
         expect(await invitations(`${A}:member`)).toEqual([{integration_id: A, invite_token: null, email: null}]);
     });
 
-    it('users returns u1 and u2 only, email only for u1', async () => {
-        const rows = await asCaller<{id: number; email: string | null}>(callerRoles, 'SELECT id, email FROM github.users ORDER BY id');
+    it('users_view returns u1 and u2 only, email only for u1', async () => {
+        const rows = await asCaller<{id: number; email: string | null}>(callerRoles, 'SELECT id, email FROM gitgazer.users_view ORDER BY id');
         expect(rows).toEqual([
             {id: 1, email: 'u1@example.com'},
             {id: 2, email: null},
         ]);
     });
 
-    it('slack_workspaces returns T1 only, with installed_by NULL because u3 is in C only', async () => {
+    it('slack_workspaces_view returns T1 only, with installed_by NULL because u3 is in C only', async () => {
         const rows = await asCaller<{team_id: string; installed_by: number | null}>(
             callerRoles,
-            'SELECT team_id, installed_by FROM github.slack_workspaces',
+            'SELECT team_id, installed_by FROM gitgazer.slack_workspaces_view',
         );
         expect(rows).toEqual([{team_id: 'T1', installed_by: null}]);
     });
 
-    it('slack_workspaces shows installed_by when the installer is visible', async () => {
+    it('slack_workspaces_view shows installed_by when the installer is visible', async () => {
         const rows = await asCaller<{team_id: string; installed_by: number | null}>(
             `${C}:viewer`,
-            'SELECT team_id, installed_by FROM github.slack_workspaces',
+            'SELECT team_id, installed_by FROM gitgazer.slack_workspaces_view',
         );
         expect(rows).toEqual([{team_id: 'T2', installed_by: 3}]);
     });
 
     it.each(allViews)('%s returns nothing for an unsigned or forged context', async (view) => {
-        const statement = `SELECT * FROM github.${view}`;
+        const statement = `SELECT * FROM ${view}`;
         expect(await withContext(async () => undefined, statement)).toEqual([]);
         const forged = `${A}:owner,${B}:owner,${C}:owner|${'0'.repeat(64)}`;
         expect(await withContext(async () => forged, statement)).toEqual([]);
@@ -260,8 +272,8 @@ describe('role-aware configuration views', () => {
 
     it('every new view is security_barrier and not security_invoker', async () => {
         const {rows} = await db.query<{relname: string; reloptions: string[] | null}>(
-            `SELECT c.relname, c.reloptions FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-             WHERE n.nspname = 'github' AND c.relkind = 'v' ORDER BY c.relname`,
+            `SELECT n.nspname || '.' || c.relname AS relname, c.reloptions FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname IN ('github', 'gitgazer') AND c.relkind = 'v' ORDER BY relname`,
         );
         expect(rows.map((row) => row.relname)).toEqual([...allViews].sort());
         for (const row of rows) {
@@ -269,38 +281,53 @@ describe('role-aware configuration views', () => {
         }
     });
 
-    it('lists the views, and no gitgazer table, in information_schema for gitgazer_mcp', async () => {
+    it('lists the views, and no base table, in information_schema for gitgazer_mcp', async () => {
         const rows = await db.transaction(async (tx) => {
             await tx.exec('SET LOCAL ROLE gitgazer_mcp');
             return (
-                await tx.query<{table_schema: string; table_name: string; table_type: string}>(
-                    `SELECT table_schema, table_name, table_type FROM information_schema.tables
-                     WHERE table_schema IN ('github', 'gitgazer') ORDER BY table_name`,
+                await tx.query<{name: string; table_type: string}>(
+                    `SELECT table_schema || '.' || table_name AS name, table_type FROM information_schema.tables
+                     WHERE table_schema IN ('github', 'gitgazer') ORDER BY name`,
                 )
             ).rows;
         });
-        expect(rows).toEqual([...allViews].sort().map((view) => ({table_schema: 'github', table_name: view, table_type: 'VIEW'})));
+        expect(rows).toEqual([...allViews].sort().map((view) => ({name: view, table_type: 'VIEW'})));
     });
 
     describe('privileges', () => {
-        it('gives gitgazer_mcp no privilege on any gitgazer table and no USAGE on gitgazer', async () => {
-            const {rows} = await db.query<{usage: boolean; tables: string[] | null}>(
+        it('gives gitgazer_mcp USAGE on gitgazer and no privilege on any of its relations but the views', async () => {
+            const {rows} = await db.query<{usage: boolean; relations: string[] | null}>(
                 `SELECT has_schema_privilege('gitgazer_mcp', 'gitgazer', 'USAGE') AS usage,
-                        (SELECT array_agg(c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                         WHERE n.nspname = 'gitgazer' AND c.relkind IN ('r', 'v', 'm', 'p')
+                        (SELECT array_agg(n.nspname || '.' || c.relname ORDER BY c.relname)
+                         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                         WHERE n.nspname = 'gitgazer'
                            AND (has_table_privilege('gitgazer_mcp', c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
-                                OR has_any_column_privilege('gitgazer_mcp', c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))) AS tables`,
+                                OR has_any_column_privilege('gitgazer_mcp', c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))) AS relations`,
             );
-            expect(rows).toEqual([{usage: false, tables: null}]);
+            expect(rows).toEqual([{usage: true, relations: allViews.filter((view) => view.startsWith('gitgazer.')).sort()}]);
+        });
+
+        it('gives gitgazer_mcp no EXECUTE on any gitgazer function', async () => {
+            const {rows} = await db.query<{proname: string; executable: boolean}>(
+                `SELECT p.proname, has_function_privilege('gitgazer_mcp', p.oid, 'EXECUTE') AS executable
+                 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'gitgazer'`,
+            );
+            expect(rows).toEqual([{proname: 'sign_context', executable: false}]);
+        });
+
+        it.each(['users', 'integration_app_github_settings'])('denies gitgazer_mcp the base table gitgazer.%s', async (table) => {
+            await expect(withContext(async () => undefined, `SELECT * FROM gitgazer.${table}`)).rejects.toThrow(
+                `permission denied for table ${table}`,
+            );
         });
 
         it('gives gitgazer_mcp only SELECT on the views', async () => {
             const {rows} = await db.query<{relname: string; can_select: boolean; can_write: boolean}>(
-                `SELECT c.relname,
+                `SELECT n.nspname || '.' || c.relname AS relname,
                         has_table_privilege('gitgazer_mcp', c.oid, 'SELECT') AS can_select,
                         has_table_privilege('gitgazer_mcp', c.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER') AS can_write
                  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                 WHERE n.nspname = 'github' AND c.relkind = 'v'`,
+                 WHERE n.nspname IN ('github', 'gitgazer') AND c.relkind = 'v'`,
             );
             expect(rows).toHaveLength(allViews.length);
             for (const row of rows) {
@@ -310,10 +337,10 @@ describe('role-aware configuration views', () => {
 
         it('grants each view to gitgazer_mcp only, besides its owner', async () => {
             const {rows} = await db.query<{relname: string; grantees: string[]}>(
-                `SELECT c.relname, array_agg(DISTINCT pg_get_userbyid(acl.grantee)::text) AS grantees
+                `SELECT n.nspname || '.' || c.relname AS relname, array_agg(DISTINCT pg_get_userbyid(acl.grantee)::text) AS grantees
                  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace, aclexplode(c.relacl) AS acl
-                 WHERE n.nspname = 'github' AND c.relkind = 'v' AND acl.grantee <> c.relowner
-                 GROUP BY c.relname ORDER BY c.relname`,
+                 WHERE n.nspname IN ('github', 'gitgazer') AND c.relkind = 'v' AND acl.grantee <> c.relowner
+                 GROUP BY 1 ORDER BY 1`,
             );
             expect(rows).toEqual([...allViews].sort().map((view) => ({relname: view, grantees: ['gitgazer_mcp']})));
         });
@@ -321,8 +348,8 @@ describe('role-aware configuration views', () => {
 
     it('exposes no column outside the spec', async () => {
         const {rows} = await db.query<{table_name: string; columns: string[]}>(
-            `SELECT table_name, array_agg(column_name::text ORDER BY ordinal_position) AS columns
-             FROM information_schema.columns WHERE table_schema = 'github' AND table_name = ANY ($1) GROUP BY table_name`,
+            `SELECT table_schema || '.' || table_name AS table_name, array_agg(column_name::text ORDER BY ordinal_position) AS columns
+             FROM information_schema.columns WHERE table_schema || '.' || table_name = ANY ($1) GROUP BY 1`,
             [allViews],
         );
         expect(Object.fromEntries(rows.map((row) => [row.table_name, row.columns]))).toEqual(viewColumns);
