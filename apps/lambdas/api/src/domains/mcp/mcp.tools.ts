@@ -44,9 +44,10 @@ export const registerMcpTools = (server: McpServer): void => {
         'run_sql',
         {
             description:
-                'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data. Tables in the "github" schema: ' +
+                'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data. Schema-qualify every table and view name. ' +
+                'Tables in the "github" schema: ' +
                 'workflow_runs, workflow_jobs, workflow_run_pull_requests, pull_requests, repositories, organizations, ' +
-                'enterprises, pull_request_reviews, "user", and integrations. Configuration views, which you must schema-qualify: ' +
+                'enterprises, pull_request_reviews, "user", and integrations. Configuration views: ' +
                 'gitgazer.integration_apps_view, gitgazer.integration_app_github_settings_view, gitgazer.integration_app_slack_settings_view, ' +
                 'gitgazer.notification_handles_view, gitgazer.webhook_handle_details_view, gitgazer.slack_handle_details_view, ' +
                 'gitgazer.notification_rules_view, gitgazer.notification_rule_destinations_view, gitgazer.integration_invitations_view, ' +
@@ -113,7 +114,7 @@ export const registerMcpTools = (server: McpServer): void => {
         },
         toolHandler('describe_table', ({table}, {integrationRoles}) =>
             runReadOnlyQuery({
-                sql: `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
+                sql: `SELECT table_schema, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
                 integrationRoles,
             }),
         ),

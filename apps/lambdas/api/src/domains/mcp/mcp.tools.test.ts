@@ -109,6 +109,7 @@ describe('mcp tools', () => {
 
     it('describe_table embeds a validated identifier', async () => {
         await callTool('describe_table', {table: 'workflow_runs'});
+        expect(lastSql()).toContain('SELECT table_schema, column_name, data_type, is_nullable');
         expect(lastSql()).toContain("table_schema IN ('github', 'gitgazer')");
         expect(lastSql()).toContain("table_name = 'workflow_runs'");
     });
@@ -126,7 +127,7 @@ describe('mcp tools', () => {
     it('does not echo a failure to sign the tenant context, even one caused by a permission error', async () => {
         const {DrizzleQueryError} = await import('drizzle-orm/errors');
         const denied = new DrizzleQueryError(
-            'SELECT gitgazer.sign_context($1, $2::integer, $3::bigint) AS signature',
+            'SELECT gitgazer_internal.sign_context($1, $2::integer, $3::bigint) AS signature',
             [`${ID_A}:viewer`, 4242, '1793000000123456'],
             Object.assign(new Error('permission denied for function sign_context'), {code: '42501'}),
         );

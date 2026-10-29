@@ -78,7 +78,8 @@ If an answer looks off, ask the assistant to "list the tables" or "describe the 
 
 - ✅ Only the integrations **you** are a member of — the same tenant scope as the web app.
 - ✅ GitHub Actions data: workflow runs and jobs, pull requests, repositories, organizations, enterprises, and users.
-- ❌ **Not** other tenants' data, webhook secrets, or GitGazer account/personal information.
+- ✅ Your integrations' GitGazer configuration (apps, notification rules and handles, members, pending invitations and the event log), as your role allows: invitations from member up; webhook secrets and URLs, email addresses of members and invitees, and invite tokens only for admins and owners.
+- ❌ **Not** other tenants' data or Slack bot tokens.
 - ❌ **No** writes — it cannot modify or delete anything.
 
 ## Limits
@@ -96,7 +97,7 @@ Each query "costs" the time it takes to run, drawn from a rolling ~1-hour budget
 ## Troubleshooting
 
 - **It keeps asking me to sign in.** Confirm the URL is exactly `https://<your-gitgazer-domain>/api/mcp` and that you signed in with the GitHub account that has access to your integration.
-- **"relation does not exist".** Tables live in the `github` schema. Ask the assistant to qualify names (for example `github.workflow_runs`) or to call "list tables" first.
+- **"relation does not exist".** GitHub tables live in the `github` schema and configuration views in `gitgazer`. Ask the assistant to qualify names (for example `github.workflow_runs` or `gitgazer.notification_rules_view`) or to call "list tables" first.
 - **"Query quota exceeded".** You've reached the hourly limit; wait for the reset time shown in the message.
 - **Empty answers.** You may not be a member of any integration yet, or data hasn't been ingested — check your [integrations](./integrations.md).
 
