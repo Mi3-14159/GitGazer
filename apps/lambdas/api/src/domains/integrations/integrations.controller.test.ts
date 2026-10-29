@@ -54,8 +54,9 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
 }));
 
+const mockDeprovisionAllWebhooks = vi.fn();
 vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
-    deprovisionAllWebhooks: vi.fn(),
+    deprovisionAllWebhooks: (...args: any[]) => mockDeprovisionAllWebhooks(...args),
     updateWebhookSecrets: vi.fn(),
 }));
 
@@ -244,8 +245,14 @@ describe('integrations controller', () => {
 
     describe('deleteIntegration', () => {
         const order: string[] = [];
+        let ownerRows: {userId: number}[] = [];
         const deleteTx = {
-            select: () => ({from: () => ({where: () => ({groupBy: () => Promise.resolve([])})})}),
+            select: () => ({
+                from: (table: unknown) => ({
+                    where: () =>
+                        table === userAssignmentsTable ? Promise.resolve(ownerRows) : {groupBy: () => Promise.resolve([{installationId: 42}])},
+                }),
+            }),
             delete: () => ({
                 where: () => {
                     order.push('delete');
@@ -254,7 +261,11 @@ describe('integrations controller', () => {
             }),
         };
 
-        beforeEach(() => {
+        let userAssignmentsTable: unknown;
+
+        beforeEach(async () => {
+            ({userAssignments: userAssignmentsTable} = await import('@gitgazer/db/schema/github/workflows'));
+            ownerRows = [{userId: 7}];
             order.length = 0;
             mockWithRlsTransaction.mockImplementation(async (params) => params.callback(deleteTx));
             mockReleaseWorkspaceIfUnused.mockImplementation(async () => {
@@ -272,6 +283,15 @@ describe('integrations controller', () => {
 
             expect(order).toEqual(['team', 'delete', 'release']);
             expect(mockReleaseWorkspaceIfUnused).toHaveBeenCalledWith('int-1', 'T1');
+        });
+
+        it('refuses a caller who is not an owner before removing any webhooks', async () => {
+            ownerRows = [];
+
+            await expect(controller.deleteIntegration('int-1', ['int-1'], 7)).rejects.toThrow('Only owners can delete an integration');
+
+            expect(mockDeprovisionAllWebhooks).not.toHaveBeenCalled();
+            expect(order).toEqual([]);
         });
 
         it('lets any owner delete, not only the creator', async () => {
