@@ -35,6 +35,18 @@
   "name": "@gitgazer/docs",
   "nx": {
     "targets": {
+      "build": {
+        "inputs": [
+          "production",
+          "^production",
+          {
+            "env": "VITE_HOST_URL"
+          },
+          {
+            "env": "DOCS_DOMAIN"
+          }
+        ]
+      },
       "upload": {
         "executor": "nx:run-commands",
         "options": {
@@ -43,7 +55,7 @@
           "commands": [
             "aws s3 sync dist/ \"s3://${DOCS_S3_BUCKET:?required}/\" --delete --cache-control 'public, max-age=31536000, immutable' --exclude '*.html' --exclude 'sitemap.xml' --exclude 'robots.txt'",
             "aws s3 sync dist/ \"s3://${DOCS_S3_BUCKET:?required}/\" --delete --cache-control 'public, max-age=0, must-revalidate' --exclude '*' --include '*.html' --include 'sitemap.xml' --include 'robots.txt'",
-            "aws cloudfront create-invalidation --paths '/*' --distribution-id \"$(aws cloudfront list-distributions --query \"DistributionList.Items[?Aliases.Items[?contains(@, '${DOCS_DOMAIN:-docs.gitgazer.com}')]].Id | [0]\" --output text)\""
+            "aws cloudfront create-invalidation --paths '/*' --distribution-id \"$(aws cloudfront list-distributions --query \"DistributionList.Items[?Aliases.Items[?contains(@, '${DOCS_DOMAIN:?required}')]].Id | [0]\" --output text)\""
           ]
         }
       }

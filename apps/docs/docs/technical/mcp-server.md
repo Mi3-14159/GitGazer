@@ -21,7 +21,7 @@ For the end-user walkthrough (how to connect a client), see [Querying Data with 
 | Protocol version | `2026-07-28`, and `2025-11-25` for older clients        |
 | Auth             | OAuth 2.1 Bearer access token (`Authorization: Bearer`) |
 
-`<your-gitgazer-domain>` is the same host as the GitGazer web app (the CloudFront/custom domain).
+The endpoint is on the same host as the GitGazer web app (the CloudFront/custom domain).
 
 The endpoint is served by the official MCP TypeScript SDK (`@modelcontextprotocol/server`), which
 owns the wire format. It is **dual-era**, decided per request:
