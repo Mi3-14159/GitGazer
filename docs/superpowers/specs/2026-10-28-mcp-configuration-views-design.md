@@ -33,21 +33,21 @@ Builds on the signed tenant context (`docs/superpowers/specs/2026-10-28-mcp-sign
 
 All in schema `github`. "Rows for" is the minimum role in an integration to see its rows. A column not listed under "Column limits" is visible to everyone who sees the row; "never" means the column is not in the view.
 
-| View | Base table | Rows for | Column limits |
-| --- | --- | --- | --- |
-| `integration_apps` | `gitgazer.integration_apps` | viewer+ | – |
-| `integration_app_github_settings` | `gitgazer.integration_app_github_settings` | viewer+ | `secret`: admin+ |
-| `integration_app_slack_settings` | `gitgazer.integration_app_slack_settings` | viewer+ | – |
-| `notification_handles` | `gitgazer.notification_handles` | viewer+ | – |
-| `webhook_handle_details` | `gitgazer.webhook_handle_details` | viewer+ | `url`: admin+ |
-| `slack_handle_details` | `gitgazer.slack_handle_details` | viewer+ | – |
-| `notification_rules` | `gitgazer.notification_rules` | viewer+ | – |
-| `notification_rule_destinations` | `gitgazer.notification_rule_destinations` | viewer+ | – |
-| `integration_invitations` | `gitgazer.integration_invitations` | member+ | `invite_token`, `email`: admin+ |
-| `event_log_entries` | `gitgazer.event_log_entries` | viewer+ | – |
-| `user_assignments` | `github."user-assignments"` | viewer+ | – |
-| `users` | `gitgazer.users` (global) | see below | only `id`, `email`, `name`, `picture`, `github_login`, `last_active_at`; `email`: only when the user is in an integration where the caller is admin+; `cognito_id`, `github_id` never |
-| `slack_workspaces` | `gitgazer.slack_workspaces` (global) | see below | `installed_by`: only when that user is visible in the `users` view; `bot_token_ciphertext` never |
+| View                              | Base table                                 | Rows for  | Column limits                                                                                                                                                                         |
+| --------------------------------- | ------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration_apps`                | `gitgazer.integration_apps`                | viewer+   | –                                                                                                                                                                                     |
+| `integration_app_github_settings` | `gitgazer.integration_app_github_settings` | viewer+   | `secret`: admin+                                                                                                                                                                      |
+| `integration_app_slack_settings`  | `gitgazer.integration_app_slack_settings`  | viewer+   | –                                                                                                                                                                                     |
+| `notification_handles`            | `gitgazer.notification_handles`            | viewer+   | –                                                                                                                                                                                     |
+| `webhook_handle_details`          | `gitgazer.webhook_handle_details`          | viewer+   | `url`: admin+                                                                                                                                                                         |
+| `slack_handle_details`            | `gitgazer.slack_handle_details`            | viewer+   | –                                                                                                                                                                                     |
+| `notification_rules`              | `gitgazer.notification_rules`              | viewer+   | –                                                                                                                                                                                     |
+| `notification_rule_destinations`  | `gitgazer.notification_rule_destinations`  | viewer+   | –                                                                                                                                                                                     |
+| `integration_invitations`         | `gitgazer.integration_invitations`         | member+   | `invite_token`, `email`: admin+                                                                                                                                                       |
+| `event_log_entries`               | `gitgazer.event_log_entries`               | viewer+   | –                                                                                                                                                                                     |
+| `user_assignments`                | `github."user-assignments"`                | viewer+   | –                                                                                                                                                                                     |
+| `users`                           | `gitgazer.users` (global)                  | see below | only `id`, `email`, `name`, `picture`, `github_login`, `last_active_at`; `email`: only when the user is in an integration where the caller is admin+; `cognito_id`, `github_id` never |
+| `slack_workspaces`                | `gitgazer.slack_workspaces` (global)       | see below | `installed_by`: only when that user is visible in the `users` view; `bot_token_ciphertext` never                                                                                      |
 
 The role levels come from the routes: `GET /apps` and `GET …/members` require viewer; `GET …/invitations` requires member and shows `inviteToken` only to `hasRole(role, 'admin')`; `GET /apps` shows `secret` and `url` only to `hasRole(role, 'admin')`, which covers admin and owner; `GET /notifications` and `GET /event-log` return all of the caller's integrations. The column list of `users` is what `GET …/members` shows of them, except `email`: the user decided emails (members' and invitations') are for admin+ only, and both endpoints change to match (see "Also changes"). `slack_workspaces` goes beyond `GET /apps` with the user's approval: `bot_user_id` is the bot's own Slack id, not a person's, and `installed_at` is harmless. A workspace can be shared by several integrations, so `installed_by` may be a user of another tenant; it is `NULL` unless that user is visible in `users`.
 
@@ -68,13 +68,13 @@ Every view uses the column-gate pattern from `apps/docs/docs/technical/mcp-serve
 
 **Generic names.** The signed context is no longer MCP-only, so its SQL names drop the `mcp_` prefix in this migration. Postgres policies reference functions by OID, so a rename keeps the existing policies working.
 
-| Today | New |
-| --- | --- |
+| Today                              | New                            |
+| ---------------------------------- | ------------------------------ |
 | `github.mcp_integration_ids(role)` | `github.integration_ids(role)` |
-| `github.mcp_context()` | `github.signed_context()` |
-| `gitgazer.mcp_sign_context(...)` | `gitgazer.sign_context(...)` |
-| `gitgazer.mcp_context_key` | `gitgazer.context_key` |
-| setting `rls.mcp_context` | `rls.signed_context` |
+| `github.mcp_context()`             | `github.signed_context()`      |
+| `gitgazer.mcp_sign_context(...)`   | `gitgazer.sign_context(...)`   |
+| `gitgazer.mcp_context_key`         | `gitgazer.context_key`         |
+| setting `rls.mcp_context`          | `rls.signed_context`           |
 
 `packages/db/src/queries/readonlyQuery.ts` and the Drizzle schema follow the renames. The `gitgazer_mcp` role and `mcpTenantSeparationPolicy` keep their names: they really are the MCP's.
 
@@ -94,6 +94,7 @@ The views live in `github`, so `list_tables` and `describe_table` (which read `i
 PGlite tests that load the real migration SQL (like `packages/db/src/queries/mcp-context.test.ts`), with prod-like roles: `root`, `gitgazer_reader`, `gitgazer_writer`, `gitgazer_mcp`. There is no `gitgazer_user`.
 
 For each view, with a signed context holding integrations at different roles:
+
 - only the right rows come back;
 - limited columns are `NULL` below their role and set from it on;
 - `integration_invitations` returns nothing for a viewer;
@@ -103,6 +104,7 @@ For each view, with a signed context holding integrations at different roles:
 - no context returns nothing.
 
 Also check:
+
 - `gitgazer_mcp` has no privilege on any `gitgazer` table and no `USAGE` on that schema;
 - every new view is `security_barrier` and not `security_invoker`;
 - the existing MCP policies still work after the renames.
