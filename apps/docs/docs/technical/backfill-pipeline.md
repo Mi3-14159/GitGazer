@@ -36,7 +36,7 @@ flowchart TD
     BW -->|"workflow_run / pull_request"| DB["insertEvent() upsert<br/>(RLS txn)"]
     BW -.->|"integrationId → PAT"| SM[("Secrets Manager<br/>gitgazer/backfill/&lt;env&gt;/&lt;integrationId&gt;")]
     BW -.->|"GitHub calls via proxyFetch"| GH["GitHub REST API"]
-    Q -->|"maxReceiveCount: 3 → DLQ"| DLQ[("backfill-tasks-DLQ")]
+    Q -->|"maxReceiveCount: 10 → DLQ"| DLQ[("backfill-tasks-DLQ")]
 ```
 
 ## One Lambda, Two Entry Modes
@@ -116,7 +116,7 @@ The `eventTypes` array flows through every task. Handlers use it to skip work th
 graph LR
     BW["backfill-worker"] -- "SendMessage (fan-out)" --> MAIN["backfill-tasks<br/>(standard)"]
     MAIN -- "Batch of 10" --> BW
-    MAIN -- "maxReceiveCount: 3" --> DLQ["backfill-tasks-dlq<br/>(14-day retention)"]
+    MAIN -- "maxReceiveCount: 10" --> DLQ["backfill-tasks-dlq<br/>(14-day retention)"]
     DLQ -- "depth > 0" --> CW["CloudWatch Alarm"]
 ```
 
@@ -132,15 +132,15 @@ The backfill queue is a **standard** queue — backfill needs parallelism, not o
 | Max message size   | 256 KB                             |
 | Polling            | Long polling (5 second wait)       |
 | Encryption         | KMS                                |
-| Redrive            | `maxReceiveCount: 3` → DLQ         |
+| Redrive            | `maxReceiveCount: 10` → DLQ        |
 
 ### Dead-Letter Queue
 
-A task that fails three times is moved to the DLQ, which retains messages for **14 days**. DLQ depth is the canonical "something went wrong" signal for a run — a CloudWatch alarm fires whenever any message lands there (when alarm notifications are enabled).
+A task that fails ten times is moved to the DLQ, which retains messages for **14 days**. The limit is high because a rate-limited task can legitimately be redelivered several times across limit-reset windows before it succeeds. DLQ depth is the canonical "something went wrong" signal for a run — a CloudWatch alarm fires whenever any message lands there (when alarm notifications are enabled).
 
 ### Concurrency cap
 
-The event-source mapping sets `scaling_config { maximum_concurrency = N }` (the `backfill_max_concurrency` variable, default **5**). This bounds how many workers call GitHub in parallel, keeping the fan-out from tripping GitHub's secondary rate limits.
+The event-source mapping sets `scaling_config { maximum_concurrency = N }` (the `backfill_max_concurrency` variable, default **2**, minimum 2). This bounds how many workers call GitHub in parallel, keeping the fan-out from tripping GitHub's secondary rate limits.
 
 ## GitHub Authentication
 
@@ -169,8 +169,11 @@ flowchart TD
     G -- "Yes" --> H["Sleep, retry"]
     H --> A
     G -- "No" --> E
-    E --> I["Task fails → SQS retry<br/>after 360 s visibility timeout"]
-    I --> J["After 3 attempts → DLQ"]
+    E --> R{"Rate limit with<br/>known reset?"}
+    R -- "Yes" --> D2["Extend message visibility<br/>until the reset (max 12 h)"]
+    R -- "No" --> I["Task fails → SQS retry<br/>after 360 s visibility timeout"]
+    D2 --> J["After 10 receives → DLQ"]
+    I --> J
 ```
 
 The wait time is chosen in priority order:
@@ -179,7 +182,7 @@ The wait time is chosen in priority order:
 2. `x-ratelimit-remaining: 0` plus `x-ratelimit-reset` → wait until the reset epoch (plus a 1 s buffer).
 3. Otherwise exponential backoff: `min(8 s, 500 ms · 2^(attempt-1))` with up to 30% jitter.
 
-Inline retries happen only when the wait is **≤ 20 seconds** and within the 4-attempt budget. A longer wait (a primary-limit reset can be many minutes out) instead **throws**, failing the task so SQS re-delivers it after the 360-second visibility timeout — no Lambda compute is burned waiting.
+Inline retries happen only when the wait is **≤ 20 seconds** and within the 4-attempt budget. A longer wait (a primary-limit reset can be many minutes out) instead **throws** a `GitHubApiError` carrying the wait. The worker then extends the SQS message's visibility timeout until the limit resets (capped at SQS's 12-hour maximum) and reports the task as failed, so SQS re-delivers it after the reset — no Lambda compute is burned waiting. Other failures are re-delivered after the queue's 360-second visibility timeout.
 
 ## Idempotency & Safety
 
@@ -196,6 +199,7 @@ The worker's execution role grants the minimum it needs:
 | Permission                                                                    | Why                                                   |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `sqs:ReceiveMessage` / `DeleteMessage` / `GetQueueAttributes` / `SendMessage` | Consume tasks and self-enqueue fan-out                |
+| `sqs:ChangeMessageVisibility`                                                 | Defer rate-limited tasks until the limit resets       |
 | `secretsmanager:GetSecretValue`                                               | Read DB config + per-integration PATs (prefix-scoped) |
 | `kms:Decrypt` / `GenerateDataKey` / `Encrypt`                                 | Decrypt secrets and queue messages                    |
 | `rds-db:connect`                                                              | IAM-auth database connection                          |

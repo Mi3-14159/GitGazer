@@ -10,7 +10,7 @@ GitGazer includes Terraform-managed infrastructure monitoring built on Amazon Cl
 
 ## Overview
 
-Monitoring resources are defined in `infra/monitoring_alarms.tf`:
+Monitoring resources are defined in `infra/monitoring_alarms.tf` (the backfill DLQ alarm lives in `infra/backfill_queue.tf`):
 
 - CloudWatch metric alarms for API, Lambda, SQS, RDS/Aurora, CloudFront, and EventBridge
 - CloudWatch Logs metric filters for Lambda ERROR-level logs
@@ -47,13 +47,13 @@ aws-vault exec <profile> -- terraform apply
 When monitoring is enabled, alarms publish to an SNS topic:
 
 - Resource: `aws_sns_topic.cloudwatch_alarms`
-- Output: `cloudwatch_alarms_topic_arn`
+- Topic name: `<name_prefix>-cloudwatch-alarms-<workspace>` (for example `gitgazer-cloudwatch-alarms-prod`)
 
-You can retrieve it via:
+There is no Terraform output for it; read the ARN from the state:
 
 ```bash
 cd infra
-aws-vault exec <profile> -- terraform output cloudwatch_alarms_topic_arn
+aws-vault exec <profile> -- terraform state show 'aws_sns_topic.cloudwatch_alarms[0]'
 ```
 
 Add one or more SNS subscriptions (email, webhook bridge, incident tooling) to actually receive notifications.
@@ -61,6 +61,8 @@ Add one or more SNS subscriptions (email, webhook bridge, incident tooling) to a
 ## Alarm Coverage
 
 ### Lambda
+
+Covers the WebSocket, Worker, Backfill Worker and Org Sync Lambdas, plus the HTTP proxy Lambda when `enable_http_proxy` is on:
 
 - Invocation errors (`AWS/Lambda Errors`)
 - Throttles (`AWS/Lambda Throttles`)
@@ -78,9 +80,10 @@ Add one or more SNS subscriptions (email, webhook bridge, incident tooling) to a
 
 ### SQS
 
-- Main queue visible backlog
-- Oldest message age
-- DLQ depth
+- Webhook queue visible backlog
+- Webhook queue oldest message age
+- Webhook DLQ depth
+- Backfill DLQ depth
 
 ### RDS / Aurora
 

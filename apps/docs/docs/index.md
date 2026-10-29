@@ -22,6 +22,8 @@ Learn how to use GitGazer — from signing in to configuring notifications.
 - [Setting Up Integrations](user-guide/integrations)
 - [Monitoring Workflows](user-guide/workflows)
 - [Configuring Notifications](user-guide/notifications)
+- [Slack App](user-guide/slack-app)
+- [Managing Team Members](user-guide/team-management)
 
 </div>
 <div className="col col--6">
@@ -33,6 +35,9 @@ Understand how GitGazer works — architecture, data flow, and infrastructure.
 - [Architecture Overview](technical/architecture-overview)
 - [Authentication & Authorization](technical/authentication)
 - [Webhook Processing Pipeline](technical/webhook-pipeline)
+- [Backfill Pipeline](technical/backfill-pipeline)
+- [MCP Server](technical/mcp-server)
+- [Roles & Permissions](technical/roles-and-permissions)
 - [Infrastructure Monitoring & Alerting](technical/infrastructure-monitoring)
 - [Local Development Guide](technical/local-development)
 

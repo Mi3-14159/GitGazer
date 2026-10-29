@@ -1,41 +1,29 @@
-# Website
+# GitGazer Docs
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
-
-## Installation
-
-```bash
-yarn
-```
+Source of <https://docs.gitgazer.com/>, built with [Docusaurus](https://docusaurus.io/). Pages live in `docs/`.
 
 ## Local Development
 
 ```bash
-yarn start
+pnpm install
+pnpm run start   # dev server with live reload
 ```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
 
 ## Build
 
 ```bash
-yarn build
+pnpm run build   # static site in dist/
+pnpm run serve   # preview dist/ locally
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+Broken links fail the build (`onBrokenLinks: 'throw'`).
 
 ## Deployment
 
-Using SSH:
+The `upload` target in `package.json` syncs `dist/` to the docs S3 bucket and invalidates the docs CloudFront distribution:
 
 ```bash
-USE_SSH=true yarn deploy
+DOCS_S3_BUCKET=<bucket> pnpm nx run @gitgazer/docs:upload
 ```
 
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> yarn deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+`DOCS_DOMAIN` (default `docs.gitgazer.com`) selects the distribution to invalidate. CI runs this for affected projects with `pnpm nx affected -t build upload`.

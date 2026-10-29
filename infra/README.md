@@ -1,12 +1,6 @@
 # Setup
 
-Your token needs the `admin:org_hook` permission, add it to your token. It you are using the gh cli, you can add it by executing this:
-
-```sh
-gh auth refresh -h github.com -s admin:org_hook
-```
-
-If you want to enabled API Gateway logging, you will need to setup the global account Cloudwatch Logs role ARN.
+If you want to enable WebSocket API Gateway logging (`apigateway_logging_enabled`), you will need to setup the global account Cloudwatch Logs role ARN.
 Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/main/settings?api=unselected&region=<AWS_REGION>](https://eu-central-1.console.aws.amazon.com/apigateway/main/settings?api=unselected&region=<AWS_REGION>)
 
 <!-- BEGIN_TF_DOCS -->
@@ -66,6 +60,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_cloudwatch_log_group.api_gateway_websocket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                            | resource    |
 | [aws_cloudwatch_log_group.api_gateway_websocket_access_logs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                | resource    |
 | [aws_cloudwatch_log_group.api_web](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                                          | resource    |
+| [aws_cloudwatch_log_group.api_web_local](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                                    | resource    |
 | [aws_cloudwatch_log_group.api_websocket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                                    | resource    |
 | [aws_cloudwatch_log_group.backfill_worker](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                                  | resource    |
 | [aws_cloudwatch_log_group.bedrock_invocation_logs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group)                                          | resource    |
@@ -93,6 +88,7 @@ Replace `AWS_REGION` in [https://eu-central-1.console.aws.amazon.com/apigateway/
 | [aws_cognito_identity_pool.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_identity_pool)                                                           | resource    |
 | [aws_cognito_identity_pool_roles_attachment.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_identity_pool_roles_attachment)                         | resource    |
 | [aws_cognito_identity_provider.github](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_identity_provider)                                                 | resource    |
+| [aws_cognito_resource_server.mcp](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_resource_server)                                                        | resource    |
 | [aws_cognito_user_pool.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool)                                                                   | resource    |
 | [aws_cognito_user_pool_client.mcp](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_client)                                                      | resource    |
 | [aws_cognito_user_pool_client.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_client)                                                     | resource    |
