@@ -68,11 +68,11 @@ resource "aws_cognito_user_pool_client" "this" {
 }
 
 # Marks access tokens as meant for the MCP server, which rejects tokens without `gitgazer-mcp/read`.
-# No workspace suffix: identifiers are unique per user pool, and the API hardcodes the scope in
-# apps/lambdas/api/src/shared/mcp-scope.ts.
+# The identifier has no workspace suffix: identifiers are unique per user pool, and the API
+# hardcodes the scope in apps/lambdas/api/src/shared/mcp-scope.ts.
 resource "aws_cognito_resource_server" "mcp" {
   identifier   = "gitgazer-mcp"
-  name         = "GitGazer MCP"
+  name         = "${var.name_prefix}-mcp-resource-server-${terraform.workspace}"
   user_pool_id = aws_cognito_user_pool.this.id
 
   scope {
@@ -100,7 +100,7 @@ resource "aws_cognito_user_pool_client" "mcp" {
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = concat(["email", "openid", "profile"], aws_cognito_resource_server.mcp.scope_identifiers)
+  allowed_oauth_scopes                 = ["email", "openid", "profile", "${aws_cognito_resource_server.mcp.identifier}/read"]
 
   # MCP tokens live on many developer machines; bound the blast radius of a leaked refresh token.
   enable_token_revocation = true
