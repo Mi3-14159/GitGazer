@@ -475,6 +475,23 @@ describe('role-aware configuration views', () => {
             expect(await members('admin')).toEqual([{integrationId: A, userId: 1, email: 'u1@example.com'}]);
         });
 
+        it('decodes timestamps read through the views as dates', async () => {
+            const [row] = await asReader({[A]: 'member'}, (tx) =>
+                tx
+                    .select({
+                        createdAt: userAssignmentsView.createdAt,
+                        lastActiveAt: usersView.lastActiveAt,
+                        expiresAt: integrationInvitationsView.expiresAt,
+                    })
+                    .from(userAssignmentsView)
+                    .innerJoin(usersView, eq(usersView.id, userAssignmentsView.userId))
+                    .innerJoin(integrationInvitationsView, eq(integrationInvitationsView.integrationId, userAssignmentsView.integrationId)),
+            );
+            expect(row.createdAt).toBeInstanceOf(Date);
+            expect(row.lastActiveAt).toBeInstanceOf(Date);
+            expect(row.expiresAt).toBeInstanceOf(Date);
+        });
+
         it('reads the invitations of B and their users, masked for a member', async () => {
             const read = (role: MemberRole) =>
                 asReader({[B]: role}, async (tx) => ({
