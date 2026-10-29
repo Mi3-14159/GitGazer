@@ -294,6 +294,19 @@ describe('role-aware configuration views', () => {
             ]);
         });
 
+        it('shows last_active_at only for users in one of the caller integrations', async () => {
+            const rows = await asCaller<{id: number; active: boolean}>(
+                `${B}:member`,
+                'SELECT id, last_active_at IS NOT NULL AS active FROM gitgazer.users_view ORDER BY id',
+            );
+            expect(rows).toEqual([
+                {id: 1, active: false},
+                {id: 2, active: true},
+                {id: 3, active: false},
+                {id: 4, active: false},
+            ]);
+        });
+
         it('is not widened by an accepted invitation', async () => {
             expect((await users(`${A}:owner,${B}:owner,${C}:owner`)).map((row) => row.id)).toEqual([1, 2, 3, 4]);
         });

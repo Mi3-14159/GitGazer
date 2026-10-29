@@ -238,7 +238,10 @@ export const usersView = gitgazerSchema
                 name: users.name,
                 picture: users.picture,
                 githubLogin: users.githubLogin,
-                lastActiveAt: users.lastActiveAt,
+                // The API never showed the activity of inviters and invitees who are not members
+                lastActiveAt: sql<Date | null>`CASE WHEN ${inArray(users.id, usersFor(qb, 'viewer'))} THEN ${users.lastActiveAt} END`
+                    .mapWith(users.lastActiveAt)
+                    .as('last_active_at'),
             })
             .from(users)
             .where(visibleUsers(qb, 'viewer', 'member')),
