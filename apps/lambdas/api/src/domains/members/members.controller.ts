@@ -400,7 +400,7 @@ export const createInvitation = async (params: {
 
             // Get inviter details for response
             const [inviter] = await tx
-                .select({id: users.id, name: users.name, email: users.email, picture: users.picture})
+                .select({id: users.id, name: users.name, email: users.email, picture: users.picture, githubLogin: users.githubLogin})
                 .from(users)
                 .where(eq(users.id, requestingUserId));
 

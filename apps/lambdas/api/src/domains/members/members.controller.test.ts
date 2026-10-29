@@ -485,6 +485,18 @@ describe('members controller', () => {
         });
     });
 
+    describe('getInvitations user fields', () => {
+        it('loads only public columns of the inviter and the invitee', async () => {
+            const mockFindMany = vi.fn().mockResolvedValue([]);
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback({query: {integrationInvitations: {findMany: mockFindMany}}}));
+
+            await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
+
+            const columns = {id: true, name: true, picture: true, githubLogin: true, email: true};
+            expect(mockFindMany.mock.calls[0][0].with).toEqual({invitedByUser: {columns}, invitee: {columns}});
+        });
+    });
+
     // ---- createInvitation ----
 
     describe('createInvitation', () => {

@@ -23,7 +23,7 @@ export const isMemberRole = (value: string): value is MemberRole => (MEMBER_ROLE
 export const INVITATION_STATUSES = ['pending', 'accepted', 'expired'] as const;
 export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 
-export type IntegrationInvitationUser = Pick<typeof schema.users.$inferSelect, 'id' | 'name' | 'email' | 'picture'>;
+export type IntegrationInvitationUser = Pick<typeof schema.users.$inferSelect, 'id' | 'name' | 'email' | 'picture' | 'githubLogin'>;
 
 export type IntegrationInvitation = Omit<IntegrationInvitationSelect, 'invitedBy' | 'inviteeId'> & {
     invitedByUser: IntegrationInvitationUser | null;
