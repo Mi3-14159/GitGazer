@@ -110,7 +110,7 @@ export const changeRole = async (params: {
         callback: async (tx: RdsTransaction) => {
             // Fetch target's current role and name for fine-grained checks + audit
             const [target] = await tx
-                .select({role: userAssignments.role, name: users.name, email: users.email})
+                .select({role: userAssignments.role, name: users.name, githubLogin: users.githubLogin})
                 .from(userAssignments)
                 .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
@@ -120,7 +120,7 @@ export const changeRole = async (params: {
             }
 
             previousRole = target.role;
-            targetUserName = target.name ?? target.email ?? undefined;
+            targetUserName = target.name ?? target.githubLogin ?? undefined;
 
             // Only owners can manage other owners/admins
             if ((target.role === 'owner' || target.role === 'admin') && requestingRole !== 'owner') {
@@ -186,7 +186,7 @@ export const removeMember = async (params: {
         callback: async (tx: RdsTransaction) => {
             // Fetch target's current role and name for authz checks + audit
             const [target] = await tx
-                .select({role: userAssignments.role, name: users.name, email: users.email})
+                .select({role: userAssignments.role, name: users.name, githubLogin: users.githubLogin})
                 .from(userAssignments)
                 .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, targetUserId)));
@@ -195,7 +195,7 @@ export const removeMember = async (params: {
                 throw new NotFoundError('User not found in this integration');
             }
 
-            removedUserName = target.name ?? target.email ?? undefined;
+            removedUserName = target.name ?? target.githubLogin ?? undefined;
             removedUserRole = target.role;
 
             if (target.role === 'owner') {
@@ -258,7 +258,7 @@ export const leaveIntegration = async (params: {integrationId: string; userId: n
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
             const [member] = await tx
-                .select({role: userAssignments.role, name: users.name, email: users.email})
+                .select({role: userAssignments.role, name: users.name, githubLogin: users.githubLogin})
                 .from(userAssignments)
                 .innerJoin(users, eq(userAssignments.userId, users.id))
                 .where(and(eq(userAssignments.integrationId, integrationId), eq(userAssignments.userId, userId)));
@@ -267,7 +267,7 @@ export const leaveIntegration = async (params: {integrationId: string; userId: n
                 throw new NotFoundError('You are not a member of this integration');
             }
 
-            leavingUserName = member.name ?? member.email ?? undefined;
+            leavingUserName = member.name ?? member.githubLogin ?? undefined;
 
             if (member.role === 'owner') {
                 logger.info('authz', {
@@ -630,9 +630,9 @@ export const acceptInvitation = async (params: {inviteToken: string; acceptingUs
         });
 
         // Resolve accepting user's name for the audit log
-        const [acceptingUser] = await tx.select({name: users.name, email: users.email}).from(users).where(eq(users.id, acceptingUserId));
+        const [acceptingUser] = await tx.select({name: users.name, githubLogin: users.githubLogin}).from(users).where(eq(users.id, acceptingUserId));
 
-        return {...invitation, acceptingUserName: acceptingUser?.name ?? acceptingUser?.email ?? undefined};
+        return {...invitation, acceptingUserName: acceptingUser?.name ?? acceptingUser?.githubLogin ?? undefined};
     });
 
     await createEventLogEntry({

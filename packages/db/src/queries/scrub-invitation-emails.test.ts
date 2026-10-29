@@ -22,7 +22,11 @@ describe('scrub_invitation_emails migration', () => {
             ${insert(2, 'Invitation created', 'Invitation created for link-only', {invitationId: 'i2'})}
             ${insert(3, 'Invitation revoked', 'Invitation for b@example.com was revoked', {targetEmail: 'b@example.com', invitationId: 'i3'})}
             ${insert(4, 'Invitation resent', 'Invitation to c@example.com was resent', {targetEmail: 'c@example.com', invitationId: 'i4'})}
-            ${insert(5, 'Member left', 'd@example.com left the integration', {targetUserId: 5})}
+            ${insert(5, 'Member left', 'Dana left the integration', {targetUserId: 5})}
+            ${insert(6, 'Member role changed', 'e@example.com role changed from "viewer" to "member"', {targetUserId: 6, role: 'member'})}
+            ${insert(7, 'Member removed', 'f@example.com was removed from the integration', {targetUserId: 7})}
+            ${insert(8, 'Member left', 'g@example.com left the integration', {targetUserId: 8})}
+            ${insert(9, 'Invitation accepted', 'h@example.com accepted an invitation and joined with role "member"', {targetUserId: 9})}
         `);
         await db.exec(migration);
         const result = await db.query<{id: number; message: string; metadata: Record<string, unknown>}>('SELECT * FROM gitgazer.event_log_entries');
@@ -37,7 +41,14 @@ describe('scrub_invitation_emails migration', () => {
         for (const id of [1, 2, 3, 4]) expect(rows[id].metadata).not.toHaveProperty('targetEmail');
     });
 
-    it('leaves other entries untouched', () => {
-        expect(rows[5]).toMatchObject({message: 'd@example.com left the integration', metadata: {targetUserId: 5}});
+    it('replaces a leading member email with the user id', () => {
+        expect(rows[6].message).toBe('User 6 role changed from "viewer" to "member"');
+        expect(rows[7].message).toBe('User 7 was removed from the integration');
+        expect(rows[8].message).toBe('User 8 left the integration');
+        expect(rows[9].message).toBe('User 9 accepted an invitation and joined with role "member"');
+    });
+
+    it('leaves entries whose message starts with a name untouched', () => {
+        expect(rows[5]).toMatchObject({message: 'Dana left the integration', metadata: {targetUserId: 5}});
     });
 });

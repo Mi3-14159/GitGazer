@@ -14,3 +14,10 @@ WHERE category = 'integration' AND title = 'Invitation revoked';
 UPDATE gitgazer.event_log_entries
 SET message = 'An invitation was resent', metadata = metadata - 'targetEmail'
 WHERE category = 'integration' AND title = 'Invitation resent';
+--> statement-breakpoint
+UPDATE gitgazer.event_log_entries
+SET message = regexp_replace(message, '^\S+@\S+', 'User ' || (metadata->>'targetUserId'))
+WHERE category = 'integration'
+    AND title IN ('Member role changed', 'Member removed', 'Member left', 'Invitation accepted')
+    AND metadata ? 'targetUserId'
+    AND message ~ '^\S+@\S+';

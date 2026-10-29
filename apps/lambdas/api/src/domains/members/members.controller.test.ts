@@ -858,6 +858,25 @@ describe('members controller', () => {
     // ---- leaveIntegration ----
 
     describe('leaveIntegration', () => {
+        it.each([
+            [{name: null, githubLogin: 'octocat'}, 'octocat left the integration'],
+            [{name: null, githubLogin: null}, 'User 5 left the integration'],
+        ])('never names a leaving member by email (%j)', async (user, message) => {
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({innerJoin: () => ({where: () => Promise.resolve([{role: 'member', ...user, email: 'a@example.com'}])})}),
+                    }),
+                    delete: () => ({where: () => Promise.resolve()}),
+                };
+                return params.callback(mockTx);
+            });
+
+            await controller.leaveIntegration({integrationId: 'int-1', userId: 5, integrationIds: ['int-1']});
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message}));
+        });
+
         it('throws ForbiddenError when integration is not accessible', async () => {
             await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 1, integrationIds: ['int-2']})).rejects.toThrow(
                 'Integration not accessible',
