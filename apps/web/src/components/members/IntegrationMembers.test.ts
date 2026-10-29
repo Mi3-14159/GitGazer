@@ -1,4 +1,5 @@
 import IntegrationMembers from '@/components/members/IntegrationMembers.vue';
+import type {MemberRole} from '@common/types';
 import {flushPromises, mount} from '@vue/test-utils';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createMemoryHistory, createRouter} from 'vue-router';
@@ -22,12 +23,13 @@ const slackApp = {
 };
 
 const getMembers = vi.fn();
+const getInvitations = vi.fn();
 const disconnectSlack = vi.fn();
 const listApps = vi.fn();
 const connectSlack = vi.fn();
 
 vi.mock('@/composables/useMembers', () => ({
-    useMembers: () => ({getMembers, getInvitations: vi.fn(async () => []), disconnectSlack}),
+    useMembers: () => ({getMembers, getInvitations, disconnectSlack}),
 }));
 
 vi.mock('@/composables/useIntegrationApps', () => ({
@@ -38,14 +40,14 @@ vi.mock('@/composables/useAuth', () => ({
     useAuth: () => ({getUserAttributes: vi.fn(async () => ({userId: 1}))}),
 }));
 
-async function mountMembers(path = '/integrations/int-1/members') {
+async function mountMembers(path = '/integrations/int-1/members', role: MemberRole = 'member') {
     const router = createRouter({
         history: createMemoryHistory(),
         routes: [{path: '/integrations/:integrationId/:tab', name: 'integration', component: {template: '<div />'}}],
     });
     await router.push(path);
     const wrapper = mount(IntegrationMembers, {
-        props: {integrationId: 'int-1', role: 'member'},
+        props: {integrationId: 'int-1', role},
         global: {plugins: [router], stubs: {Teleport: true}},
     });
     await flushPromises();
@@ -56,10 +58,35 @@ function buttonNamed(wrapper: Awaited<ReturnType<typeof mountMembers>>['wrapper'
     return wrapper.findAll('button').find((b) => b.text() === text);
 }
 
+describe('IntegrationMembers invitations', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        getMembers.mockResolvedValue([member(1, 'Ada', false)]);
+        getInvitations.mockResolvedValue([]);
+        listApps.mockResolvedValue([]);
+    });
+
+    it('lists the members of a viewer without loading invitations', async () => {
+        getInvitations.mockRejectedValue(new Error('Failed to fetch invitations: 403'));
+        const {wrapper} = await mountMembers(undefined, 'viewer');
+
+        expect(getInvitations).not.toHaveBeenCalled();
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+        expect(wrapper.text()).toContain('Ada');
+    });
+
+    it('loads invitations for a member', async () => {
+        await mountMembers();
+
+        expect(getInvitations).toHaveBeenCalledWith('int-1');
+    });
+});
+
 describe('IntegrationMembers Slack', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         getMembers.mockResolvedValue([member(1, 'Ada', false), member(2, 'Grace', true)]);
+        getInvitations.mockResolvedValue([]);
         listApps.mockResolvedValue([slackApp]);
     });
 

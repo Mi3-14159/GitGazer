@@ -38,6 +38,7 @@
 
     const integrationId = computed(() => props.integrationId);
     const canManageMembers = computed(() => hasRole(props.role, 'admin'));
+    const canSeeInvitations = computed(() => hasRole(props.role, 'member'));
     const copiedLink = ref(false);
     const confirmRemoveUserId = ref<string | null>(null);
     const confirmRevokeInvitationId = ref<string | null>(null);
@@ -67,7 +68,7 @@
         try {
             const [apiMembers, apiInvitations, apps, self] = await Promise.all([
                 fetchMembers(integrationId.value),
-                fetchInvitations(integrationId.value),
+                canSeeInvitations.value ? fetchInvitations(integrationId.value) : [],
                 listApps(integrationId.value).catch(() => []),
                 getUserAttributes().catch(() => null),
             ]);
