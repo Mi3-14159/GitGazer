@@ -148,6 +148,7 @@ VITE_IMPORT_URL_BASE="https://<GITGAZER_DOMAIN>/v1/api/import/"
 VITE_REST_API_REGION="<API_REGION>"
 VITE_REST_API_ENDPOINT="https://<GITGAZER_DOMAIN>/api"
 VITE_WEBSOCKET_API_ENDPOINT="<WEBSOCKET_ENDPOINT>"
+VITE_DOCS_URL="https://docs.gitgazer.com"
 ```
 
 Get these values from Terraform outputs after infrastructure deployment.
