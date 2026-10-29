@@ -44,7 +44,7 @@ describe('config', () => {
             importUrlBase: 'https://sm.example.com/import',
             stateSecret: 'test-state-secret',
             wsTokenSecret: 'test-ws-secret',
-            cognito: {clientId: 'test-client', clientSecret: 'test-secret'},
+            cognito: {clientId: 'test-client', clientSecret: 'test-secret', mcpClientId: 'test-mcp-client'},
         });
 
         process.env.CONFIG_SECRET_ARN = 'arn:aws:secretsmanager:eu-central-1:123456789:secret:test-secret';
@@ -64,7 +64,7 @@ describe('config', () => {
             uiBucketName: 'sm-bucket',
             stateSecret: 'test-state-secret',
             wsTokenSecret: 'test-ws-secret',
-            cognito: {clientId: 'test-client', clientSecret: 'test-secret'},
+            cognito: {clientId: 'test-client', clientSecret: 'test-secret', mcpClientId: 'test-mcp-client'},
         });
 
         process.env.CONFIG_SECRET_ARN = 'arn:aws:secretsmanager:eu-central-1:123456789:secret:test-secret';
@@ -80,6 +80,20 @@ describe('config', () => {
         expect(config.get('uiBucketName')).toBe('env-bucket');
 
         process.env.UI_BUCKET_NAME = original;
+    });
+
+    it('fails closed when the secret has no MCP client id', async () => {
+        const {getSecretValue} = await import('./clients/secrets-manager.client');
+        (getSecretValue as ReturnType<typeof vi.fn>).mockResolvedValue({
+            stateSecret: 'test-state-secret',
+            wsTokenSecret: 'test-ws-secret',
+            cognito: {clientId: 'test-client', clientSecret: 'test-secret'},
+        });
+        process.env.CONFIG_SECRET_ARN = 'arn:aws:secretsmanager:eu-central-1:123456789:secret:test-secret';
+
+        const {loadConfig} = await import('./config');
+
+        await expect(loadConfig()).rejects.toThrow('Missing required configuration: cognito.mcpClientId');
     });
 
     it('skips secrets manager fetch when CONFIG_SECRET_ARN is not set', async () => {
