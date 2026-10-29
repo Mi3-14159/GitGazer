@@ -46,7 +46,11 @@ export const registerMcpTools = (server: McpServer): void => {
             description:
                 'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data in the "github" schema: ' +
                 'workflow_runs, workflow_jobs, workflow_run_pull_requests, pull_requests, repositories, organizations, ' +
-                'enterprises, "user", and integrations. Tenant isolation, a row cap, a 128 KB result size limit and a statement ' +
+                'enterprises, "user", and integrations. Configuration views: integration_apps, integration_app_github_settings, ' +
+                'integration_app_slack_settings, notification_handles, webhook_handle_details, slack_handle_details, ' +
+                'notification_rules, notification_rule_destinations, integration_invitations, event_log_entries, ' +
+                'user_assignments, users, and slack_workspaces. Configuration views show only what your role in each integration ' +
+                'allows; columns you may not see are NULL. Tenant isolation, a row cap, a 128 KB result size limit and a statement ' +
                 'timeout are enforced automatically; truncated: true means rows were dropped. Use list_tables and ' +
                 'describe_table to explore what is available.',
             inputSchema: z.object({

@@ -31,7 +31,7 @@ Any table holding tenant data **must**:
 3. Attach the policy helpers and call `.enableRLS()`:
     - `writerTenantSeparationPolicy()` — always
     - `readerTenantSeparationPolicy()` — always
-    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories); use `mcpRolePolicy(minimumRole)` instead when only callers with at least that role in the integration may see the rows. Exposing a table also needs `GRANT SELECT ON <table> TO gitgazer_mcp` (column-scoped if it has secrets) in a custom migration, since no default privilege covers `gitgazer_mcp`. Admin-only columns go through a view, never a grant on the base table — see the column-gate pattern in the MCP server doc.
+    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories); use `mcpRolePolicy(minimumRole)` instead when only callers with at least that role in the integration may see the rows. Exposing a table also needs `GRANT SELECT ON <table> TO gitgazer_mcp` (column-scoped if it has secrets) in a custom migration, since no default privilege covers `gitgazer_mcp`. Admin-only columns go through a view, never a grant on the base table — see the column-gate pattern in the MCP server doc. To expose a `gitgazer` table to the MCP, add a view in `github` (pattern in the MCP doc; `github.integration_ids` is the role function) and generate the snapshot offline with `packages/db/scripts/draft-migration.mts`.
 
 Use the bundled template: [assets/tenant-table.template.ts](./assets/tenant-table.template.ts).
 

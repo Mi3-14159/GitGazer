@@ -112,7 +112,27 @@ Queries run against the `github` schema. Because no default `search_path` is set
 | `github."user"`                     | GitHub users/actors. `user` is a reserved word — **quote it**. |
 | `github.integrations`               | Column-scoped: only `integration_id`, `label`, `created_at`.   |
 
-Not exposed: the `integrations.secret` webhook secret (revoked at the column level), the `gitgazer` application/PII schema (users, invitations, WebSocket connections, notification rules), and `github.pull_request_reviews`.
+The configuration lives in the `gitgazer` schema, which the MCP cannot reach. It is exposed through one view per table in the `github` schema. Each view returns the rows and fields the GitGazer API shows the same person. The minimum role is per integration; a column below its role is `NULL` while the row stays visible.
+
+| View                                     | Rows for | Column limits                                                                                                      |
+| ---------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `github.integration_apps`                | viewer   | None. Apps connected to an integration.                                                                            |
+| `github.integration_app_github_settings` | viewer   | `secret` (webhook secret): admin.                                                                                  |
+| `github.integration_app_slack_settings`  | viewer   | None. The Slack workspace (`team_id`) an app is linked to.                                                         |
+| `github.notification_handles`            | viewer   | None. Notification targets.                                                                                        |
+| `github.webhook_handle_details`          | viewer   | `url`: admin.                                                                                                      |
+| `github.slack_handle_details`            | viewer   | None. Slack channel of a handle.                                                                                   |
+| `github.notification_rules`              | viewer   | None.                                                                                                              |
+| `github.notification_rule_destinations`  | viewer   | None. Which handles a rule notifies.                                                                               |
+| `github.integration_invitations`         | member   | `email`, `invite_token`: admin.                                                                                    |
+| `github.event_log_entries`               | viewer   | None.                                                                                                              |
+| `github.user_assignments`                | viewer   | None. Members and roles per integration. Named apart from the `"user-assignments"` table, which shares the schema. |
+| `github.users`                           | viewer   | Users in the caller's integrations. `email`: admin, in an integration the user belongs to.                         |
+| `github.slack_workspaces`                | viewer   | Workspaces linked to the caller's integrations. `installed_by`: only if that user is visible in `github.users`.    |
+
+Views have no cross-table columns, so join them on `integration_id` plus the ids. `github.users` and `github.slack_workspaces` have no `integration_id`; join `github.users` through `github.user_assignments`.
+
+Not exposed: the `gitgazer` base tables themselves, the Slack bot token, `cognito_id` and `github_id` of users, the `mcp_query_usage` quota table and the signing key.
 
 Example — failing runs per repository over the last week:
 
@@ -136,30 +156,32 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
-3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.mcp_context`, which the database trusts only with a valid signature:
-    - The key lives in the database (`gitgazer.mcp_context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
-    - To rotate the key, run `UPDATE gitgazer.mcp_context_key SET key = public.gen_random_bytes(32) WHERE id = 1` as the migration user; MCP queries in flight at that moment fail closed.
-    - Before the caller's query, the app reads the MCP session's backend PID and transaction start, has the app login sign the caller's integrations and roles for exactly that session and transaction (`gitgazer.mcp_sign_context`, which only the app login may execute), and sets `rls.mcp_context` to `<payload>|<signature>`.
-    - `github.mcp_context()` verifies the signature once per protected table the query references, not per row (each policy calls it through a sub-select, which Postgres runs as one InitPlan per relation).
+3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.signed_context`, which the database trusts only with a valid signature:
+    - The key lives in the database (`gitgazer.context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
+    - To rotate the key, run `UPDATE gitgazer.context_key SET key = public.gen_random_bytes(32) WHERE id = 1` as the migration user; MCP queries in flight at that moment fail closed.
+    - Before the caller's query, the app reads the MCP session's backend PID and transaction start, has the app login sign the caller's integrations and roles for exactly that session and transaction (`gitgazer.sign_context`, which only the app login may execute), and sets `rls.signed_context` to `<payload>|<signature>`.
+    - `github.signed_context()` verifies the signature once per protected table the query references, not per row (each policy calls it through a sub-select, which Postgres runs as one InitPlan per relation).
     - A missing, malformed, altered or replayed context (copied from another session or transaction) yields no rows, never other tenants' rows, and no error.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
 5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH`, or that contains `;` or a `$1`-style placeholder, is rejected before it runs.
 6. **Blocked-function + escape guard** — `set_config` and `pg_settings`, functions that run a SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), advisory locks (a session lock would outlive the transaction on the pooled connection), `pg_sleep*`, `pg_stat_*`, file, large-object and backend-control functions, nested block comments at the start of the query, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
-7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.mcp_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.
+7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.signed_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.
 8. **Resource caps** — a `statement_timeout`, a 2-second `lock_timeout`, a row cap and a result byte budget bound each query. The byte budget is enforced inside the query, so an oversized row never leaves the database.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
 ### Role-aware access
 
-The signed context carries the caller's role per integration (`<integration-uuid>:<role>` pairs joined by `,`). The SQL helper `github.mcp_integration_ids(minimum_role)` returns the verified integrations where the caller holds at least `minimum_role` (`owner`, `admin`, `member`, `viewer`; the default `viewer` means all of them), and none for an unknown role or an invalid context.
+The signed context carries the caller's role per integration (`<integration-uuid>:<role>` pairs joined by `,`). The SQL helper `github.integration_ids(minimum_role)` returns the verified integrations where the caller holds at least `minimum_role` (`owner`, `admin`, `member`, `viewer`; the default `viewer` means all of them), and none for an unknown role or an invalid context.
 
 To open a table with a role requirement:
 
-- **Row gate**: attach `mcpRolePolicy(minimumRole)` instead of `mcpTenantSeparationPolicy()`. It checks `integration_id = ANY ((SELECT github.mcp_integration_ids('<minimumRole>'))::uuid[])`.
-- **Column gate**: expose the table through a view that returns admin-only columns only `CASE WHEN integration_id = ANY ((SELECT github.mcp_integration_ids('admin'))::uuid[]) THEN … END` (`NULL` otherwise), and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter, `integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[])` (or it returns every tenant's rows), and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
+- **Row gate**: attach `mcpRolePolicy(minimumRole)` instead of `mcpTenantSeparationPolicy()`. It checks `integration_id = ANY ((SELECT github.integration_ids('<minimumRole>'))::uuid[])`.
+- **Column gate**: expose the table through a view that returns admin-only columns only `CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN … END` (`NULL` otherwise), and grant `gitgazer_mcp` the view, never the base table: `run_sql` takes arbitrary SQL, so any grant on the admin-only column would let the caller read it directly. This rules out `security_invoker = true`, which needs exactly that grant. The view therefore runs as its owner, which owns the base table and is not subject to its RLS, so it must carry its own tenant filter, `integration_id = ANY ((SELECT github.integration_ids())::uuid[])` (or it returns every tenant's rows), and be `security_barrier`, so the planner cannot push a caller's predicate below that filter.
 - **Global tables** (no `integration_id`): expose them only through a view scoped to the caller's integrations.
 
-Always call `github.mcp_integration_ids` through a sub-select as above, so the signature is verified once per protected table in the query, not once per row. No table uses a role gate yet.
+Always call `github.integration_ids` through a sub-select as above, so the signature is verified once per protected table in the query, not once per row.
+
+The configuration views in [Queryable data](#queryable-data) use the column gate. They are defined in `packages/db/src/schema/github/views.ts`, and the migration grants `gitgazer_mcp` `SELECT` on them and revokes the default reader and writer grants that new `github` tables get. No table uses a row gate yet.
 
 ## Limits and budget
 
@@ -198,7 +220,7 @@ Application settings (convict; loaded from Secrets Manager, overridable by env v
 
 The MCP tools need `DB_CONNECTION_MODE=rds-proxy` (the default), where MCP queries log in as `gitgazer_mcp`. In `data-api` mode they refuse to run with an error.
 
-The app must log in with the same database user that ran the migrations, which owns the signing key and `gitgazer.mcp_sign_context`. Otherwise MCP queries fail closed: the caller gets "Tool execution failed" and the cause is logged.
+The app must log in with the same database user that ran the migrations, which owns the signing key and `gitgazer.sign_context`. Otherwise MCP queries fail closed: the caller gets "Tool execution failed" and the cause is logged.
 
 Infrastructure (Terraform):
 
@@ -215,7 +237,10 @@ Database (Drizzle migrations):
 - `0056` — best-effort `REVOKE EXECUTE` on `set_config` (a no-op on Aurora).
 - `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper, replaced by `github.mcp_integration_ids` in `20261029090000_mcp_signed_context`.
 - `20261028130000_mcp_login` — lets `gitgazer_mcp` log in with IAM auth, for its own connection.
-- `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()`; the MCP tenant policies now read the signed context.
+- `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()` (renamed in the next migration); the MCP tenant policies now read the signed context.
+- `20261029120000_role_aware_views` — renames the signed-context objects without the `mcp_` prefix (`github.integration_ids`, `github.signed_context`, `gitgazer.sign_context`, `gitgazer.context_key`, setting `rls.signed_context`) and adds the 13 configuration views.
+
+The migration runs by hand right before the deploy, as the migration user. Between the migration and the deploy, the old code still sets `rls.mcp_context`, which the renamed functions no longer read, so MCP queries return no rows until the deploy finishes.
 
 ## Related
 
