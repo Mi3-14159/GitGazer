@@ -78,7 +78,7 @@ If an answer looks off, ask the assistant to "list the tables" or "describe the 
 
 - ✅ Only the integrations **you** are a member of — the same tenant scope as the web app.
 - ✅ GitHub Actions data: workflow runs and jobs, pull requests, repositories, organizations, enterprises, and users.
-- ✅ Your integrations' GitGazer configuration (apps, notification rules and handles, members, pending invitations and the event log), as your role allows: invitations from member up; webhook secrets and URLs, email addresses of members and invitees, and invite tokens only for admins and owners.
+- ✅ Your integrations' GitGazer configuration (apps, notification rules and handles, members, open invitations and the event log), as your role allows: invitations from member up; webhook secrets and URLs, email addresses of members and invitees, and invite tokens only for admins and owners.
 - ❌ **Not** other tenants' data or Slack bot tokens.
 - ❌ **No** writes — it cannot modify or delete anything.
 
