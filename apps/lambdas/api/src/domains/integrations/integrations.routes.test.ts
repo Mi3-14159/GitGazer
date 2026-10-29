@@ -14,7 +14,19 @@ const mocks = vi.hoisted(() => {
     const txUpdate = vi.fn(() => ({set: () => ({where: () => ({returning})})}));
     const tx = {update: txUpdate};
     const transaction = vi.fn(async (callback: (t: typeof tx) => unknown) => callback(tx));
-    return {where, select, update, returning, tx, txUpdate, transaction, getGithubSettings: vi.fn(), provisionWebhooks: vi.fn()};
+    return {
+        where,
+        select,
+        update,
+        returning,
+        tx,
+        txUpdate,
+        transaction,
+        getGithubSettings: vi.fn(),
+        provisionWebhooks: vi.fn(),
+        deleteIntegration: vi.fn(),
+        role: {current: 'owner'},
+    };
 });
 
 vi.mock('@gitgazer/db/client', () => ({db: {select: mocks.select, update: mocks.update, transaction: mocks.transaction}}));
@@ -25,7 +37,7 @@ vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
 }));
 vi.mock('@/domains/github-app/unlink-installation', () => ({unlinkInstallation: vi.fn()}));
 vi.mock('@/domains/integrations/integrations.controller', () => ({
-    deleteIntegration: vi.fn(),
+    deleteIntegration: mocks.deleteIntegration,
     getIntegrations: vi.fn(),
     rotateSecret: vi.fn(),
     updateOrgSyncSettings: vi.fn(),
@@ -33,13 +45,36 @@ vi.mock('@/domains/integrations/integrations.controller', () => ({
 }));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
     addUserIntegrationsToCtx: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
-        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'owner'}});
+        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: mocks.role.current}});
         await next();
     },
 }));
 vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLogEntry: vi.fn()}));
 vi.mock('@gitgazer/backend-services/org-member-resolver', () => ({resolveAndAssignOrgMembers: vi.fn()}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
+
+describe('DELETE /api/integrations/:integrationId', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.role.current = 'owner';
+    });
+
+    it.each(['admin', 'member', 'viewer'])('refuses an %s before the controller runs', async (role) => {
+        mocks.role.current = role;
+
+        const res = await testRequest(app, 'DELETE', '/api/integrations/i1');
+
+        expect(res.status).toBe(403);
+        expect(mocks.deleteIntegration).not.toHaveBeenCalled();
+    });
+
+    it('deletes for an owner', async () => {
+        const res = await testRequest(app, 'DELETE', '/api/integrations/i1');
+
+        expect(res.status).toBe(204);
+        expect(mocks.deleteIntegration).toHaveBeenCalledWith('i1', ['i1'], 1);
+    });
+});
 
 const link = async () => testRequest(app, 'POST', '/api/integrations/i1/github-app', {body: {installation_id: 42}});
 
