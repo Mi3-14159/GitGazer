@@ -8,7 +8,9 @@ const app = new Hono<AppEnv>().route('/api/integrations/:integrationId', router)
 
 const mocks = vi.hoisted(() => ({
     role: 'viewer' as string,
+    otherRoles: {} as Record<string, string>,
     listApps: vi.fn(),
+    installApp: vi.fn(),
     listSlackChannels: vi.fn(),
     createHandle: vi.fn(),
     buildSlackInstallRedirect: vi.fn(),
@@ -18,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/domains/apps/apps.controller', () => ({
     listApps: mocks.listApps,
-    installApp: vi.fn(),
+    installApp: mocks.installApp,
     uninstallApp: vi.fn(),
     createHandle: mocks.createHandle,
     updateHandle: vi.fn(),
@@ -29,7 +31,8 @@ vi.mock('@/domains/apps/slack-move', () => ({listMoveCandidates: mocks.listMoveC
 vi.mock('@/domains/apps/slack-install', () => ({buildSlackInstallRedirect: mocks.buildSlackInstallRedirect}));
 vi.mock('@/domains/integrations/integrations.middleware', () => ({
     addUserIntegrationsToCtx: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
-        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: mocks.role}});
+        const integrationRoles = {i1: mocks.role, ...mocks.otherRoles};
+        c.set('appContext', {userId: 1, integrations: Object.keys(integrationRoles), integrationRoles});
         await next();
     },
 }));
@@ -38,21 +41,49 @@ vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn
 describe('GET /api/integrations/:integrationId/apps', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.otherRoles = {};
         mocks.listApps.mockResolvedValue([]);
     });
 
-    it.each([
-        ['viewer', false],
-        ['member', false],
-        ['admin', true],
-        ['owner', true],
-    ])('passes canSeeSecrets for %s as %s', async (role, canSeeSecrets) => {
+    // The secret and the urls are masked by the views (proven in packages/db configuration-views.test.ts), not here.
+    it.each(['viewer', 'member', 'admin', 'owner'])("signs only the route's integration with the caller's role as %s", async (role) => {
         mocks.role = role;
+        mocks.otherRoles = {i2: 'owner'};
 
         const res = await testRequest(app, 'GET', '/api/integrations/i1/apps');
 
         expect(res.status).toBe(200);
-        expect(mocks.listApps).toHaveBeenCalledWith(expect.objectContaining({integrationId: 'i1', canSeeSecrets}));
+        expect(mocks.listApps).toHaveBeenCalledWith({integrationId: 'i1', integrationRoles: {i1: role}});
+    });
+
+    it('returns the apps as the controller lists them', async () => {
+        mocks.role = 'viewer';
+        const apps = [
+            {appId: 'a1', type: 'github', createdAt: '2026-01-01T00:00:00.000Z', settings: {secret: null, orgSyncDefaultRole: 'viewer'}},
+            {appId: 'a2', type: 'webhook', createdAt: '2026-01-01T00:00:00.000Z', handles: [{handleId: 'h1', url: null}]},
+        ];
+        mocks.listApps.mockResolvedValue(apps);
+
+        const res = await testRequest(app, 'GET', '/api/integrations/i1/apps');
+
+        expect(await res.json()).toEqual(apps);
+    });
+});
+
+describe('POST /api/integrations/:integrationId/apps', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.otherRoles = {};
+        mocks.installApp.mockResolvedValue({appId: 'a2', type: 'webhook'});
+    });
+
+    it.each(['admin', 'owner'])("passes the caller's role as %s for reading the new app back", async (role) => {
+        mocks.role = role;
+
+        const res = await testRequest(app, 'POST', '/api/integrations/i1/apps', {body: {type: 'webhook'}});
+
+        expect(res.status).toBe(201);
+        expect(mocks.installApp).toHaveBeenCalledWith({integrationId: 'i1', integrationIds: ['i1'], role, type: 'webhook'});
     });
 });
 

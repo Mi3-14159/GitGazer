@@ -5,7 +5,7 @@ import {listMoveCandidates, moveWebhookHandles, type WebhookMove} from '@/domain
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
-import {hasRole, isIntegrationAppType} from '@gitgazer/db/types';
+import {isIntegrationAppType} from '@gitgazer/db/types';
 import type {Context} from 'hono';
 import {Hono} from 'hono';
 import type {BlankSchema} from 'hono/types';
@@ -31,12 +31,7 @@ const readBody = async (c: Context<AppEnv>): Promise<Record<string, unknown>> =>
 
 router.get('/apps', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const role = c.var.appContext?.integrationRoles?.[integrationId];
-    const apps = await listApps({
-        integrationId,
-        integrationIds: c.var.appContext?.integrations ?? [],
-        canSeeSecrets: role !== undefined && hasRole(role, 'admin'),
-    });
+    const apps = await listApps({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
     return c.json(apps);
 });
 
@@ -48,6 +43,7 @@ router.post('/apps', addUserIntegrationsToCtx, requireRole('admin'), async (c) =
     const app = await installApp({
         integrationId: c.req.param('integrationId'),
         integrationIds: c.var.appContext?.integrations ?? [],
+        role: c.var.appContext!.role!,
         type: body.type,
     });
     return c.json(app, HttpStatusCodes.CREATED);

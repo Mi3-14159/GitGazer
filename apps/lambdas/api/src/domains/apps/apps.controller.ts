@@ -21,13 +21,25 @@ import {
 } from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {
+    integrationAppGithubSettingsView,
+    integrationAppSlackSettingsView,
+    integrationAppsView,
+    notificationHandlesView,
+    notificationRuleDestinationsView,
+    slackHandleDetailsView,
+    slackWorkspacesView,
+    webhookHandleDetailsView,
+} from '@gitgazer/db/schema/views';
+import {
     isAllowedWebhookUrl,
     MAX_SLACK_HANDLES,
     MAX_WEBHOOK_HANDLES,
     type IntegrationApp,
     type IntegrationAppType,
+    type MemberRole,
     type NotificationHandle,
     type SlackChannel,
+    type SlackWorkspaceSummary,
 } from '@gitgazer/db/types';
 import {and, count, eq, inArray, isNotNull, sql} from 'drizzle-orm';
 
@@ -71,28 +83,36 @@ export const findSlackTeamId = async (tx: RdsTransaction, integrationId: string)
     return settings?.teamId;
 };
 
-type SlackMembers = {teamId: string; githubIds: number[]; memberCount: number};
+type SlackMembers = {workspace: SlackWorkspaceSummary; githubIds: number[]; memberCount: number};
 
 const loadSlackMembers = async (tx: RdsTransaction, integrationId: string): Promise<SlackMembers | null> => {
-    const teamId = await findSlackTeamId(tx, integrationId);
-    if (!teamId) return null;
+    const [settings] = await tx
+        .select({teamId: integrationAppSlackSettingsView.teamId})
+        .from(integrationAppSlackSettingsView)
+        .where(eq(integrationAppSlackSettingsView.integrationId, integrationId));
+    if (!settings) return null;
 
+    const [workspace] = await tx
+        .select({teamName: slackWorkspacesView.teamName, disconnectedAt: slackWorkspacesView.disconnectedAt})
+        .from(slackWorkspacesView)
+        .where(eq(slackWorkspacesView.teamId, settings.teamId));
+    if (!workspace) return null;
+
+    // users_view has no github_id, so this reads the base tables
     const members = await tx
         .select({githubId: users.githubId})
         .from(userAssignments)
         .innerJoin(users, eq(users.id, userAssignments.userId))
         .where(eq(userAssignments.integrationId, integrationId));
-    const githubIds = members.flatMap((m) => (m.githubId === null ? [] : [m.githubId]));
-    return {teamId, githubIds, memberCount: members.length};
+    return {
+        workspace: {teamId: settings.teamId, teamName: workspace.teamName, disconnected: workspace.disconnectedAt !== null},
+        githubIds: members.flatMap((m) => (m.githubId === null ? [] : [m.githubId])),
+        memberCount: members.length,
+    };
 };
 
-const loadSlackApp = async ({teamId, githubIds, memberCount}: SlackMembers) => {
-    const [workspace] = await db
-        .select({teamName: slackWorkspaces.teamName, disconnectedAt: slackWorkspaces.disconnectedAt})
-        .from(slackWorkspaces)
-        .where(eq(slackWorkspaces.teamId, teamId));
-    if (!workspace) return null;
-
+// slack_user_links is global (no RLS grants), so only the master connection reads it
+const loadSlackApp = async ({workspace, githubIds, memberCount}: SlackMembers) => {
     const [linked] =
         githubIds.length === 0
             ? [{count: 0}]
@@ -100,17 +120,23 @@ const loadSlackApp = async ({teamId, githubIds, memberCount}: SlackMembers) => {
                   .select({count: count()})
                   .from(slackUserLinks)
                   .where(
-                      and(eq(slackUserLinks.teamId, teamId), inArray(slackUserLinks.githubUserId, githubIds), isNotNull(slackUserLinks.slackUserId)),
+                      and(
+                          eq(slackUserLinks.teamId, workspace.teamId),
+                          inArray(slackUserLinks.githubUserId, githubIds),
+                          isNotNull(slackUserLinks.slackUserId),
+                      ),
                   );
 
-    return {
-        workspace: {teamId, teamName: workspace.teamName, disconnected: workspace.disconnectedAt !== null},
-        linkedMemberCount: Number(linked.count),
-        memberCount,
-    };
+    return {workspace, linkedMemberCount: Number(linked.count), memberCount};
 };
 
-export const loadHandles = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean): Promise<NotificationHandle[]> => {
+const withRuleCounts = (handles: Omit<NotificationHandle, 'ruleCount'>[], counts: {handleId: string; ruleCount: number}[]): NotificationHandle[] => {
+    const ruleCounts = new Map(counts.map((c) => [c.handleId, Number(c.ruleCount)]));
+    return handles.map((h) => ({...h, ruleCount: ruleCounts.get(h.handleId) ?? 0}));
+};
+
+// Base tables, unmasked: only for admin routes, some of which run as gitgazer_writer, which cannot read the views.
+export const loadHandles = async (tx: RdsTransaction, integrationId: string): Promise<NotificationHandle[]> => {
     const handles = await tx
         .select({
             handleId: notificationHandles.handleId,
@@ -142,36 +168,74 @@ export const loadHandles = async (tx: RdsTransaction, integrationId: string, can
         .from(notificationRuleDestinations)
         .where(eq(notificationRuleDestinations.integrationId, integrationId))
         .groupBy(notificationRuleDestinations.handleId);
-    const ruleCounts = new Map(counts.map((c) => [c.handleId, Number(c.ruleCount)]));
 
-    return handles.map((h) => ({
-        handleId: h.handleId,
-        appId: h.appId,
-        name: h.name,
-        url: canSeeSecrets ? h.url : null,
-        channelName: h.channelName,
-        ruleCount: ruleCounts.get(h.handleId) ?? 0,
-    }));
+    return withRuleCounts(handles, counts);
 };
 
-const loadTenantApps = async (tx: RdsTransaction, integrationId: string, canSeeSecrets: boolean) => {
-    const apps = await tx
-        .select({appId: integrationApps.appId, type: integrationApps.type, createdAt: integrationApps.createdAt})
-        .from(integrationApps)
-        .where(eq(integrationApps.integrationId, integrationId))
-        .orderBy(integrationApps.createdAt);
+const loadVisibleHandles = async (tx: RdsTransaction, integrationId: string): Promise<NotificationHandle[]> => {
+    const handles = await tx
+        .select({
+            handleId: notificationHandlesView.handleId,
+            appId: notificationHandlesView.appId,
+            name: notificationHandlesView.name,
+            url: webhookHandleDetailsView.url,
+            channelName: slackHandleDetailsView.channelName,
+        })
+        .from(notificationHandlesView)
+        .leftJoin(
+            webhookHandleDetailsView,
+            and(
+                eq(webhookHandleDetailsView.integrationId, notificationHandlesView.integrationId),
+                eq(webhookHandleDetailsView.handleId, notificationHandlesView.handleId),
+            ),
+        )
+        .leftJoin(
+            slackHandleDetailsView,
+            and(
+                eq(slackHandleDetailsView.integrationId, notificationHandlesView.integrationId),
+                eq(slackHandleDetailsView.handleId, notificationHandlesView.handleId),
+            ),
+        )
+        .where(eq(notificationHandlesView.integrationId, integrationId))
+        .orderBy(notificationHandlesView.createdAt, notificationHandlesView.name, notificationHandlesView.handleId);
 
-    const handles = await loadHandles(tx, integrationId, canSeeSecrets);
-    const githubSettings = apps.some((a) => a.type === 'github') ? await getGithubSettings(tx, integrationId) : undefined;
+    const counts = await tx
+        .select({handleId: notificationRuleDestinationsView.handleId, ruleCount: count()})
+        .from(notificationRuleDestinationsView)
+        .where(eq(notificationRuleDestinationsView.integrationId, integrationId))
+        .groupBy(notificationRuleDestinationsView.handleId);
+
+    return withRuleCounts(handles, counts);
+};
+
+const loadTenantApps = async (tx: RdsTransaction, integrationId: string) => {
+    const apps = await tx
+        .select({appId: integrationAppsView.appId, type: integrationAppsView.type, createdAt: integrationAppsView.createdAt})
+        .from(integrationAppsView)
+        .where(eq(integrationAppsView.integrationId, integrationId))
+        .orderBy(integrationAppsView.createdAt);
+
+    const handles = await loadVisibleHandles(tx, integrationId);
+    const githubApp = apps.find((a) => a.type === 'github');
+    const [githubSettings] = githubApp
+        ? await tx
+              .select({secret: integrationAppGithubSettingsView.secret, orgSyncDefaultRole: integrationAppGithubSettingsView.orgSyncDefaultRole})
+              .from(integrationAppGithubSettingsView)
+              .where(
+                  and(eq(integrationAppGithubSettingsView.integrationId, integrationId), eq(integrationAppGithubSettingsView.appId, githubApp.appId)),
+              )
+        : [];
     const slackMembers = apps.some((a) => a.type === 'slack') ? await loadSlackMembers(tx, integrationId) : null;
     return {apps, handles, githubSettings, slackMembers};
 };
 
-export const listApps = async (params: Scope & {canSeeSecrets: boolean}): Promise<IntegrationApp[]> => {
-    const {integrationId, integrationIds, canSeeSecrets} = params;
+// The views mask the secret and the urls by integrationRoles; sign only the caller's role in the requested integration.
+export const listApps = async (params: {integrationId: string; integrationRoles: Record<string, MemberRole>}): Promise<IntegrationApp[]> => {
+    const {integrationId, integrationRoles} = params;
     const {apps, handles, githubSettings, slackMembers} = await withRlsTransaction({
-        integrationIds,
-        callback: (tx: RdsTransaction) => loadTenantApps(tx, integrationId, canSeeSecrets),
+        integrationIds: Object.keys(integrationRoles),
+        integrationRoles,
+        callback: (tx: RdsTransaction) => loadTenantApps(tx, integrationId),
     });
 
     // The pool has a single connection, so the master db can only be used once the RLS transaction has committed
@@ -186,7 +250,7 @@ export const listApps = async (params: Scope & {canSeeSecrets: boolean}): Promis
                 appId: app.appId,
                 type: 'github',
                 createdAt,
-                settings: {secret: canSeeSecrets ? githubSettings.secret : null, orgSyncDefaultRole: githubSettings.orgSyncDefaultRole},
+                settings: {secret: githubSettings.secret, orgSyncDefaultRole: githubSettings.orgSyncDefaultRole},
             });
         } else if (app.type === 'webhook') {
             result.push({appId: app.appId, type: 'webhook', createdAt, handles: handles.filter((h) => h.appId === app.appId)});
@@ -198,8 +262,8 @@ export const listApps = async (params: Scope & {canSeeSecrets: boolean}): Promis
     return result;
 };
 
-export const installApp = async (params: Scope & {type: IntegrationAppType}): Promise<IntegrationApp> => {
-    const {integrationId, integrationIds, type} = params;
+export const installApp = async (params: Scope & {role: MemberRole; type: IntegrationAppType}): Promise<IntegrationApp> => {
+    const {integrationId, integrationIds, role, type} = params;
 
     if (type === 'slack') {
         throw new BadRequestError('Slack is installed through Slack');
@@ -225,7 +289,7 @@ export const installApp = async (params: Scope & {type: IntegrationAppType}): Pr
         },
     });
 
-    const app = (await listApps({integrationId, integrationIds, canSeeSecrets: true})).find((a) => a.type === type);
+    const app = (await listApps({integrationId, integrationRoles: {[integrationId]: role}})).find((a) => a.type === type);
     if (!app) {
         throw new NotFoundError('App not found');
     }
@@ -354,7 +418,7 @@ export const uninstallApp = async (params: Scope & {appId: string}): Promise<voi
 };
 
 const loadHandle = async (tx: RdsTransaction, integrationId: string, handleId: string): Promise<NotificationHandle> => {
-    const handle = (await loadHandles(tx, integrationId, true)).find((h) => h.handleId === handleId);
+    const handle = (await loadHandles(tx, integrationId)).find((h) => h.handleId === handleId);
     if (!handle) {
         throw new NotFoundError('Handle not found');
     }
