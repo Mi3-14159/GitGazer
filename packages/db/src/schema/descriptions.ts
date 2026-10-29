@@ -186,10 +186,15 @@ export const descriptions: Description[] = [
         role: 'owner, admin, member or viewer.',
         source: 'manual (invited or added in GitGazer) or org_sync (synced from a GitHub organization).',
     }),
-    describe(usersView, 'GitGazer users who share an integration with you. Global: no integration_id.', {
-        email: 'NULL unless you are admin or owner of an integration the user belongs to.',
-        githubLogin: 'Linked GitHub login, matches github."user".login; NULL if not linked.',
-    }),
+    describe(
+        usersView,
+        'GitGazer users who share an integration with you, or invited or were invited to one (open invitations, member+). Global: no integration_id.',
+        {
+            email: 'NULL unless you are admin or owner of an integration the user belongs to or has an open invitation in.',
+            lastActiveAt: 'NULL unless the user shares an integration with you.',
+            githubLogin: 'Linked GitHub login, matches github."user".login; NULL if not linked.',
+        },
+    ),
     describe(slackWorkspacesView, 'Slack workspaces connected to your integrations. Global: no integration_id.', {
         installedBy: 'gitgazer.users_view.id; NULL if that user shares no integration with you.',
         disconnectedAt: 'NULL while the workspace is connected.',
