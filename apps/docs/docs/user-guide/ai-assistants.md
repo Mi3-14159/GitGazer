@@ -96,7 +96,7 @@ Each query "costs" the time it takes to run, drawn from a rolling ~1-hour budget
 
 ## Troubleshooting
 
-- **It asks me to sign in again after an update.** The MCP server now only accepts tokens issued for it, so connections set up before that change must sign in once more. In Claude Code, run `/mcp` and choose **Authenticate**; other clients open the browser on their own.
+- **It asks me to sign in again after an update.** The MCP server only accepts tokens issued for it, so connections set up before that change must sign in once more. In Claude Code, run `/mcp` and choose **Authenticate**; other clients ask you to sign in again.
 - **It keeps asking me to sign in.** Confirm the URL is exactly `https://<your-gitgazer-domain>/api/mcp` and that you signed in with the GitHub account that has access to your integration.
 - **"relation does not exist".** GitHub tables live in the `github` schema and configuration views in `gitgazer`. Ask the assistant to qualify names (for example `github.workflow_runs` or `gitgazer.notification_rules_view`) or to call "list tables" first.
 - **"Query quota exceeded".** You've reached the hourly limit; wait for the reset time shown in the message.
