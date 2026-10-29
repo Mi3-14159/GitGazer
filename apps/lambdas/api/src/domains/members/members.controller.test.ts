@@ -337,6 +337,54 @@ describe('members controller', () => {
         });
     });
 
+    describe('changeRole fallback', () => {
+        it('names a member without a name by GitHub login, never by email', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) =>
+                params.callback({
+                    select: () => ({
+                        from: () => ({innerJoin: () => ({where: () => Promise.resolve([{role: 'member', name: null, githubLogin: 'octocat'}])})}),
+                    }),
+                    update: () => ({set: () => ({where: () => ({returning: () => Promise.resolve([{role: 'admin'}])})})}),
+                }),
+            );
+
+            await controller.changeRole({
+                integrationId: 'int-1',
+                targetUserId: 2,
+                newRole: 'admin',
+                requestingUserId: 1,
+                requestingRole: 'owner',
+                integrationIds: ['int-1'],
+            });
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message: 'octocat role changed from "member" to "admin"'}));
+        });
+    });
+
+    describe('resendInvitation event log', () => {
+        it('writes an entry without the invitee email', async () => {
+            const {default: config} = await import('@gitgazer/backend-core/config');
+            vi.spyOn(config, 'get').mockImplementation(((key: string) => (key === 'sesConfig' ? {emailEnabled: true} : undefined)) as any);
+            const invitation = {email: 'jamie@example.com', role: 'member', inviteToken: 'token-1'};
+            mockWithRlsTransaction.mockImplementation(async (params) =>
+                params.callback({
+                    select: () => ({from: () => ({where: () => Promise.resolve([invitation])})}),
+                    update: () => ({set: () => ({where: () => Promise.resolve()})}),
+                }),
+            );
+
+            await controller.resendInvitation({integrationId: 'int-1', invitationId: 'inv-1', resendingUserId: 1, integrationIds: ['int-1']});
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: 'Invitation resent',
+                    message: 'An invitation was resent',
+                    metadata: {integrationId: 'int-1', invitationId: 'inv-1'},
+                }),
+            );
+        });
+    });
+
     // ---- removeMember ----
 
     describe('removeMember', () => {
