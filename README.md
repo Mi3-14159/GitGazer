@@ -27,7 +27,7 @@ Full documentation is available at **<https://docs.gitgazer.com/>** (source in `
 - [Setting Up Integrations](https://docs.gitgazer.com/user-guide/integrations) — connect GitHub via App or webhooks
 - [Monitoring Workflows](https://docs.gitgazer.com/user-guide/workflows) — dashboard, filtering, saved views
 - [Configuring Notifications](https://docs.gitgazer.com/user-guide/notifications) — Slack alert rules
-- [Slack App](https://docs.gitgazer.com/user-guide/slack-app) — send alerts to Slack channels and mention the person behind a failed job
+- [Slack App](https://docs.gitgazer.com/user-guide/apps/slack) — send alerts to Slack channels and mention the person behind a failed job
 - [Managing Team Members](https://docs.gitgazer.com/user-guide/team-management) — roles, invitations, org sync
 - [Querying Data with AI Assistants](https://docs.gitgazer.com/user-guide/ai-assistants) — connect VS Code or Claude via MCP to query your data
 

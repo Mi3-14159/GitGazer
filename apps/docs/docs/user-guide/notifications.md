@@ -43,8 +43,8 @@ The new rule appears as a card on the Notifications page.
 
 A rule doesn't hold a Slack URL itself. It sends to a **handle** that an admin added to one of the integration's apps. In the rule editor, pick the **App**, then one of its **Handle**s:
 
-- **Slack** app: a Slack channel. Alerts also mention the person behind the failure when they're linked to a Slack user. See [Slack App](slack-app).
-- **Webhook** app: a named Slack incoming webhook. See [Webhook App Settings](integrations#webhook-app-settings).
+- **Slack** app: a Slack channel. Alerts also mention the person behind the failure when they're linked to a Slack user. See [Slack App](apps/slack.md).
+- **Webhook** app: a named Slack incoming webhook. See [Webhook App](apps/webhook.md).
 
 If the integration has no handles yet, the editor links to the **Apps** tab, where an admin can add one.
 
@@ -119,7 +119,7 @@ Each rule card shows:
 
 Creating, editing, enabling or disabling, and deleting notification rules requires the **member** role or higher on the integration. Viewers can see existing rules but cannot modify them. Adding handles requires the **admin** role. See [Roles & Permissions](../technical/roles-and-permissions.md) for the full list.
 
-If you don't see the **Add Rule** button, ask an integration admin to upgrade your role. See [Managing Team Members](team-management) for details.
+If you don't see the **Add Rule** button, ask an integration admin to upgrade your role. See [Managing Team Members](team-management.md) for details.
 
 ## Setting Up a Slack Webhook
 
@@ -129,4 +129,4 @@ Handles need a Slack webhook URL. If you don't have one yet:
 2. Under **Features → Incoming Webhooks**, toggle webhooks on.
 3. Click **Add New Webhook to Workspace** and select the channel to post to.
 4. Copy the webhook URL (starts with `https://hooks.slack.com/services/...`).
-5. Add it as a handle in the **Webhook** app (see [Add a Handle](integrations#add-a-handle)), then pick that handle in your notification rule.
+5. Add it as a handle in the **Webhook** app (see [Add a Handle](apps/webhook.md#add-a-handle)), then pick that handle in your notification rule.

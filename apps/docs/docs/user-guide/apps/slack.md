@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 4
 title: Slack App
 description: Install the GitGazer Slack app to send alerts to Slack channels and mention the person behind a failed job.
 ---
@@ -30,7 +30,7 @@ Rules send alerts to **handles**. For the Slack app, a handle is a channel.
 
 Public channels work right away. A private channel appears in the list only after someone runs `/invite @GitGazer` in it. An app holds up to 20 handles.
 
-Rename or delete a handle from its actions menu. Rules that used a deleted handle show **No destination** and send nothing until you pick another one. In the rule editor, choose the **Slack** app, then the channel. See [Destinations](notifications#destinations).
+Rename or delete a handle from its actions menu. Rules that used a deleted handle show **No destination** and send nothing until you pick another one. In the rule editor, choose the **Slack** app, then the channel. See [Destinations](../notifications.md#destinations).
 
 _Adding, renaming, and deleting handles requires **admin** role or higher. Other members see the handles and their channels but can't change them._
 
@@ -96,5 +96,5 @@ If the app is removed or revoked in Slack, GitGazer notices when an alert post f
 
 ## What's Next
 
-- **[Set up notifications](notifications)** — create rules that send to your channels.
-- **[Manage team members](team-management)** — see who is linked to Slack.
+- **[Set up notifications](../notifications.md)** — create rules that send to your channels.
+- **[Manage team members](../team-management.md)** — see who is linked to Slack.
