@@ -58,6 +58,12 @@ describe('getMcpAccessVerifier', () => {
         await expect(verifier.verify(token)).rejects.toThrow(JwtInvalidScopeError);
     });
 
+    it('rejects an MCP client token without a scope claim', async () => {
+        const verifier = await loadVerifier();
+        const token = signAccessToken({client_id: 'mcp-client'});
+        await expect(verifier.verify(token)).rejects.toThrow(JwtInvalidScopeError);
+    });
+
     it('fails closed when the MCP client id is not configured', async () => {
         cognito.value = {userPoolId: USER_POOL_ID, clientId: 'web-client', mcpClientId: undefined};
         vi.resetModules();
