@@ -423,8 +423,8 @@ export const createInvitation = async (params: {
         category: 'integration',
         type: 'info',
         title: 'Invitation created',
-        message: `Invitation created for ${input.email ?? 'link-only'} with role "${input.role}"`,
-        metadata: {integrationId, targetEmail: input.email?.toLowerCase(), role: input.role, invitationId: result.invitation.id},
+        message: `Invitation created with role "${input.role}"`,
+        metadata: {integrationId, role: input.role, invitationId: result.invitation.id},
     }).catch((err) => {
         logger.error('Failed to write event log for invitation creation', {error: err});
     });
@@ -475,15 +475,13 @@ export const revokeInvitation = async (params: {integrationId: string; invitatio
         throw new NotFoundError('Invitation not found');
     }
 
-    const revokedEmail = deleted[0].email;
-
     await createEventLogEntry({
         integrationId,
         category: 'integration',
         type: 'info',
         title: 'Invitation revoked',
-        message: `Invitation for ${revokedEmail ?? 'link-only invite'} was revoked`,
-        metadata: {integrationId, targetEmail: revokedEmail ?? undefined, invitationId},
+        message: 'An invitation was revoked',
+        metadata: {integrationId, invitationId},
     }).catch((err) => {
         logger.error('Failed to write event log for invitation revocation', {error: err});
     });
@@ -566,8 +564,8 @@ export const resendInvitation = async (params: {
         category: 'integration',
         type: 'info',
         title: 'Invitation resent',
-        message: `Invitation to ${resendResult.email} was resent`,
-        metadata: {integrationId, targetEmail: resendResult.email, invitationId},
+        message: 'An invitation was resent',
+        metadata: {integrationId, invitationId},
     }).catch((err) => {
         logger.error('Failed to write event log for invitation resend', {error: err});
     });

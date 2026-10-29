@@ -551,6 +551,12 @@ describe('members controller', () => {
             expect(result.email).toBeNull();
             expect(result.inviteToken).toBe('token-abc');
             expect(mockSendInvitationEmail).not.toHaveBeenCalled();
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Invitation created with role "member"',
+                    metadata: {integrationId: 'int-1', role: 'member', invitationId: 'inv-1'},
+                }),
+            );
         });
 
         it('throws BadRequestError for invalid role', async () => {
@@ -649,8 +655,8 @@ describe('members controller', () => {
                     category: 'integration',
                     type: 'info',
                     title: 'Invitation revoked',
-                    message: 'Invitation for jamie@example.com was revoked',
-                    metadata: {integrationId: 'int-1', targetEmail: 'jamie@example.com', invitationId: 'inv-1'},
+                    message: 'An invitation was revoked',
+                    metadata: {integrationId: 'int-1', invitationId: 'inv-1'},
                 }),
             );
         });
