@@ -2,7 +2,7 @@ import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controll
 import {deprovisionAllWebhooks, RecordedWebhook, updateWebhookSecrets} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {findSlackTeamId, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {getGithubSettings, installGithubApp} from '@gitgazer/backend-services/github-app/github-settings';
-import {BadRequestError, ForbiddenError, InternalServerError, NotFoundError, UnauthorizedError, ensureHttpError} from '@/shared/errors';
+import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError, ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
@@ -139,19 +139,10 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
     logger.info(`User ${userId} is attempting to delete integration ${id}`);
 
     try {
+        // Remove any leftover webhooks from GitHub (e.g. from a previously unlinked GitHub App)
         const webhooks = await withRlsTransaction({
             integrationIds,
             callback: async (tx: RdsTransaction) => {
-                // Checked here as well as by the route, before anything is removed on GitHub
-                const [owner] = await tx
-                    .select({userId: userAssignments.userId})
-                    .from(userAssignments)
-                    .where(and(eq(userAssignments.integrationId, id), eq(userAssignments.userId, userId), eq(userAssignments.role, 'owner')));
-                if (!owner) {
-                    throw new ForbiddenError('Only owners can delete an integration');
-                }
-
-                // Remove any leftover webhooks from GitHub (e.g. from a previously unlinked GitHub App)
                 return await tx
                     .select({installationId: githubAppWebhooks.installationId})
                     .from(githubAppWebhooks)
