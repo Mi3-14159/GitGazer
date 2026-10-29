@@ -247,6 +247,13 @@ describe('signed mcp tenant context', () => {
             );
         });
 
+        it('names the key primary key as the snapshot does', async () => {
+            const {rows} = await db.query<{conname: string}>(
+                `SELECT conname FROM pg_constraint WHERE conrelid = 'gitgazer_internal.context_key'::regclass AND contype = 'p'`,
+            );
+            expect(rows).toEqual([{conname: 'context_key_pkey'}]);
+        });
+
         it.each(['gitgazer_mcp', 'gitgazer_reader', 'gitgazer_writer'])('gives %s nothing in gitgazer_internal', async (role) => {
             const {rows} = await db.query<{usage: boolean; relations: string[] | null; functions: string[] | null}>(
                 `SELECT has_schema_privilege($1, 'gitgazer_internal', 'USAGE, CREATE') AS usage,

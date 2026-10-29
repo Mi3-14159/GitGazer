@@ -4,6 +4,8 @@ ALTER TABLE gitgazer.mcp_context_key RENAME TO context_key;
 --> statement-breakpoint
 ALTER TABLE gitgazer.context_key SET SCHEMA gitgazer_internal;
 --> statement-breakpoint
+ALTER TABLE gitgazer_internal.context_key RENAME CONSTRAINT mcp_context_key_pkey TO context_key_pkey;
+--> statement-breakpoint
 ALTER FUNCTION gitgazer.mcp_sign_context(text, integer, bigint) RENAME TO sign_context;
 --> statement-breakpoint
 ALTER FUNCTION gitgazer.sign_context(text, integer, bigint) SET SCHEMA gitgazer_internal;
