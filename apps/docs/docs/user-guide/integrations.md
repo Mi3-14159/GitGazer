@@ -73,7 +73,7 @@ _Requires **admin** role or higher._
 2. Type the exact integration label to confirm.
 3. Click **Delete Integration**.
 
-_Requires **owner** role, and only the owner who created the integration can delete it. This action is permanent and removes all associated data._
+_Requires **owner** role. This action is permanent and removes all associated data._
 
 ### Leave an Integration
 

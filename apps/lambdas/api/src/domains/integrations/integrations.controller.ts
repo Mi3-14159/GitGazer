@@ -166,7 +166,7 @@ export const deleteIntegration = async (id: string, integrationIds: string[], us
                 // Read now: the Slack settings row goes with the integration
                 const teamId = await findSlackTeamId(tx, id);
                 // Delete integration (cascades to user-assignments and notification-rules via foreign key)
-                await tx.delete(integrations).where(and(eq(integrations.integrationId, id), eq(integrations.ownerId, userId)));
+                await tx.delete(integrations).where(eq(integrations.integrationId, id));
                 return teamId;
             },
         });
