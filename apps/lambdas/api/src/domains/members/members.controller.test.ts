@@ -25,7 +25,7 @@ vi.mock('@gitgazer/db/schema/views', () => {
     return {
         userAssignmentsView: view('user_assignments_view', ['integrationId', 'userId', 'role', 'source', 'createdAt']),
         usersView: view('users_view', ['id', 'email', 'name', 'picture', 'githubLogin', 'lastActiveAt']),
-        integrationInvitationsView: view('integration_invitations_view', ['integrationId', 'status']),
+        integrationInvitationsView: view('integration_invitations_view', ['integrationId', 'status', 'createdAt']),
     };
 });
 
@@ -53,15 +53,17 @@ let controller: typeof import('./members.controller');
 // Each tx.select() resolves to the next result; the reads record their fields and tables.
 const selectTx = (...results: unknown[][]) => {
     const tx = {
-        reads: [] as {fields: any; tables: unknown[]}[],
+        reads: [] as {fields: any; tables: unknown[]; orderBy: unknown[]}[],
         select: (fields?: unknown) => {
-            const read = {fields, tables: [] as unknown[]};
+            const read = {fields, tables: [] as unknown[], orderBy: [] as unknown[]};
             const result = results[tx.reads.length] ?? [];
             tx.reads.push(read);
             const chain = {
                 from: (table: unknown) => (read.tables.push(table), chain),
                 innerJoin: (table: unknown) => (read.tables.push(table), chain),
-                where: () => Promise.resolve(result),
+                where: () => chain,
+                orderBy: (...columns: unknown[]) => (read.orderBy.push(...columns), chain),
+                then: (resolve: (rows: unknown[]) => unknown, reject: (error: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
             };
             return chain;
         },
@@ -127,7 +129,7 @@ describe('members controller', () => {
             expect(mockDbSelect).not.toHaveBeenCalled();
         });
 
-        it("reads through the role-aware views with all of the caller's roles", async () => {
+        it('reads through the role-aware views with the given roles, in a stable order', async () => {
             const tx = membersTx([], []);
             mockWithRlsTransaction.mockImplementation(async (params) => params.callback(tx));
             const integrationRoles = {'int-1': 'viewer', 'int-2': 'admin'} as const;
@@ -147,6 +149,7 @@ describe('members controller', () => {
                 lastActiveAt: usersView.lastActiveAt,
             });
             expect(Object.keys(tx.reads[0].fields)).toEqual(['integrationId', 'userId', 'role', 'source', 'createdAt', 'user']);
+            expect(tx.reads[0].orderBy).toEqual([userAssignmentsView.createdAt, userAssignmentsView.userId]);
         });
 
         it('members list marks linked members and never returns Slack IDs', async () => {
@@ -455,7 +458,7 @@ describe('members controller', () => {
             expect(tx.reads).toHaveLength(1);
         });
 
-        it("reads through the role-aware views with all of the caller's roles and only public user fields", async () => {
+        it('reads through the role-aware views with the given roles, in a stable order, and only public user fields', async () => {
             const tx = selectTx([invitation('token-123')], []);
             mockWithRlsTransaction.mockImplementation(async (params) => params.callback(tx));
             const integrationRoles = {'int-1': 'member', 'int-2': 'owner'} as const;
@@ -465,6 +468,7 @@ describe('members controller', () => {
 
             expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1', 'int-2'], integrationRoles}));
             expect(tx.reads.map((read) => read.tables)).toEqual([[integrationInvitationsView], [usersView]]);
+            expect(tx.reads[0].orderBy).toEqual([integrationInvitationsView.createdAt]);
             expect(tx.reads[1].fields).toEqual({
                 id: usersView.id,
                 name: usersView.name,

@@ -48,7 +48,8 @@ export const getMembers = async (params: {integrationId: string; integrationRole
                 })
                 .from(userAssignmentsView)
                 .innerJoin(usersView, eq(usersView.id, userAssignmentsView.userId))
-                .where(eq(userAssignmentsView.integrationId, integrationId));
+                .where(eq(userAssignmentsView.integrationId, integrationId))
+                .orderBy(userAssignmentsView.createdAt, userAssignmentsView.userId);
             const teamId = await findSlackTeamId(tx, integrationId);
             const memberGithubIds = teamId
                 ? await tx
@@ -329,7 +330,11 @@ export const getInvitations = async (params: {
         integrationIds,
         integrationRoles,
         callback: async (tx: RdsTransaction) => {
-            const invitations = await tx.select().from(integrationInvitationsView).where(eq(integrationInvitationsView.integrationId, integrationId));
+            const invitations = await tx
+                .select()
+                .from(integrationInvitationsView)
+                .where(eq(integrationInvitationsView.integrationId, integrationId))
+                .orderBy(integrationInvitationsView.createdAt);
             const userIds = [...new Set(invitations.flatMap((i) => [i.invitedBy, i.inviteeId]).filter((id) => id !== null))];
             const invitationUsers =
                 userIds.length > 0
