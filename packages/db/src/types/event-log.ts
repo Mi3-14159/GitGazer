@@ -26,7 +26,6 @@ export type EventLogEntryMetadata = {
     accountLogin?: string;
     webhookEvents?: string[];
     targetUserId?: number;
-    targetEmail?: string;
     role?: string;
     previousRole?: string;
     invitationId?: string;

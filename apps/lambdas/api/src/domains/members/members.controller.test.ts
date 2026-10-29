@@ -337,6 +337,54 @@ describe('members controller', () => {
         });
     });
 
+    describe('changeRole fallback', () => {
+        it('names a member without a name by GitHub login, never by email', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) =>
+                params.callback({
+                    select: () => ({
+                        from: () => ({innerJoin: () => ({where: () => Promise.resolve([{role: 'member', name: null, githubLogin: 'octocat'}])})}),
+                    }),
+                    update: () => ({set: () => ({where: () => ({returning: () => Promise.resolve([{role: 'admin'}])})})}),
+                }),
+            );
+
+            await controller.changeRole({
+                integrationId: 'int-1',
+                targetUserId: 2,
+                newRole: 'admin',
+                requestingUserId: 1,
+                requestingRole: 'owner',
+                integrationIds: ['int-1'],
+            });
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message: 'octocat role changed from "member" to "admin"'}));
+        });
+    });
+
+    describe('resendInvitation event log', () => {
+        it('writes an entry without the invitee email', async () => {
+            const {default: config} = await import('@gitgazer/backend-core/config');
+            vi.spyOn(config, 'get').mockImplementation(((key: string) => (key === 'sesConfig' ? {emailEnabled: true} : undefined)) as any);
+            const invitation = {email: 'jamie@example.com', role: 'member', inviteToken: 'token-1'};
+            mockWithRlsTransaction.mockImplementation(async (params) =>
+                params.callback({
+                    select: () => ({from: () => ({where: () => Promise.resolve([invitation])})}),
+                    update: () => ({set: () => ({where: () => Promise.resolve()})}),
+                }),
+            );
+
+            await controller.resendInvitation({integrationId: 'int-1', invitationId: 'inv-1', resendingUserId: 1, integrationIds: ['int-1']});
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: 'Invitation resent',
+                    message: 'An invitation was resent',
+                    metadata: {integrationId: 'int-1', invitationId: 'inv-1'},
+                }),
+            );
+        });
+    });
+
     // ---- removeMember ----
 
     describe('removeMember', () => {
@@ -485,6 +533,18 @@ describe('members controller', () => {
         });
     });
 
+    describe('getInvitations user fields', () => {
+        it('loads only public columns of the inviter and the invitee', async () => {
+            const mockFindMany = vi.fn().mockResolvedValue([]);
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback({query: {integrationInvitations: {findMany: mockFindMany}}}));
+
+            await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
+
+            const columns = {id: true, name: true, picture: true, githubLogin: true, email: true};
+            expect(mockFindMany.mock.calls[0][0].with).toEqual({invitedByUser: {columns}, invitee: {columns}});
+        });
+    });
+
     // ---- createInvitation ----
 
     describe('createInvitation', () => {
@@ -551,6 +611,12 @@ describe('members controller', () => {
             expect(result.email).toBeNull();
             expect(result.inviteToken).toBe('token-abc');
             expect(mockSendInvitationEmail).not.toHaveBeenCalled();
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Invitation created with role "member"',
+                    metadata: {integrationId: 'int-1', role: 'member', invitationId: 'inv-1'},
+                }),
+            );
         });
 
         it('throws BadRequestError for invalid role', async () => {
@@ -649,8 +715,8 @@ describe('members controller', () => {
                     category: 'integration',
                     type: 'info',
                     title: 'Invitation revoked',
-                    message: 'Invitation for jamie@example.com was revoked',
-                    metadata: {integrationId: 'int-1', targetEmail: 'jamie@example.com', invitationId: 'inv-1'},
+                    message: 'An invitation was revoked',
+                    metadata: {integrationId: 'int-1', invitationId: 'inv-1'},
                 }),
             );
         });
@@ -840,6 +906,25 @@ describe('members controller', () => {
     // ---- leaveIntegration ----
 
     describe('leaveIntegration', () => {
+        it.each([
+            [{name: null, githubLogin: 'octocat'}, 'octocat left the integration'],
+            [{name: null, githubLogin: null}, 'User 5 left the integration'],
+        ])('never names a leaving member by email (%j)', async (user, message) => {
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const mockTx = {
+                    select: () => ({
+                        from: () => ({innerJoin: () => ({where: () => Promise.resolve([{role: 'member', ...user, email: 'a@example.com'}])})}),
+                    }),
+                    delete: () => ({where: () => Promise.resolve()}),
+                };
+                return params.callback(mockTx);
+            });
+
+            await controller.leaveIntegration({integrationId: 'int-1', userId: 5, integrationIds: ['int-1']});
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message}));
+        });
+
         it('throws ForbiddenError when integration is not accessible', async () => {
             await expect(controller.leaveIntegration({integrationId: 'int-1', userId: 1, integrationIds: ['int-2']})).rejects.toThrow(
                 'Integration not accessible',
