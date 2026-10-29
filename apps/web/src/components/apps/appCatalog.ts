@@ -24,13 +24,13 @@ export const APP_INFO: Record<IntegrationAppType, AppInfo> = {
     },
     webhook: {
         name: 'Webhook',
-        description: 'Slack incoming webhooks',
+        description: 'Alerts to any webhook URL',
         icon: Webhook,
         tone: {chip: 'bg-sky-500/10 text-sky-700 dark:text-sky-400', border: 'border-sky-500/50'},
     },
     slack: {
         name: 'Slack',
-        description: 'Ping the person behind a failure',
+        description: 'Channel alerts and failure mentions',
         icon: MessageSquare,
         tone: {chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-400', border: 'border-amber-500/50'},
     },
