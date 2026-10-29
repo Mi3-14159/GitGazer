@@ -1,6 +1,10 @@
 import type * as Preset from '@docusaurus/preset-classic';
 import type {Config} from '@docusaurus/types';
 import {themes as prismThemes} from 'prism-react-renderer';
+import replaceAppUrl from './src/remark/replaceAppUrl';
+
+const appUrl = process.env.VITE_HOST_URL?.replace(/\/$/, '');
+const docsDomain = process.env.DOCS_DOMAIN;
 
 const config: Config = {
     title: 'GitGazer',
@@ -12,7 +16,7 @@ const config: Config = {
         faster: true,
     },
 
-    url: 'https://docs.gitgazer.com',
+    url: docsDomain ? `https://${docsDomain}` : 'http://localhost:3000',
     baseUrl: '/',
 
     organizationName: 'Mi3-14159',
@@ -49,6 +53,7 @@ const config: Config = {
                     sidebarPath: './sidebars.ts',
                     routeBasePath: '/',
                     editUrl: 'https://github.com/Mi3-14159/GitGazer/tree/main/apps/docs/',
+                    remarkPlugins: [[replaceAppUrl, {appUrl}]],
                 },
                 blog: false,
                 theme: {
@@ -71,11 +76,7 @@ const config: Config = {
                     position: 'left',
                     label: 'Docs',
                 },
-                {
-                    href: 'https://app.gitgazer.com',
-                    label: 'App',
-                    position: 'right',
-                },
+                ...(appUrl ? [{href: appUrl, label: 'App', position: 'right' as const}] : []),
                 {
                     href: 'https://github.com/Mi3-14159/GitGazer',
                     label: 'GitHub',
@@ -98,10 +99,7 @@ const config: Config = {
                 {
                     title: 'Links',
                     items: [
-                        {
-                            label: 'GitGazer App',
-                            href: 'https://app.gitgazer.com',
-                        },
+                        ...(appUrl ? [{label: 'GitGazer App', href: appUrl}] : []),
                         {
                             label: 'GitHub',
                             href: 'https://github.com/Mi3-14159/GitGazer',

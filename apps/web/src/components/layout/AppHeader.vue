@@ -13,6 +13,7 @@
     const {getUserAttributes, signOut} = useAuth();
     const {isActive, canResume, tourCompleted, resetTour, resumeTour} = useTour();
     const {openConnectDialog} = useMcp();
+    const docsUrl = import.meta.env.VITE_DOCS_URL;
 
     const user = ref<UserAttributes | null>(null);
     const helpOpen = ref(false);
@@ -112,7 +113,7 @@
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             as="a"
-                            href="https://docs.gitgazer.com"
+                            :href="docsUrl"
                             target="_blank"
                             rel="noopener noreferrer"
                             class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md cursor-pointer hover:bg-accent outline-none"

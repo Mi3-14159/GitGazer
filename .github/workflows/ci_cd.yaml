@@ -41,9 +41,11 @@ jobs:
       VITE_REST_API_ENDPOINT: ${{ vars.VITE_REST_API_ENDPOINT }}
       VITE_WEBSOCKET_API_ENDPOINT: ${{ vars.VITE_WEBSOCKET_API_ENDPOINT }}
       VITE_WEBSOCKET_API_REGION: ${{ vars.VITE_WEBSOCKET_API_REGION }}
+      VITE_DOCS_URL: https://${{ vars.DOCS_DOMAIN }}
       S3_BUCKET_LAMBDA_STORE: ${{ secrets.S3_BUCKET_LAMBDA_STORE }}
       FRONTEND_S3_BUCKET_NAME: ${{ vars.FRONTEND_S3_BUCKET_NAME }}
       DOCS_S3_BUCKET: ${{ vars.DOCS_S3_BUCKET }}
+      DOCS_DOMAIN: ${{ vars.DOCS_DOMAIN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7.0.1

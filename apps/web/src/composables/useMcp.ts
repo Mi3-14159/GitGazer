@@ -2,9 +2,10 @@ import {useIntegration} from '@/composables/useIntegration';
 import {computed, ref} from 'vue';
 
 const API_ENDPOINT = import.meta.env.VITE_REST_API_ENDPOINT;
+const DOCS_URL = import.meta.env.VITE_DOCS_URL;
 const HINT_STORAGE_KEY = 'gitgazer:mcp-hint';
 
-export const MCP_DOCS_URL = 'https://docs.gitgazer.com/user-guide/ai-assistants';
+export const MCP_DOCS_URL = `${DOCS_URL}/user-guide/ai-assistants`;
 
 /**
  * The MCP server is served by the same API as every other route (`/api/mcp`),
