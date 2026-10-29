@@ -6,6 +6,8 @@ MCP users should be able to ask about their GitGazer configuration ("list the Gi
 
 Later, the API should read through the same views, so that who-sees-what is defined once, in the database, and the MCP and the API cannot drift apart. This design builds the views for the MCP now and names and shapes them so the API can switch to them later. The switch itself is a separate project.
 
+2026-10-29: the members domain switched. `GET …/members` and `GET …/invitations` read `user_assignments_view`, `users_view` and `integration_invitations_view` as `gitgazer_reader` with a signed context, and `users_view` now also shows the inviter and invitee of a non-accepted invitation in an integration where the caller is member+, with their email for admin+ there (migration `20261029150000_api_members_views`).
+
 Builds on the signed tenant context (`docs/superpowers/specs/2026-10-28-mcp-signed-tenant-context-design.md`) and the "Role-aware access" section of `apps/docs/docs/technical/mcp-server.md`.
 
 ## Goals
