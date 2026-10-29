@@ -12,20 +12,20 @@ Each integration has its own set of members with role-based access. You can invi
 
 GitGazer uses four roles, from most to least privileged:
 
-| Role       | Icon   | Capabilities                                                           |
-| ---------- | ------ | ---------------------------------------------------------------------- |
-| **Owner**  | Crown  | Full control, including deleting the integration. One per integration. |
-| **Admin**  | Shield | Manage members, invitations, integration settings, and webhook events. |
-| **Member** | Cog    | Create notification rules, view workflows and invitations.             |
-| **Viewer** | Eye    | Read-only access to workflows and integration details.                 |
+| Role       | Icon   | Capabilities                                                          |
+| ---------- | ------ | --------------------------------------------------------------------- |
+| **Owner**  | Crown  | Full control, including managing admins and deleting the integration. |
+| **Admin**  | Shield | Manage members, invitations, apps, notification handles and settings. |
+| **Member** | Cog    | Create notification rules, see pending invitations.                   |
+| **Viewer** | Eye    | Read-only access to workflows, dashboards, members and apps.          |
 
-Higher roles inherit all capabilities of lower roles.
+Higher roles inherit all capabilities of lower roles. Only admins and owners see email addresses and invite links. For the full list of who may do what, see [Roles & Permissions](../technical/roles-and-permissions.md).
 
 ## Open the Members Page
 
 1. Go to the **Integrations** page.
 2. Click an integration to open it, then select the **Members** tab.
-3. You'll see the member list with a member list and any pending invitations.
+3. You'll see the member list and any pending invitations.
 
 A stats bar shows the total member count and number of pending invitations.
 
@@ -66,9 +66,9 @@ _Requires **admin** role or higher._
 Restrictions:
 
 - You cannot change your own role.
-- Only the **owner** can promote someone to admin or change an admin's role.
-- Admins can change roles of members and viewers.
-- The owner role cannot be assigned via this dropdown.
+- The dropdown only offers roles up to your own: admins can make someone an admin, member or viewer, and only owners can make someone an owner.
+- Only an **owner** can change an admin's role. Admins can change members and viewers.
+- An owner's role cannot be changed in the web app.
 
 ## Remove a Member
 
@@ -79,14 +79,14 @@ _Requires **admin** role or higher._
 
 Restrictions:
 
-- The **owner** cannot be removed.
-- Only the **owner** can remove admins.
+- Owners cannot be removed.
+- Only an **owner** can remove admins.
 - Admins can remove members and viewers.
 - You cannot remove yourself — use **Leave** instead.
 
 ## Leave an Integration
 
-Any member except the owner can leave an integration:
+Anyone except an owner can leave an integration:
 
 1. Go to the **Integrations** page.
 2. Open the integration and select the **Settings** tab.
@@ -94,13 +94,19 @@ Any member except the owner can leave an integration:
 
 Once you leave, you'll need an admin to re-invite you if you want access again.
 
-The **owner** cannot leave — transfer ownership first by promoting another member to owner.
+An **owner** cannot leave. An owner can promote another member to owner, so an integration can have several owners, but the web app offers no way to change an owner's role, so an owner stays an owner.
+
+:::caution[Deleting after a handover]
+
+Only the owner who created the integration can delete it. An owner who was promoted later cannot.
+
+:::
 
 ## Manage Pending Invitations
 
-_Requires **admin** role or higher._
+Members can see pending invitations; managing them _requires **admin** role or higher._
 
-Pending invitation cards show the invitee's email (or "Link-only invitation"), who invited them, the assigned role, and a status badge.
+For admins and owners, pending invitation cards show the invitee's email (or "Link-only invitation"), who invited them, the assigned role, and a status badge.
 
 Available actions:
 
@@ -133,5 +139,5 @@ On your own row, click **Connect Slack** to link yourself, or **Disconnect** to 
 
 Use the search bar at the top of the **Members** tab to filter:
 
-- **Members** by name or email.
-- **Pending invitations** by email or inviter name.
+- **Members** by name, or by email if you are an admin or owner.
+- **Pending invitations** by email or inviter name (members and above see pending invitations).

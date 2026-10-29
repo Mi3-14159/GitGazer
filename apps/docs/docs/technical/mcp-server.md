@@ -8,7 +8,7 @@ description: Remote Model Context Protocol server for read-only SQL access to Gi
 
 GitGazer exposes a remote **[Model Context Protocol](https://modelcontextprotocol.io) (MCP)** server so AI assistants — VS Code Copilot, Claude Code, Claude Desktop, Cursor, and any other MCP client — can query a tenant's GitHub Actions data on the user's behalf.
 
-It is **read-only**, authenticated with **OAuth 2.1**, and every query is bounded by the querying user's PostgreSQL role permissions, row-level security, and a usage budget. There is nothing to install: it is served by the existing REST API Lambda as a new `mcp` domain.
+It is **read-only**, authenticated with **OAuth 2.1**, and every query is bounded by the querying user's PostgreSQL role permissions, row-level security, and a usage budget. There is nothing to install: it is served by the `api` Lambda as its `mcp` domain.
 
 For the end-user walkthrough (how to connect a client), see [Querying Data with AI Assistants](../user-guide/ai-assistants.md).
 
@@ -169,7 +169,7 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
 5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH`, or that contains `;` or a `$1`-style placeholder, is rejected before it runs.
 6. **Blocked-function + escape guard** — `set_config` and `pg_settings`, functions that run a SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), advisory locks (a session lock would outlive the transaction on the pooled connection), `pg_sleep*`, `pg_stat_*`, file, large-object and backend-control functions, nested block comments at the start of the query, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
-7. **`set_config` stays executable** — migration `0056` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.signed_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.
+7. **`set_config` stays executable** — migration `20260721204116_tough_black_bolt` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.signed_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.
 8. **Resource caps** — a `statement_timeout`, a 2-second `lock_timeout`, a row cap and a result byte budget bound each query. The byte budget is enforced inside the query, so an oversized row never leaves the database.
 9. **Per-user budget** — a rolling-window, query-time budget bounds how much `run_sql` execution time a user gets.
 
@@ -233,17 +233,16 @@ The app must log in with the same database user that ran the migrations, which o
 Infrastructure (Terraform):
 
 - `var.mcp_allowed_redirect_hosts` — feeds `mcpAllowedRedirectHosts`; add a client's hosted callback host here to onboard it without a code change.
-- `var.mcp_throttling` — edge throttle on `POST /api/mcp` (default 20 req/s, burst 40).
 - `var.enable_rds_proxy` — before enabling the proxy, re-check that `pg_backend_pid()` stays stable within a transaction through it, since the signed context is bound to the backend PID.
 - `aws_cognito_user_pool_client.mcp` — the public PKCE client; its ID is plumbed to the Lambda via Secrets Manager and handed to clients by the `/register` endpoint (no manual paste needed).
 - `aws_cognito_resource_server.mcp` — the resource server `gitgazer-mcp` with the scope `read`, which only the MCP client is allowed to request.
 
 Database (Drizzle migrations):
 
-- `0053` — creates the `gitgazer_mcp` role and per-table tenant policies.
-- `0054` — grants `SELECT` on the nine exposed relations (column-scoped for `integrations`).
-- `0055` — the `mcp_query_usage` quota table.
-- `0056` — best-effort `REVOKE EXECUTE` on `set_config` (a no-op on Aurora).
+- `20260721080153_new_mcp_role` — creates the `gitgazer_mcp` role and per-table tenant policies.
+- `20260721080210_new_mcp_role_grants` — grants `SELECT` on the exposed `github` tables (column-scoped for `integrations`); `20260728070749_workable_mordo` adds `pull_request_reviews`.
+- `20260721190826_clean_freak` — the `mcp_query_usage` quota table.
+- `20260721204116_tough_black_bolt` — best-effort `REVOKE EXECUTE` on `set_config` (a no-op on Aurora).
 - `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper, replaced by `github.mcp_integration_ids` in `20261029090000_mcp_signed_context`.
 - `20261028130000_mcp_login` — lets `gitgazer_mcp` log in with IAM auth, for its own connection.
 - `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()` (renamed in the next migration); the MCP tenant policies now read the signed context.
@@ -257,3 +256,4 @@ To roll back, revert both the code and the database: drop the 13 views (`gitgaze
 
 - [Querying Data with AI Assistants](../user-guide/ai-assistants.md) — connect a client and start asking questions.
 - [Authentication & Authorization](./authentication.md) — the underlying Cognito + GitHub OAuth model.
+- [Roles & Permissions](./roles-and-permissions.md) — integration roles, the database roles and their grants.
