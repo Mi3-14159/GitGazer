@@ -25,7 +25,7 @@ export const listMoveCandidates = async ({integrationId, integrationIds}: Scope)
         callback: async (tx: RdsTransaction) => {
             const teamId = await findSlackTeamId(tx, integrationId);
             if (!teamId) return [];
-            const handles = await loadHandles(tx, integrationId, true);
+            const handles = await loadHandles(tx, integrationId);
             return handles
                 .filter((h) => h.url !== null && webhookTeamId(h.url) === teamId)
                 .map(({handleId, name, ruleCount}) => ({handleId, name, ruleCount}));

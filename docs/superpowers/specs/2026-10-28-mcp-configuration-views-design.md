@@ -8,6 +8,8 @@ Later, the API should read through the same views, so that who-sees-what is defi
 
 2026-10-29: the members domain switched. `GET …/members` and `GET …/invitations` read `user_assignments_view`, `users_view` and `integration_invitations_view` as `gitgazer_reader` with a signed context, and `users_view` now also shows the inviter and invitee of a non-accepted invitation in an integration where the caller is member+, with their email for admin+ there (migration `20261029150000_api_members_views`).
 
+2026-10-29: the apps domain switched. `GET …/apps` reads `integration_apps_view`, the GitHub and Slack settings views, `slack_workspaces_view`, `notification_handles_view`, the webhook and Slack handle details views and `notification_rule_destinations_view` as `gitgazer_reader` with a signed context; the admin-only write routes keep reading the base tables (migration `20261029160000_api_apps_views`).
+
 Builds on the signed tenant context (`docs/superpowers/specs/2026-10-28-mcp-signed-tenant-context-design.md`) and the "Role-aware access" section of `apps/docs/docs/technical/mcp-server.md`.
 
 ## Goals

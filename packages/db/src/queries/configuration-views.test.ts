@@ -1,16 +1,38 @@
 import {PGlite, type Extension} from '@electric-sql/pglite';
-import {eq, sql} from 'drizzle-orm';
+import {and, count, eq, sql} from 'drizzle-orm';
 import {drizzle} from 'drizzle-orm/pglite';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {withRlsTransaction} from '../client';
-import {integrationInvitationsView, userAssignmentsView, usersView} from '../schema/views';
+import {users} from '../schema/gitgazer';
+import {userAssignments} from '../schema/github';
+import {
+    integrationAppGithubSettingsView,
+    integrationAppSlackSettingsView,
+    integrationAppsView,
+    integrationInvitationsView,
+    notificationHandlesView,
+    notificationRuleDestinationsView,
+    slackHandleDetailsView,
+    slackWorkspacesView,
+    userAssignmentsView,
+    usersView,
+    webhookHandleDetailsView,
+} from '../schema/views';
 import type {MemberRole} from '../types';
 
 const A = '11111111-1111-1111-1111-111111111111';
 const B = '22222222-2222-2222-2222-222222222222';
 const C = '33333333-3333-3333-3333-333333333333';
+// Holds one app of each type with matching ids, so the apps reads can join; no other test signs it.
+const D = '44444444-4444-4444-4444-444444444444';
+const GITHUB_APP = 'd0000000-0000-0000-0000-00000000000a';
+const WEBHOOK_APP = 'd0000000-0000-0000-0000-00000000000b';
+const SLACK_APP = 'd0000000-0000-0000-0000-00000000000c';
+const WEBHOOK_HANDLE = 'd0000000-0000-0000-0000-0000000000a1';
+const SLACK_HANDLE = 'd0000000-0000-0000-0000-0000000000a2';
+const HOOK_URL = 'https://hooks.slack.com/services/T3/B3/x';
 
 const readMigration = (folder: string) =>
     readFileSync(join(__dirname, `../../drizzle/${folder}/migration.sql`), 'utf8')
@@ -100,6 +122,18 @@ const seed = `
         ('${B}', gen_random_uuid(), 'u3@example.com', 'viewer', 4, 3, gen_random_uuid(), 'pending', now(), now()),
         ('${B}', gen_random_uuid(), 'u5@example.com', 'viewer', 6, 5, gen_random_uuid(), 'accepted', now(), now());
     INSERT INTO gitgazer.event_log_entries SELECT i, gen_random_uuid(), 'notification', 'info', 'title', 'message', '{}', false, now() ${each};
+    INSERT INTO github."user-assignments" VALUES ('${D}', 5, 'viewer', 'manual', now()), ('${D}', 6, 'viewer', 'manual', now());
+    INSERT INTO gitgazer.integration_apps VALUES
+        ('${D}', '${GITHUB_APP}', 'github', now()), ('${D}', '${WEBHOOK_APP}', 'webhook', now()), ('${D}', '${SLACK_APP}', 'slack', now());
+    INSERT INTO gitgazer.integration_app_github_settings VALUES ('${D}', '${GITHUB_APP}', gen_random_uuid(), 'member');
+    INSERT INTO gitgazer.slack_workspaces VALUES ('T3', 'three', 'B3', 'ciphertext', NULL, now(), NULL);
+    INSERT INTO gitgazer.integration_app_slack_settings VALUES ('${D}', '${SLACK_APP}', 'T3');
+    INSERT INTO gitgazer.notification_handles VALUES
+        ('${D}', '${WEBHOOK_HANDLE}', '${WEBHOOK_APP}', 'hook', now(), now()), ('${D}', '${SLACK_HANDLE}', '${SLACK_APP}', '#ops', now(), now());
+    INSERT INTO gitgazer.webhook_handle_details VALUES ('${D}', '${WEBHOOK_HANDLE}', '${HOOK_URL}');
+    INSERT INTO gitgazer.slack_handle_details VALUES ('${D}', '${SLACK_HANDLE}', 'C3', 'ops');
+    INSERT INTO gitgazer.notification_rule_destinations VALUES
+        ('${D}', gen_random_uuid(), '${WEBHOOK_HANDLE}'), ('${D}', gen_random_uuid(), '${WEBHOOK_HANDLE}');
 `;
 
 const viewerViews = [
@@ -115,7 +149,19 @@ const viewerViews = [
     'github.user_assignments_view',
 ];
 const allViews = [...viewerViews, 'gitgazer.integration_invitations_view', 'gitgazer.users_view', 'gitgazer.slack_workspaces_view'];
-const readerViews = ['github.user_assignments_view', 'gitgazer.users_view', 'gitgazer.integration_invitations_view'];
+const readerViews = [
+    'github.user_assignments_view',
+    'gitgazer.users_view',
+    'gitgazer.integration_invitations_view',
+    'gitgazer.integration_apps_view',
+    'gitgazer.integration_app_github_settings_view',
+    'gitgazer.integration_app_slack_settings_view',
+    'gitgazer.notification_handles_view',
+    'gitgazer.webhook_handle_details_view',
+    'gitgazer.slack_handle_details_view',
+    'gitgazer.notification_rule_destinations_view',
+    'gitgazer.slack_workspaces_view',
+];
 
 const viewColumns: Record<string, string[]> = {
     'gitgazer.integration_apps_view': ['integration_id', 'app_id', 'type', 'created_at'],
@@ -176,6 +222,13 @@ describe('role-aware configuration views', () => {
         `);
         await db.exec(readMigration('20261029090000_mcp_signed_context'));
         await db.exec(baseTables);
+        // The prod reader grant and tenant policy on the base tables GET /apps still reads.
+        await db.exec(`
+            GRANT SELECT ON github."user-assignments", gitgazer.users TO gitgazer_reader;
+            ALTER TABLE github."user-assignments" ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY "tenant separation reader" ON github."user-assignments" AS PERMISSIVE FOR SELECT TO gitgazer_reader
+                USING (integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[]));
+        `);
         // The prod defaults from 20260228093008 and 20260310163205, which apply to views as well.
         await db.exec(`
             ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_reader;
@@ -185,6 +238,7 @@ describe('role-aware configuration views', () => {
         `);
         await db.exec(readMigration('20261029120000_role_aware_views'));
         await db.exec(readMigration('20261029150000_api_members_views'));
+        await db.exec(readMigration('20261029160000_api_apps_views'));
         await db.exec(seed);
         await db.exec('RESET ROLE');
     });
@@ -410,7 +464,7 @@ describe('role-aware configuration views', () => {
             }
         });
 
-        it('grants each view to gitgazer_mcp, and the members views to gitgazer_reader, besides its owner', async () => {
+        it('grants each view to gitgazer_mcp, and the views the api reads to gitgazer_reader, besides its owner', async () => {
             const {rows} = await db.query<{relname: string; grantees: string[]; privileges: string[]}>(
                 `SELECT n.nspname || '.' || c.relname AS relname, array_agg(DISTINCT pg_get_userbyid(acl.grantee)::text) AS grantees,
                         array_agg(DISTINCT acl.privilege_type::text) AS privileges
@@ -524,6 +578,116 @@ describe('role-aware configuration views', () => {
             expect(asAdmin.invitations.map((invitation) => invitation.email).sort()).toEqual(['invitee@example.com', 'u3@example.com']);
             expect(asAdmin.invitations.every((invitation) => invitation.inviteToken !== null)).toBe(true);
             expect(asAdmin.users.map((user) => user.email)).toEqual([1, 2, 3, 4].map((id) => `u${id}@example.com`));
+        });
+
+        describe('the apps reads of D', () => {
+            const readApps = (role: MemberRole) =>
+                asReader({[D]: role}, async (tx) => ({
+                    apps: await tx
+                        .select({appId: integrationAppsView.appId, type: integrationAppsView.type, createdAt: integrationAppsView.createdAt})
+                        .from(integrationAppsView)
+                        .orderBy(integrationAppsView.appId),
+                    githubSettings: await tx
+                        .select({
+                            secret: integrationAppGithubSettingsView.secret,
+                            orgSyncDefaultRole: integrationAppGithubSettingsView.orgSyncDefaultRole,
+                        })
+                        .from(integrationAppGithubSettingsView),
+                    handles: await tx
+                        .select({
+                            handleId: notificationHandlesView.handleId,
+                            url: webhookHandleDetailsView.url,
+                            channelName: slackHandleDetailsView.channelName,
+                        })
+                        .from(notificationHandlesView)
+                        .leftJoin(
+                            webhookHandleDetailsView,
+                            and(
+                                eq(webhookHandleDetailsView.integrationId, notificationHandlesView.integrationId),
+                                eq(webhookHandleDetailsView.handleId, notificationHandlesView.handleId),
+                            ),
+                        )
+                        .leftJoin(
+                            slackHandleDetailsView,
+                            and(
+                                eq(slackHandleDetailsView.integrationId, notificationHandlesView.integrationId),
+                                eq(slackHandleDetailsView.handleId, notificationHandlesView.handleId),
+                            ),
+                        )
+                        .orderBy(notificationHandlesView.handleId),
+                    ruleCounts: await tx
+                        .select({handleId: notificationRuleDestinationsView.handleId, ruleCount: count()})
+                        .from(notificationRuleDestinationsView)
+                        .groupBy(notificationRuleDestinationsView.handleId),
+                    workspaces: await tx
+                        .select({teamId: integrationAppSlackSettingsView.teamId, teamName: slackWorkspacesView.teamName})
+                        .from(integrationAppSlackSettingsView)
+                        .innerJoin(slackWorkspacesView, eq(slackWorkspacesView.teamId, integrationAppSlackSettingsView.teamId)),
+                }));
+
+            it.each<[MemberRole, boolean]>([
+                ['viewer', false],
+                ['member', false],
+                ['admin', true],
+                ['owner', true],
+            ])('as %s returns the apps, handles, rule counts and workspace, with the secret and url only for admin+ (%s)', async (role, admin) => {
+                const read = await readApps(role);
+
+                expect(read.apps).toEqual([
+                    {appId: GITHUB_APP, type: 'github', createdAt: expect.any(Date)},
+                    {appId: WEBHOOK_APP, type: 'webhook', createdAt: expect.any(Date)},
+                    {appId: SLACK_APP, type: 'slack', createdAt: expect.any(Date)},
+                ]);
+                expect(read.githubSettings).toEqual([{secret: admin ? expect.any(String) : null, orgSyncDefaultRole: 'member'}]);
+                expect(read.handles).toEqual([
+                    {handleId: WEBHOOK_HANDLE, url: admin ? HOOK_URL : null, channelName: null},
+                    {handleId: SLACK_HANDLE, url: null, channelName: 'ops'},
+                ]);
+                expect(read.ruleCounts).toEqual([{handleId: WEBHOOK_HANDLE, ruleCount: 2}]);
+                expect(read.workspaces).toEqual([{teamId: 'T3', teamName: 'three'}]);
+            });
+
+            it.each([
+                'gitgazer.integration_apps_view',
+                'gitgazer.integration_app_github_settings_view',
+                'gitgazer.integration_app_slack_settings_view',
+                'gitgazer.notification_handles_view',
+                'gitgazer.webhook_handle_details_view',
+                'gitgazer.slack_handle_details_view',
+                'gitgazer.notification_rule_destinations_view',
+            ])('%s returns nothing of D to a caller signed for another integration', async (view) => {
+                const rows = await asReader({[A]: 'owner'}, async (tx) => (await tx.execute(sql.raw(`SELECT integration_id FROM ${view}`))).rows);
+                expect(rows).toEqual([{integration_id: A}]);
+            });
+
+            it('slack_workspaces_view returns nothing of D to a caller signed for another integration', async () => {
+                const workspaces = await asReader({[A]: 'owner'}, (tx) => tx.select({teamId: slackWorkspacesView.teamId}).from(slackWorkspacesView));
+                expect(workspaces).toEqual([{teamId: 'T1'}]);
+            });
+
+            it('counts the Slack members of D only, from the base tables under rls.integration_ids', async () => {
+                const members = (integrationIds: string[]) =>
+                    withRlsTransaction({
+                        integrationIds,
+                        integrationRoles: {[integrationIds[0]]: 'viewer'},
+                        client: drizzle({client: db}) as unknown as Parameters<typeof withRlsTransaction>[0]['client'],
+                        callback: (tx) =>
+                            tx
+                                .select({githubId: users.githubId})
+                                .from(userAssignments)
+                                .innerJoin(users, eq(users.id, userAssignments.userId))
+                                .where(eq(userAssignments.integrationId, D))
+                                .orderBy(users.githubId),
+                    });
+                expect(await members([D])).toEqual([{githubId: 105}, {githubId: 106}]);
+                expect(await members([A])).toEqual([]);
+            });
+        });
+
+        it.each(['gitgazer.notification_rules_view', 'gitgazer.event_log_entries_view'])('still denies gitgazer_reader the view %s', async (view) => {
+            await expect(asReader({[A]: 'owner'}, (tx) => tx.execute(sql.raw(`SELECT * FROM ${view}`)))).rejects.toThrow(
+                expect.objectContaining({cause: expect.objectContaining({message: expect.stringMatching(/permission denied for view/)})}),
+            );
         });
 
         it('reads nothing from the views without integrationRoles', async () => {

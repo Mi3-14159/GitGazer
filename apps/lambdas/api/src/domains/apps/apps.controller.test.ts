@@ -1,7 +1,26 @@
 import {BadRequestError, ConflictError, NotFoundError} from '@/shared/errors';
-import {integrationApps, notificationHandles, slackHandleDetails, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
-import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
-import {MAX_SLACK_HANDLES, MAX_WEBHOOK_HANDLES} from '@gitgazer/db/types';
+import {
+    integrationApps,
+    notificationHandles,
+    notificationRuleDestinations,
+    slackHandleDetails,
+    slackUserLinks,
+    slackWorkspaces,
+    users,
+    webhookHandleDetails,
+} from '@gitgazer/db/schema/gitgazer';
+import {githubAppInstallations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {
+    integrationAppGithubSettingsView,
+    integrationAppSlackSettingsView,
+    integrationAppsView,
+    notificationHandlesView,
+    notificationRuleDestinationsView,
+    slackHandleDetailsView,
+    slackWorkspacesView,
+    webhookHandleDetailsView,
+} from '@gitgazer/db/schema/views';
+import {MAX_SLACK_HANDLES, MAX_WEBHOOK_HANDLES, type MemberRole} from '@gitgazer/db/types';
 import type {SQL} from 'drizzle-orm';
 import {PgDialect} from 'drizzle-orm/pg-core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -13,6 +32,8 @@ const orderByArgs: unknown[][] = [];
 const queryLog: string[] = [];
 const deleteWhere: unknown[] = [];
 const deleteReturningQueue: unknown[][] = [];
+const txTables: unknown[] = [];
+const masterTables: unknown[] = [];
 // The real pool holds one connection, so touching the master db (or nesting a transaction) inside a callback deadlocks
 let transactionOpen = false;
 const connectionViolations: string[] = [];
@@ -25,10 +46,14 @@ const masterDb = <T>(op: string, run: () => T): T => {
 };
 
 const chain = (result: unknown[]) => {
+    const read = (table: unknown) => {
+        (transactionOpen ? txTables : masterTables).push(table);
+        return c;
+    };
     const c: any = {
-        from: () => c,
-        innerJoin: () => c,
-        leftJoin: () => c,
+        from: read,
+        innerJoin: read,
+        leftJoin: read,
         where: () => c,
         groupBy: () => c,
         orderBy: (...args: unknown[]) => {
@@ -135,6 +160,8 @@ describe('apps controller', () => {
         queryLog.length = 0;
         deleteWhere.length = 0;
         deleteReturningQueue.length = 0;
+        txTables.length = 0;
+        masterTables.length = 0;
         transactionOpen = false;
         connectionViolations.length = 0;
         mockDecryptToken.mockResolvedValue(BOT_TOKEN);
@@ -159,41 +186,69 @@ describe('apps controller', () => {
         controller = await import('./apps.controller');
     });
 
-    const queueListData = () => {
+    const listScope = (role: MemberRole) => ({integrationId: 'int-1', integrationRoles: {'int-1': role}});
+
+    const queueListData = (secret: string | null, url: string | null) => {
         selectQueue.push(
             [
                 {appId: 'app-g', type: 'github', createdAt: CREATED},
                 {appId: 'app-w', type: 'webhook', createdAt: CREATED},
             ],
-            [{handleId: 'h-1', appId: 'app-w', name: 'Team channel', url: SLACK_URL}],
+            [{handleId: 'h-1', appId: 'app-w', name: 'Team channel', url, channelName: null}],
             [{handleId: 'h-1', ruleCount: 2}],
+            [{secret, orgSyncDefaultRole: 'member'}],
         );
     };
 
+    const listed = (secret: string | null, url: string | null) => [
+        {appId: 'app-g', type: 'github', createdAt: CREATED.toISOString(), settings: {secret, orgSyncDefaultRole: 'member'}},
+        {
+            appId: 'app-w',
+            type: 'webhook',
+            createdAt: CREATED.toISOString(),
+            handles: [{handleId: 'h-1', appId: 'app-w', name: 'Team channel', url, channelName: null, ruleCount: 2}],
+        },
+    ];
+
     describe('listApps', () => {
-        it('listApps hides secret and urls without canSeeSecrets', async () => {
-            queueListData();
+        it.each<MemberRole>(['viewer', 'member', 'admin', 'owner'])('signs only the integration with the role %s', async (role) => {
+            queueListData(null, null);
 
-            const apps = await controller.listApps({...base, canSeeSecrets: false});
+            await controller.listApps(listScope(role));
 
-            const github = apps.find((a) => a.type === 'github');
-            const webhook = apps.find((a) => a.type === 'webhook');
-            expect(github?.type === 'github' && github.settings.secret).toBeNull();
-            expect(webhook?.type === 'webhook' && webhook.handles.every((h) => h.url === null)).toBe(true);
-            expect(webhook?.type === 'webhook' && webhook.handles.map((h) => h.name)).toEqual(['Team channel']);
-            expect(JSON.stringify(apps)).not.toContain(SECRET);
-            expect(JSON.stringify(apps)).not.toContain('hooks.slack.com');
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(
+                expect.objectContaining({integrationIds: ['int-1'], integrationRoles: {'int-1': role}}),
+            );
         });
 
-        it('listApps returns secret and urls with canSeeSecrets', async () => {
-            queueListData();
+        it('reads the apps, handles, rule counts and GitHub settings through the views only', async () => {
+            queueListData(null, null);
 
-            const apps = await controller.listApps({...base, canSeeSecrets: true});
+            await controller.listApps(listScope('viewer'));
 
-            const github = apps.find((a) => a.type === 'github');
-            const webhook = apps.find((a) => a.type === 'webhook');
-            expect(github?.type === 'github' && github.settings.secret).toBe(SECRET);
-            expect(webhook?.type === 'webhook' && webhook.handles[0]).toMatchObject({url: SLACK_URL, ruleCount: 2});
+            expect(txTables).toEqual([
+                integrationAppsView,
+                notificationHandlesView,
+                webhookHandleDetailsView,
+                slackHandleDetailsView,
+                notificationRuleDestinationsView,
+                integrationAppGithubSettingsView,
+            ]);
+            expect(masterTables).toEqual([]);
+            expect(mockGetGithubSettings).not.toHaveBeenCalled();
+        });
+
+        // The views null the secret and the urls below admin; the controller must pass both through as they come.
+        it('returns the secret and urls as the views mask them', async () => {
+            queueListData(null, null);
+
+            await expect(controller.listApps(listScope('viewer'))).resolves.toEqual(listed(null, null));
+        });
+
+        it('returns the secret and urls the views show', async () => {
+            queueListData(SECRET, SLACK_URL);
+
+            await expect(controller.listApps(listScope('admin'))).resolves.toEqual(listed(SECRET, SLACK_URL));
         });
     });
 
@@ -208,30 +263,49 @@ describe('apps controller', () => {
             memberCount: 3,
         };
 
-        // Tenant rows come from the RLS transaction; slack_workspaces and slack_user_links from the master db after it
+        // Tenant rows come from the RLS transaction; only slack_user_links from the master db after it
         const queueSlackList = (apps: unknown[], workspace: unknown[] = [{teamName: 'Acme', disconnectedAt: null}]) =>
             selectQueue.push(
                 apps,
                 [{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops'}],
                 [],
                 [{teamId: 'T1'}],
-                [{githubId: 1}, {githubId: 2}, {githubId: null}],
                 workspace,
+                [{githubId: 1}, {githubId: 2}, {githubId: null}],
                 [{count: 1}],
             );
 
         it('returns the workspace, its channel handles and how many members are linked', async () => {
             queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}]);
 
-            const apps = await controller.listApps({...base, canSeeSecrets: false});
+            const apps = await controller.listApps(listScope('viewer'));
 
             expect(apps).toEqual([slackApp]);
+        });
+
+        it('reads the Slack settings and workspace through the views, and only slack_user_links on the master db', async () => {
+            queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}]);
+
+            await controller.listApps(listScope('viewer'));
+
+            expect(txTables).toEqual([
+                integrationAppsView,
+                notificationHandlesView,
+                webhookHandleDetailsView,
+                slackHandleDetailsView,
+                notificationRuleDestinationsView,
+                integrationAppSlackSettingsView,
+                slackWorkspacesView,
+                userAssignments,
+                users,
+            ]);
+            expect(masterTables).toEqual([slackUserLinks]);
         });
 
         it('never uses the master db while the RLS transaction is open', async () => {
             queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}]);
 
-            const apps = await controller.listApps({...base, canSeeSecrets: false});
+            const apps = await controller.listApps(listScope('viewer'));
 
             expect(connectionViolations).toEqual([]);
             expect(apps).toEqual([slackApp]);
@@ -240,32 +314,34 @@ describe('apps controller', () => {
         it('skips the Slack app when its workspace row is gone', async () => {
             queueSlackList([{appId: 'app-s', type: 'slack', createdAt: CREATED}], []);
 
-            await expect(controller.listApps({...base, canSeeSecrets: false})).resolves.toEqual([]);
+            await expect(controller.listApps(listScope('viewer'))).resolves.toEqual([]);
             expect(connectionViolations).toEqual([]);
         });
 
-        it('installApp loads the new app without using the master db inside the write transaction', async () => {
+        it('installApp loads the new app with the caller role without using the master db inside the write transaction', async () => {
             selectQueue.push([]);
             queueSlackList([
                 {appId: 'app-s', type: 'slack', createdAt: CREATED},
                 {appId: 'app-w', type: 'webhook', createdAt: CREATED},
             ]);
 
-            const app = await controller.installApp({...base, type: 'webhook'});
+            const app = await controller.installApp({...base, role: 'owner', type: 'webhook'});
 
             expect(connectionViolations).toEqual([]);
             expect(app).toEqual({appId: 'app-w', type: 'webhook', createdAt: CREATED.toISOString(), handles: []});
             expect(insertedValues).toEqual([{table: integrationApps, values: {integrationId: 'int-1', type: 'webhook'}}]);
+            expect(mockWithRlsTransaction).toHaveBeenLastCalledWith(expect.objectContaining({integrationRoles: {'int-1': 'owner'}}));
         });
     });
 
     describe('handle ordering', () => {
         it('orders handles by created_at, then name, then id so migrated handles list stably', async () => {
-            queueListData();
+            queueListData(null, null);
 
-            await controller.listApps({...base, canSeeSecrets: false});
+            await controller.listApps(listScope('viewer'));
 
-            expect(orderByArgs[1]).toEqual([notificationHandles.createdAt, notificationHandles.name, notificationHandles.handleId]);
+            // toEqual recurses forever on view columns, so compare their names
+            expect(orderByArgs[1].map((column) => (column as {name: string}).name)).toEqual(['created_at', 'name', 'handle_id']);
         });
     });
 
@@ -273,12 +349,14 @@ describe('apps controller', () => {
         it('installApp rejects a second app of the same type', async () => {
             selectQueue.push([{appId: 'app-g'}]);
 
-            await expect(controller.installApp({...base, type: 'github'})).rejects.toBeInstanceOf(ConflictError);
+            await expect(controller.installApp({...base, role: 'admin', type: 'github'})).rejects.toBeInstanceOf(ConflictError);
             expect(mockInstallGithubApp).not.toHaveBeenCalled();
         });
 
         it('installApp rejects slack', async () => {
-            await expect(controller.installApp({...base, type: 'slack'})).rejects.toThrow(new BadRequestError('Slack is installed through Slack'));
+            await expect(controller.installApp({...base, role: 'admin', type: 'slack'})).rejects.toThrow(
+                new BadRequestError('Slack is installed through Slack'),
+            );
             expect(insertedValues).toHaveLength(0);
         });
     });
@@ -289,7 +367,7 @@ describe('apps controller', () => {
             selectQueue.push([{appId: 'app-w', type: 'webhook', createdAt: CREATED}], [], []);
             mockCreateEventLogEntry.mockRejectedValue(new Error('db down'));
 
-            await expect(controller.installApp({...base, type: 'webhook'})).resolves.toMatchObject({type: 'webhook'});
+            await expect(controller.installApp({...base, role: 'admin', type: 'webhook'})).resolves.toMatchObject({type: 'webhook'});
         });
 
         it('uninstallApp still succeeds when the event log write fails', async () => {
@@ -453,6 +531,21 @@ describe('apps controller', () => {
             selectQueue.push([{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops'}], []);
 
             await expect(controller.updateHandle({...base, handleId: 'h-2', url: SLACK_URL})).rejects.toBeInstanceOf(BadRequestError);
+        });
+
+        // gitgazer_writer has no grant on the views, and the admin-only route needs the url unmasked anyway
+        it('updateHandle reads the handle from the base tables, unmasked', async () => {
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Team', url: SLACK_URL, channelName: null}], [{handleId: 'h-1', ruleCount: 1}]);
+            selectQueue.push(
+                [{handleId: 'h-1', appId: 'app-w', name: 'Renamed', url: SLACK_URL, channelName: null}],
+                [{handleId: 'h-1', ruleCount: 1}],
+            );
+
+            const handle = await controller.updateHandle({...base, handleId: 'h-1', name: 'Renamed'});
+
+            expect(handle).toEqual({handleId: 'h-1', appId: 'app-w', name: 'Renamed', url: SLACK_URL, channelName: null, ruleCount: 1});
+            const handleTables = [notificationHandles, webhookHandleDetails, slackHandleDetails, notificationRuleDestinations];
+            expect(txTables).toEqual([...handleTables, ...handleTables]);
         });
     });
 

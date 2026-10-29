@@ -1,0 +1,1 @@
+GRANT SELECT ON gitgazer.integration_apps_view, gitgazer.integration_app_github_settings_view, gitgazer.integration_app_slack_settings_view, gitgazer.notification_handles_view, gitgazer.webhook_handle_details_view, gitgazer.slack_handle_details_view, gitgazer.notification_rule_destinations_view, gitgazer.slack_workspaces_view TO gitgazer_reader;
