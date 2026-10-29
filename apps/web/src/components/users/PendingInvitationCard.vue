@@ -82,7 +82,10 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span>{{ invitation.email ? 'Sent' : 'Created' }} {{ formatCalendarDate(invitation.invitedAt) }}</span>
+                            <span
+                                >{{ readonly ? 'Invited' : invitation.email ? 'Sent' : 'Created' }}
+                                {{ formatCalendarDate(invitation.invitedAt) }}</span
+                            >
                             <span>&middot;</span>
                             <span>
                                 {{ invitation.status === 'expired' ? 'Expired' : 'Expires' }}

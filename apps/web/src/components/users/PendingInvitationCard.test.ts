@@ -39,6 +39,16 @@ describe('PendingInvitationCard hidden email', () => {
         expect(wrapper.find('.lucide-link').exists()).toBe(false);
     });
 
+    it('says "Invited" to a readonly viewer, who never sees the email', () => {
+        expect(mountCard({invitation, readonly: true}).text()).toContain('Invited');
+        expect(mountCard({invitation, readonly: true}).text()).not.toContain('Created');
+    });
+
+    it('says "Sent" or "Created" to an editor, by whether an email was sent', () => {
+        expect(mountCard({invitation: {...invitation, email: 'a@example.com'}}).text()).toContain('Sent');
+        expect(mountCard({invitation}).text()).toContain('Created');
+    });
+
     it('shows the link-only marker to an editor', () => {
         const wrapper = mountCard({invitation});
 
