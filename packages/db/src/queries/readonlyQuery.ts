@@ -40,9 +40,9 @@ const LEADING_NOISE = /^(?:\s+|--[^\n]*\n?|\/\*[\s\S]*?\*\/)+/;
 // sees a SELECT while Postgres sees the DELETE. Rejected rather than parsed; no real query needs it.
 const NESTED_BLOCK_COMMENT = /\/\*(?:(?!\*\/)[\s\S])*\/\*/;
 
-// Defence in depth, not the boundary (that is the gitgazer_mcp login, RLS on the signed rls.mcp_context and the
+// Defence in depth, not the boundary (that is the gitgazer_mcp login, RLS on the signed rls.signed_context and the
 // read-only transaction), and a text match cannot see a name assembled at runtime. set_config stays executable on
-// Aurora (the revoke migration is a no-op there); a query that reached it could overwrite rls.mcp_context, but not
+// Aurora (the revoke migration is a no-op there); a query that reached it could overwrite rls.signed_context, but not
 // make it valid. Still blocked:
 // - `set_config` and `pg_settings`, whose UPDATE rule reaches set_config without naming it;
 // - functions that execute a caller-supplied SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), where a
@@ -189,7 +189,7 @@ const findPgError = (error: unknown): PgError | undefined => {
 
 const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/;
 
-/** The verifier in github.mcp_context() accepts only lowercase UUIDs, so the ids are lowercased. */
+/** The verifier in github.signed_context() accepts only lowercase UUIDs, so the ids are lowercased. */
 const contextPayload = (integrationRoles: Record<string, MemberRole>): string =>
     Object.entries(integrationRoles)
         .map(([id, role]) => {
@@ -204,7 +204,7 @@ const contextPayload = (integrationRoles: Record<string, MemberRole>): string =>
         .join(',');
 
 /**
- * Sign the payload for the session and transaction `tx` runs in and set it as rls.mcp_context. Only the app login may
+ * Sign the payload for the session and transaction `tx` runs in and set it as rls.signed_context. Only the app login may
  * execute the sign function, so it runs on `db`; the bigint transaction start stays a string to keep its precision.
  */
 const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<void> => {
@@ -213,7 +213,7 @@ const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<vo
     )) as unknown as {rows: {pid: number; txn_start_us: string}[]};
     const {pid, txn_start_us} = session.rows[0];
     const signed = (await db
-        .execute(sql`SELECT gitgazer.mcp_sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
+        .execute(sql`SELECT gitgazer.sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
         .catch((error: unknown) => {
             throw new McpContextError('Could not sign the MCP tenant context', error);
         })) as unknown as {rows: {signature?: unknown}[]};
@@ -221,7 +221,7 @@ const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<vo
     if (typeof signature !== 'string' || !SIGNATURE_PATTERN.test(signature)) {
         throw new McpContextError('Signing the MCP tenant context returned an invalid signature');
     }
-    await tx.execute(sql.raw(`SET LOCAL rls.mcp_context = '${payload}|${signature}';`));
+    await tx.execute(sql.raw(`SET LOCAL rls.signed_context = '${payload}|${signature}';`));
 };
 
 /**
@@ -236,7 +236,7 @@ const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<vo
  *     subquery gives SELECT context, the row cap and the in-database byte budget.
  *  3. the `mcpDb` connection, logged in as gitgazer_mcp, so the session cannot switch to a role that owns
  *     the tables or bypasses RLS. The Data API mode has no separate login, so queries refuse to run there.
- *  4. READ ONLY txn that is always rolled back, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `rls.mcp_context` signed by
+ *  4. READ ONLY txn that is always rolled back, `SET LOCAL ROLE gitgazer_mcp` (GRANTs), `rls.signed_context` signed by
  *     the app login for this session and transaction (RLS), and statement and lock timeouts. A caller can overwrite
  *     the context through set_config, but not make it valid, so guard 1 is defence in depth.
  */

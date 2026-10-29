@@ -9,10 +9,13 @@ const A = '11111111-1111-1111-1111-111111111111';
 const B = '22222222-2222-2222-2222-222222222222';
 const C = '33333333-3333-3333-3333-333333333333';
 
-const migration = readFileSync(join(__dirname, '../../drizzle/20261029090000_mcp_signed_context/migration.sql'), 'utf8').replaceAll(
-    '--> statement-breakpoint',
-    '',
-);
+const readMigration = (folder: string) => readFileSync(join(__dirname, `../../drizzle/${folder}/migration.sql`), 'utf8');
+const migration = readMigration('20261029090000_mcp_signed_context').replaceAll('--> statement-breakpoint', '');
+// The views of the new migration need the real tables; they are tested separately.
+const renameMigration = readMigration('20261029120000_role_aware_views')
+    .split('--> statement-breakpoint')
+    .filter((statement) => !/^\s*(?:CREATE VIEW|GRANT SELECT ON github\.)/.test(statement))
+    .join('\n');
 const policyUsing = new PgDialect().sqlToQuery(mcpTenantSeparationPolicy().using!).sql;
 const mcpTables = [
     'enterprises',
@@ -30,7 +33,7 @@ const mcpTables = [
 // A variable specifier, because only some of the tsconfigs that check this file resolve the package's exports map.
 const PGCRYPTO = '@electric-sql/pglite/contrib/pgcrypto';
 
-const signContext = `gitgazer.mcp_sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
+const signContext = `gitgazer.sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
 
 describe('signed mcp tenant context', () => {
     let db: PGlite;
@@ -61,6 +64,7 @@ describe('signed mcp tenant context', () => {
                 .join('\n')}
         `);
         await db.exec(migration);
+        await db.exec(renameMigration);
         await db.exec(`
             CREATE TABLE github.t (integration_id uuid, v int);
             ALTER TABLE github.t ENABLE ROW LEVEL SECURITY;
@@ -74,7 +78,7 @@ describe('signed mcp tenant context', () => {
     afterAll(() => db.close());
 
     const setContext = async (tx: Transaction, context: string) => {
-        await tx.query(`SELECT set_config('rls.mcp_context', $1, true)`, [context]);
+        await tx.query(`SELECT set_config('rls.signed_context', $1, true)`, [context]);
     };
 
     const sign = async (tx: Transaction, payload: string) => {
@@ -94,6 +98,18 @@ describe('signed mcp tenant context', () => {
             await prepare(tx);
             return selectAsMcp(tx);
         });
+
+    it('keeps the existing mcp policies working after the rename', async () => {
+        expect(await visible(async (tx) => setContext(tx, await sign(tx, `${A}:viewer`)))).toEqual([1]);
+    });
+
+    it('ignores the old setting name', async () => {
+        const old = async (tx: Transaction) => {
+            const context = await sign(tx, `${A}:viewer`);
+            await tx.query(`SELECT set_config('rls.mcp_context', $1, true)`, [context]);
+        };
+        expect(await visible(old)).toEqual([]);
+    });
 
     it('returns the rows of the signed integrations only', async () => {
         expect(await visible(async (tx) => setContext(tx, await sign(tx, `${A}:viewer,${B}:admin`)))).toEqual([1, 2]);
@@ -139,7 +155,7 @@ describe('signed mcp tenant context', () => {
     it('returns nothing for a context signed for another backend', async () => {
         const otherPid = async (tx: Transaction) => {
             const {rows} = await tx.query<{signature: string}>(
-                `SELECT gitgazer.mcp_sign_context($1, pg_backend_pid() + 1, (extract(epoch FROM now()) * 1000000)::bigint) AS signature`,
+                `SELECT gitgazer.sign_context($1, pg_backend_pid() + 1, (extract(epoch FROM now()) * 1000000)::bigint) AS signature`,
                 [`${A}:viewer`],
             );
             await setContext(tx, `${A}:viewer|${rows[0].signature}`);
@@ -153,13 +169,13 @@ describe('signed mcp tenant context', () => {
         }
     });
 
-    describe('github.mcp_integration_ids', () => {
+    describe('github.integration_ids', () => {
         const ids = (minimumRole: string) =>
             db.transaction(async (tx) => {
                 await tx.exec('SET LOCAL ROLE root');
                 await setContext(tx, await sign(tx, `${A}:member,${B}:admin,${C}:owner`));
                 await tx.exec('SET LOCAL ROLE gitgazer_mcp');
-                const {rows} = await tx.query<{ids: string[]}>('SELECT github.mcp_integration_ids($1) AS ids', [minimumRole]);
+                const {rows} = await tx.query<{ids: string[]}>('SELECT github.integration_ids($1) AS ids', [minimumRole]);
                 return rows[0].ids;
             });
 
@@ -180,19 +196,17 @@ describe('signed mcp tenant context', () => {
             });
 
         it('keeps the key from gitgazer_mcp', async () => {
-            await expect(asRole('gitgazer_mcp', 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(
-                /permission denied for table mcp_context_key/,
-            );
+            await expect(asRole('gitgazer_mcp', 'SELECT * FROM gitgazer.context_key')).rejects.toThrow(/permission denied for table context_key/);
         });
 
         it('keeps the sign function from gitgazer_mcp', async () => {
-            await expect(asRole('gitgazer_mcp', `SELECT gitgazer.mcp_sign_context('x', 1, 1)`)).rejects.toThrow(
-                /permission denied for function mcp_sign_context/,
+            await expect(asRole('gitgazer_mcp', `SELECT gitgazer.sign_context('x', 1, 1)`)).rejects.toThrow(
+                /permission denied for function sign_context/,
             );
         });
 
         it.each(['gitgazer_reader', 'gitgazer_writer'])('keeps the key from %s', async (role) => {
-            await expect(asRole(role, 'SELECT * FROM gitgazer.mcp_context_key')).rejects.toThrow(/permission denied for table mcp_context_key/);
+            await expect(asRole(role, 'SELECT * FROM gitgazer.context_key')).rejects.toThrow(/permission denied for table context_key/);
         });
 
         // Predefined roles such as pg_read_all_data are skipped themselves, but any role granted one still shows up here
@@ -200,18 +214,18 @@ describe('signed mcp tenant context', () => {
             const {rows} = await db.query<{rolname: string}>(
                 `SELECT rolname FROM pg_roles
                  WHERE NOT rolsuper AND rolname <> 'root' AND rolname NOT LIKE 'pg\\_%'
-                   AND has_table_privilege(oid, 'gitgazer.mcp_context_key', 'SELECT')`,
+                   AND has_table_privilege(oid, 'gitgazer.context_key', 'SELECT')`,
             );
             expect(rows).toEqual([]);
         });
 
-        it.each(['mcp_context', 'mcp_integration_ids'])('keeps github.%s from gitgazer_reader', async (fn) => {
+        it.each(['signed_context', 'integration_ids'])('keeps github.%s from gitgazer_reader', async (fn) => {
             await expect(asRole('gitgazer_reader', `SELECT github.${fn}()`)).rejects.toThrow(`permission denied for function ${fn}`);
         });
 
         it('keeps the sign function from gitgazer_reader', async () => {
-            await expect(asRole('gitgazer_reader', `SELECT gitgazer.mcp_sign_context('x', 1, 1)`)).rejects.toThrow(
-                /permission denied for function mcp_sign_context/,
+            await expect(asRole('gitgazer_reader', `SELECT gitgazer.sign_context('x', 1, 1)`)).rejects.toThrow(
+                /permission denied for function sign_context/,
             );
         });
     });
@@ -231,7 +245,7 @@ describe('signed mcp tenant context', () => {
         );
         expect(rows.map((row) => row.tablename).sort()).toEqual(mcpTables);
         for (const row of rows) {
-            expect(row.qual).toContain('github.mcp_integration_ids()');
+            expect(row.qual).toContain('github.integration_ids()');
         }
     });
 });

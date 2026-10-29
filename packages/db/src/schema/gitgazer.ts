@@ -58,9 +58,9 @@ export const mcpQueryUsage = gitgazerSchema.table(
     (table) => [primaryKey({columns: [table.userId, table.windowStart]})],
 );
 
-// Signs the MCP tenant context. Readable only by its owner: migration 20261029090000_mcp_signed_context revokes the
+// Signs the tenant context. Readable only by its owner: migration 20261029090000_mcp_signed_context revokes the
 // default grants and inserts the key row, which Drizzle cannot express.
-export const mcpContextKey = gitgazerSchema.table('mcp_context_key', {
+export const contextKey = gitgazerSchema.table('context_key', {
     id: smallint('id').primaryKey(),
     key: bytea('key').notNull(),
 });
