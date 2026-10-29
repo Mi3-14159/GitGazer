@@ -64,6 +64,15 @@ describe('signed mcp tenant context', () => {
                 .join('\n')}
         `);
         await db.exec(migration);
+        // Written against the old function name, to prove the rename keeps existing policies working.
+        await db.exec(`
+            CREATE TABLE github.old_t (integration_id uuid, v int);
+            ALTER TABLE github.old_t ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY "tenant separation mcp" ON github.old_t FOR SELECT TO gitgazer_mcp
+                USING (integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[]));
+            GRANT SELECT ON github.old_t TO gitgazer_mcp;
+            INSERT INTO github.old_t VALUES ('${A}', 1), ('${B}', 2);
+        `);
         await db.exec(renameMigration);
         await db.exec(`
             CREATE TABLE github.t (integration_id uuid, v int);
@@ -100,7 +109,13 @@ describe('signed mcp tenant context', () => {
         });
 
     it('keeps the existing mcp policies working after the rename', async () => {
-        expect(await visible(async (tx) => setContext(tx, await sign(tx, `${A}:viewer`)))).toEqual([1]);
+        const rows = await db.transaction(async (tx) => {
+            await tx.exec('SET LOCAL ROLE root');
+            await setContext(tx, await sign(tx, `${A}:viewer`));
+            await tx.exec('SET LOCAL ROLE gitgazer_mcp');
+            return (await tx.query<{v: number}>('SELECT v FROM github.old_t ORDER BY v')).rows;
+        });
+        expect(rows.map((row) => row.v)).toEqual([1]);
     });
 
     it('ignores the old setting name', async () => {
@@ -241,7 +256,7 @@ describe('signed mcp tenant context', () => {
 
     it('updates the existing mcp policies', async () => {
         const {rows} = await db.query<{tablename: string; qual: string}>(
-            `SELECT tablename, qual FROM pg_policies WHERE policyname = 'tenant separation mcp' AND tablename <> 't'`,
+            `SELECT tablename, qual FROM pg_policies WHERE policyname = 'tenant separation mcp' AND tablename NOT IN ('t', 'old_t')`,
         );
         expect(rows.map((row) => row.tablename).sort()).toEqual(mcpTables);
         for (const row of rows) {
