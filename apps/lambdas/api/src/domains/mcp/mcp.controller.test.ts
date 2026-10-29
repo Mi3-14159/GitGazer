@@ -1,14 +1,15 @@
 import {OAuthError, OAuthErrorCode} from '@modelcontextprotocol/server';
+import {JwtExpiredError} from 'aws-jwt-verify/error';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {verify, usersLookup, logError} = vi.hoisted(() => ({verify: vi.fn(), usersLookup: vi.fn(), logError: vi.fn()}));
+const {verify, usersLookup, logError, logInfo} = vi.hoisted(() => ({verify: vi.fn(), usersLookup: vi.fn(), logError: vi.fn(), logInfo: vi.fn()}));
 
 vi.mock('@/shared/middleware/token-verifier', () => ({
     getMcpAccessVerifier: () => ({verify}),
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
 vi.mock('@gitgazer/db/client', () => ({db: {select: () => ({from: () => ({where: () => ({limit: usersLookup})})})}}));
-vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: logError})}));
+vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: logError, info: logInfo})}));
 vi.mock('@gitgazer/backend-core/config', () => ({
     default: {get: vi.fn((key: string) => (key === 'mcpServerUrl' ? 'https://app.gitgazer.com/api/mcp' : {userPoolId: 'eu-central-1_ABC123'}))},
 }));
@@ -37,6 +38,18 @@ describe('mcpTokenVerifier', () => {
     it('rejects an invalid or expired token as invalid_token', async () => {
         verify.mockRejectedValue(new Error('expired'));
         await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).rejects.toMatchObject({code: OAuthErrorCode.InvalidToken});
+    });
+    it('logs a rejected token by error class only, without its claims', async () => {
+        verify.mockRejectedValue(new JwtExpiredError('Token expired at 2026-10-29T00:00:00.000Z', 1, undefined));
+        await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).rejects.toMatchObject({code: OAuthErrorCode.InvalidToken});
+        expect(logInfo).toHaveBeenCalledWith('MCP access token rejected', {reason: 'JwtExpiredError'});
+        expect(logError).not.toHaveBeenCalled();
+    });
+    it('logs a verifier misconfiguration as an error and still answers invalid_token', async () => {
+        const configError = new Error('MCP token verifier is not configured (no MCP Cognito client ID)');
+        verify.mockRejectedValue(configError);
+        await expect(ctrl.mcpTokenVerifier.verifyAccessToken('tok')).rejects.toMatchObject({code: OAuthErrorCode.InvalidToken});
+        expect(logError).toHaveBeenCalledWith('MCP token verification failed', {error: configError});
     });
     it('rejects a token for a user that has never signed in as invalid_token', async () => {
         verify.mockResolvedValue({sub: 'cognito-sub', client_id: 'c', exp: 1_900_000_000});
@@ -74,7 +87,7 @@ describe('buildProtectedResourceMetadata', () => {
             resource: 'https://app.gitgazer.com/api/mcp',
             authorization_servers: ['https://app.gitgazer.com'],
             bearer_methods_supported: ['header'],
-            scopes_supported: ['openid', 'email', 'profile'],
+            scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
         });
     });
 });

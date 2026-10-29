@@ -1,10 +1,12 @@
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {MCP_SCOPE} from '@/shared/mcp-scope';
 import {getMcpAccessVerifier} from '@/shared/middleware/token-verifier';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import type {MemberRole} from '@gitgazer/db/types/members';
 import {OAuthError, OAuthErrorCode, type AuthInfo, type OAuthTokenVerifier} from '@modelcontextprotocol/server';
+import {JwtBaseError} from 'aws-jwt-verify/error';
 import {eq} from 'drizzle-orm';
 
 export type McpCaller = {userId: number; integrationRoles: Record<string, MemberRole>};
@@ -15,7 +17,10 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
         let payload;
         try {
             payload = await getMcpAccessVerifier().verify(token);
-        } catch {
+        } catch (error) {
+            // aws-jwt-verify messages quote claim values, so only the class name of its errors is logged.
+            if (error instanceof JwtBaseError) getLogger().info('MCP access token rejected', {reason: error.constructor.name});
+            else getLogger().error('MCP token verification failed', {error});
             throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid or expired access token');
         }
 
@@ -68,6 +73,6 @@ export const buildProtectedResourceMetadata = (requestOrigin: string): Record<st
         resource: mcpServerUrl(requestOrigin),
         authorization_servers: [mcpOrigin(requestOrigin)],
         bearer_methods_supported: ['header'],
-        scopes_supported: ['openid', 'email', 'profile'],
+        scopes_supported: ['openid', 'email', 'profile', MCP_SCOPE],
     };
 };

@@ -81,7 +81,9 @@ Key points:
 - **Discovery** follows the MCP spec: RFC 9728 Protected Resource Metadata → RFC 8414 Authorization Server Metadata → registration.
 - The proxy is **stateless** — the client's `redirect_uri` and `state` are HMAC-signed into the Cognito `state` parameter, so no server-side session store is needed.
 - **PKCE (S256)** is required; the MCP Cognito app client is a public client with no secret.
-- The access token's audience is validated against the MCP (and web) Cognito client IDs. The token's `sub` is resolved to a GitGazer user, and the user's integrations become the tenant scope for every query.
+- **Scope `gitgazer-mcp/read`**: the Cognito resource server `gitgazer-mcp` defines it, and only the MCP app client may request it. The proxy always adds it to the authorize request, even when a client asks for no scope or only `openid`/`email`/`profile`, and it drops any scope it does not advertise.
+- The access token must come from the MCP Cognito client and carry `gitgazer-mcp/read`. Access tokens from the web app client are not accepted, so a leaked web token cannot be used against the MCP. Any other token gets `401 invalid_token` with the `WWW-Authenticate` challenge. The token's `sub` is resolved to a GitGazer user, and the user's integrations become the tenant scope for every query.
+- Tokens issued before the scope existed lack it and are refused. A refresh keeps the scopes of the original sign-in, so each existing MCP connection has to sign in again once.
 - **Redirect allowlist**: the proxy only relays authorization codes to native-app loopback (`127.0.0.1`/`localhost`) and an operator-configurable set of hosted redirect hosts (default `vscode.dev`, `claude.ai`). This is the open-redirect guard — see [Configuration](#configuration).
 
 ## Tools
@@ -155,7 +157,7 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
-1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
+1. **OAuth-validated identity** — a valid Cognito access token from the MCP client with the scope `gitgazer-mcp/read` is required; the `sub` resolves to a GitGazer user and their integrations.
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
 3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.signed_context`, which the database trusts only with a valid signature:
     - The key lives in the database (`gitgazer_internal.context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
@@ -234,6 +236,7 @@ Infrastructure (Terraform):
 - `var.mcp_throttling` — edge throttle on `POST /api/mcp` (default 20 req/s, burst 40).
 - `var.enable_rds_proxy` — before enabling the proxy, re-check that `pg_backend_pid()` stays stable within a transaction through it, since the signed context is bound to the backend PID.
 - `aws_cognito_user_pool_client.mcp` — the public PKCE client; its ID is plumbed to the Lambda via Secrets Manager and handed to clients by the `/register` endpoint (no manual paste needed).
+- `aws_cognito_resource_server.mcp` — the resource server `gitgazer-mcp` with the scope `read`, which only the MCP client is allowed to request.
 
 Database (Drizzle migrations):
 

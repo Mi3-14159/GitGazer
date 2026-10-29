@@ -326,8 +326,8 @@ export const loadConfig = async (): Promise<void> => {
 
 /**
  * Fail closed on missing security-critical values. An empty HMAC secret makes OAuth state
- * forgeable, and empty Cognito client ids would disable client_id validation in the MCP token
- * verifier (accepting any pool token) — both would otherwise pass validate() silently.
+ * forgeable, and without the MCP client id the MCP token verifier refuses every token and the
+ * OAuth proxy hands out an empty client id — both would otherwise pass validate() silently.
  */
 const assertCriticalConfig = (): void => {
     const missing: string[] = [];
@@ -335,7 +335,8 @@ const assertCriticalConfig = (): void => {
     if (!config.get('wsTokenSecret')) missing.push('wsTokenSecret');
     const {clientId, clientSecret, mcpClientId} = config.get('cognito');
     if (!clientSecret) missing.push('cognito.clientSecret');
-    if (!clientId && !mcpClientId) missing.push('cognito.clientId or cognito.mcpClientId');
+    if (!clientId) missing.push('cognito.clientId');
+    if (!mcpClientId) missing.push('cognito.mcpClientId');
     if (missing.length > 0) {
         throw new Error(`Missing required configuration: ${missing.join(', ')}`);
     }

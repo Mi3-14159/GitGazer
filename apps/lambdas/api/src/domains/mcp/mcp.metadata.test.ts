@@ -11,7 +11,7 @@ const PROTECTED_RESOURCE_METADATA = {
     resource: 'https://app.gitgazer.com/api/mcp',
     authorization_servers: ['https://app.gitgazer.com'],
     bearer_methods_supported: ['header'],
-    scopes_supported: ['openid', 'email', 'profile'],
+    scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
 };
 
 const AUTHORIZATION_SERVER_METADATA = {
@@ -24,14 +24,14 @@ const AUTHORIZATION_SERVER_METADATA = {
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
     authorization_response_iss_parameter_supported: true,
-    scopes_supported: ['openid', 'email', 'profile'],
+    scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
 };
 
 // With no configured mcpServerUrl the origin is the host of the request URL.
 const getFromHost = (path: string) => testRequest(wellKnownRoutes, 'GET', `https://app.gitgazer.com${path}`);
 
 describe('MCP metadata documents', () => {
-    it('keeps the MCP metadata documents unchanged', async () => {
+    it('serves the MCP metadata documents', async () => {
         const resource = await getFromHost('/.well-known/oauth-protected-resource');
         const authServer = await getFromHost('/.well-known/oauth-authorization-server');
 

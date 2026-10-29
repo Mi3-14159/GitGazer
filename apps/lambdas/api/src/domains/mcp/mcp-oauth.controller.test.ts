@@ -55,6 +55,7 @@ describe('buildAuthServerMetadata', () => {
             code_challenge_methods_supported: ['S256'],
             token_endpoint_auth_methods_supported: ['none'],
             authorization_response_iss_parameter_supported: true,
+            scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
         });
     });
 });
@@ -86,9 +87,24 @@ describe('handleAuthorize', () => {
         expect(url.searchParams.get('redirect_uri')).toBe('https://app.gitgazer.com/api/mcp/oauth/callback');
         expect(url.searchParams.get('code_challenge')).toBe('CHALLENGE_ABC');
         expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-        expect(url.searchParams.get('scope')).toBe('openid email profile');
+        expect(url.searchParams.get('scope')).toBe('openid email profile gitgazer-mcp/read');
         expect(url.searchParams.get('identity_provider')).toBe('Github');
         expect(url.searchParams.get('state')).toBeTruthy();
+    });
+
+    it('always requests the gitgazer-mcp/read scope and drops unsupported scopes', () => {
+        const requestedScope = (scope: string | undefined) => {
+            const query: Record<string, string> = {...validAuthorizeQuery};
+            if (scope === undefined) delete query.scope;
+            else query.scope = scope;
+            return new URL(ctrl.handleAuthorize(origin, query)).searchParams.get('scope');
+        };
+        expect(requestedScope(undefined)).toBe('openid email profile gitgazer-mcp/read');
+        expect(requestedScope('')).toBe('openid email profile gitgazer-mcp/read');
+        expect(requestedScope('openid')).toBe('openid gitgazer-mcp/read');
+        expect(requestedScope('gitgazer-mcp/read openid')).toBe('gitgazer-mcp/read openid');
+        expect(requestedScope('openid aws.cognito.signin.user.admin gitgazer-mcp/write')).toBe('openid gitgazer-mcp/read');
+        expect(requestedScope('aws.cognito.signin.user.admin')).toBe('openid email profile gitgazer-mcp/read');
     });
 
     it('rejects an unsupported response_type', () => {
