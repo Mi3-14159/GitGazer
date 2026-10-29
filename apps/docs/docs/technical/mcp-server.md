@@ -158,9 +158,10 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
 1. **OAuth-validated identity** — a valid Cognito access token is required; the `sub` resolves to a GitGazer user and their integrations.
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
 3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.signed_context`, which the database trusts only with a valid signature:
-    - The key lives in the database (`gitgazer.context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
-    - To rotate the key, run `UPDATE gitgazer.context_key SET key = public.gen_random_bytes(32) WHERE id = 1` as the migration user; MCP queries in flight at that moment fail closed.
-    - Before the caller's query, the app reads the MCP session's backend PID and transaction start, has the app login sign the caller's integrations and roles for exactly that session and transaction (`gitgazer.sign_context`, which only the app login may execute), and sets `rls.signed_context` to `<payload>|<signature>`.
+    - The key lives in the database (`gitgazer_internal.context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
+    - To rotate the key, run `UPDATE gitgazer_internal.context_key SET key = public.gen_random_bytes(32) WHERE id = 1` as the migration user; MCP queries in flight at that moment fail closed.
+    - Before the caller's query, the app reads the MCP session's backend PID and transaction start, has the app login sign the caller's integrations and roles for exactly that session and transaction (`gitgazer_internal.sign_context`, which only the app login may execute), and sets `rls.signed_context` to `<payload>|<signature>`.
+    - The key and the sign function live in schema `gitgazer_internal`, where no role but its owner has `USAGE`. `gitgazer_mcp` needs `USAGE` on `gitgazer` for the configuration views, so in `gitgazer` the function's ACL alone would protect it, and a re-created or new `SECURITY DEFINER` function there gets `EXECUTE` for `PUBLIC` by default.
     - `github.signed_context()` verifies the signature once per protected table the query references, not per row (each policy calls it through a sub-select, which Postgres runs as one InitPlan per relation).
     - A missing, malformed, altered or replayed context (copied from another session or transaction) yields no rows, never other tenants' rows, and no error.
 4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
@@ -221,7 +222,7 @@ Application settings (convict; loaded from Secrets Manager, overridable by env v
 
 The MCP tools need `DB_CONNECTION_MODE=rds-proxy` (the default), where MCP queries log in as `gitgazer_mcp`. In `data-api` mode they refuse to run with an error.
 
-The app must log in with the same database user that ran the migrations, which owns the signing key and `gitgazer.sign_context`. Otherwise MCP queries fail closed: the caller gets "Tool execution failed" and the cause is logged.
+The app must log in with the same database user that ran the migrations, which owns the signing key and `gitgazer_internal.sign_context`. Otherwise MCP queries fail closed: the caller gets "Tool execution failed" and the cause is logged.
 
 Infrastructure (Terraform):
 
@@ -239,11 +240,11 @@ Database (Drizzle migrations):
 - `20261028120000_mcp_has_role` — the `github.mcp_has_role` helper, replaced by `github.mcp_integration_ids` in `20261029090000_mcp_signed_context`.
 - `20261028130000_mcp_login` — lets `gitgazer_mcp` log in with IAM auth, for its own connection.
 - `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()` (renamed in the next migration); the MCP tenant policies now read the signed context.
-- `20261029120000_role_aware_views` — renames the signed-context objects without the `mcp_` prefix (`github.integration_ids`, `github.signed_context`, `gitgazer.sign_context`, `gitgazer.context_key`, setting `rls.signed_context`), adds the 13 configuration views and grants `gitgazer_mcp` `USAGE` on `gitgazer`.
+- `20261029120000_role_aware_views` — renames the signed-context objects without the `mcp_` prefix (`github.integration_ids`, `github.signed_context`, `sign_context`, `context_key`, setting `rls.signed_context`), moves the key and the sign function to the new schema `gitgazer_internal`, adds the 13 configuration views and grants `gitgazer_mcp` `USAGE` on `gitgazer`.
 
-The migration runs by hand right before the deploy, as the migration user. Because CI deploys on merge, the migration runs before the merge reaches main. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. It fails closed, and only the MCP is affected.
+The migration runs by hand right before the deploy, as the migration user. First check that this user owns schemas `gitgazer` and `github` (`SELECT nspname, nspowner::regrole FROM pg_namespace WHERE nspname IN ('gitgazer', 'github')`): a `GRANT USAGE` by a non-owner only warns and grants nothing. Because CI deploys on merge, the migration runs before the merge reaches main. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. It fails closed, and only the MCP is affected.
 
-To roll back, revert both the code and the database: drop the 13 views (`gitgazer.*_view` and `github.user_assignments_view`), run `REVOKE USAGE ON SCHEMA gitgazer FROM gitgazer_mcp`, rename the table and the three functions back, re-create the functions with the old bodies from `20261029090000_mcp_signed_context/migration.sql`, and delete the migration's row from the drizzle migrations table.
+To roll back, revert both the code and the database: drop the 13 views (`gitgazer.*_view` and `github.user_assignments_view`), run `REVOKE USAGE ON SCHEMA gitgazer FROM gitgazer_mcp`, move `context_key` and `sign_context` back to `gitgazer` (`ALTER … SET SCHEMA gitgazer`) and drop schema `gitgazer_internal`, rename the table and the three functions back, re-create the functions with the old bodies from `20261029090000_mcp_signed_context/migration.sql`, and delete the migration's row from the drizzle migrations table.
 
 ## Related
 

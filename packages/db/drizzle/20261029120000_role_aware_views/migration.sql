@@ -1,18 +1,24 @@
+CREATE SCHEMA gitgazer_internal;
+--> statement-breakpoint
 ALTER TABLE gitgazer.mcp_context_key RENAME TO context_key;
 --> statement-breakpoint
+ALTER TABLE gitgazer.context_key SET SCHEMA gitgazer_internal;
+--> statement-breakpoint
 ALTER FUNCTION gitgazer.mcp_sign_context(text, integer, bigint) RENAME TO sign_context;
+--> statement-breakpoint
+ALTER FUNCTION gitgazer.sign_context(text, integer, bigint) SET SCHEMA gitgazer_internal;
 --> statement-breakpoint
 ALTER FUNCTION github.mcp_context() RENAME TO signed_context;
 --> statement-breakpoint
 ALTER FUNCTION github.mcp_integration_ids(text) RENAME TO integration_ids;
 --> statement-breakpoint
-CREATE OR REPLACE FUNCTION gitgazer.sign_context(p_payload text, p_pid integer, p_txn_start_us bigint)
+CREATE OR REPLACE FUNCTION gitgazer_internal.sign_context(p_payload text, p_pid integer, p_txn_start_us bigint)
 RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT encode(public.hmac(convert_to(p_payload || '|' || p_pid || '|' || p_txn_start_us, 'UTF8'), key, 'sha256'), 'hex')
-    FROM gitgazer.context_key
+    FROM gitgazer_internal.context_key
     WHERE id = 1
 $$;
 --> statement-breakpoint
@@ -27,7 +33,7 @@ AS $$
     ),
     verified AS (
         SELECT context.parts[1] AS payload
-        FROM context, gitgazer.context_key
+        FROM context, gitgazer_internal.context_key
         WHERE context_key.id = 1
             AND context.parts[1] ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[a-z]+(,[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[a-z]+)*$'
             AND context.parts[2] = encode(public.hmac(convert_to(

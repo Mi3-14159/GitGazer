@@ -1,11 +1,15 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "ce2ee143-2409-40a1-85bd-b5304f53e8c4",
+  "id": "6aa9b734-7c08-46c8-9932-39217ddbf84c",
   "prevIds": [
     "5e63957c-7e38-4ea7-98c3-c5c17fa1c51e"
   ],
   "ddl": [
+    {
+      "name": "gitgazer_internal",
+      "entityType": "schemas"
+    },
     {
       "name": "gitgazer",
       "entityType": "schemas"
@@ -18,7 +22,7 @@
       "isRlsEnabled": false,
       "name": "context_key",
       "entityType": "tables",
-      "schema": "gitgazer"
+      "schema": "gitgazer_internal"
     },
     {
       "isRlsEnabled": true,
@@ -216,7 +220,7 @@
       "identity": null,
       "name": "id",
       "entityType": "columns",
-      "schema": "gitgazer",
+      "schema": "gitgazer_internal",
       "table": "context_key"
     },
     {
@@ -229,7 +233,7 @@
       "identity": null,
       "name": "key",
       "entityType": "columns",
-      "schema": "gitgazer",
+      "schema": "gitgazer_internal",
       "table": "context_key"
     },
     {
@@ -4920,7 +4924,7 @@
       ],
       "nameExplicit": false,
       "name": "context_key_pkey",
-      "schema": "gitgazer",
+      "schema": "gitgazer_internal",
       "table": "context_key",
       "entityType": "pks"
     },

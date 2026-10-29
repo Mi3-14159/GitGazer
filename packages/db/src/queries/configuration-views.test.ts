@@ -19,7 +19,7 @@ const PGCRYPTO = '@electric-sql/pglite/contrib/pgcrypto';
 // Stand-ins with the columns and types of the real tables; the views must not depend on their RLS.
 const baseTables = `
     CREATE TABLE gitgazer.users (
-        id bigint, cognito_id uuid, email varchar(255), name varchar(255), picture text,
+        id bigint GENERATED ALWAYS AS IDENTITY, cognito_id uuid, email varchar(255), name varchar(255), picture text,
         github_id bigint, github_login varchar(255), last_active_at timestamptz
     );
     CREATE TABLE github."user-assignments" (
@@ -65,7 +65,7 @@ const baseTables = `
 
 const each = `FROM unnest(ARRAY['${A}', '${B}', '${C}']::uuid[]) AS i`;
 const seed = `
-    INSERT INTO gitgazer.users VALUES
+    INSERT INTO gitgazer.users OVERRIDING SYSTEM VALUE VALUES
         (1, gen_random_uuid(), 'u1@example.com', 'u1', 'p1', 101, 'u1', now()),
         (2, gen_random_uuid(), 'u2@example.com', 'u2', 'p2', 102, 'u2', now()),
         (3, gen_random_uuid(), 'u3@example.com', 'u3', 'p3', 103, 'u3', now());
@@ -141,7 +141,7 @@ const viewColumns: Record<string, string[]> = {
     'gitgazer.slack_workspaces_view': ['team_id', 'team_name', 'bot_user_id', 'installed_by', 'installed_at', 'disconnected_at'],
 };
 
-const signContext = `gitgazer.sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
+const signContext = `gitgazer_internal.sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
 
 describe('role-aware configuration views', () => {
     let db: PGlite;
@@ -308,11 +308,19 @@ describe('role-aware configuration views', () => {
         });
 
         it('gives gitgazer_mcp no EXECUTE on any gitgazer function', async () => {
-            const {rows} = await db.query<{proname: string; executable: boolean}>(
-                `SELECT p.proname, has_function_privilege('gitgazer_mcp', p.oid, 'EXECUTE') AS executable
-                 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'gitgazer'`,
+            const {rows} = await db.query<{proname: string}>(
+                `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                 WHERE n.nspname = 'gitgazer' AND has_function_privilege('gitgazer_mcp', p.oid, 'EXECUTE')`,
             );
-            expect(rows).toEqual([{proname: 'sign_context', executable: false}]);
+            expect(rows).toEqual([]);
+        });
+
+        it('gives gitgazer_mcp no privilege on the users id sequence', async () => {
+            const {rows} = await db.query<{usage: boolean; select: boolean}>(
+                `SELECT has_sequence_privilege('gitgazer_mcp', pg_get_serial_sequence('gitgazer.users', 'id'), 'USAGE') AS usage,
+                        has_sequence_privilege('gitgazer_mcp', pg_get_serial_sequence('gitgazer.users', 'id'), 'SELECT') AS select`,
+            );
+            expect(rows).toEqual([{usage: false, select: false}]);
         });
 
         it.each(['users', 'integration_app_github_settings'])('denies gitgazer_mcp the base table gitgazer.%s', async (table) => {
@@ -344,6 +352,19 @@ describe('role-aware configuration views', () => {
             );
             expect(rows).toEqual([...allViews].sort().map((view) => ({relname: view, grantees: ['gitgazer_mcp']})));
         });
+    });
+
+    it('shows gitgazer_mcp only the view columns in information_schema', async () => {
+        const rows = await db.transaction(async (tx) => {
+            await tx.exec('SET LOCAL ROLE gitgazer_mcp');
+            return (
+                await tx.query<{table_name: string; columns: string[]}>(
+                    `SELECT table_schema || '.' || table_name AS table_name, array_agg(column_name::text ORDER BY ordinal_position) AS columns
+                     FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') GROUP BY 1`,
+                )
+            ).rows;
+        });
+        expect(Object.fromEntries(rows.map((row) => [row.table_name, row.columns]))).toEqual(viewColumns);
     });
 
     it('exposes no column outside the spec', async () => {

@@ -26,6 +26,7 @@ Builds on the signed tenant context (`docs/superpowers/specs/2026-10-28-mcp-sign
 ## Anti-goals
 
 - Any privilege for `gitgazer_mcp` on a `gitgazer` table or function; it gets `USAGE` on the schema plus `SELECT` on the views only. `run_sql` takes arbitrary SQL, so a grant on a base table is a grant on every column, including the secrets.
+- Any privilege on schema `gitgazer_internal` (the signing key and function) for a role other than its owner.
 - A view that returns another tenant's rows, or a column to a role the API hides it from.
 - Exposing secrets or identifiers the API never shows: the Slack bot token, Slack user ids of people, `cognito_id`, the MCP quota table, the signing key.
 
@@ -47,11 +48,11 @@ Each view is named `<table>_view` and lives in the schema of its base table: `gi
 | `event_log_entries_view`               | `gitgazer.event_log_entries`               | viewer+   | –                                                                                                                                                                                     |
 | `user_assignments_view`                | `github."user-assignments"`                | viewer+   | –                                                                                                                                                                                     |
 | `users_view`                           | `gitgazer.users` (global)                  | see below | only `id`, `email`, `name`, `picture`, `github_login`, `last_active_at`; `email`: only when the user is in an integration where the caller is admin+; `cognito_id`, `github_id` never |
-| `slack_workspaces_view`                | `gitgazer.slack_workspaces` (global)       | see below | `installed_by`: only when that user is visible in the `users` view; `bot_token_ciphertext` never                                                                                      |
+| `slack_workspaces_view`                | `gitgazer.slack_workspaces` (global)       | see below | `installed_by`: only when that user is visible in `users_view`; `bot_token_ciphertext` never                                                                                          |
 
-The role levels come from the routes: `GET /apps` and `GET …/members` require viewer; `GET …/invitations` requires member and shows `inviteToken` only to `hasRole(role, 'admin')`; `GET /apps` shows `secret` and `url` only to `hasRole(role, 'admin')`, which covers admin and owner; `GET /notifications` and `GET /event-log` return all of the caller's integrations. The column list of `users` is what `GET …/members` shows of them, except `email`: the user decided emails (members' and invitations') are for admin+ only, and both endpoints change to match (see "Also changes"). `slack_workspaces` goes beyond `GET /apps` with the user's approval: `bot_user_id` is the bot's own Slack id, not a person's, and `installed_at` is harmless. A workspace can be shared by several integrations, so `installed_by` may be a user of another tenant; it is `NULL` unless that user is visible in `users`.
+The role levels come from the routes: `GET /apps` and `GET …/members` require viewer; `GET …/invitations` requires member and shows `inviteToken` only to `hasRole(role, 'admin')`; `GET /apps` shows `secret` and `url` only to `hasRole(role, 'admin')`, which covers admin and owner; `GET /notifications` and `GET /event-log` return all of the caller's integrations. The column list of `users_view` is what `GET …/members` shows of them, except `email`: the user decided emails (members' and invitations') are for admin+ only, and both endpoints change to match (see "Also changes"). `slack_workspaces_view` goes beyond `GET /apps` with the user's approval: `bot_user_id` is the bot's own Slack id, not a person's, and `installed_at` is harmless. A workspace can be shared by several integrations, so `installed_by` may be a user of another tenant; it is `NULL` unless that user is visible in `users_view`.
 
-**Global tables.** `users` and `slack_workspaces` have no `integration_id`. Their views filter rows with a subquery over a tenant table, without taking columns from it: a user is visible when they have a row in `"user-assignments"` for one of the caller's integrations (viewer+); a workspace is visible when `integration_app_slack_settings` links it to one of the caller's integrations (viewer+).
+**Global tables.** `gitgazer.users` and `gitgazer.slack_workspaces` have no `integration_id`. Their views, `users_view` and `slack_workspaces_view`, filter rows with a subquery over a tenant table, without taking columns from it: a user is visible when they have a row in `"user-assignments"` for one of the caller's integrations (viewer+); a workspace is visible when `integration_app_slack_settings` links it to one of the caller's integrations (viewer+).
 
 ## How (decided)
 
@@ -66,13 +67,15 @@ Every view uses the column-gate pattern from `apps/docs/docs/technical/mcp-serve
 
 **Generic names.** The signed context is no longer MCP-only, so its SQL names drop the `mcp_` prefix in this migration. Postgres policies reference functions by OID, so a rename keeps the existing policies working.
 
-| Today                              | New                            |
-| ---------------------------------- | ------------------------------ |
-| `github.mcp_integration_ids(role)` | `github.integration_ids(role)` |
-| `github.mcp_context()`             | `github.signed_context()`      |
-| `gitgazer.mcp_sign_context(...)`   | `gitgazer.sign_context(...)`   |
-| `gitgazer.mcp_context_key`         | `gitgazer.context_key`         |
-| setting `rls.mcp_context`          | `rls.signed_context`           |
+| Today                              | New                                   |
+| ---------------------------------- | ------------------------------------- |
+| `github.mcp_integration_ids(role)` | `github.integration_ids(role)`        |
+| `github.mcp_context()`             | `github.signed_context()`             |
+| `gitgazer.mcp_sign_context(...)`   | `gitgazer_internal.sign_context(...)` |
+| `gitgazer.mcp_context_key`         | `gitgazer_internal.context_key`       |
+| setting `rls.mcp_context`          | `rls.signed_context`                  |
+
+The key and the sign function also move to the new schema `gitgazer_internal`, on which no role but its owner has `USAGE`. `gitgazer_mcp` needs `USAGE` on `gitgazer` for the views, so there the sign function would be protected by its ACL alone: a later `DROP` + `CREATE`, or a new `SECURITY DEFINER` function, gets `EXECUTE` for `PUBLIC`, and `EXECUTE` on the sign function means a forged context and every tenant's rows. The user decided this on 2026-10-29.
 
 `packages/db/src/queries/readonlyQuery.ts` and the Drizzle schema follow the renames. The `gitgazer_mcp` role and `mcpTenantSeparationPolicy` keep their names: they really are the MCP's.
 
@@ -95,21 +98,22 @@ For each view, with a signed context holding integrations at different roles:
 
 - only the right rows come back;
 - limited columns are `NULL` below their role and set from it on;
-- `integration_invitations` returns nothing for a viewer;
-- `users` and `slack_workspaces` return only users and workspaces of the caller's integrations;
-- `users.email` is `NULL` unless the user is in an integration where the caller is admin+;
-- `slack_workspaces.installed_by` is `NULL` when the installer is not a member of any of the caller's integrations;
+- `integration_invitations_view` returns nothing for a viewer;
+- `users_view` and `slack_workspaces_view` return only users and workspaces of the caller's integrations;
+- `users_view.email` is `NULL` unless the user is in an integration where the caller is admin+;
+- `slack_workspaces_view.installed_by` is `NULL` when the installer is not a member of any of the caller's integrations;
 - no context returns nothing.
 
 Also check:
 
 - `gitgazer_mcp` has `USAGE` on `gitgazer`, `SELECT` on its views, and no privilege on any `gitgazer` table or function;
+- `gitgazer_mcp`, `gitgazer_reader` and `gitgazer_writer` have no `USAGE` on `gitgazer_internal` and no privilege on anything in it;
 - every new view is `security_barrier` and not `security_invoker`;
 - the existing MCP policies still work after the renames.
 
 ## Deployment
 
-The migration runs by hand right before the deploy, as the migration user (the base-table owner), like the previous MCP migrations. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. That fails closed and is acceptable, since the product has few users. CI deploys on merge, so the migration runs before the merge reaches main. A rollback reverts both the code and the database (drop the views, revoke `USAGE` on `gitgazer` from `gitgazer_mcp`, rename the objects back, restore the old function bodies, delete the migration's row).
+The migration runs by hand right before the deploy, as the migration user (the base-table owner), like the previous MCP migrations. It must also own schemas `gitgazer` and `github`, since a non-owner's `GRANT USAGE` only warns. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. That fails closed and is acceptable, since the product has few users. CI deploys on merge, so the migration runs before the merge reaches main. A rollback reverts both the code and the database (drop the views, revoke `USAGE` on `gitgazer` from `gitgazer_mcp`, move the key and the sign function back to `gitgazer` and drop `gitgazer_internal`, rename the objects back, restore the old function bodies, delete the migration's row).
 
 ## Left to the builder
 

@@ -33,7 +33,7 @@ const mcpTables = [
 // A variable specifier, because only some of the tsconfigs that check this file resolve the package's exports map.
 const PGCRYPTO = '@electric-sql/pglite/contrib/pgcrypto';
 
-const signContext = `gitgazer.sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
+const signContext = `gitgazer_internal.sign_context($1, pg_backend_pid(), (extract(epoch FROM now()) * 1000000)::bigint)`;
 
 describe('signed mcp tenant context', () => {
     let db: PGlite;
@@ -53,7 +53,6 @@ describe('signed mcp tenant context', () => {
             GRANT USAGE ON SCHEMA gitgazer TO gitgazer_reader, gitgazer_writer;
             ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT ON TABLES TO gitgazer_reader, gitgazer_writer;
             GRANT USAGE ON SCHEMA github TO gitgazer_mcp, gitgazer_reader;
-            GRANT USAGE ON SCHEMA gitgazer TO gitgazer_mcp;
             CREATE FUNCTION github.mcp_has_role(uuid, text) RETURNS boolean LANGUAGE sql AS 'SELECT FALSE';
             ${mcpTables
                 .map(
@@ -170,7 +169,7 @@ describe('signed mcp tenant context', () => {
     it('returns nothing for a context signed for another backend', async () => {
         const otherPid = async (tx: Transaction) => {
             const {rows} = await tx.query<{signature: string}>(
-                `SELECT gitgazer.sign_context($1, pg_backend_pid() + 1, (extract(epoch FROM now()) * 1000000)::bigint) AS signature`,
+                `SELECT gitgazer_internal.sign_context($1, pg_backend_pid() + 1, (extract(epoch FROM now()) * 1000000)::bigint) AS signature`,
                 [`${A}:viewer`],
             );
             await setContext(tx, `${A}:viewer|${rows[0].signature}`);
@@ -211,17 +210,21 @@ describe('signed mcp tenant context', () => {
             });
 
         it('keeps the key from gitgazer_mcp', async () => {
-            await expect(asRole('gitgazer_mcp', 'SELECT * FROM gitgazer.context_key')).rejects.toThrow(/permission denied for table context_key/);
+            await expect(asRole('gitgazer_mcp', 'SELECT * FROM gitgazer_internal.context_key')).rejects.toThrow(
+                /permission denied for schema gitgazer_internal/,
+            );
         });
 
         it('keeps the sign function from gitgazer_mcp', async () => {
-            await expect(asRole('gitgazer_mcp', `SELECT gitgazer.sign_context('x', 1, 1)`)).rejects.toThrow(
-                /permission denied for function sign_context/,
+            await expect(asRole('gitgazer_mcp', `SELECT gitgazer_internal.sign_context('x', 1, 1)`)).rejects.toThrow(
+                /permission denied for schema gitgazer_internal/,
             );
         });
 
         it.each(['gitgazer_reader', 'gitgazer_writer'])('keeps the key from %s', async (role) => {
-            await expect(asRole(role, 'SELECT * FROM gitgazer.context_key')).rejects.toThrow(/permission denied for table context_key/);
+            await expect(asRole(role, 'SELECT * FROM gitgazer_internal.context_key')).rejects.toThrow(
+                /permission denied for schema gitgazer_internal/,
+            );
         });
 
         // Predefined roles such as pg_read_all_data are skipped themselves, but any role granted one still shows up here
@@ -229,7 +232,7 @@ describe('signed mcp tenant context', () => {
             const {rows} = await db.query<{rolname: string}>(
                 `SELECT rolname FROM pg_roles
                  WHERE NOT rolsuper AND rolname <> 'root' AND rolname NOT LIKE 'pg\\_%'
-                   AND has_table_privilege(oid, 'gitgazer.context_key', 'SELECT')`,
+                   AND has_table_privilege(oid, 'gitgazer_internal.context_key', 'SELECT')`,
             );
             expect(rows).toEqual([]);
         });
@@ -239,9 +242,23 @@ describe('signed mcp tenant context', () => {
         });
 
         it('keeps the sign function from gitgazer_reader', async () => {
-            await expect(asRole('gitgazer_reader', `SELECT gitgazer.sign_context('x', 1, 1)`)).rejects.toThrow(
-                /permission denied for function sign_context/,
+            await expect(asRole('gitgazer_reader', `SELECT gitgazer_internal.sign_context('x', 1, 1)`)).rejects.toThrow(
+                /permission denied for schema gitgazer_internal/,
             );
+        });
+
+        it.each(['gitgazer_mcp', 'gitgazer_reader', 'gitgazer_writer'])('gives %s nothing in gitgazer_internal', async (role) => {
+            const {rows} = await db.query<{usage: boolean; relations: string[] | null; functions: string[] | null}>(
+                `SELECT has_schema_privilege($1, 'gitgazer_internal', 'USAGE, CREATE') AS usage,
+                        (SELECT array_agg(c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                         WHERE n.nspname = 'gitgazer_internal'
+                           AND (has_table_privilege($1, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+                                OR has_any_column_privilege($1, c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))) AS relations,
+                        (SELECT array_agg(p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                         WHERE n.nspname = 'gitgazer_internal' AND has_function_privilege($1, p.oid, 'EXECUTE')) AS functions`,
+                [role],
+            );
+            expect(rows).toEqual([{usage: false, relations: null, functions: null}]);
         });
     });
 

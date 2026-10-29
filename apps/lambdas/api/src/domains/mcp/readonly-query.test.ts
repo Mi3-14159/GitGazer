@@ -167,7 +167,7 @@ describe('runReadOnlyQuery', () => {
         expect(executedSql()[0]).toBe('SELECT pg_backend_pid() AS pid, (extract(epoch FROM now()) * 1000000)::bigint::text AS txn_start_us');
         expect(signExecute()).toHaveBeenCalledOnce();
         const {sql: rendered, params} = dialect.sqlToQuery(signExecute().mock.calls[0][0]);
-        expect(rendered).toBe('SELECT gitgazer.sign_context($1, $2::integer, $3::bigint) AS signature');
+        expect(rendered).toBe('SELECT gitgazer_internal.sign_context($1, $2::integer, $3::bigint) AS signature');
         expect(params).toEqual([`${INTEGRATION_ID}:member`, PID, TXN_START_US]);
     });
 
@@ -211,8 +211,8 @@ describe('runReadOnlyQuery', () => {
 
     it('does not report a signing failure from Postgres as an error in the caller query', async () => {
         mockRun([{a: 1}], [{name: 'a'}]);
-        const pgError = Object.assign(new Error('function gitgazer.sign_context(unknown, integer, bigint) does not exist'), {code: '42883'});
-        signExecute().mockRejectedValue(Object.assign(new Error('Failed query: SELECT gitgazer.sign_context(…)'), {cause: pgError}));
+        const pgError = Object.assign(new Error('function gitgazer_internal.sign_context(unknown, integer, bigint) does not exist'), {code: '42883'});
+        signExecute().mockRejectedValue(Object.assign(new Error('Failed query: SELECT gitgazer_internal.sign_context(…)'), {cause: pgError}));
 
         const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
 

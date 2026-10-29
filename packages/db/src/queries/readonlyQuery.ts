@@ -213,7 +213,7 @@ const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<vo
     )) as unknown as {rows: {pid: number; txn_start_us: string}[]};
     const {pid, txn_start_us} = session.rows[0];
     const signed = (await db
-        .execute(sql`SELECT gitgazer.sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
+        .execute(sql`SELECT gitgazer_internal.sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
         .catch((error: unknown) => {
             throw new McpContextError('Could not sign the MCP tenant context', error);
         })) as unknown as {rows: {signature?: unknown}[]};

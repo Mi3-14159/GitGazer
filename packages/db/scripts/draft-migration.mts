@@ -18,7 +18,7 @@ if (!previousPath || !nextPath) {
 }
 
 const previous = JSON.parse(readFileSync(previousPath, 'utf8'));
-const current = await generateDrizzleJson(schema, previous.id, ['gitgazer', 'github']);
+const current = await generateDrizzleJson(schema, previous.id, ['gitgazer', 'gitgazer_internal', 'github']);
 // Key order: keeps `version` first like the committed snapshots.
 writeFileSync(nextPath, `${JSON.stringify({version: current.version, ...current}, null, 2)}\n`);
 
