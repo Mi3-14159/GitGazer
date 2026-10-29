@@ -5,6 +5,8 @@ import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {withRlsTransaction} from '../client';
+import {users} from '../schema/gitgazer';
+import {userAssignments} from '../schema/github';
 import {
     integrationAppGithubSettingsView,
     integrationAppSlackSettingsView,
@@ -120,6 +122,7 @@ const seed = `
         ('${B}', gen_random_uuid(), 'u3@example.com', 'viewer', 4, 3, gen_random_uuid(), 'pending', now(), now()),
         ('${B}', gen_random_uuid(), 'u5@example.com', 'viewer', 6, 5, gen_random_uuid(), 'accepted', now(), now());
     INSERT INTO gitgazer.event_log_entries SELECT i, gen_random_uuid(), 'notification', 'info', 'title', 'message', '{}', false, now() ${each};
+    INSERT INTO github."user-assignments" VALUES ('${D}', 5, 'viewer', 'manual', now()), ('${D}', 6, 'viewer', 'manual', now());
     INSERT INTO gitgazer.integration_apps VALUES
         ('${D}', '${GITHUB_APP}', 'github', now()), ('${D}', '${WEBHOOK_APP}', 'webhook', now()), ('${D}', '${SLACK_APP}', 'slack', now());
     INSERT INTO gitgazer.integration_app_github_settings VALUES ('${D}', '${GITHUB_APP}', gen_random_uuid(), 'member');
@@ -219,6 +222,13 @@ describe('role-aware configuration views', () => {
         `);
         await db.exec(readMigration('20261029090000_mcp_signed_context'));
         await db.exec(baseTables);
+        // The prod reader grant and tenant policy on the base tables GET /apps still reads.
+        await db.exec(`
+            GRANT SELECT ON github."user-assignments", gitgazer.users TO gitgazer_reader;
+            ALTER TABLE github."user-assignments" ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY "tenant separation reader" ON github."user-assignments" AS PERMISSIVE FOR SELECT TO gitgazer_reader
+                USING (integration_id = ANY(string_to_array(NULLIF(current_setting('rls.integration_ids', TRUE), ''), ',')::uuid[]));
+        `);
         // The prod defaults from 20260228093008 and 20260310163205, which apply to views as well.
         await db.exec(`
             ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_reader;
@@ -637,11 +647,40 @@ describe('role-aware configuration views', () => {
                 expect(read.workspaces).toEqual([{teamId: 'T3', teamName: 'three'}]);
             });
 
-            it('returns nothing of D to a caller signed for another integration', async () => {
-                const apps = await asReader({[A]: 'owner'}, (tx) =>
-                    tx.select({integrationId: integrationAppsView.integrationId}).from(integrationAppsView),
-                );
-                expect(apps).toEqual([{integrationId: A}]);
+            it.each([
+                'gitgazer.integration_apps_view',
+                'gitgazer.integration_app_github_settings_view',
+                'gitgazer.integration_app_slack_settings_view',
+                'gitgazer.notification_handles_view',
+                'gitgazer.webhook_handle_details_view',
+                'gitgazer.slack_handle_details_view',
+                'gitgazer.notification_rule_destinations_view',
+            ])('%s returns nothing of D to a caller signed for another integration', async (view) => {
+                const rows = await asReader({[A]: 'owner'}, async (tx) => (await tx.execute(sql.raw(`SELECT integration_id FROM ${view}`))).rows);
+                expect(rows).toEqual([{integration_id: A}]);
+            });
+
+            it('slack_workspaces_view returns nothing of D to a caller signed for another integration', async () => {
+                const workspaces = await asReader({[A]: 'owner'}, (tx) => tx.select({teamId: slackWorkspacesView.teamId}).from(slackWorkspacesView));
+                expect(workspaces).toEqual([{teamId: 'T1'}]);
+            });
+
+            it('counts the Slack members of D only, from the base tables under rls.integration_ids', async () => {
+                const members = (integrationIds: string[]) =>
+                    withRlsTransaction({
+                        integrationIds,
+                        integrationRoles: {[integrationIds[0]]: 'viewer'},
+                        client: drizzle({client: db}) as unknown as Parameters<typeof withRlsTransaction>[0]['client'],
+                        callback: (tx) =>
+                            tx
+                                .select({githubId: users.githubId})
+                                .from(userAssignments)
+                                .innerJoin(users, eq(users.id, userAssignments.userId))
+                                .where(eq(userAssignments.integrationId, D))
+                                .orderBy(users.githubId),
+                    });
+                expect(await members([D])).toEqual([{githubId: 105}, {githubId: 106}]);
+                expect(await members([A])).toEqual([]);
             });
         });
 
