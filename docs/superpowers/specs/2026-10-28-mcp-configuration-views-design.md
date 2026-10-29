@@ -111,7 +111,7 @@ Also check:
 
 ## Deployment
 
-The migration runs by hand right before the deploy, as the migration user (the base-table owner), like the previous MCP migrations. Between the migration and the deploy, the old code sets `rls.mcp_context`, which the renamed functions no longer read, so MCP queries return no rows until the deploy finishes. That fails closed and is acceptable, since the product has few users.
+The migration runs by hand right before the deploy, as the migration user (the base-table owner), like the previous MCP migrations. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. That fails closed and is acceptable, since the product has few users. CI deploys on merge, so the migration runs before the merge reaches main. A rollback reverts both the code and the database (drop the views, rename the objects back, restore the old function bodies, delete the migration's row).
 
 ## Left to the builder
 

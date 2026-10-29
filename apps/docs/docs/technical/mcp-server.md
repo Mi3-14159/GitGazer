@@ -106,6 +106,7 @@ Queries run against the `github` schema. Because no default `search_path` is set
 | `github.workflow_jobs`              | Jobs within runs.                                              |
 | `github.workflow_run_pull_requests` | Join table between runs and pull requests.                     |
 | `github.pull_requests`              | Pull requests.                                                 |
+| `github.pull_request_reviews`       | Pull request reviews.                                          |
 | `github.repositories`               | Repositories.                                                  |
 | `github.organizations`              | Organizations.                                                 |
 | `github.enterprises`                | Enterprises.                                                   |
@@ -240,7 +241,9 @@ Database (Drizzle migrations):
 - `20261029090000_mcp_signed_context` — the signing key, `gitgazer.mcp_sign_context`, `github.mcp_context()` and `github.mcp_integration_ids()` (renamed in the next migration); the MCP tenant policies now read the signed context.
 - `20261029120000_role_aware_views` — renames the signed-context objects without the `mcp_` prefix (`github.integration_ids`, `github.signed_context`, `gitgazer.sign_context`, `gitgazer.context_key`, setting `rls.signed_context`) and adds the 13 configuration views.
 
-The migration runs by hand right before the deploy, as the migration user. Between the migration and the deploy, the old code still sets `rls.mcp_context`, which the renamed functions no longer read, so MCP queries return no rows until the deploy finishes.
+The migration runs by hand right before the deploy, as the migration user. Because CI deploys on merge, the migration runs before the merge reaches main. Between the migration and the deploy, the old code calls `gitgazer.mcp_sign_context`, which no longer exists, so every MCP tool call fails with "Tool execution failed" and logs an error until the deploy finishes. It fails closed, and only the MCP is affected.
+
+To roll back, revert both the code and the database: drop the 13 views, rename the table and the three functions back, re-create the functions with the old bodies from `20261029090000_mcp_signed_context/migration.sql`, and delete the migration's row from the drizzle migrations table.
 
 ## Related
 
