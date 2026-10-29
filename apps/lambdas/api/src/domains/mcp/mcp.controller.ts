@@ -1,5 +1,6 @@
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
+import {MCP_SCOPE} from '@/shared/mcp-scope';
 import {getMcpAccessVerifier} from '@/shared/middleware/token-verifier';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
@@ -68,6 +69,6 @@ export const buildProtectedResourceMetadata = (requestOrigin: string): Record<st
         resource: mcpServerUrl(requestOrigin),
         authorization_servers: [mcpOrigin(requestOrigin)],
         bearer_methods_supported: ['header'],
-        scopes_supported: ['openid', 'email', 'profile'],
+        scopes_supported: ['openid', 'email', 'profile', MCP_SCOPE],
     };
 };

@@ -2,11 +2,11 @@ import {mcpOrigin} from '@/domains/mcp/mcp.controller';
 import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, InternalServerError} from '@/shared/errors';
+import {MCP_SCOPE} from '@/shared/mcp-scope';
 import {createHash, createHmac, randomBytes, timingSafeEqual} from 'crypto';
 
 const PROXY_STATE_TTL_S = 600;
-const SUPPORTED_SCOPES = ['openid', 'email', 'profile'] as const;
-const DEFAULT_SCOPE = SUPPORTED_SCOPES.join(' ');
+const SUPPORTED_SCOPES: readonly string[] = ['openid', 'email', 'profile', MCP_SCOPE];
 
 /**
  * Open-redirect gate for the client's redirect_uri: /callback relays the Cognito auth code to this
@@ -136,12 +136,10 @@ export const handleAuthorize = (requestOrigin: string, q: Record<string, string>
     authorizeUrl.searchParams.set('code_challenge_method', 'S256');
     // Clamp requested scopes to what we advertise, so a client cannot escalate (e.g. to
     // aws.cognito.signin.user.admin); the Cognito client's allowed scopes are the second gate.
-    const scope =
-        (q.scope || DEFAULT_SCOPE)
-            .split(/\s+/)
-            .filter((s) => (SUPPORTED_SCOPES as readonly string[]).includes(s))
-            .join(' ') || DEFAULT_SCOPE;
-    authorizeUrl.searchParams.set('scope', scope);
+    // MCP_SCOPE is always added because the MCP endpoint rejects tokens without it.
+    const requested = (q.scope ?? '').split(/\s+/).filter((s) => SUPPORTED_SCOPES.includes(s));
+    const scopes = new Set(requested.length > 0 ? requested : SUPPORTED_SCOPES).add(MCP_SCOPE);
+    authorizeUrl.searchParams.set('scope', [...scopes].join(' '));
     authorizeUrl.searchParams.set('state', signProxyState(q.redirect_uri, q.state));
     authorizeUrl.searchParams.set('identity_provider', 'Github');
     return authorizeUrl.toString();

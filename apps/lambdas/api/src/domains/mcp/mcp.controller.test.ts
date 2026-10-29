@@ -74,7 +74,7 @@ describe('buildProtectedResourceMetadata', () => {
             resource: 'https://app.gitgazer.com/api/mcp',
             authorization_servers: ['https://app.gitgazer.com'],
             bearer_methods_supported: ['header'],
-            scopes_supported: ['openid', 'email', 'profile'],
+            scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
         });
     });
 });
