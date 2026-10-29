@@ -5,18 +5,20 @@ import config from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, ForbiddenError, NotFoundError} from '@/shared/errors';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
-import {invitationQueryRelations, memberQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationInvitations, slackUserLinks, users} from '@gitgazer/db/schema/gitgazer';
 import {integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {integrationInvitationsView, userAssignmentsView, usersView} from '@gitgazer/db/schema/views';
 import {MEMBER_ROLES, type CreateInvitationInput, type IntegrationInvitation, type IntegrationMember, type MemberRole} from '@gitgazer/db/types';
 import {and, eq, gt, inArray, isNotNull} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-export const getMembers = async (params: {integrationId: string; integrationIds: string[]; canSeeEmails: boolean}): Promise<IntegrationMember[]> => {
+// The views mask by the caller's roles (rls.signed_context); the base-table reads still need rls.integration_ids.
+export const getMembers = async (params: {integrationId: string; integrationRoles: Record<string, MemberRole>}): Promise<IntegrationMember[]> => {
     const logger = getLogger();
-    const {integrationId, integrationIds, canSeeEmails} = params;
+    const {integrationId, integrationRoles} = params;
+    const integrationIds = Object.keys(integrationRoles);
 
     if (!integrationIds.includes(integrationId)) {
         throw new ForbiddenError('Integration not accessible');
@@ -26,11 +28,28 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
 
     const {members, teamId, memberGithubIds} = await withRlsTransaction({
         integrationIds,
+        integrationRoles,
         callback: async (tx: RdsTransaction) => {
-            const members = await tx.query.userAssignments.findMany({
-                where: {integrationId},
-                with: memberQueryRelations,
-            });
+            const members = await tx
+                .select({
+                    integrationId: userAssignmentsView.integrationId,
+                    userId: userAssignmentsView.userId,
+                    role: userAssignmentsView.role,
+                    source: userAssignmentsView.source,
+                    createdAt: userAssignmentsView.createdAt,
+                    user: {
+                        id: usersView.id,
+                        email: usersView.email,
+                        name: usersView.name,
+                        picture: usersView.picture,
+                        githubLogin: usersView.githubLogin,
+                        lastActiveAt: usersView.lastActiveAt,
+                    },
+                })
+                .from(userAssignmentsView)
+                .innerJoin(usersView, eq(usersView.id, userAssignmentsView.userId))
+                .where(eq(userAssignmentsView.integrationId, integrationId))
+                .orderBy(userAssignmentsView.createdAt, userAssignmentsView.userId);
             const teamId = await findSlackTeamId(tx, integrationId);
             const memberGithubIds = teamId
                 ? await tx
@@ -57,11 +76,7 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
     const linkedGithubIds = new Set(links.map((l) => l.githubUserId));
     const linkedUserIds = new Set(memberGithubIds.filter((m) => m.githubId !== null && linkedGithubIds.has(m.githubId)).map((m) => m.userId));
 
-    return members.map((member) => ({
-        ...member,
-        user: {...member.user, email: canSeeEmails ? member.user.email : null},
-        slackLinked: linkedUserIds.has(member.userId),
-    }));
+    return members.map((member) => ({...member, slackLinked: linkedUserIds.has(member.userId)}));
 };
 
 export const changeRole = async (params: {
@@ -297,9 +312,13 @@ export const leaveIntegration = async (params: {integrationId: string; userId: n
     });
 };
 
-export const getInvitations = async (params: {integrationId: string; integrationIds: string[]}): Promise<IntegrationInvitation[]> => {
+export const getInvitations = async (params: {
+    integrationId: string;
+    integrationRoles: Record<string, MemberRole>;
+}): Promise<(Omit<IntegrationInvitation, 'inviteToken'> & {inviteToken?: string})[]> => {
     const logger = getLogger();
-    const {integrationId, integrationIds} = params;
+    const {integrationId, integrationRoles} = params;
+    const integrationIds = Object.keys(integrationRoles);
 
     if (!integrationIds.includes(integrationId)) {
         throw new ForbiddenError('Integration not accessible');
@@ -307,17 +326,41 @@ export const getInvitations = async (params: {integrationId: string; integration
 
     logger.info(`Getting invitations for integration ${integrationId}`);
 
-    const results = await withRlsTransaction({
+    const {invitations, invitationUsers} = await withRlsTransaction({
         integrationIds,
+        integrationRoles,
         callback: async (tx: RdsTransaction) => {
-            return await tx.query.integrationInvitations.findMany({
-                where: {integrationId, status: {ne: 'accepted'}},
-                with: invitationQueryRelations,
-            });
+            const invitations = await tx
+                .select()
+                .from(integrationInvitationsView)
+                .where(eq(integrationInvitationsView.integrationId, integrationId))
+                .orderBy(integrationInvitationsView.createdAt);
+            const userIds = [...new Set(invitations.flatMap((i) => [i.invitedBy, i.inviteeId]).filter((id) => id !== null))];
+            const invitationUsers =
+                userIds.length > 0
+                    ? await tx
+                          .select({
+                              id: usersView.id,
+                              name: usersView.name,
+                              picture: usersView.picture,
+                              githubLogin: usersView.githubLogin,
+                              email: usersView.email,
+                          })
+                          .from(usersView)
+                          .where(inArray(usersView.id, userIds))
+                    : [];
+            return {invitations, invitationUsers};
         },
     });
 
-    return results;
+    const usersById = new Map(invitationUsers.map((user) => [user.id, user]));
+    // The token column is NOT NULL, so null means masked; the API has always left the key out then.
+    return invitations.map(({inviteToken, ...invitation}) => ({
+        ...invitation,
+        ...(inviteToken === null ? {} : {inviteToken}),
+        invitedByUser: usersById.get(invitation.invitedBy) ?? null,
+        invitee: invitation.inviteeId === null ? null : (usersById.get(invitation.inviteeId) ?? null),
+    }));
 };
 
 export const createInvitation = async (params: {

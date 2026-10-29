@@ -1,7 +1,12 @@
 import {PGlite, type Extension} from '@electric-sql/pglite';
+import {eq, sql} from 'drizzle-orm';
+import {drizzle} from 'drizzle-orm/pglite';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {withRlsTransaction} from '../client';
+import {integrationInvitationsView, userAssignmentsView, usersView} from '../schema/views';
+import type {MemberRole} from '../types';
 
 const A = '11111111-1111-1111-1111-111111111111';
 const B = '22222222-2222-2222-2222-222222222222';
@@ -68,7 +73,10 @@ const seed = `
     INSERT INTO gitgazer.users OVERRIDING SYSTEM VALUE VALUES
         (1, gen_random_uuid(), 'u1@example.com', 'u1', 'p1', 101, 'u1', now()),
         (2, gen_random_uuid(), 'u2@example.com', 'u2', 'p2', 102, 'u2', now()),
-        (3, gen_random_uuid(), 'u3@example.com', 'u3', 'p3', 103, 'u3', now());
+        (3, gen_random_uuid(), 'u3@example.com', 'u3', 'p3', 103, 'u3', now()),
+        (4, gen_random_uuid(), 'u4@example.com', 'u4', 'p4', 104, 'u4', now()),
+        (5, gen_random_uuid(), 'u5@example.com', 'u5', 'p5', 105, 'u5', now()),
+        (6, gen_random_uuid(), 'u6@example.com', 'u6', 'p6', 106, 'u6', now());
     INSERT INTO github."user-assignments" VALUES
         ('${A}', 1, 'viewer', 'manual', now()), ('${B}', 2, 'viewer', 'manual', now()), ('${C}', 3, 'viewer', 'manual', now());
     INSERT INTO gitgazer.slack_workspaces VALUES
@@ -87,6 +95,10 @@ const seed = `
         SELECT i, gen_random_uuid(), 'invitee@example.com', 'member', 1, 2, gen_random_uuid(), 'pending', now(), now() ${each};
     INSERT INTO gitgazer.integration_invitations
         SELECT i, gen_random_uuid(), 'accepted@example.com', 'member', 1, 2, NULL, 'accepted', now(), now() ${each};
+    -- In B: u4 invited u3 and has left every integration since; u3 is only in C. u6 invited u5, who accepted; both are in none.
+    INSERT INTO gitgazer.integration_invitations VALUES
+        ('${B}', gen_random_uuid(), 'u3@example.com', 'viewer', 4, 3, gen_random_uuid(), 'pending', now(), now()),
+        ('${B}', gen_random_uuid(), 'u5@example.com', 'viewer', 6, 5, gen_random_uuid(), 'accepted', now(), now());
     INSERT INTO gitgazer.event_log_entries SELECT i, gen_random_uuid(), 'notification', 'info', 'title', 'message', '{}', false, now() ${each};
 `;
 
@@ -103,6 +115,7 @@ const viewerViews = [
     'github.user_assignments_view',
 ];
 const allViews = [...viewerViews, 'gitgazer.integration_invitations_view', 'gitgazer.users_view', 'gitgazer.slack_workspaces_view'];
+const readerViews = ['github.user_assignments_view', 'gitgazer.users_view', 'gitgazer.integration_invitations_view'];
 
 const viewColumns: Record<string, string[]> = {
     'gitgazer.integration_apps_view': ['integration_id', 'app_id', 'type', 'created_at'],
@@ -159,6 +172,7 @@ describe('role-aware configuration views', () => {
             CREATE SCHEMA github;
             CREATE SCHEMA gitgazer;
             GRANT USAGE ON SCHEMA github TO gitgazer_mcp;
+            GRANT USAGE ON SCHEMA github, gitgazer TO gitgazer_reader, gitgazer_writer;
         `);
         await db.exec(readMigration('20261029090000_mcp_signed_context'));
         await db.exec(baseTables);
@@ -170,6 +184,7 @@ describe('role-aware configuration views', () => {
             ALTER DEFAULT PRIVILEGES IN SCHEMA gitgazer GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gitgazer_writer;
         `);
         await db.exec(readMigration('20261029120000_role_aware_views'));
+        await db.exec(readMigration('20261029150000_api_members_views'));
         await db.exec(seed);
         await db.exec('RESET ROLE');
     });
@@ -237,12 +252,64 @@ describe('role-aware configuration views', () => {
         expect(await invitations(`${A}:member`)).toEqual([{integration_id: A, invite_token: null, email: null}]);
     });
 
-    it('users_view returns u1 and u2 only, email only for u1', async () => {
+    it('users_view returns u1 and u2 only, the email of u2 because it was invited in A', async () => {
         const rows = await asCaller<{id: number; email: string | null}>(callerRoles, 'SELECT id, email FROM gitgazer.users_view ORDER BY id');
         expect(rows).toEqual([
             {id: 1, email: 'u1@example.com'},
-            {id: 2, email: null},
+            {id: 2, email: 'u2@example.com'},
         ]);
+    });
+
+    describe('users_view and pending invitations', () => {
+        const users = (roles: string) => asCaller<{id: number; email: string | null}>(roles, 'SELECT id, email FROM gitgazer.users_view ORDER BY id');
+
+        it('shows the inviters and invitees of pending invitations to a member, without emails', async () => {
+            expect(await users(`${B}:member`)).toEqual([
+                {id: 1, email: null},
+                {id: 2, email: null},
+                {id: 3, email: null},
+                {id: 4, email: null},
+            ]);
+        });
+
+        it('shows their emails to an admin', async () => {
+            expect(await users(`${B}:admin`)).toEqual([
+                {id: 1, email: 'u1@example.com'},
+                {id: 2, email: 'u2@example.com'},
+                {id: 3, email: 'u3@example.com'},
+                {id: 4, email: 'u4@example.com'},
+            ]);
+        });
+
+        it('does not show them to a viewer', async () => {
+            expect(await users(`${B}:viewer`)).toEqual([{id: 2, email: null}]);
+        });
+
+        it('keeps the email of an invitation user hidden from an admin of another integration', async () => {
+            expect(await users(`${A}:admin,${B}:member`)).toEqual([
+                {id: 1, email: 'u1@example.com'},
+                {id: 2, email: 'u2@example.com'},
+                {id: 3, email: null},
+                {id: 4, email: null},
+            ]);
+        });
+
+        it('shows last_active_at only for users in one of the caller integrations', async () => {
+            const rows = await asCaller<{id: number; active: boolean}>(
+                `${B}:member`,
+                'SELECT id, last_active_at IS NOT NULL AS active FROM gitgazer.users_view ORDER BY id',
+            );
+            expect(rows).toEqual([
+                {id: 1, active: false},
+                {id: 2, active: true},
+                {id: 3, active: false},
+                {id: 4, active: false},
+            ]);
+        });
+
+        it('is not widened by an accepted invitation', async () => {
+            expect((await users(`${A}:owner,${B}:owner,${C}:owner`)).map((row) => row.id)).toEqual([1, 2, 3, 4]);
+        });
     });
 
     it('slack_workspaces_view returns T1 only, with installed_by NULL because u3 is in C only', async () => {
@@ -343,14 +410,35 @@ describe('role-aware configuration views', () => {
             }
         });
 
-        it('grants each view to gitgazer_mcp only, besides its owner', async () => {
-            const {rows} = await db.query<{relname: string; grantees: string[]}>(
-                `SELECT n.nspname || '.' || c.relname AS relname, array_agg(DISTINCT pg_get_userbyid(acl.grantee)::text) AS grantees
+        it('grants each view to gitgazer_mcp, and the members views to gitgazer_reader, besides its owner', async () => {
+            const {rows} = await db.query<{relname: string; grantees: string[]; privileges: string[]}>(
+                `SELECT n.nspname || '.' || c.relname AS relname, array_agg(DISTINCT pg_get_userbyid(acl.grantee)::text) AS grantees,
+                        array_agg(DISTINCT acl.privilege_type::text) AS privileges
                  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace, aclexplode(c.relacl) AS acl
                  WHERE n.nspname IN ('github', 'gitgazer') AND c.relkind = 'v' AND acl.grantee <> c.relowner
                  GROUP BY 1 ORDER BY 1`,
             );
-            expect(rows).toEqual([...allViews].sort().map((view) => ({relname: view, grantees: ['gitgazer_mcp']})));
+            expect(rows).toEqual(
+                [...allViews].sort().map((view) => ({
+                    relname: view,
+                    grantees: readerViews.includes(view) ? ['gitgazer_mcp', 'gitgazer_reader'] : ['gitgazer_mcp'],
+                    privileges: ['SELECT'],
+                })),
+            );
+        });
+
+        it('lets gitgazer_reader execute the context functions but not sign a context', async () => {
+            const {rows} = await db.query<{fn: string; reader: boolean; writer: boolean}>(
+                `SELECT n.nspname || '.' || p.proname AS fn, has_function_privilege('gitgazer_reader', p.oid, 'EXECUTE') AS reader,
+                        has_function_privilege('gitgazer_writer', p.oid, 'EXECUTE') AS writer
+                 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                 WHERE n.nspname IN ('github', 'gitgazer_internal') ORDER BY 1`,
+            );
+            expect(rows).toEqual([
+                {fn: 'gitgazer_internal.sign_context', reader: false, writer: false},
+                {fn: 'github.integration_ids', reader: true, writer: false},
+                {fn: 'github.signed_context', reader: true, writer: false},
+            ]);
         });
     });
 
@@ -374,5 +462,81 @@ describe('role-aware configuration views', () => {
             [allViews],
         );
         expect(Object.fromEntries(rows.map((row) => [row.table_name, row.columns]))).toEqual(viewColumns);
+    });
+
+    describe('as gitgazer_reader through withRlsTransaction', () => {
+        const asReader = <T>(
+            integrationRoles: Record<string, MemberRole> | undefined,
+            callback: Parameters<typeof withRlsTransaction<T>>[0]['callback'],
+        ) =>
+            withRlsTransaction<T>({
+                integrationIds: [A, B, C],
+                integrationRoles,
+                client: drizzle({client: db}) as unknown as Parameters<typeof withRlsTransaction>[0]['client'],
+                callback,
+            });
+
+        it('reads the members of A, with emails for an admin only', async () => {
+            const members = (role: MemberRole) =>
+                asReader({[A]: role}, (tx) =>
+                    tx
+                        .select({integrationId: userAssignmentsView.integrationId, userId: userAssignmentsView.userId, email: usersView.email})
+                        .from(userAssignmentsView)
+                        .innerJoin(usersView, eq(usersView.id, userAssignmentsView.userId)),
+                );
+            expect(await members('member')).toEqual([{integrationId: A, userId: 1, email: null}]);
+            expect(await members('admin')).toEqual([{integrationId: A, userId: 1, email: 'u1@example.com'}]);
+        });
+
+        it('decodes timestamps read through the views as dates', async () => {
+            const [row] = await asReader({[A]: 'member'}, (tx) =>
+                tx
+                    .select({
+                        createdAt: userAssignmentsView.createdAt,
+                        lastActiveAt: usersView.lastActiveAt,
+                        expiresAt: integrationInvitationsView.expiresAt,
+                    })
+                    .from(userAssignmentsView)
+                    .innerJoin(usersView, eq(usersView.id, userAssignmentsView.userId))
+                    .innerJoin(integrationInvitationsView, eq(integrationInvitationsView.integrationId, userAssignmentsView.integrationId)),
+            );
+            expect(row.createdAt).toBeInstanceOf(Date);
+            expect(row.lastActiveAt).toBeInstanceOf(Date);
+            expect(row.expiresAt).toBeInstanceOf(Date);
+        });
+
+        it('reads the invitations of B and their users, masked for a member', async () => {
+            const read = (role: MemberRole) =>
+                asReader({[B]: role}, async (tx) => ({
+                    invitations: await tx
+                        .select({email: integrationInvitationsView.email, inviteToken: integrationInvitationsView.inviteToken})
+                        .from(integrationInvitationsView),
+                    users: await tx.select({id: usersView.id, email: usersView.email}).from(usersView).orderBy(usersView.id),
+                }));
+            expect(await read('member')).toEqual({
+                invitations: [
+                    {email: null, inviteToken: null},
+                    {email: null, inviteToken: null},
+                ],
+                users: [1, 2, 3, 4].map((id) => ({id, email: null})),
+            });
+            const asAdmin = await read('admin');
+            expect(asAdmin.invitations.map((invitation) => invitation.email).sort()).toEqual(['invitee@example.com', 'u3@example.com']);
+            expect(asAdmin.invitations.every((invitation) => invitation.inviteToken !== null)).toBe(true);
+            expect(asAdmin.users.map((user) => user.email)).toEqual([1, 2, 3, 4].map((id) => `u${id}@example.com`));
+        });
+
+        it('reads nothing from the views without integrationRoles', async () => {
+            expect(await asReader(undefined, (tx) => tx.select().from(usersView))).toEqual([]);
+        });
+
+        it('runs the reads as gitgazer_reader, which may not sign a context itself', async () => {
+            expect(await asReader({}, async (tx) => (await tx.execute(sql`SELECT current_user AS role`)).rows)).toEqual([{role: 'gitgazer_reader'}]);
+            await expect(asReader({}, (tx) => tx.execute(sql`SELECT gitgazer_internal.sign_context('x', 1, 1)`))).rejects.toThrow(
+                expect.objectContaining({
+                    cause: expect.objectContaining({message: expect.stringMatching(/permission denied for schema gitgazer_internal/)}),
+                }),
+            );
+        });
     });
 });

@@ -1,4 +1,4 @@
-import {and, inArray, ne, sql, type AnyColumn, type SQL} from 'drizzle-orm';
+import {and, inArray, ne, or, sql, type AnyColumn, type SQL} from 'drizzle-orm';
 import type {QueryBuilder} from 'drizzle-orm/pg-core';
 import type {MemberRole} from '../types';
 import {
@@ -27,6 +27,24 @@ const onlyFor = <T>(integrationId: AnyColumn, minimumRole: MemberRole, column: A
 
 const usersFor = (qb: QueryBuilder, minimumRole: MemberRole) =>
     qb.select({userId: userAssignments.userId}).from(userAssignments).where(rowsFor(userAssignments.integrationId, minimumRole));
+
+// The same rows as integration_invitations_view, so its inviter and invitee are visible wherever the invitation is.
+const invitationUsersFor = (
+    qb: QueryBuilder,
+    user: typeof integrationInvitations.invitedBy | typeof integrationInvitations.inviteeId,
+    minimumRole: MemberRole,
+) =>
+    qb
+        .select({userId: user})
+        .from(integrationInvitations)
+        .where(and(ne(integrationInvitations.status, 'accepted'), rowsFor(integrationInvitations.integrationId, minimumRole)));
+
+const visibleUsers = (qb: QueryBuilder, assignedRole: MemberRole, invitationRole: MemberRole) =>
+    or(
+        inArray(users.id, usersFor(qb, assignedRole)),
+        inArray(users.id, invitationUsersFor(qb, integrationInvitations.invitedBy, invitationRole)),
+        inArray(users.id, invitationUsersFor(qb, integrationInvitations.inviteeId, invitationRole)),
+    );
 
 export const integrationAppsView = gitgazerSchema
     .view('integration_apps_view')
@@ -216,14 +234,17 @@ export const usersView = gitgazerSchema
         qb
             .select({
                 id: users.id,
-                email: sql<string | null>`CASE WHEN ${inArray(users.id, usersFor(qb, 'admin'))} THEN ${users.email} END`.as('email'),
+                email: sql<string | null>`CASE WHEN ${visibleUsers(qb, 'admin', 'admin')} THEN ${users.email} END`.as('email'),
                 name: users.name,
                 picture: users.picture,
                 githubLogin: users.githubLogin,
-                lastActiveAt: users.lastActiveAt,
+                // The API never showed the activity of inviters and invitees who are not members
+                lastActiveAt: sql<Date | null>`CASE WHEN ${inArray(users.id, usersFor(qb, 'viewer'))} THEN ${users.lastActiveAt} END`
+                    .mapWith(users.lastActiveAt)
+                    .as('last_active_at'),
             })
             .from(users)
-            .where(inArray(users.id, usersFor(qb, 'viewer'))),
+            .where(visibleUsers(qb, 'viewer', 'member')),
     );
 
 export const slackWorkspacesView = gitgazerSchema

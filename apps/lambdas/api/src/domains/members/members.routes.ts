@@ -13,17 +13,15 @@ import {
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
 import {requireRole} from '@/shared/middleware/require-role';
-import {hasRole, isMemberRole} from '@gitgazer/db/types';
+import {isMemberRole} from '@gitgazer/db/types';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
 router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const integrationIds = c.var.appContext?.integrations ?? [];
-    const callerRole = c.var.appContext?.integrationRoles?.[integrationId];
-
-    const members = await getMembers({integrationId, integrationIds, canSeeEmails: callerRole !== undefined && hasRole(callerRole, 'admin')});
+    // Only this integration, so the views mask by the caller's role here and not by roles elsewhere
+    const members = await getMembers({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
 
     return new Response(JSON.stringify(members), {
         status: HttpStatusCodes.OK,
@@ -97,23 +95,10 @@ router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, requ
 
 router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
     const integrationId = c.req.param('integrationId');
-    const integrationIds = c.var.appContext?.integrations ?? [];
-    const callerRole = c.var.appContext?.integrationRoles?.[integrationId];
+    // integration_invitations_view and users_view mask invite tokens and emails below admin in this integration
+    const invitations = await getInvitations({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
 
-    const invitations = await getInvitations({integrationId, integrationIds});
-
-    // Only admins+ can see invite tokens (needed for copy-link and resend actions) and emails
-    const isAdmin = callerRole && hasRole(callerRole, 'admin');
-    const result = isAdmin
-        ? invitations
-        : invitations.map(({inviteToken: _token, ...rest}) => ({
-              ...rest,
-              email: null,
-              invitedByUser: rest.invitedByUser && {...rest.invitedByUser, email: null},
-              invitee: rest.invitee && {...rest.invitee, email: null},
-          }));
-
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(invitations), {
         status: HttpStatusCodes.OK,
         headers: {'Content-Type': 'application/json'},
     });

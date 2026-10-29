@@ -1,3 +1,5 @@
+import {PgDialect} from 'drizzle-orm/pg-core';
+import type {SQL} from 'drizzle-orm';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({Pool: vi.fn(), Signer: vi.fn(), end: vi.fn()}));
@@ -91,5 +93,73 @@ describe('db client', () => {
         await client.closeDb();
 
         expect(mocks.end).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('withRlsTransaction with integrationRoles', () => {
+    const A = '11111111-1111-1111-1111-111111111111';
+    const SIGNATURE = 'ab'.repeat(32);
+
+    const fakeClient = (signature: unknown = SIGNATURE) => {
+        const executed: {sql: string; params: unknown[]}[] = [];
+        const tx = {
+            execute: vi.fn(async (query: SQL) => {
+                const rendered = new PgDialect().sqlToQuery(query);
+                executed.push(rendered);
+                if (rendered.sql.includes('pg_backend_pid')) return {rows: [{pid: 4242, txn_start_us: '1793000000123456'}]};
+                if (rendered.sql.includes('sign_context')) return {rows: [{signature}]};
+                return {rows: []};
+            }),
+        };
+        const transaction = vi.fn(async (callback: (t: typeof tx) => Promise<unknown>) => callback(tx));
+        return {executed, client: {transaction} as never, transaction};
+    };
+
+    it('signs the context on the transaction itself, before it switches to the role', async () => {
+        const {withRlsTransaction} = await loadClient();
+        const {executed, client} = fakeClient();
+
+        await withRlsTransaction({integrationIds: [A], integrationRoles: {[A]: 'admin'}, client, callback: async () => undefined});
+
+        expect(executed.slice(0, 4)).toEqual([
+            {sql: 'SELECT pg_backend_pid() AS pid, (extract(epoch FROM now()) * 1000000)::bigint::text AS txn_start_us', params: []},
+            {
+                sql: 'SELECT gitgazer_internal.sign_context($1, $2::integer, $3::bigint) AS signature',
+                params: [`${A}:admin`, 4242, '1793000000123456'],
+            },
+            {sql: `SET LOCAL rls.signed_context = '${A}:admin|${SIGNATURE}';`, params: []},
+            {sql: 'SET LOCAL ROLE "gitgazer_reader";', params: []},
+        ]);
+        expect(executed.map((query) => query.sql)).toContain(`SET LOCAL rls.integration_ids = '${A}';`);
+    });
+
+    it('does not sign without integrationRoles', async () => {
+        const {withRlsTransaction} = await loadClient();
+        const {executed, client} = fakeClient();
+
+        await withRlsTransaction({integrationIds: [A], client, callback: async () => undefined});
+
+        expect(executed.map((query) => query.sql).filter((text) => /sign|pg_backend_pid/.test(text))).toEqual([]);
+    });
+
+    it('rejects an invalid role before opening the transaction', async () => {
+        const {withRlsTransaction} = await loadClient();
+        const {client, transaction} = fakeClient();
+
+        await expect(
+            withRlsTransaction({integrationIds: [A], integrationRoles: {[A]: 'root' as never}, client, callback: async () => undefined}),
+        ).rejects.toThrow('Invalid integration role');
+        expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('never runs the callback when the signature is invalid', async () => {
+        const {withRlsTransaction} = await loadClient();
+        const {client} = fakeClient("x'; RESET ROLE; --");
+        const callback = vi.fn();
+
+        await expect(withRlsTransaction({integrationIds: [A], integrationRoles: {[A]: 'admin'}, client, callback})).rejects.toThrow(
+            /invalid signature/,
+        );
+        expect(callback).not.toHaveBeenCalled();
     });
 });

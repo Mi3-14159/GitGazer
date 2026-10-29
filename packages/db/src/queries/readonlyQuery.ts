@@ -1,7 +1,8 @@
 import {sql, TransactionRollbackError, type SQL} from 'drizzle-orm';
-import {db, hasSeparateMcpLogin, INTEGRATION_ID_PATTERN, mcpDb, withRlsTransaction, type RdsTransaction} from '../client';
+import {db, hasSeparateMcpLogin, mcpDb, withRlsTransaction} from '../client';
 import {gitgazerMcp} from '../schema';
-import {isMemberRole, type MemberRole} from '../types/members';
+import type {MemberRole} from '../types/members';
+import {contextPayload, setSignedContext, SignedContextError} from './signedContext';
 
 export const DEFAULT_ROW_CAP = 1000;
 export const DEFAULT_STATEMENT_TIMEOUT_S = 10;
@@ -19,17 +20,6 @@ export class ReadOnlyQueryError extends Error {
     constructor(message: string) {
         super(message);
         this.name = 'ReadOnlyQueryError';
-    }
-}
-
-/** A server-side failure to sign the tenant context: never the caller's fault, so never echoed to the caller. */
-export class McpContextError extends Error {
-    constructor(
-        message: string,
-        readonly cause?: unknown,
-    ) {
-        super(message);
-        this.name = 'McpContextError';
     }
 }
 
@@ -187,43 +177,6 @@ const findPgError = (error: unknown): PgError | undefined => {
     return undefined;
 };
 
-const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/;
-
-/** The verifier in github.signed_context() accepts only lowercase UUIDs, so the ids are lowercased. */
-const contextPayload = (integrationRoles: Record<string, MemberRole>): string =>
-    Object.entries(integrationRoles)
-        .map(([id, role]) => {
-            if (!INTEGRATION_ID_PATTERN.test(id)) {
-                throw new Error(`Invalid integration ID: ${id}`);
-            }
-            if (!isMemberRole(role)) {
-                throw new Error(`Invalid integration role: ${role}`);
-            }
-            return `${id.toLowerCase()}:${role}`;
-        })
-        .join(',');
-
-/**
- * Sign the payload for the session and transaction `tx` runs in and set it as rls.signed_context. Only the app login may
- * execute the sign function, so it runs on `db`; the bigint transaction start stays a string to keep its precision.
- */
-const setSignedContext = async (tx: RdsTransaction, payload: string): Promise<void> => {
-    const session = (await tx.execute(
-        sql`SELECT pg_backend_pid() AS pid, (extract(epoch FROM now()) * 1000000)::bigint::text AS txn_start_us`,
-    )) as unknown as {rows: {pid: number; txn_start_us: string}[]};
-    const {pid, txn_start_us} = session.rows[0];
-    const signed = (await db
-        .execute(sql`SELECT gitgazer_internal.sign_context(${payload}, ${pid}::integer, ${txn_start_us}::bigint) AS signature`)
-        .catch((error: unknown) => {
-            throw new McpContextError('Could not sign the MCP tenant context', error);
-        })) as unknown as {rows: {signature?: unknown}[]};
-    const signature = signed.rows[0]?.signature;
-    if (typeof signature !== 'string' || !SIGNATURE_PATTERN.test(signature)) {
-        throw new McpContextError('Signing the MCP tenant context returned an invalid signature');
-    }
-    await tx.execute(sql.raw(`SET LOCAL rls.signed_context = '${payload}|${signature}';`));
-};
-
 /**
  * Execute an arbitrary read-only SQL query for an MCP client, bounded by the caller's Postgres
  * role permissions and a per-query budget.
@@ -269,7 +222,8 @@ export async function runReadOnlyQuery(params: {
             statementTimeoutS,
             lockTimeoutS: 2,
             callback: async (tx) => {
-                await setSignedContext(tx, payload);
+                // The tx runs on the gitgazer_mcp login, which may not sign, so the app login signs on its own connection.
+                await setSignedContext(tx, payload, db);
                 const raw = (await tx.execute(wrapReadOnlyQuery(userSql, rowCap))) as {
                     rows?: Record<string, unknown>[];
                     fields?: {name: string}[];
@@ -286,7 +240,7 @@ export async function runReadOnlyQuery(params: {
         // tx.rollback() ends every successful run by throwing this; nothing an MCP query does is meant to persist.
         if (error instanceof TransactionRollbackError && result) return result;
         // findPgError walks `cause`, so a signing failure would otherwise pass for an error in the caller's SQL.
-        if (error instanceof McpContextError) throw error;
+        if (error instanceof SignedContextError) throw error;
 
         // Translate caller-caused Postgres errors into ReadOnlyQueryError so the MCP layer echoes an
         // actionable message to the client instead of a generic "Tool execution failed". Anything not

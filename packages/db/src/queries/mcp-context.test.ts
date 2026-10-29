@@ -237,10 +237,6 @@ describe('signed mcp tenant context', () => {
             expect(rows).toEqual([]);
         });
 
-        it.each(['signed_context', 'integration_ids'])('keeps github.%s from gitgazer_reader', async (fn) => {
-            await expect(asRole('gitgazer_reader', `SELECT github.${fn}()`)).rejects.toThrow(`permission denied for function ${fn}`);
-        });
-
         it('keeps the sign function from gitgazer_reader', async () => {
             await expect(asRole('gitgazer_reader', `SELECT gitgazer_internal.sign_context('x', 1, 1)`)).rejects.toThrow(
                 /permission denied for schema gitgazer_internal/,

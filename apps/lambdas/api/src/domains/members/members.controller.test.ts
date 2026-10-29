@@ -20,7 +20,14 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
 }));
 
 // The views are built from the real tables at import time, which the stand-ins above can't do.
-vi.mock('@gitgazer/db/schema/views', () => ({}));
+vi.mock('@gitgazer/db/schema/views', () => {
+    const view = (name: string, columns: string[]) => ({name, ...Object.fromEntries(columns.map((column) => [column, Symbol(`${name}.${column}`)]))});
+    return {
+        userAssignmentsView: view('user_assignments_view', ['integrationId', 'userId', 'role', 'source', 'createdAt']),
+        usersView: view('users_view', ['id', 'email', 'name', 'picture', 'githubLogin', 'lastActiveAt']),
+        integrationInvitationsView: view('integration_invitations_view', ['integrationId', 'status', 'createdAt']),
+    };
+});
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     userAssignments: Symbol('userAssignments'),
@@ -43,29 +50,28 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
 
 let controller: typeof import('./members.controller');
 
-const membersTx = (members: unknown[], githubIds: {userId: number; githubId: number | null}[]) => {
+// Each tx.select() resolves to the next result; the reads record their fields and tables.
+const selectTx = (...results: unknown[][]) => {
     const tx = {
-        findManyArgs: [] as any[],
-        tables: [] as unknown[],
-        query: {
-            userAssignments: {
-                findMany: (args: unknown) => {
-                    tx.findManyArgs.push(args);
-                    return Promise.resolve(members);
-                },
-            },
-        },
-        select: () => {
+        reads: [] as {fields: any; tables: unknown[]; orderBy: unknown[]}[],
+        select: (fields?: unknown) => {
+            const read = {fields, tables: [] as unknown[], orderBy: [] as unknown[]};
+            const result = results[tx.reads.length] ?? [];
+            tx.reads.push(read);
             const chain = {
-                from: (table: unknown) => (tx.tables.push(table), chain),
-                innerJoin: (table: unknown) => (tx.tables.push(table), chain),
-                where: () => Promise.resolve(githubIds),
+                from: (table: unknown) => (read.tables.push(table), chain),
+                innerJoin: (table: unknown) => (read.tables.push(table), chain),
+                where: () => chain,
+                orderBy: (...columns: unknown[]) => (read.orderBy.push(...columns), chain),
+                then: (resolve: (rows: unknown[]) => unknown, reject: (error: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
             };
             return chain;
         },
     };
     return tx;
 };
+
+const membersTx = (members: unknown[], githubIds: {userId: number; githubId: number | null}[]) => selectTx(members, githubIds);
 
 const masterLinks = (rows: {githubUserId: number}[]) => {
     const read = {fields: [] as Record<string, unknown>[], tables: [] as unknown[]};
@@ -94,105 +100,60 @@ describe('members controller', () => {
     // ---- getMembers ----
 
     describe('getMembers', () => {
+        const member = (userId: number, email: string | null) => ({
+            integrationId: 'int-1',
+            userId,
+            role: 'member',
+            source: 'manual',
+            createdAt: new Date('2024-01-15'),
+            user: {id: userId, email, name: `User ${userId}`, picture: null, githubLogin: `user${userId}`, lastActiveAt: null},
+        });
+
         it('throws ForbiddenError when integration is not accessible', async () => {
-            await expect(controller.getMembers({integrationId: 'int-1', integrationIds: ['int-2'], canSeeEmails: true})).rejects.toThrow(
+            await expect(controller.getMembers({integrationId: 'int-1', integrationRoles: {'int-2': 'admin'}})).rejects.toThrow(
                 'Integration not accessible',
             );
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
         });
 
-        it('returns members with profile data', async () => {
-            const mockResult = [
-                {
-                    userId: 1,
-                    role: 'owner',
-                    createdAt: new Date('2024-01-15'),
-                    integrationId: 'int-1',
-                    user: {
-                        id: 1,
-                        cognitoId: 'cog-1',
-                        email: 'sarah@example.com',
-                        name: 'Sarah Chen',
-                        picture: 'https://avatars.com/sarah.png',
-                    },
-                },
-                {
-                    userId: 2,
-                    role: 'member',
-                    createdAt: new Date('2024-03-10'),
-                    integrationId: 'int-1',
-                    user: {
-                        id: 2,
-                        cognitoId: 'cog-2',
-                        email: 'alex@example.com',
-                        name: 'Alex Rivera',
-                        picture: null,
-                    },
-                },
-            ];
+        it('returns the members as the views give them', async () => {
+            const members = [member(1, 'u1@example.com'), member(2, null)];
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(membersTx(members, [])));
 
-            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(membersTx(mockResult, [])));
-
-            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: true});
+            const result = await controller.getMembers({integrationId: 'int-1', integrationRoles: {'int-1': 'viewer'}});
 
             expect(result).toEqual([
-                {
-                    userId: 1,
-                    role: 'owner',
-                    createdAt: new Date('2024-01-15'),
-                    integrationId: 'int-1',
-                    slackLinked: false,
-                    user: {
-                        id: 1,
-                        cognitoId: 'cog-1',
-                        email: 'sarah@example.com',
-                        name: 'Sarah Chen',
-                        picture: 'https://avatars.com/sarah.png',
-                    },
-                },
-                {
-                    userId: 2,
-                    role: 'member',
-                    createdAt: new Date('2024-03-10'),
-                    integrationId: 'int-1',
-                    slackLinked: false,
-                    user: {
-                        id: 2,
-                        cognitoId: 'cog-2',
-                        email: 'alex@example.com',
-                        name: 'Alex Rivera',
-                        picture: null,
-                    },
-                },
+                {...member(1, 'u1@example.com'), slackLinked: false},
+                {...member(2, null), slackLinked: false},
             ]);
-            expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1']}));
             expect(mockDbSelect).not.toHaveBeenCalled();
         });
 
-        it('nulls every member email when the caller may not see emails', async () => {
-            const members = [1, 2].map((userId) => ({
-                userId,
-                role: 'member',
-                createdAt: new Date('2024-01-15'),
-                integrationId: 'int-1',
-                user: {id: userId, email: `u${userId}@example.com`, name: `User ${userId}`, picture: null},
-            }));
-            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(membersTx(members, [])));
+        it('reads through the role-aware views with the given roles, in a stable order', async () => {
+            const tx = membersTx([], []);
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(tx));
+            const integrationRoles = {'int-1': 'viewer', 'int-2': 'admin'} as const;
+            const {userAssignmentsView, usersView} = await import('@gitgazer/db/schema/views');
 
-            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: false});
+            await controller.getMembers({integrationId: 'int-1', integrationRoles});
 
-            expect(result.map((m) => m.user.email)).toEqual([null, null]);
-            expect(result.map((m) => m.user.name)).toEqual(['User 1', 'User 2']);
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1', 'int-2'], integrationRoles}));
+            expect(tx.reads[0].tables).toEqual([userAssignmentsView, usersView]);
+            // Explicit columns, so a new users column never reaches the browser
+            expect(tx.reads[0].fields.user).toEqual({
+                id: usersView.id,
+                email: usersView.email,
+                name: usersView.name,
+                picture: usersView.picture,
+                githubLogin: usersView.githubLogin,
+                lastActiveAt: usersView.lastActiveAt,
+            });
+            expect(Object.keys(tx.reads[0].fields)).toEqual(['integrationId', 'userId', 'role', 'source', 'createdAt', 'user']);
+            expect(tx.reads[0].orderBy).toEqual([userAssignmentsView.createdAt, userAssignmentsView.userId]);
         });
 
         it('members list marks linked members and never returns Slack IDs', async () => {
-            const members = [1, 2, 3].map((userId) => ({
-                userId,
-                role: 'member',
-                createdAt: new Date('2024-01-15'),
-                integrationId: 'int-1',
-                user: {id: userId, email: null, name: `User ${userId}`, picture: null, githubLogin: `user${userId}`, lastActiveAt: null},
-            }));
+            const members = [1, 2, 3].map((userId) => member(userId, null));
             mockSlackTeamId = 'T1';
             const tx = membersTx(members, [
                 {userId: 1, githubId: 101},
@@ -203,7 +164,7 @@ describe('members controller', () => {
             const links = masterLinks([{githubUserId: 202}]);
             const {slackUserLinks} = await import('@gitgazer/db/schema/gitgazer');
 
-            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: true});
+            const result = await controller.getMembers({integrationId: 'int-1', integrationRoles: {'int-1': 'viewer'}});
 
             expect(result.map((m) => [m.userId, m.slackLinked])).toEqual([
                 [1, false],
@@ -211,15 +172,11 @@ describe('members controller', () => {
                 [3, false],
             ]);
             // slack_user_links is global and revoked from the RLS roles, so only the master connection may read it
-            expect(tx.tables).not.toContain(slackUserLinks);
+            expect(tx.reads.flatMap((read) => read.tables)).not.toContain(slackUserLinks);
             expect(links.tables).toEqual([slackUserLinks]);
             expect(Object.keys(links.fields[0])).toEqual(['githubUserId']);
             expect(JSON.stringify(result)).not.toContain('slackUserId');
-            // Explicit columns, so a new users column (or the GitHub ID used for the join) never reaches the browser
-            expect(tx.findManyArgs[0]).toEqual({
-                where: {integrationId: 'int-1'},
-                with: {user: {columns: {id: true, email: true, name: true, picture: true, githubLogin: true, lastActiveAt: true}}},
-            });
+            expect(JSON.stringify(result)).not.toContain('githubId');
         });
     });
 
@@ -454,94 +411,71 @@ describe('members controller', () => {
     // ---- getInvitations ----
 
     describe('getInvitations', () => {
+        const invitation = (inviteToken: string | null) => ({
+            integrationId: 'int-1',
+            id: 'inv-1',
+            email: inviteToken ? 'jamie@example.com' : null,
+            role: 'member',
+            invitedBy: 42,
+            inviteeId: 43,
+            inviteToken,
+            status: 'pending',
+            createdAt: new Date('2024-12-01'),
+            expiresAt: new Date('2025-01-01'),
+        });
+        const sarah = {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null, githubLogin: 'sarah'};
+        const jamie = {id: 43, name: 'Jamie', email: null, picture: null, githubLogin: 'jamie'};
+
         it('throws ForbiddenError when integration is not accessible', async () => {
-            await expect(controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-2']})).rejects.toThrow(
+            await expect(controller.getInvitations({integrationId: 'int-1', integrationRoles: {'int-2': 'admin'}})).rejects.toThrow(
                 'Integration not accessible',
             );
+            expect(mockWithRlsTransaction).not.toHaveBeenCalled();
         });
 
         it('returns invitations with inviter and invitee', async () => {
-            const mockResult = [
-                {
-                    id: 'inv-1',
-                    integrationId: 'int-1',
-                    email: 'jamie@example.com',
-                    role: 'member',
-                    invitedBy: 42,
-                    inviteeId: null,
-                    inviteToken: 'token-123',
-                    status: 'pending',
-                    createdAt: new Date('2024-12-01'),
-                    expiresAt: new Date('2025-01-01'),
-                    invitedByUser: {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null},
-                    invitee: null,
-                },
-            ];
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(selectTx([invitation('token-123')], [sarah, jamie])));
 
-            mockWithRlsTransaction.mockImplementation(async (params) => {
-                const mockTx = {
-                    query: {
-                        integrationInvitations: {
-                            findMany: () => Promise.resolve(mockResult),
-                        },
-                    },
-                };
-                return params.callback(mockTx);
-            });
+            const result = await controller.getInvitations({integrationId: 'int-1', integrationRoles: {'int-1': 'admin'}});
 
-            const result = await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
-
-            expect(result).toEqual([
-                {
-                    id: 'inv-1',
-                    integrationId: 'int-1',
-                    email: 'jamie@example.com',
-                    role: 'member',
-                    invitedBy: 42,
-                    inviteeId: null,
-                    inviteToken: 'token-123',
-                    invitedByUser: {id: 42, name: 'Sarah Chen', email: 'sarah@example.com', picture: null},
-                    invitee: null,
-                    status: 'pending',
-                    createdAt: new Date('2024-12-01'),
-                    expiresAt: new Date('2025-01-01'),
-                },
-            ]);
+            expect(result).toEqual([{...invitation('token-123'), invitedByUser: sarah, invitee: jamie}]);
         });
 
-        it('excludes accepted invitations from results', async () => {
-            const mockFindMany = vi.fn().mockResolvedValue([]);
+        it('leaves out the invite token where the view masks it, as the API did before', async () => {
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(selectTx([invitation(null)], [sarah])));
 
-            mockWithRlsTransaction.mockImplementation(async (params) => {
-                const mockTx = {
-                    query: {
-                        integrationInvitations: {
-                            findMany: mockFindMany,
-                        },
-                    },
-                };
-                return params.callback(mockTx);
-            });
+            const [result] = await controller.getInvitations({integrationId: 'int-1', integrationRoles: {'int-1': 'member'}});
 
-            await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
-
-            expect(mockFindMany).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    where: expect.anything(),
-                }),
-            );
+            expect(result).not.toHaveProperty('inviteToken');
+            expect(result).toMatchObject({email: null, invitedByUser: sarah, invitee: null});
         });
-    });
 
-    describe('getInvitations user fields', () => {
-        it('loads only public columns of the inviter and the invitee', async () => {
-            const mockFindMany = vi.fn().mockResolvedValue([]);
-            mockWithRlsTransaction.mockImplementation(async (params) => params.callback({query: {integrationInvitations: {findMany: mockFindMany}}}));
+        it('keeps a link-only invitation without an invitee and skips the user read without users', async () => {
+            const tx = selectTx([]);
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(tx));
 
-            await controller.getInvitations({integrationId: 'int-1', integrationIds: ['int-1']});
+            expect(await controller.getInvitations({integrationId: 'int-1', integrationRoles: {'int-1': 'member'}})).toEqual([]);
+            expect(tx.reads).toHaveLength(1);
+        });
 
-            const columns = {id: true, name: true, picture: true, githubLogin: true, email: true};
-            expect(mockFindMany.mock.calls[0][0].with).toEqual({invitedByUser: {columns}, invitee: {columns}});
+        it('reads through the role-aware views with the given roles, in a stable order, and only public user fields', async () => {
+            const tx = selectTx([invitation('token-123')], []);
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(tx));
+            const integrationRoles = {'int-1': 'member', 'int-2': 'owner'} as const;
+            const {integrationInvitationsView, usersView} = await import('@gitgazer/db/schema/views');
+
+            await controller.getInvitations({integrationId: 'int-1', integrationRoles});
+
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1', 'int-2'], integrationRoles}));
+            expect(tx.reads.map((read) => read.tables)).toEqual([[integrationInvitationsView], [usersView]]);
+            expect(tx.reads[0].orderBy).toEqual([integrationInvitationsView.createdAt]);
+            expect(tx.reads[1].fields).toEqual({
+                id: usersView.id,
+                name: usersView.name,
+                picture: usersView.picture,
+                githubLogin: usersView.githubLogin,
+                email: usersView.email,
+            });
         });
     });
 

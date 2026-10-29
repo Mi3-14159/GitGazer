@@ -19,12 +19,14 @@ const SIGNATURE = 'ab'.repeat(32);
 
 let rds: typeof import('@gitgazer/db/client');
 let mod: typeof import('@gitgazer/db/queries/readonlyQuery');
+let signed: typeof import('@gitgazer/db/queries/signedContext');
 
 describe('runReadOnlyQuery', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
         rds = await import('@gitgazer/db/client');
         mod = await import('@gitgazer/db/queries/readonlyQuery');
+        signed = await import('@gitgazer/db/queries/signedContext');
     });
 
     describe('assertReadOnlySelect', () => {
@@ -204,7 +206,7 @@ describe('runReadOnlyQuery', () => {
 
         const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
 
-        expect(error).toBeInstanceOf(mod.McpContextError);
+        expect(error).toBeInstanceOf(signed.SignedContextError);
         expect((error as {cause?: unknown}).cause).toBe(boom);
         expect(executedSql()).toHaveLength(1);
     });
@@ -216,7 +218,7 @@ describe('runReadOnlyQuery', () => {
 
         const error = await mod.runReadOnlyQuery({sql: 'SELECT 1 AS a', integrationRoles: {[INTEGRATION_ID]: 'member'}}).catch((e: unknown) => e);
 
-        expect(error).toBeInstanceOf(mod.McpContextError);
+        expect(error).toBeInstanceOf(signed.SignedContextError);
         expect(error).not.toBeInstanceOf(mod.ReadOnlyQueryError);
     });
 
