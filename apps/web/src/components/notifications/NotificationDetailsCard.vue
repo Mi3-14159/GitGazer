@@ -222,7 +222,7 @@
                     <Label>Head branch</Label>
                     <Input
                         v-model="notificationRule.rule.head_branch"
-                        placeholder="e.g., main, feature/*"
+                        placeholder="e.g., main"
                     />
                 </div>
             </div>
