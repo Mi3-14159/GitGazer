@@ -227,7 +227,7 @@ GitGazer uses AWS serverless architecture with the following components:
 
 1. Define Drizzle schema in `packages/db/src/schema/`
 2. Generate migration with `drizzle-kit generate`
-3. Apply migration with `drizzle-kit migrate`
+3. Apply migration with `pnpm run migrate` (in `packages/db`)
 4. Ensure RLS policies are configured
 5. Grant Lambda access via IAM
 

@@ -103,6 +103,7 @@ describe('mcp tools', () => {
         await callTool('list_tables');
         expect(lastSql()).toContain('information_schema.tables');
         expect(lastSql()).toContain("table_schema IN ('github', 'gitgazer')");
+        expect(lastSql()).toContain("obj_description(format('%I.%I', table_schema, table_name)::regclass, 'pg_class') AS description");
         expect(quota.reserveQueryBudget).not.toHaveBeenCalled();
         expect(quota.chargeQueryBudget).not.toHaveBeenCalled();
     });
@@ -112,6 +113,7 @@ describe('mcp tools', () => {
         expect(lastSql()).toContain('SELECT table_schema, column_name, data_type, is_nullable');
         expect(lastSql()).toContain("table_schema IN ('github', 'gitgazer')");
         expect(lastSql()).toContain("table_name = 'workflow_runs'");
+        expect(lastSql()).toContain("col_description(format('%I.%I', table_schema, table_name)::regclass, ordinal_position::int) AS description");
     });
 
     it('describe_table rejects an injection attempt', () => {

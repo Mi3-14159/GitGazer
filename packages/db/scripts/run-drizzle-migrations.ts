@@ -3,6 +3,7 @@ import {migrate} from 'drizzle-orm/node-postgres/migrator';
 import path from 'node:path';
 import pg from 'pg';
 import drizzleConfig from '../drizzle.config';
+import {descriptionStatements} from '../src/schema/descriptions';
 
 type PgCredentials = {
     host: string;
@@ -43,6 +44,12 @@ async function run(): Promise<void> {
         console.info(`Running Drizzle migrations from: ${migrationsFolder}`);
         await migrate(db, {migrationsFolder});
         console.info('Drizzle migrations completed successfully.');
+
+        // Re-applied on every run: drizzle-kit rebuilds a changed view with DROP + CREATE, which drops its comments.
+        // One simple-query message runs as a single implicit transaction.
+        const statements = descriptionStatements();
+        await pool.query(statements.join(';\n'));
+        console.info(`Applied ${statements.length} table and column descriptions.`);
     } finally {
         await pool.end();
     }

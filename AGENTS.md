@@ -156,7 +156,6 @@ terraform fmt             # Format HCL files
 ```bash
 cd packages/db
 npx drizzle-kit generate  # Generate migration from schema changes
-npx drizzle-kit migrate   # Run pending migrations
 npx drizzle-kit studio    # Open Drizzle Studio GUI
-pnpm run migrate          # Apply migrations with the checked runner
+pnpm run migrate          # Apply migrations, then re-apply table/column descriptions (not drizzle-kit migrate)
 ```
