@@ -41,7 +41,7 @@
                 <div class="flex items-start gap-3 flex-1 min-w-0">
                     <div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted flex-shrink-0">
                         <LinkIcon
-                            v-if="!invitation.email"
+                            v-if="!invitation.email && !readonly"
                             class="h-4 w-4 text-muted-foreground"
                         />
                         <Mail
@@ -52,7 +52,9 @@
                     <div class="flex-1 min-w-0 space-y-2">
                         <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                             <div class="flex-1 min-w-0">
-                                <p class="font-medium truncate">{{ invitation.email || 'Link-only invitation' }}</p>
+                                <p class="font-medium truncate">
+                                    {{ invitation.email || (readonly ? 'Pending invitation' : 'Link-only invitation') }}
+                                </p>
                                 <p class="text-sm text-muted-foreground">Invited by {{ invitation.invitedBy }}</p>
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">

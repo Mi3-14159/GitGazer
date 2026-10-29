@@ -48,7 +48,21 @@ describe('members routes', () => {
 
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual([{userId: 1}]);
-        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1']});
+        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: true});
+    });
+
+    it.each([
+        ['viewer', false],
+        ['member', false],
+        ['admin', true],
+        ['owner', true],
+    ])('GET members as %s passes canSeeEmails=%s', async (role, canSeeEmails) => {
+        mocks.role = role;
+        mocks.getMembers.mockResolvedValue([]);
+
+        await testRequest(app, 'GET', `${base}/members`, {appContext: appContext()});
+
+        expect(mocks.getMembers).toHaveBeenCalledWith({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails});
     });
 
     it('GET members is forbidden for a non-member integration', async () => {
@@ -123,12 +137,62 @@ describe('members routes', () => {
 
     it('GET invitations hides invite tokens from non-admins', async () => {
         mocks.role = 'member';
-        mocks.getInvitations.mockResolvedValue([{id: 'i1', inviteToken: 'secret'}]);
+        mocks.getInvitations.mockResolvedValue([{id: 'i1', inviteToken: 'secret', email: null, invitedByUser: null, invitee: null}]);
 
         const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
 
         expect(res.status).toBe(200);
-        expect(await res.json()).toEqual([{id: 'i1'}]);
+        expect(await res.json()).toEqual([{id: 'i1', email: null, invitedByUser: null, invitee: null}]);
+    });
+
+    it('GET invitations hides emails from non-admins', async () => {
+        mocks.role = 'member';
+        mocks.getInvitations.mockResolvedValue([
+            {
+                id: 'i1',
+                inviteToken: 'secret',
+                email: 'a@example.com',
+                invitedByUser: {name: 'Ada', email: 'ada@example.com'},
+                invitee: {name: 'Bob', email: 'bob@example.com'},
+            },
+        ]);
+
+        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
+
+        expect(await res.json()).toEqual([{id: 'i1', email: null, invitedByUser: {name: 'Ada', email: null}, invitee: {name: 'Bob', email: null}}]);
+    });
+
+    it('GET invitations shows emails to admins', async () => {
+        mocks.getInvitations.mockResolvedValue([
+            {
+                id: 'i1',
+                inviteToken: 'secret',
+                email: 'a@example.com',
+                invitedByUser: {name: 'Ada', email: 'ada@example.com'},
+                invitee: {name: 'Bob', email: 'bob@example.com'},
+            },
+        ]);
+
+        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
+
+        expect(await res.json()).toEqual([
+            {
+                id: 'i1',
+                inviteToken: 'secret',
+                email: 'a@example.com',
+                invitedByUser: {name: 'Ada', email: 'ada@example.com'},
+                invitee: {name: 'Bob', email: 'bob@example.com'},
+            },
+        ]);
+    });
+
+    it('GET invitations keeps a missing invitee and a link-only invitation null for non-admins', async () => {
+        mocks.role = 'member';
+        mocks.getInvitations.mockResolvedValue([{id: 'i1', email: null, invitedByUser: null, invitee: null}]);
+
+        const res = await testRequest(app, 'GET', `${base}/invitations`, {appContext: appContext()});
+
+        expect(await res.json()).toEqual([{id: 'i1', email: null, invitedByUser: null, invitee: null}]);
     });
 
     it('GET invitations shows invite tokens to admins', async () => {

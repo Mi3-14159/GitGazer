@@ -14,9 +14,9 @@ import {and, eq, gt, inArray, isNotNull} from 'drizzle-orm';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-export const getMembers = async (params: {integrationId: string; integrationIds: string[]}): Promise<IntegrationMember[]> => {
+export const getMembers = async (params: {integrationId: string; integrationIds: string[]; canSeeEmails: boolean}): Promise<IntegrationMember[]> => {
     const logger = getLogger();
-    const {integrationId, integrationIds} = params;
+    const {integrationId, integrationIds, canSeeEmails} = params;
 
     if (!integrationIds.includes(integrationId)) {
         throw new ForbiddenError('Integration not accessible');
@@ -57,7 +57,11 @@ export const getMembers = async (params: {integrationId: string; integrationIds:
     const linkedGithubIds = new Set(links.map((l) => l.githubUserId));
     const linkedUserIds = new Set(memberGithubIds.filter((m) => m.githubId !== null && linkedGithubIds.has(m.githubId)).map((m) => m.userId));
 
-    return members.map((member) => ({...member, slackLinked: linkedUserIds.has(member.userId)}));
+    return members.map((member) => ({
+        ...member,
+        user: {...member.user, email: canSeeEmails ? member.user.email : null},
+        slackLinked: linkedUserIds.has(member.userId),
+    }));
 };
 
 export const changeRole = async (params: {
