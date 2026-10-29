@@ -9,11 +9,7 @@ if (!previousPath || !nextPath) {
 
 const previous = JSON.parse(readFileSync(previousPath, 'utf8'));
 const current = await generateDrizzleJson(schema, previous.id, ['gitgazer', 'github']);
+// Key order: keeps `version` first like the committed snapshots.
 writeFileSync(nextPath, `${JSON.stringify({version: current.version, ...current}, null, 2)}\n`);
 
-// A table rename needs an interactive answer; the snapshot is already written, so report instead of failing.
-try {
-    console.log(JSON.stringify(await generateMigration(previous, current), null, 2));
-} catch (error) {
-    console.log(`Snapshot written; the SQL diff needs a rename decision: ${error instanceof Error ? error.message : error}`);
-}
+console.log(JSON.stringify(await generateMigration(previous, current), null, 2));
