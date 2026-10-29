@@ -133,8 +133,8 @@ describe('mcp tools', () => {
             [`${ID_A}:viewer`, 4242, '1793000000123456'],
             Object.assign(new Error('permission denied for function sign_context'), {code: '42501'}),
         );
-        // Stands in for McpContextError, which the mocked queries module does not export.
-        const signingFailure = Object.assign(new Error('Could not sign the MCP tenant context'), {cause: denied});
+        // Stands in for SignedContextError, which the mocked queries module does not export.
+        const signingFailure = Object.assign(new Error('Could not sign the tenant context'), {cause: denied});
         asMock(readonly.runReadOnlyQuery).mockRejectedValue(signingFailure);
 
         expect(await callTool('run_sql', {sql: 'SELECT 1'})).toEqual({content: [{type: 'text', text: 'Tool execution failed'}], isError: true});

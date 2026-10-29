@@ -4,8 +4,12 @@ import {sql} from 'drizzle-orm';
 import {drizzle as drizzleDataApi} from 'drizzle-orm/aws-data-api/pg';
 import {drizzle as drizzleNodePg, type NodePgDatabase} from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import {contextPayload, INTEGRATION_ID_PATTERN, setSignedContext} from './queries/signedContext';
 import {dbRelations, type DbRelations} from './schema/relations';
 import {gitgazerMcp, gitgazerReader} from './schema';
+import type {MemberRole} from './types/members';
+
+export {INTEGRATION_ID_PATTERN};
 
 type DbClient = NodePgDatabase<DbRelations>;
 type ConnectionMode = 'rds-proxy' | 'data-api';
@@ -140,10 +144,13 @@ export const hasSeparateMcpLogin = (): boolean => {
 
 export type RdsTransaction = Parameters<Parameters<DbClient['transaction']>[0]>[0];
 
-export const INTEGRATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
+/**
+ * `integrationRoles` additionally signs the caller's roles into rls.signed_context for the role-aware views; it needs a
+ * `client` logged in as the app login.
+ */
 export const withRlsTransaction = async <T>(params: {
     integrationIds: string[];
+    integrationRoles?: Record<string, MemberRole>;
     userName?: string;
     lockTimeoutS?: number;
     statementTimeoutS?: number;
@@ -151,7 +158,16 @@ export const withRlsTransaction = async <T>(params: {
     client?: DbClient;
     callback: (tx: RdsTransaction) => Promise<T>;
 }): Promise<T> => {
-    const {integrationIds, userName = gitgazerReader.name, callback, lockTimeoutS = 5, statementTimeoutS, readOnly = false, client = db} = params;
+    const {
+        integrationIds,
+        integrationRoles,
+        userName = gitgazerReader.name,
+        callback,
+        lockTimeoutS = 5,
+        statementTimeoutS,
+        readOnly = false,
+        client = db,
+    } = params;
     if (!Number.isInteger(lockTimeoutS) || lockTimeoutS <= 0) {
         throw new Error('lockTimeoutS must be a positive integer');
     }
@@ -165,11 +181,17 @@ export const withRlsTransaction = async <T>(params: {
             throw new Error(`Invalid integration ID: ${id}`);
         }
     }
+    const signedPayload = integrationRoles && contextPayload(integrationRoles);
 
     return await client.transaction(async (tx) => {
         // Must be declared before the transaction's first query.
         if (readOnly) {
             await tx.execute(sql.raw('SET TRANSACTION READ ONLY;'));
+        }
+        // Signed on this connection while it still runs as the app login: waiting for a second pooled connection
+        // while holding this one would deadlock a busy pool (DB_POOL_MAX defaults to 1).
+        if (signedPayload !== undefined) {
+            await setSignedContext(tx, signedPayload, tx);
         }
         await tx.execute(sql`SET LOCAL ROLE ${sql.identifier(userName)};`);
         await tx.execute(sql.raw(`SET LOCAL rls.integration_ids = '${integrationIds.join(',')}';`));
