@@ -574,7 +574,7 @@ describe('role-aware configuration views', () => {
             const readApps = (role: MemberRole) =>
                 asReader({[D]: role}, async (tx) => ({
                     apps: await tx
-                        .select({appId: integrationAppsView.appId, type: integrationAppsView.type})
+                        .select({appId: integrationAppsView.appId, type: integrationAppsView.type, createdAt: integrationAppsView.createdAt})
                         .from(integrationAppsView)
                         .orderBy(integrationAppsView.appId),
                     githubSettings: await tx
@@ -624,9 +624,9 @@ describe('role-aware configuration views', () => {
                 const read = await readApps(role);
 
                 expect(read.apps).toEqual([
-                    {appId: GITHUB_APP, type: 'github'},
-                    {appId: WEBHOOK_APP, type: 'webhook'},
-                    {appId: SLACK_APP, type: 'slack'},
+                    {appId: GITHUB_APP, type: 'github', createdAt: expect.any(Date)},
+                    {appId: WEBHOOK_APP, type: 'webhook', createdAt: expect.any(Date)},
+                    {appId: SLACK_APP, type: 'slack', createdAt: expect.any(Date)},
                 ]);
                 expect(read.githubSettings).toEqual([{secret: admin ? expect.any(String) : null, orgSyncDefaultRole: 'member'}]);
                 expect(read.handles).toEqual([
