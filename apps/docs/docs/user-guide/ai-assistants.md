@@ -62,7 +62,7 @@ In the GitGazer web app, open the **help menu (?) → Connect an AI assistant**.
 
 ## Ask questions
 
-Once connected, just ask — the assistant discovers the available tables on its own and writes the query for you:
+Once connected, just ask — the assistant discovers the available tables on its own (with the `list_tables` and `describe_table` tools) and runs the query for you with `run_sql`:
 
 - "Which of my workflows failed most often in the last 7 days?"
 - "Show the repositories with the most failed workflow runs this month."
@@ -78,7 +78,7 @@ If an answer looks off, ask the assistant to "list the tables" or "describe the 
 
 - ✅ Only the integrations **you** are a member of — the same tenant scope as the web app.
 - ✅ GitHub Actions data: workflow runs and jobs, pull requests, repositories, organizations, enterprises, and users.
-- ✅ Your integrations' GitGazer configuration (apps, notification rules and handles, members, open invitations and the event log), as your role allows: invitations from member up; webhook secrets and URLs, email addresses of members and invitees, and invite tokens only for admins and owners.
+- ✅ Your integrations' GitGazer configuration (apps, notification rules and handles, members, pending and expired invitations and the event log), as your role allows: invitations from member up; webhook secrets and URLs, email addresses of members and invitees, and invite tokens only for admins and owners.
 - ❌ **Not** other tenants' data or Slack bot tokens.
 - ❌ **No** writes — it cannot modify or delete anything.
 
@@ -86,11 +86,12 @@ If an answer looks off, ask the assistant to "list the tables" or "describe the 
 
 To keep things fast and fair, a few limits apply:
 
-| Limit                   | Value                                    |
-| ----------------------- | ---------------------------------------- |
-| Query time per hour     | 600 seconds of query time                |
-| Rows returned per query | 1000 (results beyond this are truncated) |
-| Max time per query      | 20 seconds                               |
+| Limit                   | Value                                      |
+| ----------------------- | ------------------------------------------ |
+| Query time per hour     | 600 seconds of query time                  |
+| Rows returned per query | 1000 (results beyond this are truncated)   |
+| Max time per query      | 20 seconds                                 |
+| Result size per query   | 128 KB (results beyond this are truncated) |
 
 Each query "costs" the time it takes to run, drawn from a rolling ~1-hour budget that starts on your first query and refreshes once it elapses. Exploring tables and columns ("list tables", "describe table") is free and does **not** count toward the budget.
 

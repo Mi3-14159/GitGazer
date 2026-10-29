@@ -18,7 +18,7 @@ graph TB
 
     subgraph AWS["AWS Cloud"]
         subgraph Ingress
-            REST["REST Web Function"]
+            REST["API Web Function"]
         end
 
         subgraph Async["Async Processing"]
@@ -34,7 +34,7 @@ graph TB
 
         subgraph Storage
             RDS["Aurora PostgreSQL"]
-            PROXY["RDS Proxy"]
+            PROXY["RDS Proxy (optional)"]
         end
 
         subgraph Frontend
@@ -69,7 +69,7 @@ graph TB
 
 ## Request Flow
 
-1. **Webhook ingress** — GitHub sends webhook events through CloudFront to the REST Web Function, which validates the HMAC signature and enqueues the event to an SQS FIFO queue.
+1. **Webhook ingress** — GitHub sends webhook events through CloudFront to the API Web Function, which validates the HMAC signature and enqueues the event to an SQS FIFO queue.
 2. **Async processing** — The Worker Lambda consumes events from SQS, inserts/upserts data into Aurora PostgreSQL, and triggers side effects (WebSocket push, alerting).
 3. **Real-time updates** — The Worker pushes workflow updates to connected WebSocket clients via the API Gateway Management API.
 4. **Frontend** — The Vue 3 SPA is served from S3 via CloudFront. It communicates with the REST API over HTTPS and receives live updates over WebSocket.
@@ -98,7 +98,7 @@ Each app under `apps/lambdas/` has a single `src/index.ts` entrypoint and builds
 
 | App                  | Purpose                                                    |
 | -------------------- | ---------------------------------------------------------- |
-| `api`                | REST API endpoints and the GitHub webhook intake endpoint  |
+| `api`                | REST API, GitHub webhook intake and the MCP endpoint       |
 | `websocket`          | WebSocket connect/disconnect and connection management     |
 | `worker`             | Consumes the SQS queue, persists events, triggers alerting |
 | `backfill-worker`    | Imports historical GitHub Actions data for a repository    |
@@ -109,7 +109,7 @@ Each app under `apps/lambdas/` has a single `src/index.ts` entrypoint and builds
 
 ### AWS Lambda (Serverless Compute)
 
-All backend logic runs on AWS Lambda — REST API handler, WebSocket handler, webhook worker, and scheduled org sync. This means zero idle cost, automatic scaling, and no server management.
+All backend logic runs on AWS Lambda — the REST API (as a Lambda Web Function), WebSocket handler, webhook worker, backfill worker, and scheduled org sync. This means zero idle cost, automatic scaling, and no server management.
 
 ### Aurora PostgreSQL Serverless (Database)
 
@@ -133,13 +133,14 @@ Infrastructure alerting and monitoring configuration is documented in [Infrastru
 
 GitGazer deploys multiple Lambda functions, each with a distinct responsibility:
 
-| Lambda         | Trigger                   | Purpose                                                                                        |
-| -------------- | ------------------------- | ---------------------------------------------------------------------------------------------- |
-| **REST API**   | CloudFront (Web Function) | Handles all REST API requests (auth, integrations, workflows, notifications, etc.)             |
-| **WebSocket**  | API Gateway WebSocket     | Manages `$connect` and `$disconnect` lifecycle events                                          |
-| **Worker**     | SQS event source          | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts |
-| **Org Sync**   | EventBridge schedule      | Periodically syncs GitHub organization members to integration memberships                      |
-| **HTTP Proxy** | Lambda invoke (internal)  | Optional outbound proxy for IPv4-only upstreams (for example GitHub and Slack)                 |
+| Lambda              | Trigger                          | Purpose                                                                                                     |
+| ------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **API**             | CloudFront (Web Function)        | Handles all REST API requests (auth, integrations, workflows, notifications, etc.), GitHub webhooks and MCP |
+| **WebSocket**       | API Gateway WebSocket            | Manages `$connect` and `$disconnect` lifecycle events                                                       |
+| **Worker**          | SQS event source                 | Processes webhook events asynchronously — inserts data, pushes WebSocket updates, sends alerts              |
+| **Backfill Worker** | Direct invoke + SQS event source | Imports historical GitHub data (see [Backfill Pipeline](./backfill-pipeline.md))                            |
+| **Org Sync**        | EventBridge schedule (daily)     | Enqueues an org member sync task per GitHub App organization installation; the Worker runs the sync         |
+| **HTTP Proxy**      | Lambda invoke (internal)         | Optional outbound proxy for IPv4-only upstreams (for example GitHub and Slack)                              |
 
 ## Database Connectivity (Optional RDS Proxy)
 
@@ -148,9 +149,11 @@ Lambda functions connect to Aurora PostgreSQL using IAM authentication. An RDS P
 ### Feature toggle
 
 - Terraform variable: `enable_rds_proxy`
-- Default: `true`
+- Default: `false`
 
-When enabled, Lambdas connect through the RDS Proxy. When disabled (`enable_rds_proxy = false`), Lambdas connect directly to the Aurora cluster endpoint. Both paths use IAM auth tokens for authentication.
+When enabled, Lambdas connect through the RDS Proxy. When disabled, Lambdas connect directly to the Aurora cluster endpoint. Both paths use IAM auth tokens for authentication.
+
+The API opens a second connection pool that logs in as `gitgazer_mcp` for MCP queries, also with IAM auth (see [MCP Server](./mcp-server.md) and [Roles & Permissions](./roles-and-permissions.md)).
 
 ### Environment variables
 
@@ -170,7 +173,7 @@ When connecting through an SSM tunnel, set `RDS_HOST=localhost` and `RDS_HOSTNAM
 
 ## Outbound Connectivity (IPv6 + Optional Proxy)
 
-The REST, Worker, and Org Sync Lambdas run in private subnets and prefer IPv6 egress.
+The WebSocket, Worker, Backfill Worker and Org Sync Lambdas run in private subnets and prefer IPv6 egress. The API web function reaches the same subnets through a Lambda network connector.
 
 Some third-party endpoints are IPv4-only. To support those calls without a NAT gateway, GitGazer can deploy a small HTTP proxy Lambda outside the VPC:
 

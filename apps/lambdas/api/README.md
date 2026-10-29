@@ -1,6 +1,6 @@
 # apps/lambdas/api — GitGazer REST API
 
-AWS Lambda serving the GitGazer REST API and the GitHub webhook intake endpoint.
+Lambda Web Function (behind CloudFront) serving the GitGazer REST API, the GitHub webhook endpoints and the MCP endpoint. `src/index.ts` starts the Hono HTTP server in `src/server.ts`.
 
 The other Lambdas live next to this one under `apps/lambdas/`: `websocket`, `worker`,
 `backfill-worker`, `org-sync-scheduler` and `http-proxy`. Shared backend code lives in
@@ -11,7 +11,7 @@ The other Lambdas live next to this one under `apps/lambdas/`: `websocket`, `wor
 ```bash
 pnpm install
 
-# Configure environment: create a .env at the repo root (shared by every app's dev script)
+# Configure environment: create apps/lambdas/api/.env (dev:api loads it; the worker and backfill dev scripts use the repo-root .env)
 
 # Run local development server (port 8080)
 aws-vault exec <profile> --no-session -- pnpm run dev:api

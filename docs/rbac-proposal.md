@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted and implemented. The current permissions are documented in [Roles & Permissions](../apps/docs/docs/technical/roles-and-permissions.md); this record keeps the original decision and is not kept up to date.
 
 ## Context
 

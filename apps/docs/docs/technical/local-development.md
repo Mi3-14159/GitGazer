@@ -45,13 +45,8 @@ sudo nano /etc/hosts
 Create `apps/web/.env.local`:
 
 ```bash
-VITE_HOST_URL="https://app.gitgazer.localhost:5173"
-VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
-VITE_COGNITO_USER_POOL_ID="<USER_POOL_ID>"
-VITE_COGNITO_USER_POOL_CLIENT_ID="<USER_POOL_CLIENT_ID>"
 VITE_REST_API_ENDPOINT="https://app.gitgazer.localhost:5173/api"
 VITE_IMPORT_URL_BASE="https://app.gitgazer.localhost:5173/api/import"
-VITE_REST_API_REGION="us-east-1"
 VITE_WEBSOCKET_API_ENDPOINT="<WEBSOCKET_ENDPOINT>"
 ```
 
@@ -62,8 +57,7 @@ The key setting is `VITE_REST_API_ENDPOINT` pointing to `localhost:5173/api` —
 ```bash
 pnpm install
 
-# Create a .env in the repository root with your AWS configuration.
-# Every backend app's dev script reads this one file (see Backend Variables below).
+# Create apps/lambdas/api/.env with your AWS configuration (see Backend Variables below).
 
 # Start local backend (port 8080)
 cd apps/lambdas/api
@@ -96,7 +90,7 @@ Vite's dev server intercepts requests to `/api` and forwards them to the local b
 Browser → https://app.gitgazer.localhost:5173/api/integrations
        → Vite proxy intercepts /api/*
        → http://localhost:8080/api/integrations
-       → Local Lambda dev server handles request
+       → Local API server (the same Hono app the Lambda Web Function runs) handles request
        → Response flows back through proxy
 ```
 
@@ -113,13 +107,8 @@ Because the frontend and API appear same-origin, cookies work seamlessly with no
 Create `apps/web/.env.local`:
 
 ```bash
-VITE_HOST_URL="https://app.gitgazer.localhost:5173"
-VITE_COGNITO_DOMAIN="<COGNITO_DOMAIN>"
-VITE_COGNITO_USER_POOL_ID="<USER_POOL_ID>"
-VITE_COGNITO_USER_POOL_CLIENT_ID="<USER_POOL_CLIENT_ID>"
 VITE_REST_API_ENDPOINT="https://<GITGAZER_DOMAIN>/api"
-VITE_IMPORT_URL_BASE="https://<GITGAZER_DOMAIN>/v1/api/import/"
-VITE_REST_API_REGION="us-east-1"
+VITE_IMPORT_URL_BASE="https://<GITGAZER_DOMAIN>/api/import"
 VITE_WEBSOCKET_API_ENDPOINT="<WEBSOCKET_ENDPOINT>"
 ```
 
@@ -138,7 +127,9 @@ No backend setup needed. All API calls go directly to production.
 :::info[Production prerequisites]
 
 - The production backend's `ALLOWED_FRONTEND_ORIGINS` must include `https://app.gitgazer.localhost:5173`.
-- The Cognito app client must have `https://app.gitgazer.localhost:5173` as an allowed callback URL.
+- The Cognito app client must allow `https://app.gitgazer.localhost:5173/api/auth/callback` as a callback URL.
+
+Terraform sets both by default (`local.cors_allowed_origins` in `infra/main.tf`).
 
     :::
 
@@ -146,30 +137,28 @@ No backend setup needed. All API calls go directly to production.
 
 ### Frontend Variables
 
-| Variable                           | Full Local                                       | Hybrid (Prod Backend)                 | Description                 |
-| ---------------------------------- | ------------------------------------------------ | ------------------------------------- | --------------------------- |
-| `VITE_REST_API_ENDPOINT`           | `https://app.gitgazer.localhost:5173/api`        | `https://<DOMAIN>/api`                | REST API base URL           |
-| `VITE_IMPORT_URL_BASE`             | `https://app.gitgazer.localhost:5173/api/import` | `https://<DOMAIN>/v1/api/import/`     | Webhook import base URL     |
-| `VITE_HOST_URL`                    | `https://app.gitgazer.localhost:5173`            | `https://app.gitgazer.localhost:5173` | Frontend URL (same in both) |
-| `VITE_COGNITO_DOMAIN`              | Cognito domain                                   | Cognito domain                        | Cognito auth domain         |
-| `VITE_COGNITO_USER_POOL_ID`        | Pool ID                                          | Pool ID                               | Cognito user pool ID        |
-| `VITE_COGNITO_USER_POOL_CLIENT_ID` | Client ID                                        | Client ID                             | Cognito app client ID       |
-| `VITE_WEBSOCKET_API_ENDPOINT`      | WS endpoint                                      | WS endpoint                           | WebSocket API endpoint      |
+| Variable                       | Full Local                                       | Hybrid (Prod Backend)         | Description                                  |
+| ------------------------------ | ------------------------------------------------ | ----------------------------- | -------------------------------------------- |
+| `VITE_REST_API_ENDPOINT`       | `https://app.gitgazer.localhost:5173/api`        | `https://<DOMAIN>/api`        | REST API base URL                            |
+| `VITE_IMPORT_URL_BASE`         | `https://app.gitgazer.localhost:5173/api/import` | `https://<DOMAIN>/api/import` | Webhook import base URL (no trailing slash)  |
+| `VITE_WEBSOCKET_API_ENDPOINT`  | WS endpoint                                      | WS endpoint                   | WebSocket API endpoint                       |
+| `VITE_ENABLE_INVITATION_EMAIL` | `false` (optional)                               | `false` (optional)            | Show the invitation email option when `true` |
 
 ### Backend Variables
 
-Backend variables are configured in a single `.env` at the **repository root**. Every backend app's dev script loads it (`node --env-file=../../../.env ...`), so the API, worker and backfill worker all share one file. Key variables:
+The API's `dev:api` script loads `apps/lambdas/api/.env` (`node --env-file=.env ...`). The worker and backfill worker dev scripts (`dev:worker`, `dev:backfill`) load a `.env` at the **repository root** (`node --env-file=../../../.env ...`). Key variables:
 
-| Variable                   | Description                         |
-| -------------------------- | ----------------------------------- |
-| `AWS_REGION`               | AWS region for all services         |
-| `RDS_HOST`                 | Database connection host            |
-| `RDS_HOSTNAME`             | Real hostname for IAM token signing |
-| `RDS_PORT`                 | Database connection port            |
-| `RDS_DATABASE`             | Database name (`postgres`)          |
-| `RDS_DB_USER`              | Database master username            |
-| `CONFIG_SECRET_ARN`        | Secrets Manager ARN for app config  |
-| `ALLOWED_FRONTEND_ORIGINS` | Comma-separated allowed origins     |
+| Variable                   | Description                                                                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AWS_REGION`               | AWS region for all services                                                                                                                       |
+| `RDS_HOST`                 | Database connection host                                                                                                                          |
+| `RDS_HOSTNAME`             | Real hostname for IAM token signing                                                                                                               |
+| `RDS_PORT`                 | Database connection port                                                                                                                          |
+| `RDS_DATABASE`             | Database name (`postgres`)                                                                                                                        |
+| `RDS_DB_USER`              | Database master username                                                                                                                          |
+| `CONFIG_SECRET_ARN`        | Secrets Manager ARN for app config                                                                                                                |
+| `ALLOWED_FRONTEND_ORIGINS` | Comma-separated allowed origins                                                                                                                   |
+| `COGNITO_REDIRECT_URI`     | Set to `https://app.gitgazer.localhost:5173/api/auth/callback` so sign-in returns to the local backend (the config secret holds the deployed URL) |
 
 ### Optional HTTP Proxy Toggle
 
@@ -251,11 +240,12 @@ Keep this terminal open — the tunnel stays active until you press `Ctrl+C`.
 
 #### Options
 
-| Flag                | Default        | Description                                                |
-| ------------------- | -------------- | ---------------------------------------------------------- |
-| `--local-port PORT` | `5432`         | Local port to bind (use a different port if 5432 is taken) |
-| `--workspace NAME`  | `prod`         | Terraform workspace to target (e.g. `default`, `staging`)  |
-| `--region REGION`   | `eu-central-1` | AWS region override                                        |
+| Flag                | Default        | Description                                                   |
+| ------------------- | -------------- | ------------------------------------------------------------- |
+| `--local-port PORT` | `5432`         | Local port to bind (use a different port if 5432 is taken)    |
+| `--workspace NAME`  | `prod`         | Terraform workspace to target (e.g. `default`, `staging`)     |
+| `--direct`          | off            | Skip the RDS Proxy lookup and use the Aurora cluster endpoint |
+| `--region REGION`   | `eu-central-1` | AWS region override                                           |
 
 Example with a custom local port targeting the `default` workspace:
 
@@ -268,6 +258,7 @@ aws-vault exec <profile> --no-session -- pnpm run db:tunnel --workspace default 
 - **AWS CLI v2** installed and configured
 - **[Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)** installed
 - IAM permissions for `ssm:StartSession` and `ec2:DescribeInstances`
+- The bastion host deployed (`enable_bastion = true` in Terraform; default `false`)
 
 ### Connect to the Database
 
@@ -282,26 +273,32 @@ Or connect with any PostgreSQL client using `localhost:5432` and the credentials
 
 ### Manual Tunnel (Alternative)
 
-If you prefer to construct the command yourself, Terraform outputs the full SSM command:
+If you prefer to run the command yourself, this is what `db:tunnel` executes (look up the bastion instance ID and the RDS Proxy or cluster endpoint first):
 
 ```bash
-cd infra
-aws-vault exec <profile> -- terraform output bastion_ssm_port_forward_command
+aws ssm start-session \
+    --target <BASTION_INSTANCE_ID> \
+    --document-name AWS-StartPortForwardingSessionToRemoteHost \
+    --parameters '{"host":["<DB_ENDPOINT>"],"portNumber":["5432"],"localPortNumber":["5432"]}'
 ```
 
 ## Running Tests
 
 ```bash
-# Every project, from the repository root
+# Every backend project, from the repository root
 pnpm nx run-many -t test:unit
 
 # Or a single backend project
 cd apps/lambdas/api   # or worker, backfill-worker, websocket, org-sync-scheduler, http-proxy
 pnpm run test:unit
+
+# Frontend
+cd apps/web
+pnpm run test:run
 ```
 
 The backend suite is split across the Lambda apps under `apps/lambdas/` and the shared packages
-(`packages/backend-core`, `packages/backend-services`, `packages/github-import`), so running one
+(`packages/backend-core`, `packages/backend-services`, `packages/github-import`, `packages/db`), so running one
 project only covers that project.
 
 Tests use Vitest and mock all AWS services — they never call real APIs.
@@ -323,14 +320,14 @@ Tests use Vitest and mock all AWS services — they never call real APIs.
 ### Authentication Redirect Fails
 
 1. Confirm `app.gitgazer.localhost` is in your hosts file
-2. Verify Cognito has `https://app.gitgazer.localhost:5173` as an allowed callback URL
-3. Ensure `VITE_HOST_URL="https://app.gitgazer.localhost:5173"` in `.env.local`
+2. Verify Cognito has `https://app.gitgazer.localhost:5173/api/auth/callback` as an allowed callback URL
+3. For the local backend, check that `COGNITO_REDIRECT_URI` points to `https://app.gitgazer.localhost:5173/api/auth/callback`
 4. Clear all cookies and try again
 
 ### Backend Won't Start
 
 1. Verify AWS credentials: `aws-vault exec <profile> -- aws sts get-caller-identity`
-2. Check `.env` has the correct `AWS_REGION`
+2. Check `apps/lambdas/api/.env` has the correct `AWS_REGION`
 3. Ensure your IAM role has permissions for RDS, Secrets Manager, SQS, and KMS
 
 ### Port Already in Use

@@ -21,7 +21,9 @@ If you're already signed in, you'll be taken directly to the Overview page.
 
 ## First-Time Experience
 
-After signing in for the first time, you'll see an empty state prompting you to create your first integration. An integration connects GitGazer to a GitHub organization or user account — it's the starting point for everything.
+After signing in for the first time, GitGazer offers a short guided tour (**Welcome to GitGazer!**). Start it or skip it; you can restart it later from the help menu.
+
+If you don't belong to any integration yet, the **Integrations** page shows an empty state with **Create your first integration**. An integration connects GitGazer to a GitHub organization or user account — it's the starting point for everything. If a colleague invited you, or your GitHub organization is synced to an existing integration, you may already be a member of one.
 
 Follow the [Setting Up Integrations](integrations) guide to get started.
 
@@ -43,7 +45,7 @@ GitGazer uses a top navigation bar with these main sections:
 The header also gives you access to:
 
 - **Theme toggle** — switch between light, dark, and system themes.
-- **Guided tour** — restart or resume the interactive product tour at any time via the help menu.
+- **Help menu (?)** — restart or resume the interactive product tour, [connect an AI assistant](ai-assistants) to your GitGazer data, see the keyboard shortcuts, or open this documentation.
 - **Sign out** — ends your session and clears authentication cookies.
 
 ## What's Next

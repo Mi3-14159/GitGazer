@@ -118,7 +118,7 @@ pnpm run pretty
 - Webhook validation via `verifyGithubSign` middleware in `apps/lambdas/api/src/domains/webhooks/webhooks.middleware.ts`
 - GitHub events are enqueued by the api app and imported by `apps/lambdas/worker` via `@gitgazer/github-import`
 - Store job data in RDS Aurora PostgreSQL
-- Trigger notifications via Step Functions
+- Notifications are evaluated and sent by the worker (`@gitgazer/backend-services` alerting)
 
 ## Development Environment
 
@@ -126,7 +126,7 @@ pnpm run pretty
 
 - Requires AWS credentials configured
 - Use `aws-vault` for secure credential management
-- Create a repo-root `.env`; every app's dev script reads it
+- `dev:api` reads `apps/lambdas/api/.env`; `dev:worker` and `dev:backfill` read the repo-root `.env`
 - Start local server: `pnpm run dev:api` from `apps/lambdas/api`; it runs `src/index.ts`, the same HTTP
   server the Web Function runs, on `127.0.0.1:8080`
 
@@ -137,7 +137,7 @@ pnpm run pretty
 - `DB_POOL_MAX`: database pool size per process (default `1`)
 - `S3_*`: S3 bucket names
 - `COGNITO_*`: Cognito configuration
-- See the repo-root `.env` for the full list
+- See those `.env` files for the full list
 
 ## Deployment
 

@@ -16,7 +16,7 @@ sequenceDiagram
     participant SPA as Vue SPA
     participant Cognito as Cognito Hosted UI
     participant GitHub as GitHub OAuth
-    participant API as REST Lambda
+    participant API as api Lambda
     participant DB as Aurora PostgreSQL
 
     User->>SPA: Click "Sign in with GitHub"
@@ -91,11 +91,11 @@ Cognito maps GitHub profile attributes to user pool claims:
 
 GitGazer manages three tokens, all stored as httpOnly cookies:
 
-| Token             | Purpose                                                        | Lifetime                              |
-| ----------------- | -------------------------------------------------------------- | ------------------------------------- |
-| **Access token**  | Authorizes API requests. Verified on every request.            | Short-lived (Cognito default: 1 hour) |
-| **ID token**      | Contains user identity claims (email, name, github_id).        | Short-lived (matches access token)    |
-| **Refresh token** | Used to obtain new access/ID tokens without re-authentication. | Long-lived (Cognito default: 30 days) |
+| Token             | Purpose                                                        | Lifetime |
+| ----------------- | -------------------------------------------------------------- | -------- |
+| **Access token**  | Authorizes API requests. Verified on every request.            | 1 hour   |
+| **ID token**      | Contains user identity claims (email, name, github_id).        | 1 hour   |
+| **Refresh token** | Used to obtain new access/ID tokens without re-authentication. | 7 days   |
 
 ### Silent Refresh
 
@@ -149,13 +149,16 @@ For state-changing requests (`POST`, `PUT`, `DELETE`, `PATCH`) on non-public rou
 
 These route prefixes skip authentication because they have their own verification:
 
-| Prefix               | Reason                                                                     |
-| -------------------- | -------------------------------------------------------------------------- |
-| `/api/auth/callback` | OAuth callback — no cookies yet, uses authorization code                   |
-| `/api/auth/refresh`  | Token refresh — uses refresh token cookie directly                         |
-| `/api/auth/cognito/` | Cognito OIDC helper endpoints (token proxy, user info proxy)               |
-| `/api/import/`       | Integration webhooks — verified via HMAC signature (`X-Hub-Signature-256`) |
-| `/api/github/`       | GitHub App webhooks — verified via app-level HMAC signature                |
+| Prefix                                                                                         | Reason                                                                         |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `/api/auth/login`                                                                              | Sign-in start — no session yet, mints the signed `state`                       |
+| `/api/auth/callback`                                                                           | OAuth callback — no cookies yet, uses authorization code                       |
+| `/api/auth/refresh`                                                                            | Token refresh — uses refresh token cookie directly                             |
+| `/api/auth/cognito/`                                                                           | Cognito OIDC helper endpoints (token proxy, user info proxy)                   |
+| `/api/import/`                                                                                 | Integration webhooks — verified via HMAC signature (`X-Hub-Signature-256`)     |
+| `/api/github/`                                                                                 | GitHub App webhooks — verified via app-level HMAC signature                    |
+| `/api/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | MCP endpoint and OAuth proxy — Bearer token, see [MCP Server](./mcp-server.md) |
+| `/fe-failover/`                                                                                | Serves the web app's `index.html` as a fallback                                |
 
 Each domain declares its own `publicPrefixes` export, which are aggregated into a central registry.
 
@@ -178,67 +181,25 @@ Every user's membership in an integration has a role. Roles form a strict linear
 owner > admin > member > viewer
 ```
 
-| Role       | Description                                                                               |
-| ---------- | ----------------------------------------------------------------------------------------- |
-| **owner**  | Full control including destructive operations. One per integration (the creator).         |
-| **admin**  | Full management except integration deletion and ownership transfer.                       |
-| **member** | Day-to-day operational access. Can create/edit notification rules. Cannot manage members. |
-| **viewer** | Read-only access to all data within the integration scope.                                |
+| Role       | Description                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| **owner**  | Full control, including deleting the integration (the creator) and managing owners and admins. |
+| **admin**  | Manages members, invitations, apps, handles and the GitHub App; cannot touch owners or admins. |
+| **member** | Day-to-day use: creates and edits notification rules, sees pending invitations.                |
+| **viewer** | Read-only access to the integration's data.                                                    |
 
-### Permission Matrix
-
-#### Integration Management
-
-| Operation                          | Minimum Role                           |
-| ---------------------------------- | -------------------------------------- |
-| List integrations                  | viewer                                 |
-| Create integration                 | Any authenticated user (becomes owner) |
-| Rename integration                 | admin                                  |
-| Delete integration                 | owner                                  |
-| Rotate webhook secret              | admin                                  |
-| Link/unlink GitHub App             | admin                                  |
-| Update webhook event subscriptions | admin                                  |
-
-#### Members & Invitations
-
-| Operation                           | Minimum Role              |
-| ----------------------------------- | ------------------------- |
-| List members / invitations          | viewer                    |
-| Change member role                  | admin                     |
-| Remove member                       | admin                     |
-| Create / resend / revoke invitation | admin                     |
-| Accept invitation                   | Any authenticated user    |
-| Leave integration                   | Any member (except owner) |
-
-:::info[Additional constraints]
-
-- An **admin** cannot change another admin's role or remove them — only the **owner** can manage admins.
-- An **admin** cannot invite someone with the **owner** role.
-- The **owner** cannot be removed from an integration.
-  :::
-
-#### Notification Rules
-
-| Operation                                  | Minimum Role |
-| ------------------------------------------ | ------------ |
-| List notification rules                    | viewer       |
-| Create / update / delete notification rule | member       |
-
-#### Monitoring & Analytics
-
-| Operation                                    | Minimum Role |
-| -------------------------------------------- | ------------ |
-| View workflows, overview, metrics, event log | viewer       |
-| Toggle event log read status                 | viewer       |
+An integration can have several owners. The full permission matrix, the extra rules for managing owners and admins, and the database roles behind them are in [Roles & Permissions](./roles-and-permissions.md).
 
 ### `requireRole` Middleware
 
 Route handlers that need RBAC protection use the `requireRole` middleware, which:
 
 1. Extracts the `integrationId` from the route parameters.
-2. Looks up the user's role for that integration.
+2. Looks up the user's role for that integration, loaded by `addUserIntegrationsToCtx`.
 3. Compares the user's role against the required minimum role using the hierarchy.
-4. Returns HTTP 403 if the user's role is insufficient.
+4. Returns HTTP 403 if the user is not a member or the role is insufficient.
+
+Routes without an `integrationId` in the path (workflows, overview, metrics, event log, the notification list) skip `requireRole` and act on all the caller's integrations; row-level security limits the queries to them.
 
 ## WebSocket Authentication
 
