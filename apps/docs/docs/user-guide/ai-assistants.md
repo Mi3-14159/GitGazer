@@ -19,7 +19,7 @@ The assistant can only **read** your data. It cannot change settings, delete any
 - A GitGazer account that is a member of at least one [integration](./integrations.md).
 - Your GitGazer server URL. The MCP endpoint is your GitGazer web address with `/api/mcp` appended — for example `https://<your-gitgazer-domain>/api/mcp`.
 
-You sign in with the same GitHub account you use for the GitGazer web app. No API keys or tokens to copy — the first time you connect, your client opens a browser to sign in.
+You sign in with the same GitHub account you use for the GitGazer web app. No API keys or tokens to copy — the first time you connect, your client opens a browser to sign in. Only this sign-in works: a token taken from the web app is not accepted.
 
 :::tip Get your endpoint from the app
 In the GitGazer web app, open the **help menu (?) → Connect an AI assistant**. It shows your exact MCP endpoint and a copy-paste config for each client below, so you never have to assemble the URL by hand.
@@ -96,6 +96,7 @@ Each query "costs" the time it takes to run, drawn from a rolling ~1-hour budget
 
 ## Troubleshooting
 
+- **It asks me to sign in again after an update.** The MCP server now only accepts tokens issued for it, so connections set up before that change must sign in once more. In Claude Code, run `/mcp` and choose **Authenticate**; other clients open the browser on their own.
 - **It keeps asking me to sign in.** Confirm the URL is exactly `https://<your-gitgazer-domain>/api/mcp` and that you signed in with the GitHub account that has access to your integration.
 - **"relation does not exist".** GitHub tables live in the `github` schema and configuration views in `gitgazer`. Ask the assistant to qualify names (for example `github.workflow_runs` or `gitgazer.notification_rules_view`) or to call "list tables" first.
 - **"Query quota exceeded".** You've reached the hourly limit; wait for the reset time shown in the message.
