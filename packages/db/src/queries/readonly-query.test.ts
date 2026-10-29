@@ -31,7 +31,7 @@ const integrationRoles = {[A]: 'member' as const};
 const readMigration = (folder: string) =>
     readFileSync(join(__dirname, `../../drizzle/${folder}/migration.sql`), 'utf8')
         .split('--> statement-breakpoint')
-        .filter((statement) => !/^\s*(?:ALTER POLICY|DROP FUNCTION|CREATE VIEW|GRANT SELECT ON github\.)/.test(statement))
+        .filter((statement) => !/^\s*(?:ALTER POLICY|DROP FUNCTION|CREATE VIEW|GRANT SELECT ON github\.|REVOKE ALL ON github\.)/.test(statement))
         .join('\n');
 const migration = `${readMigration('20261029090000_mcp_signed_context').replace('public.gen_random_bytes(32)', `'\\x${'ab'.repeat(32)}'::bytea`)}
 ${readMigration('20261029120000_role_aware_views')}`;

@@ -150,6 +150,11 @@ describe('role-aware configuration views', () => {
         `);
         await db.exec(readMigration('20261029090000_mcp_signed_context'));
         await db.exec(baseTables);
+        // The prod defaults from 20260310163205, which apply to views as well.
+        await db.exec(`
+            ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_reader;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA github GRANT SELECT ON TABLES TO gitgazer_writer;
+        `);
         await db.exec(readMigration('20261029120000_role_aware_views'));
         await db.exec(seed);
         await db.exec('RESET ROLE');
@@ -298,6 +303,16 @@ describe('role-aware configuration views', () => {
             for (const row of rows) {
                 expect(row, row.relname).toMatchObject({can_select: true, can_write: false});
             }
+        });
+
+        it('grants each view to gitgazer_mcp only, besides its owner', async () => {
+            const {rows} = await db.query<{relname: string; grantees: string[]}>(
+                `SELECT c.relname, array_agg(DISTINCT pg_get_userbyid(acl.grantee)::text) AS grantees
+                 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace, aclexplode(c.relacl) AS acl
+                 WHERE n.nspname = 'github' AND c.relkind = 'v' AND acl.grantee <> c.relowner
+                 GROUP BY c.relname ORDER BY c.relname`,
+            );
+            expect(rows).toEqual([...allViews].sort().map((view) => ({relname: view, grantees: ['gitgazer_mcp']})));
         });
     });
 

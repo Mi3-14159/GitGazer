@@ -14,7 +14,7 @@ const migration = readMigration('20261029090000_mcp_signed_context').replaceAll(
 // The views of the new migration need the real tables; they are tested separately.
 const renameMigration = readMigration('20261029120000_role_aware_views')
     .split('--> statement-breakpoint')
-    .filter((statement) => !/^\s*(?:CREATE VIEW|GRANT SELECT ON github\.)/.test(statement))
+    .filter((statement) => !/^\s*(?:CREATE VIEW|GRANT SELECT ON github\.|REVOKE ALL ON github\.)/.test(statement))
     .join('\n');
 const policyUsing = new PgDialect().sqlToQuery(mcpTenantSeparationPolicy().using!).sql;
 const mcpTables = [

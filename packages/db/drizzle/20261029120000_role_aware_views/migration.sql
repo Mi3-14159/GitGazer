@@ -102,3 +102,5 @@ GRANT SELECT ON github.users TO gitgazer_mcp;
 CREATE VIEW "github"."webhook_handle_details" WITH (security_barrier = true) AS (SELECT integration_id, handle_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN url END AS url FROM gitgazer.webhook_handle_details WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.webhook_handle_details TO gitgazer_mcp;
+--> statement-breakpoint
+REVOKE ALL ON github.event_log_entries, github.integration_app_github_settings, github.integration_app_slack_settings, github.integration_apps, github.integration_invitations, github.notification_handles, github.notification_rule_destinations, github.notification_rules, github.slack_handle_details, github.slack_workspaces, github.user_assignments, github.users, github.webhook_handle_details FROM gitgazer_reader, gitgazer_writer;
