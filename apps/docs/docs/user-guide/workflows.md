@@ -29,7 +29,7 @@ The table displays one row per workflow run. Each row shows:
 
 ### Show or Hide Columns
 
-Click the **column chooser** button in the toolbar to toggle which columns are visible. The button shows how many columns are currently displayed.
+Click the **Columns** button in the toolbar to toggle which columns are visible. The button shows how many columns are currently displayed.
 
 ## Filtering
 
@@ -57,10 +57,10 @@ Filterable columns: Workflow, Repository, Branch, Status, Actor, Topics.
 Save your current filter and column configuration as a named view:
 
 1. Set up your desired filters and column visibility.
-2. Click **Save as new view** in the toolbar.
-3. Give it a name (e.g., "Failed runs on main branch").
+2. Open the view selector in the toolbar (it shows the current view's name) and click **Save as new view**.
+3. Give it a name (e.g., "Failed runs on main branch") and click **Save View**.
 
-Switch between saved views using the view selector in the toolbar. You can update or delete custom views at any time.
+Switch between saved views using the view selector. To update a custom view with your current changes, click the save button next to the selector; to delete one, click its trash icon in the selector. Saved views are stored in your browser, so they don't follow you to another browser or device.
 
 ## Viewing Run Details
 
@@ -103,4 +103,4 @@ The table loads workflows in pages. As you scroll down, more runs load automatic
 
 - **Loading more workflows...** — fetching the next page
 - **x of y workflows loaded** — current progress
-- **No workflows match current filters** — when filters exclude all results
+- **No workflows match the current filters** — when filters exclude all results

@@ -26,7 +26,7 @@ GitGazer immediately starts receiving webhook events from your selected reposito
 
 The dialog also lets you link the installation to another integration that has the GitHub app and no linked installation, or create a new integration for it.
 
-Only the GitHub user who installed the GitHub App can link the installation. For an installation on a personal account, the account owner can link it too.
+Only the GitHub user who installed the GitHub App can link the installation. For an installation on a personal account, the account owner can link it too. Linking to an existing integration also requires the **admin** role or higher in it; when you create a new integration from the dialog, you become its owner.
 
 ### Option B: Manual Webhook
 
@@ -67,7 +67,7 @@ New integrations include the GitHub app automatically. Open an app to see and ch
 
 :::info[Who can see what]
 
-Everyone in the integration can see the installed apps and the names of webhook handles. Only **admins** and **owners** can see secrets and webhook URLs, and install or remove apps and manage handles.
+Everyone in the integration can see the installed apps, the GitHub app's webhook URL, and the names of handles. Only **admins** and **owners** can see the webhook secret and the Slack webhook URLs of Webhook handles, and install or remove apps and manage handles. See [Roles & Permissions](../technical/roles-and-permissions.md) for the full list.
 
 :::
 
@@ -81,13 +81,13 @@ Open the **GitHub** app to manage how GitGazer receives data from GitHub.
 - **View the secret** by clicking the eye icon. Click again to hide it.
 - **Copy the secret** using the copy button.
 
-_Visible to **admin** role or higher._
+_The webhook URL is visible to everyone in the integration. The secret is visible to **admin** role or higher; other members see that it is hidden._
 
 ### Rotate Webhook Secret
 
 If a secret is compromised, rotate it:
 
-1. Click the **rotate** button next to the secret.
+1. Click **Rotate** next to the secret.
 2. Confirm in the dialog — this action is permanent.
 3. Copy the new secret and update it in your GitHub webhook settings.
 
@@ -106,9 +106,9 @@ Control which GitHub event types GitGazer receives:
 | `pull_request`        | Pull request opens, closes, merges, and updates      |
 | `pull_request_review` | Review submissions and state changes                 |
 
-Click the webhook events section to toggle event types on or off.
+The events are listed per linked installation. Click **Edit** (or one of the event badges), toggle event types on or off, and click **Save**.
 
-All event types are subscribed by default when an installation is linked.
+All event types are subscribed when an installation is linked.
 
 _Requires **admin** role or higher._
 
@@ -118,7 +118,7 @@ When GitHub organization members are auto-synced to GitGazer, they receive a def
 
 - **Viewer** — read-only access (default)
 - **Member** — can create notification rules
-- **Admin** — full management access
+- **Admin** — full access except deleting the integration
 
 _Requires **admin** role or higher._
 
@@ -128,16 +128,16 @@ If no installation is linked yet, click **Install on GitHub** in the GitHub app.
 
 To disconnect an installation from the integration:
 
-1. Click the **unlink** button next to the installation.
+1. Click **Unlink** next to the installation.
 2. Confirm in the dialog.
 
-This removes the link in GitGazer but does **not** uninstall the GitHub App from your GitHub account.
+This removes the link in GitGazer and the webhooks GitGazer created for that installation, but does **not** uninstall the GitHub App from your GitHub account.
 
 _Requires **admin** role or higher._
 
 ### Remove the GitHub App
 
-Click **Remove GitHub app** at the bottom of the GitHub app and confirm. GitGazer stops receiving new data for the integration and the webhook URL and secret stop working. Everything already collected — workflow runs, jobs, pull requests, and members — is kept. Installing the app again creates a new secret.
+Click **Remove GitHub app** at the bottom of the GitHub app and confirm. GitGazer unlinks every GitHub App installation, removes the webhooks it created, and stops receiving new data for the integration; the webhook URL and secret stop working. Everything already collected — workflow runs, jobs, pull requests, and members — is kept. Installing the app again creates a new secret.
 
 _Requires **admin** role or higher._
 
@@ -150,7 +150,7 @@ The **Webhook** app holds **handles**. A handle is a name plus a Slack incoming 
 1. Open the **Webhook** app on the **Apps** tab. If it isn't installed yet, install it from the catalog.
 2. Click **Add handle**.
 3. Enter a **Name** (e.g., `#ci-alerts`) and the **Slack webhook URL**.
-4. Save.
+4. Click **Add handle**.
 
 An app holds up to 20 handles. To get a Slack webhook URL, see [Setting Up a Slack Webhook](notifications#setting-up-a-slack-webhook).
 
@@ -170,21 +170,21 @@ Open the **Settings** tab of an integration to manage the integration itself.
 
 ### Rename an Integration
 
-Edit the label and save.
+Edit the **Name** field and click **Rename**.
 
 _Requires **admin** role or higher._
 
 ### Delete an Integration
 
-1. Click **delete** in the **Settings** tab.
+1. Click **Delete** in the **Settings** tab.
 2. Type the exact integration label to confirm.
 3. Click **Delete Integration**.
 
-_Requires **owner** role. This action is permanent and removes all associated data._
+_Requires **owner** role, and only the owner who created the integration can delete it. This action is permanent and removes all associated data._
 
 ### Leave an Integration
 
-If you no longer need access, click **Leave** in the **Settings** tab. You'll need an admin to re-invite you if you want access again.
+If you no longer need access, click **Leave** in the **Settings** tab and confirm with **Leave Integration**. To rejoin, an admin has to send you a new invitation.
 
 _Available to all members except the owner._
 

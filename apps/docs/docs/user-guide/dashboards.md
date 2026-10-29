@@ -42,7 +42,7 @@ Use the date/time picker to set the analysis window:
 - **Custom range**: Set specific From and To date/time values
 
 :::info[A date range is required]
-Widgets only load once a date range is set. Periods with no activity are zero-filled, so the time series stays continuous instead of showing gaps.
+The range defaults to **Past 7 days**. Widgets only load while a date range is set, so clearing the picker leaves them empty. Periods with no activity are zero-filled, so the time series stays continuous instead of showing gaps.
 :::
 
 ## Filters

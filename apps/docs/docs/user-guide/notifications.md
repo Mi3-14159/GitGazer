@@ -27,15 +27,15 @@ Alerts fire only for **completed job failures** — not for runs that are in pro
 2. Click **Add Rule**.
 3. Fill in the form:
 
-| Field           | Required | Description                                                                      |
-| --------------- | -------- | -------------------------------------------------------------------------------- |
-| **Label**       | Yes      | A name for this rule (max 100 characters)                                        |
-| **Integration** | Yes      | Which integration this rule applies to                                           |
-| **Destination** | Yes      | The **App** and **Handle** to send alerts to (see [Destinations](#destinations)) |
-| **Enabled**     | —        | Toggle the rule on or off (default: enabled)                                     |
+| Field           | Required | Description                                                                       |
+| --------------- | -------- | --------------------------------------------------------------------------------- |
+| **Label**       | Yes      | A name for this rule (max 100 characters)                                         |
+| **Integration** | Yes      | Which integration this rule applies to                                            |
+| **Destination** | Yes      | The **App** and **Handle** to send alerts to (see [Destinations](#destinations))  |
+| **Enabled**     | —        | Toggle the rule on or off (off by default; switch it on so the rule sends alerts) |
 
-1. Optionally, set filter criteria to narrow when the rule fires (see [Filter Criteria](#filter-criteria) below).
-2. Click **Save**.
+4. Optionally, set filter criteria to narrow when the rule fires (see [Filter Criteria](#filter-criteria) below).
+5. Click **Save**.
 
 The new rule appears as a card on the Notifications page.
 
@@ -54,7 +54,7 @@ When several matching rules share a handle, Slack gets **one message per failed 
 
 ## Filter Criteria
 
-All filter fields are optional. Leaving a field blank means "match any value" for that criterion. Only events matching **all** specified criteria trigger the alert.
+All filter fields are optional. Leaving a field blank means "match any value" for that criterion. Only events matching **all** specified criteria trigger the alert. Text filters match the exact value; wildcards such as `feature/*` are not supported.
 
 | Filter                | Description                                                              | Example                |
 | --------------------- | ------------------------------------------------------------------------ | ---------------------- |
@@ -108,15 +108,16 @@ Click the **delete** button on the rule card and confirm in the dialog. This is 
 Each rule card shows:
 
 - Rule label and integration
-- Enabled/Disabled badge
-- Channel type (Slack)
+- **Enabled**/**Disabled** badge
+- A **Filtered** badge if any filter criteria are set
 - A **No destination** badge if the rule has no handle
+- The name of the handle the rule sends to
 - Active filter badges showing which criteria are set
 - Created and last updated timestamps
 
 ## Permissions
 
-Creating, editing, and deleting notification rules requires the **member** role or higher on the integration. Viewers can see existing rules but cannot modify them. Adding handles requires the **admin** role.
+Creating, editing, enabling or disabling, and deleting notification rules requires the **member** role or higher on the integration. Viewers can see existing rules but cannot modify them. Adding handles requires the **admin** role. See [Roles & Permissions](../technical/roles-and-permissions.md) for the full list.
 
 If you don't see the **Add Rule** button, ask an integration admin to upgrade your role. See [Managing Team Members](team-management) for details.
 
