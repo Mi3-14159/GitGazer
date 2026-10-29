@@ -49,6 +49,8 @@ cd packages/db   # drizzle-kit always runs from here (drizzle.config.ts + the dr
 #    - app data       → packages/db/src/schema/gitgazer.ts
 #    Add an entry to packages/db/src/schema/relations.ts (ONE central defineRelations()
 #    call) if the table is queried with `.with`, + export the type if other code consumes it.
+#    Describe every new github table and every new view in packages/db/src/schema/descriptions.ts
+#    (plus any column whose meaning isn't obvious); never write COMMENT ON in a migration.
 
 # 2. Generate the migration (diffs schema → SQL in packages/db/drizzle/)
 npx drizzle-kit generate
@@ -60,8 +62,9 @@ npx drizzle-kit generate
 #    and NO stray GRANT statements (grants are inherited).
 
 # 4. Apply (needs DB access — IAM auth token via aws rds generate-db-auth-token,
-#    RDS_* vars loaded from ENV_FILE; use aws-vault for credentials)
-npx drizzle-kit migrate
+#    RDS_* vars loaded from ENV_FILE; use aws-vault for credentials).
+#    Not `drizzle-kit migrate`: only the runner re-applies the descriptions afterwards.
+pnpm run migrate
 
 # Optional: inspect with the GUI
 npx drizzle-kit studio
@@ -83,6 +86,7 @@ Then edit the new file under `packages/db/drizzle/`. Separate statements with `-
 - [ ] Tenant table has `integrationId` FK (`onDelete: 'cascade'`) + composite PK with `integrationId` first
 - [ ] `writerTenantSeparationPolicy()` + `readerTenantSeparationPolicy()` attached and `.enableRLS()` called
 - [ ] `mcpTenantSeparationPolicy()` / `mcpRolePolicy(minimumRole)` added only if the MCP server should expose the table, together with an explicit `GRANT SELECT ... TO gitgazer_mcp`
+- [ ] github table or view described in `packages/db/src/schema/descriptions.ts`
 - [ ] Relation added to `packages/db/src/schema/relations.ts` if the table is queried with `.with`
 - [ ] Generated SQL reviewed; no manual GRANTs for new tables apart from the `gitgazer_mcp` grant above
 - [ ] Indexes are prefixed with `integrationId` for tenant-scoped lookups
