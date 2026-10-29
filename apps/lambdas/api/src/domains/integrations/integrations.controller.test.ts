@@ -1,5 +1,17 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+const mockEq = vi.fn();
+vi.mock('drizzle-orm', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('drizzle-orm')>();
+    return {
+        ...actual,
+        eq: (...args: Parameters<typeof actual.eq>) => {
+            mockEq(...args);
+            return actual.eq(...args);
+        },
+    };
+});
+
 const mockWithRlsTransaction = vi.fn();
 
 const mockTransaction = vi.fn();
@@ -33,7 +45,7 @@ vi.mock('@gitgazer/db/schema/app', () => ({
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubAppWebhooks: Symbol('githubAppWebhooks'),
-    integrations: Symbol('integrations'),
+    integrations: {integrationId: Symbol('integrations.integrationId'), ownerId: Symbol('integrations.ownerId')},
     userAssignments: Symbol('userAssignments'),
 }));
 
@@ -260,6 +272,16 @@ describe('integrations controller', () => {
 
             expect(order).toEqual(['team', 'delete', 'release']);
             expect(mockReleaseWorkspaceIfUnused).toHaveBeenCalledWith('int-1', 'T1');
+        });
+
+        it('lets any owner delete, not only the creator', async () => {
+            const {integrations} = await import('@gitgazer/db/schema/github/workflows');
+            mockFindSlackTeamId.mockResolvedValue(undefined);
+
+            await controller.deleteIntegration('int-1', ['int-1'], 7);
+
+            expect(mockEq).toHaveBeenCalledWith(integrations.integrationId, 'int-1');
+            expect(mockEq).not.toHaveBeenCalledWith(integrations.ownerId, 7);
         });
 
         it('releases nothing without a Slack app', async () => {
