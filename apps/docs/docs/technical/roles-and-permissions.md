@@ -45,12 +45,12 @@ flowchart LR
 
 The ranks live in `ROLE_RANK` (`packages/db/src/types/members.ts`); `hasRole(userRole, requiredRole)` compares them. The API and the web app use the same function.
 
-| Role       | Meant for                                                                   |
-| ---------- | --------------------------------------------------------------------------- |
-| **owner**  | Whoever created the integration. Everything, including deleting it.         |
-| **admin**  | Managing the integration: members, invitations, apps, handles, GitHub App.  |
-| **member** | Day-to-day use: notification rules, seeing pending invitations.             |
-| **viewer** | Read-only: workflows, dashboards, event log, members, apps and their rules. |
+| Role       | Meant for                                                                    |
+| ---------- | ---------------------------------------------------------------------------- |
+| **owner**  | Everything, including deleting the integration. The creator starts as owner. |
+| **admin**  | Managing the integration: members, invitations, apps, handles, GitHub App.   |
+| **member** | Day-to-day use: notification rules, seeing pending invitations.              |
+| **viewer** | Read-only: workflows, dashboards, event log, members, apps and their rules.  |
 
 A user gets a role by:
 
@@ -70,7 +70,7 @@ Routes without an `integrationId` in the path do not use `requireRole`. They act
 | Integrations  | List your integrations (with your role)                | `GET /api/integrations`                                                                                                      | any membership                                      |
 |               | Create an integration                                  | `POST /api/integrations`                                                                                                     | signed in (becomes owner)                           |
 |               | Rename                                                 | `PUT /api/integrations/:integrationId`                                                                                       | admin                                               |
-|               | Delete                                                 | `DELETE /api/integrations/:integrationId`                                                                                    | owner, and only the creator (see below)             |
+|               | Delete                                                 | `DELETE /api/integrations/:integrationId`                                                                                    | owner                                               |
 |               | Rotate the webhook secret                              | `POST /api/integrations/:integrationId/rotate-secret`                                                                        | admin                                               |
 |               | Link / unlink a GitHub App installation                | `POST /api/integrations/:integrationId/github-app`, `DELETE …/github-app/:installationId`                                    | admin                                               |
 |               | Change the GitHub App webhook events                   | `PATCH /api/integrations/:integrationId/github-app/:installationId/events`                                                   | admin                                               |
@@ -112,8 +112,6 @@ The Slack install callback (`/api/slack/oauth/callback`) checks for admin itself
 ### Several owners and ownership transfer
 
 An integration can have more than one owner: an owner can promote anyone to owner. The API also lets an owner change another owner's role, so a handover is: promote the new owner, the new owner changes the old owner's role, the old owner leaves. The web app does not offer the middle step: its member card has no role menu for owners.
-
-Deleting is tied to the creator, not just the role: the delete removes the integration only where `github.integrations.owner_id` is the caller. An owner who did not create the integration passes the role check, but the integration is not deleted.
 
 ### Data that depends on the role
 

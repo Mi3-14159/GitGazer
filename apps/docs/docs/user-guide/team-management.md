@@ -96,12 +96,6 @@ Once you leave, you'll need an admin to re-invite you if you want access again.
 
 An **owner** cannot leave. An owner can promote another member to owner, so an integration can have several owners, but the web app offers no way to change an owner's role, so an owner stays an owner.
 
-:::caution[Deleting after a handover]
-
-Only the owner who created the integration can delete it. An owner who was promoted later cannot.
-
-:::
-
 ## Manage Pending Invitations
 
 Members can see pending invitations; managing them _requires **admin** role or higher._

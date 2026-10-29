@@ -183,7 +183,7 @@ owner > admin > member > viewer
 
 | Role       | Description                                                                                    |
 | ---------- | ---------------------------------------------------------------------------------------------- |
-| **owner**  | Full control, including deleting the integration (the creator) and managing owners and admins. |
+| **owner**  | Full control, including deleting the integration and managing owners and admins.               |
 | **admin**  | Manages members, invitations, apps, handles and the GitHub App; cannot touch owners or admins. |
 | **member** | Day-to-day use: creates and edits notification rules, sees pending invitations.                |
 | **viewer** | Read-only access to the integration's data.                                                    |
