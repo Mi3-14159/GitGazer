@@ -21,8 +21,9 @@ const router = new Hono<AppEnv>();
 router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
+    const callerRole = c.var.appContext?.integrationRoles?.[integrationId];
 
-    const members = await getMembers({integrationId, integrationIds});
+    const members = await getMembers({integrationId, integrationIds, canSeeEmails: callerRole !== undefined && hasRole(callerRole, 'admin')});
 
     return new Response(JSON.stringify(members), {
         status: HttpStatusCodes.OK,
@@ -101,9 +102,16 @@ router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx,
 
     const invitations = await getInvitations({integrationId, integrationIds});
 
-    // Only admins+ can see invite tokens (needed for copy-link and resend actions)
-    const canSeeTokens = callerRole && hasRole(callerRole, 'admin');
-    const result = canSeeTokens ? invitations : invitations.map(({inviteToken: _token, ...rest}) => rest);
+    // Only admins+ can see invite tokens (needed for copy-link and resend actions) and emails
+    const isAdmin = callerRole && hasRole(callerRole, 'admin');
+    const result = isAdmin
+        ? invitations
+        : invitations.map(({inviteToken: _token, ...rest}) => ({
+              ...rest,
+              email: null,
+              invitedByUser: rest.invitedByUser && {...rest.invitedByUser, email: null},
+              invitee: rest.invitee && {...rest.invitee, email: null},
+          }));
 
     return new Response(JSON.stringify(result), {
         status: HttpStatusCodes.OK,

@@ -31,6 +31,8 @@ import {
 import {integrations, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
+// No role but its owner has USAGE here, so a lost ACL on the sign function still leaves it unreachable.
+export const gitgazerInternalSchema = pgSchema('gitgazer_internal');
 
 export const users = gitgazerSchema.table('users', {
     id: bigint('id', {mode: 'number'}).primaryKey().notNull().generatedAlwaysAsIdentity(),
@@ -58,9 +60,9 @@ export const mcpQueryUsage = gitgazerSchema.table(
     (table) => [primaryKey({columns: [table.userId, table.windowStart]})],
 );
 
-// Signs the MCP tenant context. Readable only by its owner: migration 20261029090000_mcp_signed_context revokes the
+// Signs the tenant context. Readable only by its owner: migration 20261029090000_mcp_signed_context revokes the
 // default grants and inserts the key row, which Drizzle cannot express.
-export const mcpContextKey = gitgazerSchema.table('mcp_context_key', {
+export const contextKey = gitgazerInternalSchema.table('context_key', {
     id: smallint('id').primaryKey(),
     key: bytea('key').notNull(),
 });

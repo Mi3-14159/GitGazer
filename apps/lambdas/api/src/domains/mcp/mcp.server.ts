@@ -3,8 +3,10 @@ import {McpServer} from '@modelcontextprotocol/server';
 
 const INSTRUCTIONS = [
     'Query your GitHub Actions and pull-request data with run_sql (a single read-only SELECT or WITH).',
-    'Every table lives in the "github" schema, and "user" is a reserved word that must be double-quoted.',
+    'The GitHub tables live in the "github" schema, and "user" is a reserved word that must be double-quoted.',
     'Rows are multi-tenant and ids are only unique per integration, so every join must match on integration_id as well as the id column.',
+    'Configuration views (gitgazer.integration_apps_view, gitgazer.notification_rules_view, github.user_assignments_view and others) show only what your role in each integration allows; columns you may not see are NULL.',
+    'gitgazer.users_view and gitgazer.slack_workspaces_view are global with no integration_id; gitgazer.users_view holds GitGazer users and github."user" holds GitHub actors.',
 ].join(' ');
 
 export const createMcpServer = (): McpServer => {

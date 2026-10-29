@@ -44,9 +44,16 @@ export const registerMcpTools = (server: McpServer): void => {
         'run_sql',
         {
             description:
-                'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data in the "github" schema: ' +
+                'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data. Schema-qualify every table and view name. ' +
+                'Tables in the "github" schema: ' +
                 'workflow_runs, workflow_jobs, workflow_run_pull_requests, pull_requests, repositories, organizations, ' +
-                'enterprises, "user", and integrations. Tenant isolation, a row cap, a 128 KB result size limit and a statement ' +
+                'enterprises, pull_request_reviews, "user", and integrations. Configuration views: ' +
+                'gitgazer.integration_apps_view, gitgazer.integration_app_github_settings_view, gitgazer.integration_app_slack_settings_view, ' +
+                'gitgazer.notification_handles_view, gitgazer.webhook_handle_details_view, gitgazer.slack_handle_details_view, ' +
+                'gitgazer.notification_rules_view, gitgazer.notification_rule_destinations_view, gitgazer.integration_invitations_view, ' +
+                'gitgazer.event_log_entries_view, gitgazer.users_view, gitgazer.slack_workspaces_view, and github.user_assignments_view. ' +
+                'Configuration views show only what your role in each integration ' +
+                'allows; columns you may not see are NULL. Tenant isolation, a row cap, a 128 KB result size limit and a statement ' +
                 'timeout are enforced automatically; truncated: true means rows were dropped. Use list_tables and ' +
                 'describe_table to explore what is available.',
             inputSchema: z.object({
@@ -85,7 +92,7 @@ export const registerMcpTools = (server: McpServer): void => {
         },
         toolHandler('list_tables', (_args, {integrationRoles}) =>
             runReadOnlyQuery({
-                sql: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'github' ORDER BY table_name",
+                sql: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('github', 'gitgazer') ORDER BY table_name",
                 integrationRoles,
             }),
         ),
@@ -101,13 +108,13 @@ export const registerMcpTools = (server: McpServer): void => {
                 table: z
                     .string()
                     .regex(/^[A-Za-z0-9_]+$/)
-                    .describe('Unqualified table name, e.g. workflow_runs.'),
+                    .describe('Unqualified table or view name, e.g. workflow_runs or users_view.'),
             }),
             annotations: {readOnlyHint: true},
         },
         toolHandler('describe_table', ({table}, {integrationRoles}) =>
             runReadOnlyQuery({
-                sql: `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'github' AND table_name = '${table}' ORDER BY ordinal_position`,
+                sql: `SELECT table_schema, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
                 integrationRoles,
             }),
         ),

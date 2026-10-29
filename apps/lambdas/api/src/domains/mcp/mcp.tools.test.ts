@@ -102,12 +102,15 @@ describe('mcp tools', () => {
     it('list_tables introspects information_schema without consuming budget', async () => {
         await callTool('list_tables');
         expect(lastSql()).toContain('information_schema.tables');
+        expect(lastSql()).toContain("table_schema IN ('github', 'gitgazer')");
         expect(quota.reserveQueryBudget).not.toHaveBeenCalled();
         expect(quota.chargeQueryBudget).not.toHaveBeenCalled();
     });
 
     it('describe_table embeds a validated identifier', async () => {
         await callTool('describe_table', {table: 'workflow_runs'});
+        expect(lastSql()).toContain('SELECT table_schema, column_name, data_type, is_nullable');
+        expect(lastSql()).toContain("table_schema IN ('github', 'gitgazer')");
         expect(lastSql()).toContain("table_name = 'workflow_runs'");
     });
 
@@ -124,9 +127,9 @@ describe('mcp tools', () => {
     it('does not echo a failure to sign the tenant context, even one caused by a permission error', async () => {
         const {DrizzleQueryError} = await import('drizzle-orm/errors');
         const denied = new DrizzleQueryError(
-            'SELECT gitgazer.mcp_sign_context($1, $2::integer, $3::bigint) AS signature',
+            'SELECT gitgazer_internal.sign_context($1, $2::integer, $3::bigint) AS signature',
             [`${ID_A}:viewer`, 4242, '1793000000123456'],
-            Object.assign(new Error('permission denied for function mcp_sign_context'), {code: '42501'}),
+            Object.assign(new Error('permission denied for function sign_context'), {code: '42501'}),
         );
         // Stands in for McpContextError, which the mocked queries module does not export.
         const signingFailure = Object.assign(new Error('Could not sign the MCP tenant context'), {cause: denied});
@@ -140,7 +143,7 @@ describe('mcp tools', () => {
         const denied = new DrizzleQueryError(
             'WITH _mcp AS (SELECT * FROM (SELECT * FROM gitgazer.users) AS _mcp_inner LIMIT $1) SELECT * FROM _mcp',
             [101],
-            Object.assign(new Error('permission denied for schema gitgazer'), {code: '42501'}),
+            Object.assign(new Error('permission denied for table users'), {code: '42501'}),
         );
         asMock(readonly.runReadOnlyQuery).mockRejectedValue(denied);
 

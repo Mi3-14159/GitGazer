@@ -11,7 +11,7 @@ describe('mcpTenantSeparationPolicy', () => {
         expect(policy.to).toBe(gitgazerMcp);
         expect(policy.for).toBe('select');
         const using = render(policy);
-        expect(using).toContain('(SELECT github.mcp_integration_ids())::uuid[]');
+        expect(using).toContain('(SELECT github.integration_ids())::uuid[]');
         expect(using).not.toContain('mcp_has_role');
     });
 });
@@ -22,7 +22,7 @@ describe('mcpRolePolicy', () => {
         expect(policy.to).toBe(gitgazerMcp);
         expect(policy.for).toBe('select');
         const using = render(policy);
-        expect(using).toContain("(SELECT github.mcp_integration_ids('admin'))::uuid[]");
+        expect(using).toContain("(SELECT github.integration_ids('admin'))::uuid[]");
         expect(using).not.toContain('mcp_has_role');
     });
 });

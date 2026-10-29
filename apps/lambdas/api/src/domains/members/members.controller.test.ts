@@ -19,6 +19,9 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
     slackUserLinks: Symbol('slackUserLinks'),
 }));
 
+// The views are built from the real tables at import time, which the stand-ins above can't do.
+vi.mock('@gitgazer/db/schema/views', () => ({}));
+
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     userAssignments: Symbol('userAssignments'),
     integrations: Symbol('integrations'),
@@ -92,7 +95,9 @@ describe('members controller', () => {
 
     describe('getMembers', () => {
         it('throws ForbiddenError when integration is not accessible', async () => {
-            await expect(controller.getMembers({integrationId: 'int-1', integrationIds: ['int-2']})).rejects.toThrow('Integration not accessible');
+            await expect(controller.getMembers({integrationId: 'int-1', integrationIds: ['int-2'], canSeeEmails: true})).rejects.toThrow(
+                'Integration not accessible',
+            );
             expect(mockWithRlsTransaction).not.toHaveBeenCalled();
         });
 
@@ -128,7 +133,7 @@ describe('members controller', () => {
 
             mockWithRlsTransaction.mockImplementation(async (params) => params.callback(membersTx(mockResult, [])));
 
-            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1']});
+            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: true});
 
             expect(result).toEqual([
                 {
@@ -164,6 +169,22 @@ describe('members controller', () => {
             expect(mockDbSelect).not.toHaveBeenCalled();
         });
 
+        it('nulls every member email when the caller may not see emails', async () => {
+            const members = [1, 2].map((userId) => ({
+                userId,
+                role: 'member',
+                createdAt: new Date('2024-01-15'),
+                integrationId: 'int-1',
+                user: {id: userId, email: `u${userId}@example.com`, name: `User ${userId}`, picture: null},
+            }));
+            mockWithRlsTransaction.mockImplementation(async (params) => params.callback(membersTx(members, [])));
+
+            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: false});
+
+            expect(result.map((m) => m.user.email)).toEqual([null, null]);
+            expect(result.map((m) => m.user.name)).toEqual(['User 1', 'User 2']);
+        });
+
         it('members list marks linked members and never returns Slack IDs', async () => {
             const members = [1, 2, 3].map((userId) => ({
                 userId,
@@ -182,7 +203,7 @@ describe('members controller', () => {
             const links = masterLinks([{githubUserId: 202}]);
             const {slackUserLinks} = await import('@gitgazer/db/schema/gitgazer');
 
-            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1']});
+            const result = await controller.getMembers({integrationId: 'int-1', integrationIds: ['int-1'], canSeeEmails: true});
 
             expect(result.map((m) => [m.userId, m.slackLinked])).toEqual([
                 [1, false],

@@ -77,7 +77,7 @@
             members.value = apiMembers.map((m) => ({
                 id: String(m.userId),
                 email: m.user.email ?? '',
-                name: m.user.name ?? m.user.email ?? 'Unknown',
+                name: m.user.name ?? m.user.email ?? m.user.githubLogin ?? 'Unknown',
                 nickname: m.user.githubLogin ?? undefined,
                 avatar: m.user.picture ?? undefined,
                 role: m.role as UserRole,
@@ -159,7 +159,10 @@
         if (!search.value) return invitations.value;
         const q = search.value.toLowerCase();
         return invitations.value.filter(
-            (i) => i.email?.toLowerCase().includes(q) || i.invitedBy.toLowerCase().includes(q) || (!i.email && 'link-only invitation'.includes(q)),
+            (i) =>
+                i.email?.toLowerCase().includes(q) ||
+                i.invitedBy.toLowerCase().includes(q) ||
+                (canManageMembers.value && !i.email && 'link-only invitation'.includes(q)),
         );
     });
 

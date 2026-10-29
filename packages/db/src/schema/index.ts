@@ -1,3 +1,4 @@
 export * from './app';
 export * from './gitgazer';
 export * from './github';
+export * from './views';

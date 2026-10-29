@@ -28,7 +28,7 @@ export const mcpTenantSeparationPolicy = () =>
         as: 'permissive',
         to: gitgazerMcp,
         for: 'select',
-        using: sql`integration_id = ANY ((SELECT github.mcp_integration_ids())::uuid[])`,
+        using: sql`integration_id = ANY ((SELECT github.integration_ids())::uuid[])`,
     });
 
 export const mcpRolePolicy = (minimumRole: MemberRole) =>
@@ -36,5 +36,5 @@ export const mcpRolePolicy = (minimumRole: MemberRole) =>
         as: 'permissive',
         to: gitgazerMcp,
         for: 'select',
-        using: sql`integration_id = ANY ((SELECT github.mcp_integration_ids(${sql.raw(`'${minimumRole}'`)}))::uuid[])`,
+        using: sql`integration_id = ANY ((SELECT github.integration_ids(${sql.raw(`'${minimumRole}'`)}))::uuid[])`,
     });

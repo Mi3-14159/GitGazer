@@ -28,11 +28,13 @@ const B = '22222222-2222-2222-2222-222222222222';
 const integrationRoles = {[A]: 'member' as const};
 
 // The app and the MCP connection are separate databases here, so both get the same fixed key instead of a random one.
-const migration = readFileSync(join(__dirname, '../../drizzle/20261029090000_mcp_signed_context/migration.sql'), 'utf8')
-    .split('--> statement-breakpoint')
-    .filter((statement) => !/^\s*(?:ALTER POLICY|DROP FUNCTION)/.test(statement))
-    .join('\n')
-    .replace('public.gen_random_bytes(32)', `'\\x${'ab'.repeat(32)}'::bytea`);
+const readMigration = (folder: string) =>
+    readFileSync(join(__dirname, `../../drizzle/${folder}/migration.sql`), 'utf8')
+        .split('--> statement-breakpoint')
+        .filter((statement) => !/^\s*(?:ALTER POLICY|DROP FUNCTION|CREATE VIEW|(?:GRANT SELECT|REVOKE ALL) ON \w+\.\w+_view\b)/.test(statement))
+        .join('\n');
+const migration = `${readMigration('20261029090000_mcp_signed_context').replace('public.gen_random_bytes(32)', `'\\x${'ab'.repeat(32)}'::bytea`)}
+${readMigration('20261029120000_role_aware_views')}`;
 
 const setUp = async (pg: PGlite) => {
     await pg.exec(`
