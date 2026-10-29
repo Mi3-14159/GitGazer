@@ -182,7 +182,7 @@ To open a table with a role requirement:
 
 Always call `github.integration_ids` through a sub-select as above, so the signature is verified once per protected table in the query, not once per row.
 
-The configuration views in [Queryable data](#queryable-data) use the column gate. They are defined in `packages/db/src/schema/github/views.ts`, and the migration grants `gitgazer_mcp` `SELECT` on them and revokes the default reader and writer grants that new `github` tables get. No table uses a row gate yet.
+The configuration views in [Queryable data](#queryable-data) use the column gate. They are defined in `packages/db/src/schema/views.ts`, and the migration grants `gitgazer_mcp` `SELECT` on them and revokes the default reader and writer grants that new `github` tables get. No table uses a row gate yet.
 
 ## Limits and budget
 

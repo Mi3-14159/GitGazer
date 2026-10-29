@@ -51,55 +51,55 @@ AS $$
     WHERE caller.rank <= required.rank
 $$;
 --> statement-breakpoint
-CREATE VIEW "github"."event_log_entries" WITH (security_barrier = true) AS (SELECT integration_id, id, category, type, title, message, metadata, read, created_at FROM gitgazer.event_log_entries WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."event_log_entries" WITH (security_barrier = true) AS (select "integration_id", "id", "category", "type", "title", "message", "metadata", "read", "created_at" from "gitgazer"."event_log_entries" where "gitgazer"."event_log_entries"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.event_log_entries TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."integration_app_github_settings" WITH (security_barrier = true) AS (SELECT integration_id, app_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN secret END AS secret, org_sync_default_role FROM gitgazer.integration_app_github_settings WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."integration_app_github_settings" WITH (security_barrier = true) AS (select "integration_id", "app_id", CASE WHEN "gitgazer"."integration_app_github_settings"."integration_id" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN "secret" END as "secret", "org_sync_default_role" from "gitgazer"."integration_app_github_settings" where "gitgazer"."integration_app_github_settings"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.integration_app_github_settings TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."integration_app_slack_settings" WITH (security_barrier = true) AS (SELECT integration_id, app_id, team_id FROM gitgazer.integration_app_slack_settings WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."integration_app_slack_settings" WITH (security_barrier = true) AS (select "integration_id", "app_id", "team_id" from "gitgazer"."integration_app_slack_settings" where "gitgazer"."integration_app_slack_settings"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.integration_app_slack_settings TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."integration_apps" WITH (security_barrier = true) AS (SELECT integration_id, app_id, type, created_at FROM gitgazer.integration_apps WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."integration_apps" WITH (security_barrier = true) AS (select "integration_id", "app_id", "type", "created_at" from "gitgazer"."integration_apps" where "gitgazer"."integration_apps"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.integration_apps TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."integration_invitations" WITH (security_barrier = true) AS (SELECT integration_id, id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN email END AS email, role, invited_by, invitee_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN invite_token END AS invite_token, status, created_at, expires_at FROM gitgazer.integration_invitations WHERE status <> 'accepted' AND integration_id = ANY ((SELECT github.integration_ids('member'))::uuid[]));
+CREATE VIEW "github"."integration_invitations" WITH (security_barrier = true) AS (select "integration_id", "id", CASE WHEN "gitgazer"."integration_invitations"."integration_id" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN "email" END as "email", "role", "invited_by", "invitee_id", CASE WHEN "gitgazer"."integration_invitations"."integration_id" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN "invite_token" END as "invite_token", "status", "created_at", "expires_at" from "gitgazer"."integration_invitations" where (("gitgazer"."integration_invitations"."status" <> 'accepted') and ("gitgazer"."integration_invitations"."integration_id" = ANY ((SELECT github.integration_ids('member'))::uuid[]))));
 --> statement-breakpoint
 GRANT SELECT ON github.integration_invitations TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."notification_handles" WITH (security_barrier = true) AS (SELECT integration_id, handle_id, app_id, name, created_at, updated_at FROM gitgazer.notification_handles WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."notification_handles" WITH (security_barrier = true) AS (select "integration_id", "handle_id", "app_id", "name", "created_at", "updated_at" from "gitgazer"."notification_handles" where "gitgazer"."notification_handles"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.notification_handles TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."notification_rule_destinations" WITH (security_barrier = true) AS (SELECT integration_id, rule_id, handle_id FROM gitgazer.notification_rule_destinations WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."notification_rule_destinations" WITH (security_barrier = true) AS (select "integration_id", "rule_id", "handle_id" from "gitgazer"."notification_rule_destinations" where "gitgazer"."notification_rule_destinations"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.notification_rule_destinations TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."notification_rules" WITH (security_barrier = true) AS (SELECT integration_id, id, label, enabled, ignore_dependabot, include_log_details, rule, created_at, updated_at FROM gitgazer.notification_rules WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."notification_rules" WITH (security_barrier = true) AS (select "integration_id", "id", "label", "enabled", "ignore_dependabot", "include_log_details", "rule", "created_at", "updated_at" from "gitgazer"."notification_rules" where "gitgazer"."notification_rules"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.notification_rules TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."slack_handle_details" WITH (security_barrier = true) AS (SELECT integration_id, handle_id, channel_id, channel_name FROM gitgazer.slack_handle_details WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."slack_handle_details" WITH (security_barrier = true) AS (select "integration_id", "handle_id", "channel_id", "channel_name" from "gitgazer"."slack_handle_details" where "gitgazer"."slack_handle_details"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.slack_handle_details TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."slack_workspaces" WITH (security_barrier = true) AS (SELECT team_id, team_name, bot_user_id, CASE WHEN installed_by IN (SELECT user_id FROM github."user-assignments" WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[])) THEN installed_by END AS installed_by, installed_at, disconnected_at FROM gitgazer.slack_workspaces WHERE team_id IN (SELECT team_id FROM gitgazer.integration_app_slack_settings WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[])));
+CREATE VIEW "github"."slack_workspaces" WITH (security_barrier = true) AS (select "team_id", "team_name", "bot_user_id", CASE WHEN "gitgazer"."slack_workspaces"."installed_by" in (select "user_id" from "github"."user-assignments" where "github"."user-assignments"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])) THEN "installed_by" END as "installed_by", "installed_at", "disconnected_at" from "gitgazer"."slack_workspaces" where "gitgazer"."slack_workspaces"."team_id" in (select "team_id" from "gitgazer"."integration_app_slack_settings" where "gitgazer"."integration_app_slack_settings"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])));
 --> statement-breakpoint
 GRANT SELECT ON github.slack_workspaces TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."user_assignments" WITH (security_barrier = true) AS (SELECT integration_id, user_id, role, source, created_at FROM github."user-assignments" WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."user_assignments" WITH (security_barrier = true) AS (select "integration_id", "user_id", "role", "source", "created_at" from "github"."user-assignments" where "github"."user-assignments"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.user_assignments TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."users" WITH (security_barrier = true) AS (SELECT id, CASE WHEN id IN (SELECT user_id FROM github."user-assignments" WHERE integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[])) THEN email END AS email, name, picture, github_login, last_active_at FROM gitgazer.users WHERE id IN (SELECT user_id FROM github."user-assignments" WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[])));
+CREATE VIEW "github"."users" WITH (security_barrier = true) AS (select "id", CASE WHEN "gitgazer"."users"."id" in (select "user_id" from "github"."user-assignments" where "github"."user-assignments"."integration_id" = ANY ((SELECT github.integration_ids('admin'))::uuid[])) THEN "email" END as "email", "name", "picture", "github_login", "last_active_at" from "gitgazer"."users" where "gitgazer"."users"."id" in (select "user_id" from "github"."user-assignments" where "github"."user-assignments"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[])));
 --> statement-breakpoint
 GRANT SELECT ON github.users TO gitgazer_mcp;
 --> statement-breakpoint
-CREATE VIEW "github"."webhook_handle_details" WITH (security_barrier = true) AS (SELECT integration_id, handle_id, CASE WHEN integration_id = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN url END AS url FROM gitgazer.webhook_handle_details WHERE integration_id = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
+CREATE VIEW "github"."webhook_handle_details" WITH (security_barrier = true) AS (select "integration_id", "handle_id", CASE WHEN "gitgazer"."webhook_handle_details"."integration_id" = ANY ((SELECT github.integration_ids('admin'))::uuid[]) THEN "url" END as "url" from "gitgazer"."webhook_handle_details" where "gitgazer"."webhook_handle_details"."integration_id" = ANY ((SELECT github.integration_ids('viewer'))::uuid[]));
 --> statement-breakpoint
 GRANT SELECT ON github.webhook_handle_details TO gitgazer_mcp;
 --> statement-breakpoint
