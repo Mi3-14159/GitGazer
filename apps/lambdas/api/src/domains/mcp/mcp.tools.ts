@@ -3,7 +3,7 @@ import {mcpUserId, type McpCaller} from '@/domains/mcp/mcp.controller';
 import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ReadOnlyQueryError, runReadOnlyQuery} from '@gitgazer/db/queries';
-import type {CallToolResult, McpServer, ServerContext} from '@modelcontextprotocol/server';
+import type {CallToolResult, McpServer, ServerContext, StandardSchemaWithJSON, ToolCallback} from '@modelcontextprotocol/server';
 import {z} from 'zod';
 
 export class McpToolError extends Error {
@@ -22,25 +22,35 @@ const textResult = (text: string, isError?: true): CallToolResult => ({content: 
 // logged server-side and returned generically so schema/role internals don't leak to the client.
 const isSafeError = (error: unknown): error is Error => error instanceof McpToolError || error instanceof ReadOnlyQueryError;
 
-/** Resolves the caller, runs the tool, and reports failures in-band (MCP convention) instead of as JSON-RPC errors. */
-const toolHandler =
-    <Args>(tool: string, run: (args: Args, caller: McpCaller) => Promise<unknown>) =>
-    async (args: Args, ctx: ServerContext): Promise<CallToolResult> => {
+type ToolArgs<Schema extends StandardSchemaWithJSON> = StandardSchemaWithJSON.InferOutput<Schema>;
+
+/** Registers a read-only tool whose handler resolves the caller and reports failures in-band (MCP convention) instead of as JSON-RPC errors. */
+const registerTool = <Schema extends StandardSchemaWithJSON>(
+    server: McpServer,
+    name: string,
+    config: {description: string; inputSchema: Schema},
+    run: (args: ToolArgs<Schema>, caller: McpCaller) => Promise<unknown>,
+): void => {
+    const handler = async (args: ToolArgs<Schema>, ctx: ServerContext): Promise<CallToolResult> => {
         try {
             const userId = mcpUserId(ctx.http?.authInfo);
             const caller = {userId, integrationRoles: await getUserIntegrationRoles(userId)};
             return textResult(JSON.stringify(await run(args, caller)));
         } catch (error) {
             if (isSafeError(error)) return textResult(error.message, true);
-            getLogger().error('MCP tool call failed', {tool, error});
+            getLogger().error('MCP tool call failed', {tool: name, error});
             return textResult('Tool execution failed', true);
         }
     };
+    // ToolCallback is a conditional type that TS can't resolve while Schema is still generic.
+    server.registerTool(name, {...config, annotations: {readOnlyHint: true}}, handler as ToolCallback<Schema>);
+};
 
 /** Registers the tools (all read-only). Every tool runs through `runReadOnlyQuery`, so the
  * gitgazer_mcp role GRANTs + RLS are the single enforcement point. */
 export const registerMcpTools = (server: McpServer): void => {
-    server.registerTool(
+    registerTool(
+        server,
         'run_sql',
         {
             description:
@@ -59,9 +69,8 @@ export const registerMcpTools = (server: McpServer): void => {
             inputSchema: z.object({
                 sql: z.string().min(1).max(SQL_MAX_LENGTH).describe('A single read-only SELECT or WITH statement.'),
             }),
-            annotations: {readOnlyHint: true},
         },
-        toolHandler('run_sql', async ({sql}, caller) => {
+        async ({sql}, caller) => {
             if (!sql.trim()) throw new McpToolError("'sql' must be a non-empty string");
             const reservation = await reserveQueryBudget(caller.userId).catch((error: unknown) => {
                 if (error instanceof QuotaExceededError) throw new McpToolError(error.message);
@@ -80,25 +89,25 @@ export const registerMcpTools = (server: McpServer): void => {
             const budget = await chargeQueryBudget(reservation, Date.now() - start);
             if ('error' in outcome) throw outcome.error;
             return {...outcome.result, budget};
-        }),
+        },
     );
 
-    server.registerTool(
+    registerTool(
+        server,
         'list_tables',
         {
             description: 'List the tables you are allowed to query (schema, table name, description).',
             inputSchema: z.object({}),
-            annotations: {readOnlyHint: true},
         },
-        toolHandler('list_tables', (_args, {integrationRoles}) =>
+        (_args, {integrationRoles}) =>
             runReadOnlyQuery({
                 sql: "SELECT table_schema, table_name, obj_description(format('%I.%I', table_schema, table_name)::regclass, 'pg_class') AS description FROM information_schema.tables WHERE table_schema IN ('github', 'gitgazer') ORDER BY table_name",
                 integrationRoles,
             }),
-        ),
     );
 
-    server.registerTool(
+    registerTool(
+        server,
         'describe_table',
         {
             description: 'List the columns (name, type, nullability, description) of a table you can query.',
@@ -110,13 +119,11 @@ export const registerMcpTools = (server: McpServer): void => {
                     .regex(/^[A-Za-z0-9_]+$/)
                     .describe('Unqualified table or view name, e.g. workflow_runs or users_view.'),
             }),
-            annotations: {readOnlyHint: true},
         },
-        toolHandler('describe_table', ({table}, {integrationRoles}) =>
+        ({table}, {integrationRoles}) =>
             runReadOnlyQuery({
                 sql: `SELECT table_schema, column_name, data_type, is_nullable, col_description(format('%I.%I', table_schema, table_name)::regclass, ordinal_position::int) AS description FROM information_schema.columns WHERE table_schema IN ('github', 'gitgazer') AND table_name = '${table}' ORDER BY ordinal_position`,
                 integrationRoles,
             }),
-        ),
     );
 };
