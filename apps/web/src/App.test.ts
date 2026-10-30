@@ -33,8 +33,8 @@ describe('App auth redirect', () => {
         expect(push).not.toHaveBeenCalled();
     });
 
-    it('redirects a logged-out user from other pages to /login', async () => {
-        currentRoute.value.path = '/workflows';
+    it.each(['/workflows', '/mcp/connectors', '/mcp/connect-x', '/mcp/connect/x'])('redirects a logged-out user from %s to /login', async (path) => {
+        currentRoute.value.path = path;
         mount(App);
         await flushPromises();
 
