@@ -17,6 +17,7 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
     users: Symbol('users'),
     integrationAppSlackSettings: Symbol('integrationAppSlackSettings'),
     slackUserLinks: Symbol('slackUserLinks'),
+    integrations: Symbol('integrations'),
 }));
 
 // The views are built from the real tables at import time, which the stand-ins above can't do.
@@ -31,7 +32,6 @@ vi.mock('@gitgazer/db/schema/views', () => {
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     userAssignments: Symbol('userAssignments'),
-    integrations: Symbol('integrations'),
 }));
 
 vi.mock('@gitgazer/db/schema/app', () => ({

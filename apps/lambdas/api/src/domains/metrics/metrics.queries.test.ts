@@ -321,7 +321,7 @@ describe('metrics queries', () => {
 
             const allSql = calls.join(' ');
             expect(allSql).toContain('group_label');
-            expect(allSql).toContain('"github"."integrations"');
+            expect(allSql).toContain('"gitgazer"."integrations"');
         });
 
         it('joins the integrations table for Mean Time to Recovery', async () => {
@@ -334,7 +334,7 @@ describe('metrics queries', () => {
 
             const allSql = calls.join(' ');
             expect(allSql).toContain('i.label as group_label');
-            expect(allSql).toContain('"github"."integrations"');
+            expect(allSql).toContain('"gitgazer"."integrations"');
         });
 
         it('joins the integrations table for PR Review Time', async () => {
@@ -347,7 +347,7 @@ describe('metrics queries', () => {
 
             const allSql = calls.join(' ');
             expect(allSql).toContain('i.label as group_label');
-            expect(allSql).toContain('"github"."integrations"');
+            expect(allSql).toContain('"gitgazer"."integrations"');
         });
     });
 

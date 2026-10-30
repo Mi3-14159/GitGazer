@@ -28,7 +28,7 @@ import {
     type EventLogEntryMetadata,
     type NotificationRuleRule,
 } from '../types';
-import {integrations, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './github';
+import {mcpTenantSeparationPolicy, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './github';
 
 export const gitgazerSchema = pgSchema('gitgazer');
 // No role but its owner has USAGE here, so a lost ACL on the sign function still leaves it unreachable.
@@ -44,6 +44,21 @@ export const users = gitgazerSchema.table('users', {
     githubLogin: varchar('github_login', {length: 255}),
     lastActiveAt: timestamp('last_active_at', {withTimezone: true}),
 });
+
+export const integrations = gitgazerSchema
+    .table(
+        'integrations',
+        {
+            integrationId: uuid('integration_id').primaryKey().defaultRandom(),
+            label: varchar('label', {length: 255}).notNull(),
+            ownerId: bigint('owner_id', {mode: 'number'})
+                .notNull()
+                .references(() => users.id),
+            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
+        },
+        () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy(), mcpTenantSeparationPolicy()],
+    )
+    .enableRLS();
 
 // Per-user MCP query-time budget in a rolling window anchored at the user's first request (lasts
 // mcpQuota.windowSeconds). Each window is its own row — closed windows are KEPT as analytics history,

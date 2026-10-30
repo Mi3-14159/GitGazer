@@ -62,7 +62,7 @@ export const registerMcpTools = (server: McpServer): void => {
                 'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data. Schema-qualify every table and view name. ' +
                 'Tables in the "github" schema: ' +
                 'workflow_runs, workflow_jobs, workflow_run_pull_requests, pull_requests, repositories, organizations, ' +
-                'enterprises, pull_request_reviews, "user", and integrations. Configuration views: ' +
+                'enterprises, pull_request_reviews and "user". The integrations themselves are in gitgazer.integrations. Configuration views: ' +
                 'gitgazer.integration_apps_view, gitgazer.integration_app_github_settings_view, gitgazer.integration_app_slack_settings_view, ' +
                 'gitgazer.notification_handles_view, gitgazer.webhook_handle_details_view, gitgazer.slack_handle_details_view, ' +
                 'gitgazer.notification_rules_view, gitgazer.notification_rule_destinations_view, gitgazer.integration_invitations_view, ' +

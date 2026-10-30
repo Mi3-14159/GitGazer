@@ -7,23 +7,8 @@ import {
     ORG_SYNC_DEFAULT_ROLES,
     WORKFLOW_CONCLUSIONS,
 } from '../../types';
-import {users} from '../gitgazer';
+import {integrations, users} from '../gitgazer';
 import {githubSchema, mcpTenantSeparationPolicy, readerTenantSeparationPolicy, writerTenantSeparationPolicy} from './misc';
-
-export const integrations = githubSchema
-    .table(
-        'integrations',
-        {
-            integrationId: uuid('integration_id').primaryKey().defaultRandom(),
-            label: varchar('label', {length: 255}).notNull(),
-            ownerId: bigint('owner_id', {mode: 'number'})
-                .notNull()
-                .references(() => users.id),
-            createdAt: timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
-        },
-        () => [writerTenantSeparationPolicy(), readerTenantSeparationPolicy(), mcpTenantSeparationPolicy()],
-    )
-    .enableRLS();
 
 export const userAssignments = githubSchema
     .table(
