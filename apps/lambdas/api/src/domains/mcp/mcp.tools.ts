@@ -1,6 +1,8 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
 import {mcpUserId, type McpCaller} from '@/domains/mcp/mcp.controller';
 import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
+import {checkAccess, forbiddenFor} from '@/shared/permissions/check-access';
+import {TOOLS, type ToolName} from '@/shared/permissions/table';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ReadOnlyQueryError, runReadOnlyQuery} from '@gitgazer/db/queries';
 import type {CallToolResult, McpServer, ServerContext, StandardSchemaWithJSON, ToolCallback} from '@modelcontextprotocol/server';
@@ -27,7 +29,7 @@ type ToolArgs<Schema extends StandardSchemaWithJSON> = StandardSchemaWithJSON.In
 /** Registers a read-only tool whose handler resolves the caller and reports failures in-band (MCP convention) instead of as JSON-RPC errors. */
 const registerTool = <Schema extends StandardSchemaWithJSON>(
     server: McpServer,
-    name: string,
+    name: ToolName,
     config: {description: string; inputSchema: Schema},
     run: (args: ToolArgs<Schema>, caller: McpCaller) => Promise<unknown>,
 ): void => {
@@ -35,6 +37,9 @@ const registerTool = <Schema extends StandardSchemaWithJSON>(
         try {
             const userId = mcpUserId(ctx.http?.authInfo);
             const caller = {userId, integrationRoles: await getUserIntegrationRoles(userId)};
+            const integrationId = (args as {integration_id?: unknown}).integration_id;
+            const decision = checkAccess(caller, TOOLS[name], typeof integrationId === 'string' ? integrationId : undefined);
+            if (!decision.allowed) return textResult(forbiddenFor(decision).message, true);
             return textResult(JSON.stringify(await run(args, caller)));
         } catch (error) {
             if (isSafeError(error)) return textResult(error.message, true);

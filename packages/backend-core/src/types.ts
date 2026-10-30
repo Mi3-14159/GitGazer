@@ -18,6 +18,6 @@ export type AppContext = {
     integrations?: string[];
     /** Maps integrationId → the user's role for that integration. */
     integrationRoles?: Record<string, MemberRole>;
-    /** Populated by requireRole middleware: the user's role for the current request's integration. */
+    /** Set by the authorize middleware: the user's role for the current request's integration. */
     role?: MemberRole;
 };

@@ -15,7 +15,7 @@ The two meet in the database: every request runs with the caller's integrations,
 
 ```mermaid
 flowchart LR
-    Browser["Browser<br/>(session cookies)"] --> RR["api: requireRole(min role)"]
+    Browser["Browser<br/>(session cookies)"] --> RR["api: authorize(permission table)"]
     MCPC["MCP client<br/>(OAuth token)"] --> MCPT["api: MCP tools"]
     Workers["worker, websocket,<br/>backfill-worker, org-sync-scheduler"] --> Root
 
@@ -61,9 +61,13 @@ A user gets a role by:
 
 ### Permission matrix
 
-The API enforces the minimum role with the `requireRole(minimumRole)` middleware (`apps/lambdas/api/src/shared/middleware/require-role.ts`). It reads the `integrationId` path parameter, looks the caller's role up in the roles that `addUserIntegrationsToCtx` loaded, and answers `403` if the caller is not a member (`Not a member of this integration`) or ranks too low (`Insufficient permissions`). Each decision is logged as an `authz` entry.
+The permission table in `apps/lambdas/api/src/shared/permissions/table.ts` is the source of truth. It maps each route (`'<METHOD> <path>'`) to an operation and each operation to an access level: `public`, `authenticated` or a minimum role. The `authorize` middleware (`apps/lambdas/api/src/shared/middleware/authorization.ts`) runs after `authenticate` and `originCheck`. For a minimum role it reads the path segment at the pattern's `:integrationId` position, loads the caller's roles if needed, and answers `403` if the caller is not a member (`Not a member of this integration`) or ranks too low (`Insufficient permissions`). A route without a table entry also gets `403`. Role-gated decisions and refusals for a missing entry are logged as `authz` entries.
 
-Routes without an `integrationId` in the path do not use `requireRole`. They act on all the caller's integrations, and RLS limits them to those.
+The two Slack callbacks (`slackApp.installCallback`, `slackUser.signInCallback`) are marked `checkedInHandler`: they learn the integration only from the signed `state`, so their handlers call `checkAccess` themselves.
+
+MCP tools use the same table. `registerTool` takes a tool name from it and calls `checkAccess` on every tool call; a refusal comes back as a tool error in the response, not an HTTP status.
+
+Routes without an `integrationId` in the path (apart from the public routes and the two Slack callbacks) are `authenticated`. They act on all the caller's integrations, and RLS limits them to those. A CI test (`table.test.ts`) fails if a route or tool has no entry, or an entry has none.
 
 | Area          | Operation                                              | Endpoint                                                                                                                     | Minimum role                                        |
 | ------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |

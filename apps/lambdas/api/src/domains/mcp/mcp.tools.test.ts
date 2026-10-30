@@ -12,6 +12,10 @@ vi.mock('@/domains/mcp/mcp.quota', () => ({
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles: vi.fn()}));
 vi.mock('@/shared/middleware/token-verifier', () => ({getMcpAccessVerifier: () => ({verify: vi.fn()})}));
+vi.mock('@/shared/permissions/check-access', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/shared/permissions/check-access')>()),
+    checkAccess: vi.fn(),
+}));
 vi.mock('@gitgazer/db/client', () => ({db: {select: vi.fn()}}));
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn()}}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
@@ -33,6 +37,7 @@ type RegisteredTool = {
 
 let readonly: typeof import('@gitgazer/db/queries');
 let quota: typeof import('@/domains/mcp/mcp.quota');
+let access: typeof import('@/shared/permissions/check-access');
 let integrations: typeof import('@/domains/integrations/integrations.controller');
 let tools: Map<string, RegisteredTool>;
 
@@ -49,11 +54,13 @@ describe('mcp tools', () => {
         readonly = await import('@gitgazer/db/queries');
         quota = await import('@/domains/mcp/mcp.quota');
         integrations = await import('@/domains/integrations/integrations.controller');
+        access = await import('@/shared/permissions/check-access');
         const {registerMcpTools} = await import('@/domains/mcp/mcp.tools');
         tools = new Map();
         const server = {registerTool: (name: string, config: RegisteredTool['config'], cb: RegisteredTool['cb']) => tools.set(name, {config, cb})};
         registerMcpTools(server as unknown as McpServer);
 
+        asMock(access.checkAccess).mockReturnValue({allowed: true});
         asMock(integrations.getUserIntegrationRoles).mockResolvedValue(ROLES);
         asMock(readonly.runReadOnlyQuery).mockResolvedValue({columns: ['x'], rows: [{x: 1}], rowCount: 1, truncated: false});
         asMock(quota.reserveQueryBudget).mockResolvedValue(RESERVATION);
@@ -65,6 +72,25 @@ describe('mcp tools', () => {
     it('registers exactly the read-only tools', () => {
         expect([...tools.keys()]).toEqual(['run_sql', 'list_tables', 'describe_table']);
         expect([...tools.values()].every((t) => t.config.annotations.readOnlyHint)).toBe(true);
+    });
+
+    it('checks every call against the tool operation in the permission table', async () => {
+        await callTool('list_tables');
+        await callTool('list_tables');
+        expect(access.checkAccess).toHaveBeenCalledTimes(2);
+        expect(access.checkAccess).toHaveBeenLastCalledWith({userId: 42, integrationRoles: ROLES}, 'mcp.listTables', undefined);
+    });
+
+    it('passes a string integration_id argument to the check', async () => {
+        await callTool('list_tables', {integration_id: ID_A});
+        expect(access.checkAccess).toHaveBeenCalledWith(expect.anything(), 'mcp.listTables', ID_A);
+    });
+
+    it('returns a refusal in-band without running the tool', async () => {
+        asMock(access.checkAccess).mockReturnValue({allowed: false, reason: 'insufficient role'});
+        expect(await callTool('run_sql', {sql: 'SELECT 1'})).toEqual({content: [{type: 'text', text: 'Insufficient permissions'}], isError: true});
+        expect(quota.reserveQueryBudget).not.toHaveBeenCalled();
+        expect(readonly.runReadOnlyQuery).not.toHaveBeenCalled();
     });
 
     it('run_sql reserves budget, runs with the caller roles and max-query timeout, charges, and returns the budget', async () => {

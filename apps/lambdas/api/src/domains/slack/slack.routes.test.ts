@@ -19,15 +19,20 @@ vi.mock('@/domains/slack/connect', () => ({
     completeSlackSignIn: mocks.completeSlackSignIn,
     disconnectSlack: mocks.disconnectSlack,
 }));
-vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
-        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: 'viewer'}});
-        await next();
-    },
-}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
-const request = (method: string, path: string) => testRequest(app, method, path, {cookies: ['oauthState=n']});
+const appContext = {
+    userId: 1,
+    username: '',
+    email: '',
+    name: '',
+    nickname: '',
+    picture: '',
+    integrations: ['i1'],
+    integrationRoles: {i1: 'viewer'} as const,
+};
+
+const request = (method: string, path: string) => testRequest(app, method, path, {appContext, cookies: ['oauthState=n']});
 
 describe('slack routes', () => {
     beforeEach(() => {

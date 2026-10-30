@@ -52,10 +52,12 @@ pnpm run pretty
   `createApiRouter()` in `src/app.ts` at its own path with `api.route('/<domain>', <router>)`, with route paths relative to that
   mount; `createApp()` serves that router under `/api`. A domain whose routes span several prefixes is mounted with
   `api.route('/', <router>)` and keeps its paths relative to `/api`
-- Middleware chain: `compress` → `setContentLength` → `cors` → `authenticate` → `originCheck` → route handlers
+- Middleware chain: `compress` → `setContentLength` → `cors` → `authenticate` → `authorize` → `originCheck` → route handlers
 - Handlers read the authenticated user from `c.var.appContext`. Add `addUserIntegrationsToCtx`
-  (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`, then
-  `requireRole(...)` (`@/shared/middleware/require-role`) to gate a route on the `:integrationId` path parameter
+  (`@/domains/integrations/integrations.middleware`) to load `appContext.integrations` / `integrationRoles`
+- Every route and MCP tool needs an entry in the permission table (`@/shared/permissions/table`): add the route to `ROUTES`
+  and its operation (`public`, `authenticated` or `{minRole}`) to `OPERATIONS`. The `authorize` middleware answers 403 for a
+  route without an entry and gates a `minRole` route on its `:integrationId` path parameter; `table.test.ts` fails in CI otherwise
 - Throw errors from `@/shared/errors` (`BadRequestError`, `ForbiddenError`, `NotFoundError`, ...); the app
   turns them into `{statusCode, error, message, details?}` responses
 - Routes that skip authentication are listed in each domain's `publicPrefixes` export, collected in

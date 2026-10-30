@@ -12,13 +12,12 @@ import {
 } from '@/domains/members/members.controller';
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
-import {requireRole} from '@/shared/middleware/require-role';
 import {isMemberRole} from '@gitgazer/db/types';
 import {Hono} from 'hono';
 
 const router = new Hono<AppEnv>();
 
-router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
+router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     // Only this integration, so the views mask by the caller's role here and not by roles elsewhere
     const members = await getMembers({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
@@ -29,7 +28,7 @@ router.get('/integrations/:integrationId/members', addUserIntegrationsToCtx, req
     });
 });
 
-router.patch('/integrations/:integrationId/members/:userId/role', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.patch('/integrations/:integrationId/members/:userId/role', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const targetUserId = parseInt(c.req.param('userId'), 10);
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -62,7 +61,7 @@ router.patch('/integrations/:integrationId/members/:userId/role', addUserIntegra
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.delete('/integrations/:integrationId/members/:userId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.delete('/integrations/:integrationId/members/:userId', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const targetUserId = parseInt(c.req.param('userId'), 10);
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -83,7 +82,7 @@ router.delete('/integrations/:integrationId/members/:userId', addUserIntegration
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, requireRole('viewer'), async (c) => {
+router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
     const userId = c.var.appContext!.userId;
@@ -93,7 +92,7 @@ router.post('/integrations/:integrationId/leave', addUserIntegrationsToCtx, requ
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     // integration_invitations_view and users_view mask invite tokens and emails below admin in this integration
     const invitations = await getInvitations({integrationId, integrationRoles: {[integrationId]: c.var.appContext!.role!}});
@@ -104,7 +103,7 @@ router.get('/integrations/:integrationId/invitations', addUserIntegrationsToCtx,
     });
 });
 
-router.post('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/integrations/:integrationId/invitations', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
     const requestingUserId = c.var.appContext!.userId;
@@ -141,7 +140,7 @@ router.post('/integrations/:integrationId/invitations', addUserIntegrationsToCtx
     });
 });
 
-router.post('/integrations/:integrationId/invitations/:invitationId/resend', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/integrations/:integrationId/invitations/:invitationId/resend', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const invitationId = c.req.param('invitationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
@@ -156,7 +155,7 @@ router.post('/integrations/:integrationId/invitations/:invitationId/resend', add
     return new Response(null, {status: HttpStatusCodes.NO_CONTENT});
 });
 
-router.delete('/integrations/:integrationId/invitations/:invitationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.delete('/integrations/:integrationId/invitations/:invitationId', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const invitationId = c.req.param('invitationId');
     const integrationIds = c.var.appContext?.integrations ?? [];

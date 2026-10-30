@@ -2,7 +2,6 @@ import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.midd
 import {deleteNotificationRule, getNotificationRules, upsertNotificationRule} from '@/domains/notifications/notifications.controller';
 import type {AppEnv} from '@/shared/hono/env';
 import {BadRequestError, HttpStatusCodes} from '@/shared/errors';
-import {requireRole} from '@/shared/middleware/require-role';
 import {isNotificationRuleUpdate} from '@gitgazer/db/types';
 import type {Context} from 'hono';
 import {Hono} from 'hono';
@@ -26,7 +25,7 @@ router.get('/notifications', addUserIntegrationsToCtx, async (c) => {
     return c.json(await getNotificationRules({integrationIds}));
 });
 
-router.post('/integrations/:integrationId/notifications', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.post('/integrations/:integrationId/notifications', addUserIntegrationsToCtx, async (c) => {
     const requestBody = await parseRuleBody(c);
 
     if (!isNotificationRuleUpdate(requestBody)) {
@@ -36,7 +35,7 @@ router.post('/integrations/:integrationId/notifications', addUserIntegrationsToC
     return c.json(await upsertNotificationRule({rule: requestBody, integrationId: c.req.param('integrationId'), createOnly: true}));
 });
 
-router.put('/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.put('/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, async (c) => {
     const requestBody = await parseRuleBody(c);
 
     if (!isNotificationRuleUpdate(requestBody)) {
@@ -52,7 +51,7 @@ router.put('/integrations/:integrationId/notifications/:id', addUserIntegrations
     );
 });
 
-router.delete('/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, requireRole('member'), async (c) => {
+router.delete('/integrations/:integrationId/notifications/:id', addUserIntegrationsToCtx, async (c) => {
     await deleteNotificationRule(c.req.param('id'), c.req.param('integrationId'));
 
     return new Response(JSON.stringify({success: true}), {

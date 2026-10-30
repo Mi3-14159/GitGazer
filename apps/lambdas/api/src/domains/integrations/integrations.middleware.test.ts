@@ -17,11 +17,11 @@ describe('addUserIntegrationsToCtx middleware', () => {
 
     function callRoute() {
         const app = new Hono<AppEnv>();
-        app.get('/api/test', addUserIntegrationsToCtx, (c) => {
+        app.get('/api/user', addUserIntegrationsToCtx, (c) => {
             handler();
             return c.json({integrations: c.var.appContext?.integrations, integrationRoles: c.var.appContext?.integrationRoles});
         });
-        return testRequest(app, 'GET', '/api/test', {
+        return testRequest(app, 'GET', '/api/user', {
             appContext: {userId: 123, username: '', email: '', name: '', nickname: '', picture: ''},
         });
     }

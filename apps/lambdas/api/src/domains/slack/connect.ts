@@ -1,6 +1,7 @@
 import {findSlackTeamId} from '@/domains/apps/apps.controller';
 import {mintSlackState, outcomeRedirect, verifySlackState} from '@/domains/slack/oauth-state';
 import {NotFoundError} from '@/shared/errors';
+import {checkAccess} from '@/shared/permissions/check-access';
 import {buildSignInUrl, exchangeSignInCode, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {blockAutoLink, saveSignInLink} from '@gitgazer/backend-services/slack/link-store';
@@ -66,8 +67,7 @@ export const completeSlackSignIn = async (params: {
     const {integrationId, redirect_url} = verifySlackState('slack_sign_in', state, oauthStateNonce, userId);
 
     let outcome: SignInOutcome;
-    if (!integrationRoles[integrationId]) {
-        logger.warn('Slack sign-in rejected: user is no longer a member', {integrationId, userId});
+    if (!checkAccess({userId, integrationRoles}, 'slackUser.signInCallback', integrationId).allowed) {
         outcome = 'failed';
     } else if (!code) {
         // Slack returns no code when the user cancels the consent screen

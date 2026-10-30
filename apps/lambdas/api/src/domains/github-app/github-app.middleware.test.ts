@@ -29,11 +29,11 @@ async function post(headers: Record<string, string>, body?: string) {
     const {verifyGithubAppSignature} = await import('./github-app.middleware');
     const next = vi.fn();
     const app = new Hono<AppEnv>();
-    app.post('/test/webhook', verifyGithubAppSignature, async (c) => {
+    app.post('/api/github/webhook', verifyGithubAppSignature, async (c) => {
         next();
         return c.json({received: await c.req.json()});
     });
-    const res = await testRequest(app, 'POST', '/test/webhook', {headers, body});
+    const res = await testRequest(app, 'POST', '/api/github/webhook', {headers, body});
     return {res, next, json: await res.json()};
 }
 
