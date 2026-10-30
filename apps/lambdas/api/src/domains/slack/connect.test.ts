@@ -128,6 +128,10 @@ describe('completeSlackSignIn', () => {
         expect(redirectParams(redirectUrl)).toMatchObject({slack_error: 'failed'});
         expect(mocks.exchangeSignInCode).not.toHaveBeenCalled();
         expect(mocks.saveSignInLink).not.toHaveBeenCalled();
+        expect(mocks.logger.info).toHaveBeenCalledWith(
+            'authz',
+            expect.objectContaining({action: 'slackUser.signInCallback', integrationId: 'int-1', allowed: false, reason: 'not a member'}),
+        );
     });
 
     it('callback rejects a state minted for another user or purpose', async () => {

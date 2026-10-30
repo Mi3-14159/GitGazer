@@ -138,6 +138,10 @@ describe('completeSlackInstall', () => {
 
         expect(redirectParams(redirectUrl)).toEqual({tab: 'apps', slack_error: 'failed'});
         expect(mocks.exchangeInstallCode).not.toHaveBeenCalled();
+        expect(mocks.logger.info).toHaveBeenCalledWith(
+            'authz',
+            expect.objectContaining({action: 'slackApp.installCallback', integrationId: 'int-1', allowed: false, reason: 'insufficient role'}),
+        );
     });
 
     it('callback reports a cancelled consent (no code) as failed', async () => {

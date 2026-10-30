@@ -1,5 +1,6 @@
 import {findSlackTeamId, logAppInstalled, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {mintSlackState, outcomeRedirect, verifySlackState} from '@/domains/slack/oauth-state';
+import {checkAccess} from '@/shared/permissions/check-access';
 import {buildInstallUrl, exchangeInstallCode, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {sendSlackLookupTask} from '@gitgazer/backend-core/clients/sqs.client';
 import config from '@gitgazer/backend-core/config';
@@ -8,7 +9,7 @@ import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationAppSlackSettings, integrationApps, slackWorkspaces} from '@gitgazer/db/schema/gitgazer';
-import {hasRole, type MemberRole} from '@gitgazer/db/types';
+import type {MemberRole} from '@gitgazer/db/types';
 import {eq} from 'drizzle-orm';
 
 type InstallOutcome = 'installed' | 'enterprise' | 'workspace_mismatch' | 'failed';
@@ -110,9 +111,7 @@ export const completeSlackInstall = async (params: {
     const {integrationId, redirect_url} = verifySlackState('slack_install', state, oauthStateNonce, userId);
 
     let outcome: InstallOutcome;
-    const role = integrationRoles[integrationId];
-    if (!role || !hasRole(role, 'admin')) {
-        logger.warn('Slack install rejected: user is no longer an admin', {integrationId, userId});
+    if (!checkAccess({userId, integrationRoles}, 'slackApp.installCallback', integrationId).allowed) {
         outcome = 'failed';
     } else if (!code) {
         // Slack returns no code when the user cancels the consent screen
