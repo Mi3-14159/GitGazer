@@ -7,7 +7,8 @@ import {OAuthError, OAuthErrorCode} from '@modelcontextprotocol/server';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {verifyAccessToken, getUserIntegrationRoles, runReadOnlyQuery} = vi.hoisted(() => ({
+const {verifyAccessToken, getUserIntegrationRoles, runReadOnlyQuery, deleteNotificationRule} = vi.hoisted(() => ({
+    deleteNotificationRule: vi.fn(),
     verifyAccessToken: vi.fn(),
     getUserIntegrationRoles: vi.fn(),
     runReadOnlyQuery: vi.fn(),
@@ -19,6 +20,11 @@ vi.mock('@/domains/mcp/mcp.controller', async (importOriginal) => ({
     protectedResourceMetadataUrl: () => 'https://app.example.com/.well-known/oauth-protected-resource',
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles}));
+vi.mock('@/domains/notifications/notifications.controller', () => ({
+    upsertNotificationRule: vi.fn(),
+    updateNotificationRule: vi.fn(),
+    deleteNotificationRule,
+}));
 vi.mock('@gitgazer/db/queries', () => ({runReadOnlyQuery, ReadOnlyQueryError: class ReadOnlyQueryError extends Error {}}));
 vi.mock('@/domains/mcp/mcp.quota', () => ({
     reserveQueryBudget: vi.fn(),
@@ -111,6 +117,34 @@ describe('POST /api/mcp', () => {
         const {result} = await (await post(legacyBody('tools/list'))).json();
         expect(result.tools.map((t: {name: string}) => t.name)).toEqual(['run_sql', 'list_tables', 'describe_table']);
         expect(result.tools.every((t: {annotations?: {readOnlyHint?: boolean}}) => t.annotations?.readOnlyHint)).toBe(true);
+    });
+
+    it('lists six tools for a write-scope token', async () => {
+        verifyAccessToken.mockResolvedValue({...(await verifyAccessToken()), scopes: ['gitgazer-mcp/read', 'gitgazer-mcp/write']});
+        const {result} = await (await post(legacyBody('tools/list'))).json();
+        expect(result.tools.map((t: {name: string}) => t.name)).toEqual([
+            'run_sql',
+            'list_tables',
+            'describe_table',
+            'create_notification_rule',
+            'update_notification_rule',
+            'delete_notification_rule',
+        ]);
+    });
+
+    it('lists three tools for a read token', async () => {
+        verifyAccessToken.mockResolvedValue({...(await verifyAccessToken()), scopes: ['gitgazer-mcp/read']});
+        const {result} = await (await post(legacyBody('tools/list'))).json();
+        expect(result.tools).toHaveLength(3);
+    });
+
+    it('rejects delete_notification_rule for a read token without calling the controller', async () => {
+        const res = await post(
+            modernBody('tools/call', {name: 'delete_notification_rule', arguments: {integration_id: ID_A, rule_id: ID_A}}),
+            modernHeaders('tools/call', 'delete_notification_rule'),
+        );
+        expect(JSON.stringify(await res.json())).toMatch(/error/i);
+        expect(deleteNotificationRule).not.toHaveBeenCalled();
     });
 
     it('runs a legacy tools/call without a prior initialize, with the caller role map', async () => {

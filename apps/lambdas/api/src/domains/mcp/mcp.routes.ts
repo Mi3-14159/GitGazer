@@ -8,6 +8,7 @@ import {
 } from '@/domains/mcp/mcp-oauth.controller';
 import {buildProtectedResourceMetadata, mcpTokenVerifier, protectedResourceMetadataUrl} from '@/domains/mcp/mcp.controller';
 import {createMcpServer} from '@/domains/mcp/mcp.server';
+import {MCP_WRITE_SCOPE} from '@/shared/mcp-scope';
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpStatusCodes} from '@/shared/errors';
 import {buildClearStateCookie, extractTokenFromCookies, getRequestCookies, OAUTH_STATE_COOKIE_NAME} from '@/shared/helpers/cookies';
@@ -22,7 +23,10 @@ const requestOrigin = (c: Context<AppEnv>): string => `https://${new URL(c.req.u
 
 const JSON_HEADERS = {'Content-Type': 'application/json', 'Cache-Control': 'no-store'} as const;
 
-const modernHandler = createMcpHandler(() => createMcpServer(), {legacy: 'reject', responseMode: 'json'});
+const modernHandlers = {
+    read: createMcpHandler(() => createMcpServer({write: false}), {legacy: 'reject', responseMode: 'json'}),
+    write: createMcpHandler(() => createMcpServer({write: true}), {legacy: 'reject', responseMode: 'json'}),
+};
 
 router.post('/', async (c) => {
     const request = c.req.raw;
@@ -32,12 +36,14 @@ router.post('/', async (c) => {
         return auth;
     }
 
+    const write = auth.scopes.includes(MCP_WRITE_SCOPE);
+
     if (await isLegacyRequest(request)) {
         const transport = new WebStandardStreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
-        await createMcpServer().connect(transport);
+        await createMcpServer({write}).connect(transport);
         return transport.handleRequest(request, {authInfo: auth});
     }
-    return modernHandler.fetch(request, {authInfo: auth});
+    return modernHandlers[write ? 'write' : 'read'].fetch(request, {authInfo: auth});
 });
 
 // Served outside /api, where MCP clients look for them.

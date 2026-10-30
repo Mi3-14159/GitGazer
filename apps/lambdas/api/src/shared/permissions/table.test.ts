@@ -49,7 +49,7 @@ describe('permission table', () => {
 
     it('has a table entry for every tool and vice versa', () => {
         const names: string[] = [];
-        registerMcpTools({registerTool: (name: string) => names.push(name)} as unknown as McpServer);
+        registerMcpTools({registerTool: (name: string) => names.push(name)} as unknown as McpServer, {write: true});
 
         expect(names.sort()).toEqual(Object.keys(TOOLS).sort());
     });
