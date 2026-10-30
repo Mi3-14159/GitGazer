@@ -1,3 +1,5 @@
+import {BadRequestError, ForbiddenError} from '@/shared/errors';
+import {mintSignedState} from '@/domains/auth/auth.controller';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('@gitgazer/backend-core/config', () => ({
@@ -10,6 +12,8 @@ vi.mock('@gitgazer/backend-core/config', () => ({
                     return 'test-state-secret-0123456789';
                 case 'cognito':
                     return {domain: 'auth.gitgazer.com', mcpClientId: 'mcp-client-123'};
+                case 'allowedFrontendOrigins':
+                    return ['https://app.gitgazer.com'];
                 case 'mcpAllowedRedirectHosts':
                     return ['vscode.dev', 'claude.ai'];
                 default:
@@ -55,7 +59,7 @@ describe('buildAuthServerMetadata', () => {
             code_challenge_methods_supported: ['S256'],
             token_endpoint_auth_methods_supported: ['none'],
             authorization_response_iss_parameter_supported: true,
-            scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
+            scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read', 'gitgazer-mcp/write'],
         });
     });
 });
@@ -79,32 +83,18 @@ describe('handleRegister', () => {
     });
 });
 
-describe('handleAuthorize', () => {
-    it('redirects to Cognito with our callback, PKCE passthrough, and a signed state', () => {
-        const url = new URL(ctrl.handleAuthorize(origin, validAuthorizeQuery));
-        expect(`${url.origin}${url.pathname}`).toBe('https://auth.gitgazer.com/oauth2/authorize');
-        expect(url.searchParams.get('client_id')).toBe('mcp-client-123');
-        expect(url.searchParams.get('redirect_uri')).toBe('https://app.gitgazer.com/api/mcp/oauth/callback');
-        expect(url.searchParams.get('code_challenge')).toBe('CHALLENGE_ABC');
-        expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-        expect(url.searchParams.get('scope')).toBe('openid email profile gitgazer-mcp/read');
-        expect(url.searchParams.get('identity_provider')).toBe('Github');
-        expect(url.searchParams.get('state')).toBeTruthy();
-    });
+const frontendOrigin = 'https://app.gitgazer.com';
+const connectRequest = (query: Record<string, string> = validAuthorizeQuery): string =>
+    new URL(ctrl.handleAuthorize(origin, query)).searchParams.get('request')!;
+const confirm = (session: string | undefined = 'read', query: Record<string, string> = validAuthorizeQuery) =>
+    ctrl.handleAuthorizeConfirm(origin, frontendOrigin, {request: connectRequest(query), session});
+const nonceOf = (stateCookie: string): string => /^oauthState=([^;]+)/.exec(stateCookie)![1];
 
-    it('always requests the gitgazer-mcp/read scope and drops unsupported scopes', () => {
-        const requestedScope = (scope: string | undefined) => {
-            const query: Record<string, string> = {...validAuthorizeQuery};
-            if (scope === undefined) delete query.scope;
-            else query.scope = scope;
-            return new URL(ctrl.handleAuthorize(origin, query)).searchParams.get('scope');
-        };
-        expect(requestedScope(undefined)).toBe('openid email profile gitgazer-mcp/read');
-        expect(requestedScope('')).toBe('openid email profile gitgazer-mcp/read');
-        expect(requestedScope('openid')).toBe('openid gitgazer-mcp/read');
-        expect(requestedScope('gitgazer-mcp/read openid')).toBe('gitgazer-mcp/read openid');
-        expect(requestedScope('openid aws.cognito.signin.user.admin gitgazer-mcp/write')).toBe('openid gitgazer-mcp/read');
-        expect(requestedScope('aws.cognito.signin.user.admin')).toBe('openid email profile gitgazer-mcp/read');
+describe('handleAuthorize', () => {
+    it('redirects to the connect page with a signed request', () => {
+        const url = new URL(ctrl.handleAuthorize(origin, validAuthorizeQuery));
+        expect(`${url.origin}${url.pathname}`).toBe('https://app.gitgazer.com/mcp/connect');
+        expect(url.searchParams.get('request')).toBeTruthy();
     });
 
     it('rejects an unsupported response_type', () => {
@@ -145,12 +135,72 @@ describe('handleAuthorize', () => {
     });
 });
 
-describe('handleCallback', () => {
-    // Produce a genuine signed state by running authorize first.
-    const signedState = (): string => new URL(ctrl.handleAuthorize(origin, validAuthorizeQuery)).searchParams.get('state')!;
+describe('handleAuthorizeConfirm', () => {
+    it('redirects to Cognito with PKCE, our callback and a bound state', () => {
+        const {location, stateCookie} = confirm('read');
+        const url = new URL(location);
+        expect(`${url.origin}${url.pathname}`).toBe('https://auth.gitgazer.com/oauth2/authorize');
+        expect(url.searchParams.get('client_id')).toBe('mcp-client-123');
+        expect(url.searchParams.get('redirect_uri')).toBe('https://app.gitgazer.com/api/mcp/oauth/callback');
+        expect(url.searchParams.get('code_challenge')).toBe('CHALLENGE_ABC');
+        expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+        expect(url.searchParams.get('identity_provider')).toBe('Github');
+        expect(url.searchParams.get('state')).toBeTruthy();
+        expect(stateCookie.startsWith('oauthState=')).toBe(true);
+    });
 
-    it('relays the code and client state back to the original redirect_uri', () => {
-        const url = new URL(ctrl.handleCallback(origin, {state: signedState(), code: 'AUTH_CODE'}));
+    it("ignores the client's scope", () => {
+        for (const scope of ['gitgazer-mcp/write', '', undefined, 'openid']) {
+            const query: Record<string, string> = {...validAuthorizeQuery};
+            if (scope === undefined) delete query.scope;
+            else query.scope = scope;
+            expect(new URL(confirm('read', query).location).searchParams.get('scope')).toBe('openid email profile gitgazer-mcp/read');
+            expect(new URL(confirm('write', query).location).searchParams.get('scope')).toBe(
+                'openid email profile gitgazer-mcp/read gitgazer-mcp/write',
+            );
+        }
+    });
+
+    it('adds the write scope only for session write', () => {
+        expect(new URL(confirm('read').location).searchParams.get('scope')).not.toContain('gitgazer-mcp/write');
+        expect(new URL(confirm('write').location).searchParams.get('scope')).toContain('gitgazer-mcp/write');
+    });
+
+    it('rejects a missing, null or foreign Origin', () => {
+        for (const o of [undefined, 'null', 'https://evil.example']) {
+            expect(() => ctrl.handleAuthorizeConfirm(origin, o, {request: connectRequest(), session: 'read'})).toThrow(ForbiddenError);
+        }
+    });
+
+    it('rejects a tampered, expired or missing request, and an unknown session', () => {
+        const [payload] = connectRequest().split('.');
+        for (const request of [undefined, 'forged.signature', `${payload}.AAAA`]) {
+            expect(() => ctrl.handleAuthorizeConfirm(origin, frontendOrigin, {request, session: 'read'})).toThrow(BadRequestError);
+        }
+        expect(() => confirm('admin')).toThrow(BadRequestError);
+        expect(() => ctrl.handleAuthorizeConfirm(origin, frontendOrigin, {request: connectRequest()})).toThrow(BadRequestError);
+
+        vi.useFakeTimers();
+        try {
+            vi.setSystemTime(new Date('2026-07-22T00:00:00.000Z'));
+            const request = connectRequest();
+            vi.setSystemTime(new Date('2026-07-22T00:20:00.000Z'));
+            expect(() => ctrl.handleAuthorizeConfirm(origin, frontendOrigin, {request, session: 'read'})).toThrow(BadRequestError);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+});
+
+describe('handleCallback', () => {
+    const confirmed = () => {
+        const {location, stateCookie} = confirm('read');
+        return {state: new URL(location).searchParams.get('state')!, nonce: nonceOf(stateCookie)};
+    };
+
+    it('relays the code and client state when the cookie nonce matches', () => {
+        const {state, nonce} = confirmed();
+        const url = new URL(ctrl.handleCallback(origin, {state, code: 'AUTH_CODE'}, nonce));
         expect(`${url.origin}${url.pathname}`).toBe('http://127.0.0.1:33418/callback');
         expect(url.searchParams.get('code')).toBe('AUTH_CODE');
         expect(url.searchParams.get('state')).toBe('client-xyz');
@@ -158,30 +208,41 @@ describe('handleCallback', () => {
     });
 
     it('relays OAuth errors back to the client', () => {
-        const url = new URL(ctrl.handleCallback(origin, {state: signedState(), error: 'access_denied', error_description: 'nope'}));
+        const {state, nonce} = confirmed();
+        const url = new URL(ctrl.handleCallback(origin, {state, error: 'access_denied', error_description: 'nope'}, nonce));
         expect(url.searchParams.get('error')).toBe('access_denied');
         expect(url.searchParams.get('error_description')).toBe('nope');
         expect(url.searchParams.get('iss')).toBe('https://app.gitgazer.com');
     });
 
+    it('rejects a missing or different cookie nonce', () => {
+        const {state} = confirmed();
+        expect(() => ctrl.handleCallback(origin, {state, code: 'x'}, null)).toThrow(/Invalid or expired/);
+        expect(() => ctrl.handleCallback(origin, {state, code: 'x'}, 'other-nonce')).toThrow(/Invalid or expired/);
+    });
+
     it('rejects a forged or missing state', () => {
-        expect(() => ctrl.handleCallback(origin, {state: 'forged.signature', code: 'x'})).toThrow(/Invalid or expired/);
-        expect(() => ctrl.handleCallback(origin, {code: 'x'})).toThrow(/Invalid or expired/);
+        const {nonce} = confirmed();
+        expect(() => ctrl.handleCallback(origin, {state: 'forged.signature', code: 'x'}, nonce)).toThrow(/Invalid or expired/);
+        expect(() => ctrl.handleCallback(origin, {code: 'x'}, nonce)).toThrow(/Invalid or expired/);
     });
 
-    it('rejects a state whose payload was tampered (signature mismatch)', () => {
-        const [, sig] = signedState().split('.');
-        const forgedPayload = Buffer.from(JSON.stringify({redirectUri: 'http://127.0.0.1:1/cb', exp: 9999999999})).toString('base64url');
-        expect(() => ctrl.handleCallback(origin, {state: `${forgedPayload}.${sig}`, code: 'x'})).toThrow(/Invalid or expired/);
+    it('rejects a connect-request used as state, and a state minted for another purpose', () => {
+        const {nonce} = confirmed();
+        expect(() => ctrl.handleCallback(origin, {state: connectRequest(), code: 'x'}, nonce)).toThrow(/Invalid or expired/);
+        for (const payload of [{purpose: 'slack_install', redirectUri: 'http://127.0.0.1:1/cb'}, {redirect_url: 'https://app.gitgazer.com/'}]) {
+            const minted = mintSignedState(payload);
+            expect(() => ctrl.handleCallback(origin, {state: minted.token, code: 'x'}, minted.nonce)).toThrow(/Invalid or expired/);
+        }
     });
 
-    it('rejects an expired state (past the 600s TTL)', () => {
+    it('rejects an expired state (past the TTL)', () => {
         vi.useFakeTimers();
         try {
             vi.setSystemTime(new Date('2026-07-22T00:00:00.000Z'));
-            const state = signedState();
-            vi.setSystemTime(new Date('2026-07-22T00:20:00.000Z')); // +20 min > TTL
-            expect(() => ctrl.handleCallback(origin, {state, code: 'AUTH_CODE'})).toThrow(/Invalid or expired/);
+            const {state, nonce} = confirmed();
+            vi.setSystemTime(new Date('2026-07-22T00:20:00.000Z'));
+            expect(() => ctrl.handleCallback(origin, {state, code: 'AUTH_CODE'}, nonce)).toThrow(/Invalid or expired/);
         } finally {
             vi.useRealTimers();
         }

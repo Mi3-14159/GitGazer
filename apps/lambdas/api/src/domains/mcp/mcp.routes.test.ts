@@ -1,6 +1,8 @@
 import router from '@/domains/mcp/mcp.routes';
 import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import {mintSignedState} from '@/domains/auth/auth.controller';
+import config from '@gitgazer/backend-core/config';
 import {OAuthError, OAuthErrorCode} from '@modelcontextprotocol/server';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -140,5 +142,69 @@ describe('POST /api/mcp', () => {
         const body = await res.text();
         expect(body).toContain('"notifications":{}');
         expect(body).toContain('"resultType":"complete"');
+    });
+});
+
+describe('MCP OAuth connect flow', () => {
+    const configValues: Record<string, unknown> = {
+        mcpServerUrl: 'https://app.example.com/api/mcp',
+        stateSecret: 'test-state-secret-0123456789',
+        cognito: {domain: 'auth.example.com', mcpClientId: 'mcp-client-123'},
+        allowedFrontendOrigins: ['https://app.example.com'],
+        mcpAllowedRedirectHosts: [],
+    };
+    const authorizeQuery = new URLSearchParams({
+        response_type: 'code',
+        redirect_uri: 'http://127.0.0.1:33418/callback',
+        code_challenge: 'CHALLENGE',
+        code_challenge_method: 'S256',
+    });
+
+    beforeEach(() => {
+        vi.spyOn(config, 'get').mockImplementation(((key: string) => configValues[key]) as typeof config.get);
+    });
+
+    const connectRequest = async (): Promise<string> => {
+        const res = await testRequest(app, 'GET', `/api/mcp/oauth/authorize?${authorizeQuery}`);
+        return new URL(res.headers.get('location')!).searchParams.get('request')!;
+    };
+
+    const confirm = async (session: string) =>
+        testRequest(app, 'POST', '/api/mcp/oauth/authorize', {
+            headers: {'content-type': 'application/x-www-form-urlencoded', origin: 'https://app.example.com'},
+            body: new URLSearchParams({request: await connectRequest(), session}).toString(),
+        });
+
+    it('sends GET authorize to the connect page', async () => {
+        const res = await testRequest(app, 'GET', `/api/mcp/oauth/authorize?${authorizeQuery}`);
+        expect(res.status).toBe(302);
+        expect(res.headers.get('location')).toMatch(/^https:\/\/app\.example\.com\/mcp\/connect\?request=/);
+    });
+
+    it('answers POST authorize with a 303 to Cognito and the state cookie', async () => {
+        const res = await confirm('read');
+        expect(res.status).toBe(303);
+        expect(res.headers.get('location')).toMatch(/^https:\/\/auth\.example\.com\/oauth2\/authorize\?/);
+        expect(res.headers.getSetCookie()[0]).toMatch(/^oauthState=/);
+    });
+
+    it('rejects POST authorize from a foreign origin', async () => {
+        const res = await testRequest(app, 'POST', '/api/mcp/oauth/authorize', {
+            headers: {'content-type': 'application/x-www-form-urlencoded', origin: 'https://evil.example'},
+            body: new URLSearchParams({request: await connectRequest(), session: 'write'}).toString(),
+        });
+        expect(res.status).toBe(403);
+    });
+
+    it('rejects the callback without the state cookie and relays with it', async () => {
+        const bound = mintSignedState({purpose: 'mcp_authorize', redirectUri: 'http://127.0.0.1:33418/callback', write: false});
+
+        const missing = await testRequest(app, 'GET', `/api/mcp/oauth/callback?code=c&state=${bound.token}`);
+        expect(missing.status).toBe(400);
+
+        const ok = await testRequest(app, 'GET', `/api/mcp/oauth/callback?code=c&state=${bound.token}`, {cookies: [`oauthState=${bound.nonce}`]});
+        expect(ok.status).toBe(302);
+        expect(ok.headers.get('location')).toContain('http://127.0.0.1:33418/callback');
+        expect(ok.headers.getSetCookie()[0]).toMatch(/oauthState=;.*Max-Age=0/);
     });
 });

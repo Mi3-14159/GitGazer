@@ -68,6 +68,7 @@ resource "aws_cognito_user_pool_client" "this" {
 }
 
 # Marks access tokens as meant for the MCP server, which rejects tokens without `gitgazer-mcp/read`.
+# `gitgazer-mcp/write` is requested only when the user picks a read & write session on the connect page.
 # The identifier has no workspace suffix: identifiers are unique per user pool, and the API
 # hardcodes the scope in apps/lambdas/api/src/shared/mcp-scope.ts.
 resource "aws_cognito_resource_server" "mcp" {
@@ -78,6 +79,11 @@ resource "aws_cognito_resource_server" "mcp" {
   scope {
     scope_name        = "read"
     scope_description = "Read GitGazer data through the MCP server"
+  }
+
+  scope {
+    scope_name        = "write"
+    scope_description = "Change GitGazer configuration through the MCP server"
   }
 }
 
@@ -100,7 +106,7 @@ resource "aws_cognito_user_pool_client" "mcp" {
   supported_identity_providers         = [aws_cognito_identity_provider.github.provider_name]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["email", "openid", "profile", "${aws_cognito_resource_server.mcp.identifier}/read"]
+  allowed_oauth_scopes                 = ["email", "openid", "profile", "${aws_cognito_resource_server.mcp.identifier}/read", "${aws_cognito_resource_server.mcp.identifier}/write"]
 
   # MCP tokens live on many developer machines; bound the blast radius of a leaked refresh token.
   enable_token_revocation = true
