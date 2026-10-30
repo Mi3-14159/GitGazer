@@ -12,9 +12,9 @@ import {getGithubSettings} from '@gitgazer/backend-services/github-app/github-se
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, ConflictError, ForbiddenError, HttpStatusCodes} from '@/shared/errors';
+import {BadRequestError, ConflictError, ForbiddenError, HttpStatusCodes, NotFoundError} from '@/shared/errors';
 import type {AppEnv} from '@/shared/hono/env';
-import {db} from '@gitgazer/db/client';
+import {db, withRlsTransaction} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
@@ -239,6 +239,18 @@ router.patch('/:integrationId/github-app/:installationId/events', addUserIntegra
     const allowedEvents: readonly string[] = GITHUB_APP_WEBHOOK_EVENTS;
     if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
         throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
+    }
+
+    const linked = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: (tx) =>
+            tx
+                .select({installationId: githubAppInstallations.installationId})
+                .from(githubAppInstallations)
+                .where(and(eq(githubAppInstallations.integrationId, integrationId), eq(githubAppInstallations.installationId, installationId))),
+    });
+    if (linked.length === 0) {
+        throw new NotFoundError('Installation not found');
     }
 
     try {
