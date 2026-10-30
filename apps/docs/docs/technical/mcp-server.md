@@ -100,7 +100,7 @@ All tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped
 
 ## Queryable data
 
-Queries run against the `github` schema and the configuration views in `gitgazer`. Because no default `search_path` is set for the role, **tables and views must be schema-qualified** (`github.workflow_runs`, not `workflow_runs`).
+Queries run against the `github` schema, `gitgazer.integrations` and the configuration views in `gitgazer`. Because no default `search_path` is set for the role, **tables and views must be schema-qualified** (`github.workflow_runs`, not `workflow_runs`).
 
 | Table                               | Notes                                                          |
 | ----------------------------------- | -------------------------------------------------------------- |
@@ -113,7 +113,7 @@ Queries run against the `github` schema and the configuration views in `gitgazer
 | `github.organizations`              | Organizations.                                                 |
 | `github.enterprises`                | Enterprises.                                                   |
 | `github."user"`                     | GitHub users/actors. `user` is a reserved word — **quote it**. |
-| `github.integrations`               | Column-scoped: only `integration_id`, `label`, `created_at`.   |
+| `gitgazer.integrations`             | Column-scoped: only `integration_id`, `label`, `created_at`.   |
 
 The configuration lives in tables the MCP cannot read, mostly in `gitgazer`. Each is exposed through a `<table>_view` in the table's own schema. Each view returns the rows and fields the GitGazer API shows the same person. The minimum role is per integration; a column below its role is `NULL` while the row stays visible.
 
