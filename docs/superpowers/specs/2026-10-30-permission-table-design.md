@@ -65,18 +65,29 @@ not part of this work.
 
 ### The table
 
+The table is a typed constant in the api code, not a database table: access changes go through
+review, operation names are checked by the compiler, and checking a request needs no lookup. Who
+holds which role stays in `github."user-assignments"`.
+
 Each operation has an access level:
 
-| Level           | Meaning                                                                                       |
-| --------------- | --------------------------------------------------------------------------------------------- |
-| `public`        | No authentication (today's `publicPrefixes`: auth, webhooks, GitHub App, MCP OAuth, …).       |
-| `signedIn`      | Any signed-in user (e.g. accept an invitation, `/api/user`, ws token, create an integration). |
-| `anyMembership` | Signed in; acts on all the caller's integrations, scoped by RLS (workflows, event log, …).    |
-| a `MemberRole`  | At least this role in the operation's integration (`viewer` … `owner`).                       |
+| Level                     | Meaning                                                                                                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'public'`                | No authentication (today's `publicPrefixes`: auth, webhooks, GitHub App, MCP OAuth, …).                                                                                     |
+| `'authenticated'`         | Any authenticated caller (session cookie or MCP token). The data is limited by RLS to the caller's integrations (workflows, event log, accept an invitation, `run_sql`, …). |
+| `{minRole: <MemberRole>}` | At least this role in the operation's target integration (`viewer` … `owner`); a caller with no role there is refused.                                                      |
+
+```ts
+type Access = 'public' | 'authenticated' | {minRole: MemberRole};
+
+'integration.list':   {access: 'authenticated'},
+'integration.delete': {access: {minRole: 'owner'}},
+'member.list':        {access: {minRole: 'viewer'}},
+```
 
 Routes map to operations by method and route pattern, e.g.
-`DELETE /api/integrations/:integrationId` → `integration.delete` → `owner`. MCP tools map by tool name,
-e.g. `run_sql` → `mcp.runSql` → `anyMembership`.
+`DELETE /api/integrations/:integrationId` → `integration.delete` → `{minRole: 'owner'}`. MCP tools map
+by tool name, e.g. `run_sql` → `mcp.runSql` → `'authenticated'`.
 
 Every route of the api app (under `/api` and the ones mounted at `/`) and every MCP tool has exactly
 one entry. The table is plain typed data
@@ -95,7 +106,7 @@ permissions`.
 
 One middleware (not one per route) finds the operation for the matched route, then calls
 `authorize`. It is mounted on the app right after `authenticate`, so it also sees the routes mounted
-at `/`. For a role level it uses the matched route's `:integrationId`. It loads the caller's roles
+at `/`. For a `minRole` level it uses the matched route's `:integrationId`. It loads the caller's roles
 itself, only when the operation needs them, and still sets `appContext.role` for the controllers.
 Routes no longer declare `requireRole`. Unknown paths keep answering `404`.
 
@@ -107,14 +118,14 @@ authentication decision into the table would mean resolving the route before rou
 change for no gain in this refactor.
 
 **The Slack install callback keeps its redirect (my call, from the "behaves exactly as today"
-goal).** Its table entry has the `admin` level and is marked as checked by its handler, so the
+goal).** Its table entry has `{minRole: 'admin'}` and is marked as checked by its handler, so the
 middleware lets it through without a `:integrationId` in the path. After decoding the signed state,
 the callback calls `authorize(caller, 'slackApp.installCallback', integrationIdFromState)` and, on a
 refusal, redirects with the "failed" result as today. The `logger.warn` becomes the `authz` log entry
 that `authorize` writes. Whether the call sits in the route handler or stays in
 `completeSlackInstall` is the builder's choice.
 
-`anyMembership` never refuses a caller with no integrations; they get empty results, as today.
+`'authenticated'` never refuses a caller with no integrations; they get empty results, as today.
 
 ### MCP: tool wrapper
 
