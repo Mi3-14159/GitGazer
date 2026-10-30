@@ -126,7 +126,8 @@ describe('authorize', () => {
             headers: {origin: 'https://app.example.com', 'access-control-request-method': 'GET'},
         });
 
-        expect([401, 403]).not.toContain(res.status);
+        expect(res.status).toBe(204);
+        expect(res.headers.get('access-control-allow-origin')).toBe('https://app.example.com');
     });
 
     it('is mounted by createApp', async () => {

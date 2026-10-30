@@ -71,6 +71,14 @@ describe('permission table', () => {
         expect(missing).toEqual([]);
     });
 
+    it('marks only the two Slack callbacks as checked in the handler', () => {
+        const marked = Object.entries(OPERATIONS)
+            .filter(([, entry]) => 'checkedInHandler' in entry)
+            .map(([name]) => name);
+
+        expect(marked.sort()).toEqual(['slackApp.installCallback', 'slackUser.signInCallback']);
+    });
+
     it('uses every operation', () => {
         const used = new Set<string>([...Object.values(ROUTES), ...Object.values(TOOLS)]);
 
