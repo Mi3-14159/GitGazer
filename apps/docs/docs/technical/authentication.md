@@ -45,7 +45,7 @@ sequenceDiagram
 ### How It Works
 
 1. The SPA redirects the browser to `GET /api/auth/login?redirect_url=<app-origin>`. Sign-in is initiated **server-side** — the SPA no longer builds the Cognito authorize URL itself.
-2. The login endpoint validates the `redirect_url`, mints a **signed, single-use `state` token** bound to a random **nonce**, stores the nonce in a short-lived httpOnly cookie (`oauthStateNonce`, 10-minute TTL), and 302-redirects to Cognito's `/oauth2/authorize` with the signed token in the `state` parameter.
+2. The login endpoint validates the `redirect_url`, mints a **signed, single-use `state` token** bound to a random **nonce**, stores the nonce in a short-lived httpOnly cookie (`oauthState`, 10-minute TTL), and 302-redirects to Cognito's `/oauth2/authorize` with the signed token in the `state` parameter.
 3. Cognito redirects to GitHub for OAuth consent.
 4. After approval, Cognito receives an authorization code and redirects to `GET /api/auth/callback?code=...&state=...`.
 5. The callback handler **verifies the signed `state` token and nonce cookie before anything else** — checking the HMAC signature, the expiry, and that the nonce embedded in the token matches the nonce cookie. If any check fails it returns HTTP 403 and **never exchanges the code**.
@@ -57,7 +57,7 @@ sequenceDiagram
 The `state` parameter is not just an opaque redirect hint — it is a signed token that protects against login cross-site request forgery (an attacker tricking a victim into completing a login the attacker started).
 
 - **Signed payload** — the token is `base64url(payload).hmacSHA256(payload)`, where the payload carries the `redirect_url`, a random `nonce`, and an `exp` timestamp. It is signed with a dedicated `stateSecret`.
-- **Nonce binding** — the same nonce is stored in the httpOnly `oauthStateNonce` cookie. The callback only succeeds if the nonce inside the signed token matches the nonce in the cookie, so a `state` value cannot be replayed in another browser.
+- **Nonce binding** — the same nonce is stored in the httpOnly `oauthState` cookie. The callback only succeeds if the nonce inside the signed token matches the nonce in the cookie, so a `state` value cannot be replayed in another browser.
 - **Constant-time checks** — the signature and nonce are compared in constant time (both sides are SHA-256 hashed first) so neither length nor content leaks through timing.
 - **Fail closed** — if `stateSecret` is not configured, login initiation and callback both fail loudly rather than silently accepting forgeable tokens.
 - **Short-lived & single-use** — the token expires after 10 minutes (matching the cookie `Max-Age`), and the nonce cookie is cleared once the callback completes.
@@ -67,7 +67,7 @@ The `state` parameter is not just an opaque redirect hint — it is a signed tok
 The Slack app adds two redirect routes that Slack calls through the user's browser: `/api/slack/oauth/callback` (install) and `/api/slack/sign-in/callback` (Connect Slack). Unlike the Cognito callback, they are **not** public routes. They go through the normal `authenticate` middleware, so the user's session cookies must be present.
 
 - **Signed state with purpose** — the state token reuses the signed-state mechanism above and additionally carries a `purpose` (`slack_install` or `slack_sign_in`), the integration ID, and the user ID. A callback rejects a token whose purpose or user ID doesn't match.
-- **Nonce cookie** — the nonce is bound to the browser through the same `oauthStateNonce` cookie and cleared after the callback.
+- **Nonce cookie** — the nonce is bound to the browser through the same `oauthState` cookie and cleared after the callback.
 - **Fixed redirect URIs** — the redirect URIs are fixed API routes, never taken from the request.
 
 ### MCP Sign-In State
