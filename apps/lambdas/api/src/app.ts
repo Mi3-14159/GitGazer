@@ -72,8 +72,8 @@ export const createApp = (): Hono<AppEnv> => {
     app.use(compress());
     app.use(cors({origin: config.get('corsOrigins')}));
     app.use(authenticate);
-    app.use(authorize);
     app.use(originCheck);
+    app.use(authorize);
 
     app.route('/api', createApiRouter());
     app.route('/', wellKnownRoutes);
