@@ -17,7 +17,7 @@ variable "apigateway_logging_enabled" {
 
 variable "mcp_callback_urls" {
   type        = list(string)
-  description = "Extra OAuth callback URLs registered directly on the MCP Cognito client, in addition to the proxy's own /api/mcp/oauth/callback. WARNING: entries here are fully-trusted redirect targets Cognito sends the auth code to directly, bypassing the proxy's mcpAllowedRedirectHosts allowlist — normally leave empty."
+  description = "Extra OAuth callback URLs registered directly on the MCP Cognito client, in addition to the proxy's own /api/mcp/oauth/callback. WARNING: entries here are fully-trusted redirect targets Cognito sends the auth code to directly, bypassing the proxy's mcpAllowedRedirectHosts allowlist. They also bypass the MCP connect screen and its read/write consent, so a client using one can request the write scope directly from Cognito — normally leave empty."
   default     = []
 }
 
