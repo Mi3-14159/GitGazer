@@ -14,7 +14,7 @@
 
     const initializeAuth = async () => {
         // Skip auth redirect for pages that handle their own auth flow
-        const publicPaths = ['/login', '/invite/'];
+        const publicPaths = ['/login', '/invite/', '/mcp/connect'];
         if (publicPaths.some((p) => router.currentRoute.value.path.startsWith(p))) {
             return;
         }
