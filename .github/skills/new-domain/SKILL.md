@@ -41,19 +41,21 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
     api.route('/integrations/:integrationId/things', thingsRoutes);
     ```
 
-    The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `authorize` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
+    The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `originCheck` → `authorize`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
 
 3. **Write controllers** that wrap every tenant-scoped query in `withRlsTransaction` (see the `refactor` skill for the boundary rules). Default role is reader; pass `userName: gitgazerWriter.name` for writes.
 
-4. **Add tests** colocated as `*.test.ts`. Route tests call `testRequest(app, method, path, {appContext, cookies?, headers?, body?})` from [@/shared/hono/test-request](../../../apps/lambdas/api/src/shared/hono/test-request.ts), which puts the app's error and not-found handlers around the router; mount the router where `createApiRouter()` does, e.g. `new Hono<AppEnv>().route('/api/integrations/:integrationId/things', router)`. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
+4. **Add the permission-table entries first** (see Authorization below); `testRequest` runs `authorize`, so route tests get 403 until they exist.
 
-5. **Verify**: `cd apps/lambdas/api && pnpm run test:unit && pnpm run lint`.
+5. **Add tests** colocated as `*.test.ts`. Route tests call `testRequest(app, method, path, {appContext, cookies?, headers?, body?})` from [@/shared/hono/test-request](../../../apps/lambdas/api/src/shared/hono/test-request.ts), which puts the app's error and not-found handlers around the router; mount the router where `createApiRouter()` does, e.g. `new Hono<AppEnv>().route('/api/integrations/:integrationId/things', router)`. Mock `@gitgazer/db/client` and all AWS clients — never hit real services.
+
+6. **Verify**: `cd apps/lambdas/api && pnpm run test:unit && pnpm run lint`.
 
 ## Conventions (enforced — see [backend.instructions.md](../../instructions/backend.instructions.md))
 
 - **Imports**: `@/` for `apps/lambdas/api/src`, `@gitgazer/db/*` for the shared package. **Never** `../../../`.
 - **Auth context**: handlers read the authenticated user from `c.var.appContext`; add the `addUserIntegrationsToCtx` middleware from [integrations.middleware.ts](../../../apps/lambdas/api/src/domains/integrations/integrations.middleware.ts) to populate `appContext.integrations` / `integrationRoles`.
-- **Authorization**: add every route to `ROUTES` and its operation to `OPERATIONS` in [permissions/table.ts](../../../apps/lambdas/api/src/shared/permissions/table.ts) (`'public'`, `'authenticated'` or `{minRole: 'admin' | ...}`). The `authorize` middleware enforces it, reading the `:integrationId` path parameter; a route without an entry gets 403 and `table.test.ts` fails.
+- **Authorization**: add every route to `ROUTES` and its operation to `OPERATIONS` in [permissions/table.ts](../../../apps/lambdas/api/src/shared/permissions/table.ts) (`'public'`, `'authenticated'` or `{minRole: 'admin' | ...}`). The `authorize` middleware enforces it, reading the path segment at the pattern's `:integrationId` position; a route without an entry gets 403 and `table.test.ts` fails.
 - **Responses**: return `c.json(...)`; throw `BadRequestError` / `ForbiddenError` / `NotFoundError` / etc. from [@/shared/errors](../../../apps/lambdas/api/src/shared/errors.ts) for errors (details go in the second constructor argument).
 - **Logging**: `getLogger()` from `@gitgazer/backend-core/logger` (AWS Powertools structured logging).
 - **AWS clients**: import pre-configured clients from `@/shared/clients/` — never instantiate SDK clients in a controller.

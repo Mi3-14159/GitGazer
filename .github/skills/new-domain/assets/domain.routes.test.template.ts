@@ -1,6 +1,7 @@
 // Template: apps/lambdas/api/src/domains/<domain>/<domain>.routes.test.ts
 // testRequest puts the app's error and not-found handlers around the router and sets the given appContext; mount the router where createApiRouter() does.
-// Mock the controller. Role checks live in the authorize middleware, which createApp mounts; test them through table.test.ts and authorization.test.ts, not here.
+// testRequest runs the authorize middleware, so add the ROUTES/OPERATIONS entries to table.ts first (see the routes template); without them every request gets 403.
+// Mock the controller. The appContext below carries the caller's roles so authorize does not look them up; role rules themselves are tested in table.test.ts and authorization.test.ts.
 
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -17,7 +18,16 @@ const mocks = vi.hoisted(() => ({getThings: vi.fn(), createThing: vi.fn()}));
 
 vi.mock('@/domains/things/things.controller', () => mocks);
 
-const appContext = {userId: 1, username: '', email: '', name: '', nickname: '', picture: ''};
+const appContext = {
+    userId: 1,
+    username: '',
+    email: '',
+    name: '',
+    nickname: '',
+    picture: '',
+    integrations: [INTEGRATION_ID],
+    integrationRoles: {[INTEGRATION_ID]: 'admin' as const},
+};
 
 describe('things routes', () => {
     beforeEach(() => {
