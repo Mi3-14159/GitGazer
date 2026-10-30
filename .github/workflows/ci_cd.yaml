@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lambdas-uploaded: ${{ steps.affected-lambdas.outputs.any }}
+      docs-uploaded: ${{ steps.affected-docs.outputs.any }}
     permissions:
       contents: read
       actions: read
@@ -102,6 +103,31 @@ jobs:
           else
             echo "any=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Check for uploaded docs
+        id: affected-docs
+        if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+        run: |
+          affected=$(pnpm nx show projects --affected --projects='@gitgazer/docs' --json)
+          echo "affected docs: $affected"
+          if [ "$(jq 'length' <<<"$affected")" -gt 0 ]; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # A job holds one environment, so the docs deployment is recorded here; the upload ran in ci-cd.
+  docs:
+    name: Record docs deployment
+    needs: ci-cd
+    if: needs.ci-cd.outputs.docs-uploaded == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    environment:
+      name: docs.gitgazer.com
+      url: https://docs.gitgazer.com/
+    steps:
+      - run: echo "Docs uploaded by the Build & deploy job"
 
   terraform:
     name: Apply infrastructure
