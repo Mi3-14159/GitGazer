@@ -1,14 +1,14 @@
 ---
 sidebar_position: 5
 title: MCP Server
-description: Remote Model Context Protocol server for read-only SQL access to GitGazer data, secured with OAuth 2.1 and PostgreSQL-enforced tenant isolation.
+description: Remote Model Context Protocol server for read-only SQL access to GitGazer data and, in write sessions, notification rule changes, secured with OAuth 2.1 and PostgreSQL-enforced tenant isolation.
 ---
 
 # MCP Server
 
 GitGazer exposes a remote **[Model Context Protocol](https://modelcontextprotocol.io) (MCP)** server so AI assistants — VS Code Copilot, Claude Code, Claude Desktop, Cursor, and any other MCP client — can query a tenant's GitHub Actions data on the user's behalf.
 
-It is **read-only**, authenticated with **OAuth 2.1**, and every query is bounded by the querying user's PostgreSQL role permissions, row-level security, and a usage budget. There is nothing to install: it is served by the `api` Lambda as its `mcp` domain.
+Data access is **read-only**, and a user can additionally allow a **write session** that changes notification rules. It is authenticated with **OAuth 2.1**, and every query is bounded by the querying user's PostgreSQL role permissions, row-level security, and a usage budget. There is nothing to install: it is served by the `api` Lambda as its `mcp` domain.
 
 For the end-user walkthrough (how to connect a client), see [Querying Data with AI Assistants](../user-guide/ai-assistants.md).
 
@@ -66,7 +66,10 @@ sequenceDiagram
     P-->>C: returns a client_id
     Note over C: Generate PKCE challenge
     C->>P: GET /api/mcp/oauth/authorize (PKCE, redirect_uri)
-    P->>Cog: 302 to Cognito authorize (GitHub IdP)
+    P-->>C: 302 to /mcp/connect?request=… (signed)
+    Note over C: User picks read only or read & write
+    C->>P: POST /api/mcp/oauth/authorize (request, session)
+    P->>Cog: 303 to Cognito authorize (GitHub IdP) + oauthState cookie
     Cog-->>C: Sign in with GitHub → code
     C->>P: GET /api/mcp/oauth/callback (relays code to client)
     C->>P: POST /api/mcp/oauth/token (code + verifier)
@@ -81,14 +84,34 @@ Key points:
 - **Discovery** follows the MCP spec: RFC 9728 Protected Resource Metadata → RFC 8414 Authorization Server Metadata → registration.
 - The proxy is **stateless** — the client's `redirect_uri` and `state` are HMAC-signed into the Cognito `state` parameter, so no server-side session store is needed.
 - **PKCE (S256)** is required; the MCP Cognito app client is a public client with no secret.
-- **Scope `gitgazer-mcp/read`**: the Cognito resource server `gitgazer-mcp` defines it, and only the MCP app client may request it. The proxy always adds it to the authorize request, even when a client asks for no scope or only `openid`/`email`/`profile`, and it drops any scope it does not advertise.
+- **Scopes**: the Cognito resource server `gitgazer-mcp` defines `gitgazer-mcp/read` and `gitgazer-mcp/write`, and only the MCP app client may request them. The proxy advertises both in `scopes_supported`.
+- **The client's `scope` parameter is ignored entirely.** Only the user's choice on the connect page decides what is requested:
+
+    | Session      | Scopes requested from Cognito                               |
+    | ------------ | ----------------------------------------------------------- |
+    | Read only    | `openid email profile gitgazer-mcp/read`                    |
+    | Read & write | `openid email profile gitgazer-mcp/read gitgazer-mcp/write` |
+
 - The access token must come from the MCP Cognito client and carry `gitgazer-mcp/read`. Access tokens from the web app client are not accepted, so a leaked web token cannot be used against the MCP. Any other token gets `401 invalid_token` with the `WWW-Authenticate` challenge. The token's `sub` is resolved to a GitGazer user, and the user's integrations become the tenant scope for every query.
-- Tokens issued before the scope existed lack it and are refused. A refresh keeps the scopes of the original sign-in, so each existing MCP connection has to sign in again once.
+- Tokens issued before the scope existed lack it and are refused. A refresh keeps the scopes of the original sign-in, so an existing read-only connection stays read-only; to get write access the user has to sign in again through the client (remove and re-add the server, or sign out of it) and choose read & write.
 - **Redirect allowlist**: the proxy only relays authorization codes to native-app loopback (`127.0.0.1`/`localhost`) and an operator-configurable set of hosted redirect hosts (default `vscode.dev`, `claude.ai`). This is the open-redirect guard — see [Configuration](#configuration).
+
+### Connect flow and binding
+
+`GET /api/mcp/oauth/authorize` validates `response_type=code`, the `redirect_uri` against the allowlist and PKCE `S256`, then answers `302` to the web app's public `/mcp/connect` page. Everything the flow needs travels in an opaque `request` query parameter: the client's `redirect_uri`, `state` and `code_challenge`, HMAC-signed with `stateSecret` with the purpose `mcp_connect` and a 10-minute expiry. The page shows **Read only** and **Read & write** and posts `request` and `session` (`read` or `write`) as a form to `POST /api/mcp/oauth/authorize`.
+
+That `POST` is the confirmation step:
+
+- **Strict `Origin`**: the `Origin` header must exactly match a configured frontend origin. A missing, `null` or foreign `Origin` gets `403`, so another site cannot submit the form for the user.
+- The signed `request` must be valid and unexpired (`400` otherwise), and `session` must be `read` or `write`.
+- The proxy mints a signed state with the purpose `mcp_authorize` (carrying the `redirect_uri`, the client's `state` and a `write` flag), sets its nonce in the httpOnly `oauthState` cookie (10 minutes), and answers `303` to Cognito with that state and the scopes for the chosen session.
+- `GET /api/mcp/oauth/callback` accepts only a state with the purpose `mcp_authorize` whose nonce matches the `oauthState` cookie, which binds the Cognito round trip to the browser that confirmed it. A connect request, a web login state or a Slack state is rejected there. The callback then relays the code to the client's `redirect_uri` and clears the cookie.
 
 ## Tools
 
-All tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations.
+Which tools a client sees depends on the scopes of its token: a token with `gitgazer-mcp/write` gets a write session, every other valid token a read session (`createMcpServer({write})`). A read session does not register the write tools at all, so calling one by name fails. The server `instructions` of a write session also name the write tools.
+
+The data tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations. They are available in both session types.
 
 | Tool             | Input       | Description                                        | Counts against budget |
 | ---------------- | ----------- | -------------------------------------------------- | --------------------- |
@@ -97,6 +120,18 @@ All tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped
 | `describe_table` | `{ table }` | List a table's columns (name, type, nullability).  | ❌ no                 |
 
 `run_sql` returns the columns, rows, a `rowCount`, a `truncated` flag, and the query-time `budget` (see [Limits](#limits-and-budget)).
+
+### Write tools
+
+Only in a write session. They go through the same controller functions as the REST routes for notification rules, so validation is identical, and each is authorized like the route: the permission table maps the tool to the route's operation and `registerTool` calls `checkAccess` on every call (see [Roles & Permissions](./roles-and-permissions.md)).
+
+| Tool                       | Operation                 | Minimum role | Annotations                                    | Notes                                                                                                                                                                        |
+| -------------------------- | ------------------------- | ------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `create_notification_rule` | `notificationRule.create` | member       | `readOnlyHint: false`                          | Always creates a new rule.                                                                                                                                                   |
+| `update_notification_rule` | `notificationRule.update` | member       | `readOnlyHint: false`                          | Changes only the fields passed; `rule` and `handle_ids` replace the stored value as a whole. An unknown `rule_id` returns "Notification rule not found" and creates nothing. |
+| `delete_notification_rule` | `notificationRule.delete` | member       | `readOnlyHint: false`, `destructiveHint: true` | Permanently deletes a rule; an unknown `rule_id` returns "Notification rule not found".                                                                                      |
+
+All three take an `integration_id`; the member role is checked in that integration. Rule and handle ids come from `gitgazer.notification_rules_view` and `gitgazer.notification_handles_view` through `run_sql`. Each change writes an event log entry whose message carries the suffix ` via MCP`, for example `A notification rule was deleted via MCP`, so changes made by an assistant can be told apart from changes made in the web app.
 
 ## Queryable data
 
@@ -157,7 +192,7 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
-1. **OAuth-validated identity** — a valid Cognito access token from the MCP client with the scope `gitgazer-mcp/read` is required; the `sub` resolves to a GitGazer user and their integrations.
+1. **OAuth-validated identity** — a valid Cognito access token from the MCP client with the scope `gitgazer-mcp/read` is required; the `sub` resolves to a GitGazer user and their integrations. The write tools additionally need `gitgazer-mcp/write` on the token and the member role in the integration.
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
 3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.signed_context`, which the database trusts only with a valid signature:
     - The key lives in the database (`gitgazer_internal.context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
@@ -166,7 +201,7 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
     - The key and the sign function live in schema `gitgazer_internal`, where no role but its owner has `USAGE`. `gitgazer_mcp` needs `USAGE` on `gitgazer` for the configuration views, so in `gitgazer` the function's ACL alone would protect it, and a re-created or new `SECURITY DEFINER` function there gets `EXECUTE` for `PUBLIC` by default.
     - `github.signed_context()` verifies the signature once per protected table the query references, not per row (each policy calls it through a sub-select, which Postgres runs as one InitPlan per relation).
     - A missing, malformed, altered or replayed context (copied from another session or transaction) yields no rows, never other tenants' rows, and no error.
-4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL.
+4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL. This covers the SQL tools: the write tools never run SQL from the client; they call the notification rule controller functions, the same code as the REST routes.
 5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH`, or that contains `;` or a `$1`-style placeholder, is rejected before it runs.
 6. **Blocked-function + escape guard** — `set_config` and `pg_settings`, functions that run a SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), advisory locks (a session lock would outlive the transaction on the pooled connection), `pg_sleep*`, `pg_stat_*`, file, large-object and backend-control functions, nested block comments at the start of the query, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
 7. **`set_config` stays executable** — migration `20260721204116_tough_black_bolt` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.signed_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.
@@ -235,7 +270,7 @@ Infrastructure (Terraform):
 - `var.mcp_allowed_redirect_hosts` — feeds `mcpAllowedRedirectHosts`; add a client's hosted callback host here to onboard it without a code change.
 - `var.enable_rds_proxy` — before enabling the proxy, re-check that `pg_backend_pid()` stays stable within a transaction through it, since the signed context is bound to the backend PID.
 - `aws_cognito_user_pool_client.mcp` — the public PKCE client; its ID is plumbed to the Lambda via Secrets Manager and handed to clients by the `/register` endpoint (no manual paste needed).
-- `aws_cognito_resource_server.mcp` — the resource server `gitgazer-mcp` with the scope `read`, which only the MCP client is allowed to request.
+- `aws_cognito_resource_server.mcp` — the resource server `gitgazer-mcp` with the scopes `read` and `write`, which only the MCP client is allowed to request.
 
 Database (Drizzle migrations):
 

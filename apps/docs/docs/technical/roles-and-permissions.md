@@ -65,7 +65,7 @@ The permission table in `apps/lambdas/api/src/shared/permissions/table.ts` is th
 
 The two Slack callbacks (`slackApp.installCallback`, `slackUser.signInCallback`) are marked `checkedInHandler`: they learn the integration only from the signed `state`, so their handlers call `checkAccess` themselves.
 
-MCP tools use the same table. `registerTool` takes a tool name from it and calls `checkAccess` on every tool call; a refusal comes back as a tool error in the response, not an HTTP status.
+MCP tools use the same table. `registerTool` takes a tool name from it and calls `checkAccess` on every tool call; a refusal comes back as a tool error in the response, not an HTTP status. The three write tools (`create_notification_rule`, `update_notification_rule`, `delete_notification_rule`) map to the same operations as the notification rule routes, so they need the `member` role in the integration they name. They are registered only for tokens with the scope `gitgazer-mcp/write`; the role check applies on top of that.
 
 Routes without an `integrationId` in the path (apart from the public routes and the two Slack callbacks) are `authenticated`. They act on all the caller's integrations, and RLS limits them to those. A CI test (`table.test.ts`) fails if a route or tool has no entry, or an entry has none.
 
@@ -96,7 +96,8 @@ Routes without an `integrationId` in the path (apart from the public routes and 
 | Monitoring    | Workflows, overview, metrics                           | `GET /api/workflows`, `/api/overview`, `/api/metrics/*`                                                                      | any membership                                      |
 |               | Event log, mark entries read                           | `GET /api/event-log`, `PATCH /api/event-log/:id/read`, `POST /api/event-log/mark-all-read`                                   | any membership                                      |
 | Other         | WebSocket token                                        | `GET /api/auth/ws-token`                                                                                                     | signed in                                           |
-|               | MCP tools                                              | `POST /api/mcp`                                                                                                              | any membership; what is visible depends on the role |
+|               | MCP data tools                                         | `POST /api/mcp`                                                                                                              | any membership; what is visible depends on the role |
+|               | MCP notification rule tools (write sessions only)      | `POST /api/mcp`: `create_`, `update_`, `delete_notification_rule`                                                            | member                                              |
 
 "Any membership" means any role in the integration the data belongs to; a user with no integrations gets empty results. The read flag of an event log entry is stored on the entry, so marking it read marks it for everyone in the integration.
 

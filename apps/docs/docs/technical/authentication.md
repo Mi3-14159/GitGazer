@@ -70,6 +70,14 @@ The Slack app adds two redirect routes that Slack calls through the user's brows
 - **Nonce cookie** — the nonce is bound to the browser through the same `oauthStateNonce` cookie and cleared after the callback.
 - **Fixed redirect URIs** — the redirect URIs are fixed API routes, never taken from the request.
 
+### MCP Sign-In State
+
+The MCP OAuth proxy reuses the signed-state mechanism for the sign-in of MCP clients. It is public, so it does not rely on session cookies, and it has two steps (details in [MCP Server](./mcp-server.md#connect-flow-and-binding)):
+
+- **Connect request** — `GET /api/mcp/oauth/authorize` signs the client's `redirect_uri`, `state` and `code_challenge` into a `request` with the purpose `mcp_connect` that expires after 10 minutes, and redirects to the public `/mcp/connect` page.
+- **Confirmation** — the page's form `POST` must carry an `Origin` header that exactly matches a configured frontend origin. The proxy then mints a state with the purpose `mcp_authorize`, binds its nonce to the browser through the `oauthState` cookie, and sends the user to Cognito. The MCP callback accepts only that purpose with a matching cookie, and the web login and Slack callbacks reject it, so a state minted for one flow cannot complete another.
+- **Scopes** — the client's `scope` parameter is ignored. The user's choice on the connect page decides whether `gitgazer-mcp/write` is requested in addition to `gitgazer-mcp/read`.
+
 ### GitHub Email Scope
 
 The GitHub OAuth app requests the `user:email` scope. At login, the user attribute endpoint reads the user's verified emails from GitHub and looks them up in the Slack workspaces of the user's integrations, to link the GitHub account to a Slack user. The step has a short time limit and never blocks or fails the login. Email addresses are only held in memory during the lookup and are never stored or logged; only the resulting Slack user ID is kept.
@@ -149,16 +157,16 @@ For state-changing requests (`POST`, `PUT`, `DELETE`, `PATCH`) on non-public rou
 
 These route prefixes skip authentication because they have their own verification:
 
-| Prefix                                                                                         | Reason                                                                         |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `/api/auth/login`                                                                              | Sign-in start — no session yet, mints the signed `state`                       |
-| `/api/auth/callback`                                                                           | OAuth callback — no cookies yet, uses authorization code                       |
-| `/api/auth/refresh`                                                                            | Token refresh — uses refresh token cookie directly                             |
-| `/api/auth/cognito/`                                                                           | Cognito OIDC helper endpoints (token proxy, user info proxy)                   |
-| `/api/import/`                                                                                 | Integration webhooks — verified via HMAC signature (`X-Hub-Signature-256`)     |
-| `/api/github/`                                                                                 | GitHub App webhooks — verified via app-level HMAC signature                    |
-| `/api/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | MCP endpoint and OAuth proxy — Bearer token, see [MCP Server](./mcp-server.md) |
-| `/fe-failover/`                                                                                | Serves the web app's `index.html` as a fallback                                |
+| Prefix                                                                                         | Reason                                                                                                                      |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `/api/auth/login`                                                                              | Sign-in start — no session yet, mints the signed `state`                                                                    |
+| `/api/auth/callback`                                                                           | OAuth callback — no cookies yet, uses authorization code                                                                    |
+| `/api/auth/refresh`                                                                            | Token refresh — uses refresh token cookie directly                                                                          |
+| `/api/auth/cognito/`                                                                           | Cognito OIDC helper endpoints (token proxy, user info proxy)                                                                |
+| `/api/import/`                                                                                 | Integration webhooks — verified via HMAC signature (`X-Hub-Signature-256`)                                                  |
+| `/api/github/`                                                                                 | GitHub App webhooks — verified via app-level HMAC signature                                                                 |
+| `/api/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | MCP endpoint and OAuth proxy — Bearer token, or the proxy's own signed request and state, see [MCP Server](./mcp-server.md) |
+| `/fe-failover/`                                                                                | Serves the web app's `index.html` as a fallback                                                                             |
 
 Each domain declares its own `publicPrefixes` export, which are aggregated into a central registry.
 
