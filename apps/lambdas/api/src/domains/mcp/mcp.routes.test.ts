@@ -119,32 +119,63 @@ describe('POST /api/mcp', () => {
         expect(result.tools.every((t: {annotations?: {readOnlyHint?: boolean}}) => t.annotations?.readOnlyHint)).toBe(true);
     });
 
-    it('lists six tools for a write-scope token', async () => {
-        verifyAccessToken.mockResolvedValue({...(await verifyAccessToken()), scopes: ['gitgazer-mcp/read', 'gitgazer-mcp/write']});
-        const {result} = await (await post(legacyBody('tools/list'))).json();
-        expect(result.tools.map((t: {name: string}) => t.name)).toEqual([
-            'run_sql',
-            'list_tables',
-            'describe_table',
-            'create_notification_rule',
-            'update_notification_rule',
-            'delete_notification_rule',
-        ]);
-    });
+    describe.each([
+        {
+            path: 'legacy',
+            list: () => post(legacyBody('tools/list')),
+            call: (args: Record<string, unknown>) => post(legacyBody('tools/call', {name: 'delete_notification_rule', arguments: args})),
+        },
+        {
+            path: '2026-07-28',
+            list: () => post(modernBody('tools/list'), modernHeaders('tools/list')),
+            call: (args: Record<string, unknown>) =>
+                post(
+                    modernBody('tools/call', {name: 'delete_notification_rule', arguments: args}),
+                    modernHeaders('tools/call', 'delete_notification_rule'),
+                ),
+        },
+    ])('write tools on the $path path', ({list, call}) => {
+        const RULE_ID = '22222222-2222-4222-8222-222222222222';
+        const MEMBER_ID = '11111111-1111-4111-8111-111111111111';
+        const withScopes = async (scopes: string[]) => verifyAccessToken.mockResolvedValue({...(await verifyAccessToken()), scopes});
 
-    it('lists three tools for a read token', async () => {
-        verifyAccessToken.mockResolvedValue({...(await verifyAccessToken()), scopes: ['gitgazer-mcp/read']});
-        const {result} = await (await post(legacyBody('tools/list'))).json();
-        expect(result.tools).toHaveLength(3);
-    });
+        beforeEach(() => {
+            getUserIntegrationRoles.mockResolvedValue({[MEMBER_ID]: 'member'});
+            deleteNotificationRule.mockResolvedValue(true);
+        });
 
-    it('rejects delete_notification_rule for a read token without calling the controller', async () => {
-        const res = await post(
-            modernBody('tools/call', {name: 'delete_notification_rule', arguments: {integration_id: ID_A, rule_id: ID_A}}),
-            modernHeaders('tools/call', 'delete_notification_rule'),
-        );
-        expect(JSON.stringify(await res.json())).toMatch(/error/i);
-        expect(deleteNotificationRule).not.toHaveBeenCalled();
+        it('lists six tools for a write-scope token', async () => {
+            await withScopes(['gitgazer-mcp/read', 'gitgazer-mcp/write']);
+            const {result} = await (await list()).json();
+            expect(result.tools.map((t: {name: string}) => t.name)).toEqual([
+                'run_sql',
+                'list_tables',
+                'describe_table',
+                'create_notification_rule',
+                'update_notification_rule',
+                'delete_notification_rule',
+            ]);
+        });
+
+        it('lists three tools for a read token', async () => {
+            await withScopes(['gitgazer-mcp/read']);
+            const {result} = await (await list()).json();
+            expect(result.tools).toHaveLength(3);
+        });
+
+        it('does not know delete_notification_rule for a read token, even for a member with valid arguments', async () => {
+            await withScopes(['gitgazer-mcp/read']);
+            const body = await (await call({integration_id: MEMBER_ID, rule_id: RULE_ID})).json();
+            expect(body.error).toEqual({code: -32602, message: 'Tool delete_notification_rule not found'});
+            expect(deleteNotificationRule).not.toHaveBeenCalled();
+        });
+
+        it('runs delete_notification_rule for the same call with a write-scope token', async () => {
+            await withScopes(['gitgazer-mcp/read', 'gitgazer-mcp/write']);
+            const body = await (await call({integration_id: MEMBER_ID, rule_id: RULE_ID})).json();
+            expect(body.result.isError).toBeUndefined();
+            expect(deleteNotificationRule).toHaveBeenCalledWith(RULE_ID, MEMBER_ID, 'mcp');
+        });
     });
 
     it('runs a legacy tools/call without a prior initialize, with the caller role map', async () => {
