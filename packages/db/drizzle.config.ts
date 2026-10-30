@@ -15,7 +15,11 @@ const database = process.env['RDS_DATABASE']!;
 const port = Number(process.env['RDS_PORT']);
 const user = process.env['RDS_DB_USER']!;
 
-const password = execSync(`aws rds generate-db-auth-token --hostname ${hostname} --port 5432 --username ${user}`, {encoding: 'utf-8'}).trim();
+// `generate` only diffs the schema against the snapshots, so it runs without AWS credentials.
+const needsDatabase = !process.argv.includes('generate');
+const password = needsDatabase
+    ? execSync(`aws rds generate-db-auth-token --hostname ${hostname} --port 5432 --username ${user}`, {encoding: 'utf-8'}).trim()
+    : '';
 
 export default defineConfig({
     out: './drizzle',

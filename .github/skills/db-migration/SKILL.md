@@ -31,7 +31,7 @@ Any table holding tenant data **must**:
 3. Attach the policy helpers and call `.enableRLS()`:
     - `writerTenantSeparationPolicy()` — always
     - `readerTenantSeparationPolicy()` — always
-    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories); use `mcpRolePolicy(minimumRole)` instead when only callers with at least that role in the integration may see the rows. Exposing a table also needs `GRANT SELECT ON <table> TO gitgazer_mcp` (column-scoped if it has secrets) in a custom migration, since no default privilege covers `gitgazer_mcp`. Admin-only columns go through a view, never a grant on the base table — see the column-gate pattern in the MCP server doc. To expose a `gitgazer` table to the MCP, add a `<table>_view` in the table's own schema (pattern in the MCP doc; `github.integration_ids` is the role function) and have the migration `REVOKE ALL` on the view from `gitgazer_reader` and `gitgazer_writer` (their default privileges would let them read it, or write through it as the owner and bypass RLS), and generate the snapshot offline with `packages/db/scripts/draft-migration.mts`. When an API domain switches to a view, grant `gitgazer_reader` `SELECT` on that view in a custom migration (it already has `EXECUTE` on `github.integration_ids` and `github.signed_context`) and pass `integrationRoles` to `withRlsTransaction`.
+    - `mcpTenantSeparationPolicy()` — **only** if the MCP server should expose it for read-only SQL (e.g. enterprises, organizations, repositories); use `mcpRolePolicy(minimumRole)` instead when only callers with at least that role in the integration may see the rows. Exposing a table also needs `GRANT SELECT ON <table> TO gitgazer_mcp` (column-scoped if it has secrets) in a custom migration, since no default privilege covers `gitgazer_mcp`. Admin-only columns go through a view, never a grant on the base table — see the column-gate pattern in the MCP server doc. To expose a `gitgazer` table to the MCP, add a `<table>_view` in the table's own schema (pattern in the MCP doc; `github.integration_ids` is the role function) and have the migration `REVOKE ALL` on the view from `gitgazer_reader` and `gitgazer_writer` (their default privileges would let them read it, or write through it as the owner and bypass RLS). When an API domain switches to a view, grant `gitgazer_reader` `SELECT` on that view in a custom migration (it already has `EXECUTE` on `github.integration_ids` and `github.signed_context`) and pass `integrationRoles` to `withRlsTransaction`.
 
 Use the bundled template: [assets/tenant-table.template.ts](./assets/tenant-table.template.ts).
 
@@ -52,7 +52,7 @@ cd packages/db   # drizzle-kit always runs from here (drizzle.config.ts + the dr
 #    Describe every new github table and every new view in packages/db/src/schema/descriptions.ts
 #    (plus any column whose meaning isn't obvious); never write COMMENT ON in a migration.
 
-# 2. Generate the migration (diffs schema → SQL in packages/db/drizzle/)
+# 2. Generate the migration (diffs schema → SQL in packages/db/drizzle/; needs no DB or AWS access)
 npx drizzle-kit generate
 
 # 3. REVIEW the generated SQL before applying. Confirm it contains, for a tenant table:
