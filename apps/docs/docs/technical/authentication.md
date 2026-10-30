@@ -114,7 +114,7 @@ This is transparent to the user — there is no visible re-authentication.
 Every API request passes through a global middleware chain in this order:
 
 ```
-compress → cors → authenticate → authorize → originCheck → route handler
+compress → cors → authenticate → originCheck → authorize → route handler
 ```
 
 ### 1. Compress
@@ -192,11 +192,11 @@ An integration can have several owners. The full permission matrix, the extra ru
 
 ### `authorize` Middleware
 
-One permission table, `apps/lambdas/api/src/shared/permissions/table.ts`, maps every route to an operation and every operation to an access level (`public`, `authenticated` or a minimum role). The `authorize` middleware runs right after `authenticate` and, for the matched route:
+One permission table, `apps/lambdas/api/src/shared/permissions/table.ts`, maps every route to an operation and every operation to an access level (`public`, `authenticated` or a minimum role). The `authorize` middleware runs after `originCheck` and, for the matched route:
 
 1. Answers HTTP 403 if the route has no table entry, so a new route is closed until it is added. An unknown path still gets 404.
 2. Lets `public` and `authenticated` routes through.
-3. For a minimum role, reads the `integrationId` path parameter and looks up the user's role for that integration, loading the user's roles only when needed.
+3. For a minimum role, reads the path segment at the pattern's `:integrationId` position and looks up the user's role for that integration, loading the user's roles only when needed.
 4. Compares the role against the minimum using the hierarchy and returns HTTP 403 if the user is not a member or the role is insufficient.
 
 Routes without an `integrationId` in the path (workflows, overview, metrics, event log, the notification list) are `authenticated` and act on all the caller's integrations; row-level security limits the queries to them. A test in CI fails if a route or MCP tool has no table entry, or an entry has no route.

@@ -106,7 +106,7 @@ permissions`.
 
 One middleware, `authorize` in `apps/lambdas/api/src/shared/middleware/authorization.ts` (next to
 `authentication.ts`), finds the operation for the matched route, then calls `checkAccess`. It is
-mounted on the app right after `authenticate`, so it also sees the routes mounted
+mounted on the app after `authenticate` and `originCheck`, so it also sees the routes mounted
 at `/`. For a `minRole` level it uses the matched route's `:integrationId`. It loads the caller's roles
 itself, only when the operation needs them, and still sets `appContext.role` for the controllers.
 Routes no longer declare `requireRole`. Unknown paths keep answering `404`.
