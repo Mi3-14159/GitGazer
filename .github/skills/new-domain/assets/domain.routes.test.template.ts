@@ -1,6 +1,6 @@
 // Template: apps/lambdas/api/src/domains/<domain>/<domain>.routes.test.ts
 // testRequest puts the app's error and not-found handlers around the router and sets the given appContext; mount the router where createApiRouter() does.
-// Mock the controller and addUserIntegrationsToCtx; requireRole runs for real against integrationRoles.
+// Mock the controller. Role checks live in the authorize middleware, which createApp mounts; test them through table.test.ts and authorization.test.ts, not here.
 
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
@@ -16,16 +16,6 @@ const INTEGRATION_ID = '11111111-1111-4111-8111-111111111111';
 const mocks = vi.hoisted(() => ({getThings: vi.fn(), createThing: vi.fn()}));
 
 vi.mock('@/domains/things/things.controller', () => mocks);
-vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async (
-        c: {var: {appContext?: {integrations?: string[]; integrationRoles?: Record<string, string>}}},
-        next: () => Promise<void>,
-    ) => {
-        c.var.appContext!.integrations = [INTEGRATION_ID];
-        c.var.appContext!.integrationRoles = {[INTEGRATION_ID]: 'admin'};
-        await next();
-    },
-}));
 
 const appContext = {userId: 1, username: '', email: '', name: '', nickname: '', picture: ''};
 

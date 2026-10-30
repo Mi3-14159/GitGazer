@@ -1,6 +1,6 @@
 ---
 name: new-domain
-description: 'Scaffold a new backend domain (feature module) in the GitGazer AWS Lambda API under apps/lambdas/api/src/domains/. Use when adding a new REST resource, feature area, or set of API endpoints. Covers the routes/controller/middleware/test file layout, registering the Hono router in the app, the middleware chain, role-based access with requireRole, RLS-scoped data access via withRlsTransaction, and the @/ and @gitgazer/db/* import conventions.'
+description: 'Scaffold a new backend domain (feature module) in the GitGazer AWS Lambda API under apps/lambdas/api/src/domains/. Use when adding a new REST resource, feature area, or set of API endpoints. Covers the routes/controller/middleware/test file layout, registering the Hono router in the app, the middleware chain, role-based access through the permission table, RLS-scoped data access via withRlsTransaction, and the @/ and @gitgazer/db/* import conventions.'
 license: MIT
 ---
 
@@ -41,7 +41,7 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
     api.route('/integrations/:integrationId/things', thingsRoutes);
     ```
 
-    The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
+    The global middleware chain (`compress` → `setContentLength` → `cors` → `authenticate` → `authorize` → `originCheck`) is applied by `createApp` — do **not** re-add it per domain. Routes that must skip authentication go in a `publicPrefixes` export of the routes file, listed in [public-routes.ts](../../../apps/lambdas/api/src/shared/middleware/public-routes.ts).
 
 3. **Write controllers** that wrap every tenant-scoped query in `withRlsTransaction` (see the `refactor` skill for the boundary rules). Default role is reader; pass `userName: gitgazerWriter.name` for writes.
 
@@ -53,7 +53,7 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
 
 - **Imports**: `@/` for `apps/lambdas/api/src`, `@gitgazer/db/*` for the shared package. **Never** `../../../`.
 - **Auth context**: handlers read the authenticated user from `c.var.appContext`; add the `addUserIntegrationsToCtx` middleware from [integrations.middleware.ts](../../../apps/lambdas/api/src/domains/integrations/integrations.middleware.ts) to populate `appContext.integrations` / `integrationRoles`.
-- **Authorization**: gate state-changing routes with `requireRole('admin' | 'owner' | ...)` from [@/shared/middleware/require-role](../../../apps/lambdas/api/src/shared/middleware/require-role.ts), after `addUserIntegrationsToCtx`. It reads the `:integrationId` path parameter.
+- **Authorization**: add every route to `ROUTES` and its operation to `OPERATIONS` in [permissions/table.ts](../../../apps/lambdas/api/src/shared/permissions/table.ts) (`'public'`, `'authenticated'` or `{minRole: 'admin' | ...}`). The `authorize` middleware enforces it, reading the `:integrationId` path parameter; a route without an entry gets 403 and `table.test.ts` fails.
 - **Responses**: return `c.json(...)`; throw `BadRequestError` / `ForbiddenError` / `NotFoundError` / etc. from [@/shared/errors](../../../apps/lambdas/api/src/shared/errors.ts) for errors (details go in the second constructor argument).
 - **Logging**: `getLogger()` from `@gitgazer/backend-core/logger` (AWS Powertools structured logging).
 - **AWS clients**: import pre-configured clients from `@/shared/clients/` — never instantiate SDK clients in a controller.
@@ -62,7 +62,7 @@ Reference implementations to copy patterns from: [apps/lambdas/api/src/domains/m
 
 - [ ] `<domain>.routes.ts` exports `default` a `Hono<AppEnv>` router and is mounted at its own path via `api.route('/<domain>', ...)` in `createApiRouter()`
 - [ ] All tenant-scoped DB access goes through `withRlsTransaction` with the correct role
-- [ ] State-changing routes protected with `requireRole(...)`
+- [ ] Every route has an entry in the permission table (`ROUTES` + `OPERATIONS`)
 - [ ] Inputs validated; errors thrown from `@/shared/errors`
 - [ ] Colocated `*.test.ts`: routes through `testRequest`, controllers with `@gitgazer/db/client` + AWS mocked
 - [ ] `pnpm run test:unit` and `pnpm run lint` pass
