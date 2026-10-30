@@ -7,8 +7,8 @@ import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
-import {integrationAppGithubSettings} from '@gitgazer/db/schema/gitgazer';
-import {githubAppWebhooks, integrations, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {integrationAppGithubSettings, integrations} from '@gitgazer/db/schema/gitgazer';
+import {githubAppWebhooks, userAssignments} from '@gitgazer/db/schema/github/workflows';
 import {Integration, isMemberRole, type MemberRole, type OrgSyncDefaultRole} from '@gitgazer/db/types';
 import {and, eq, sql} from 'drizzle-orm';
 

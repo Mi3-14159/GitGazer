@@ -1,12 +1,12 @@
 import {Column, getColumns, getTableName, getTableSchema, is, isView, SQL, type Table, type View} from 'drizzle-orm';
 import {escapeIdentifier, escapeLiteral} from 'pg';
+import {integrations} from './gitgazer';
 import {
     enterprises,
     events,
     githubAppInstallations,
     githubAppWebhooks,
     githubOrgMembers,
-    integrations,
     organizations,
     pendingOrgSync,
     pullRequestReviews,

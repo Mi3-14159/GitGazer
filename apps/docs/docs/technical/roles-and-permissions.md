@@ -233,9 +233,9 @@ Tables (`S` = `SELECT`, `I` = `INSERT`, `U` = `UPDATE`, `D` = `DELETE`):
 | --------------------------------------------------------------------------------------------------------------------------------- | --- | ------ | ------ | -------------------------------------------- |
 | `github.workflow_runs`, `workflow_jobs`, `workflow_run_pull_requests`, `pull_requests`, `pull_request_reviews`                    | yes | S      | SIUD   | S                                            |
 | `github.repositories`, `organizations`, `enterprises`, `"user"`                                                                   | yes | S      | SIUD   | S                                            |
-| `github.integrations`                                                                                                             | yes | S      | SIUD   | S on `integration_id`, `label`, `created_at` |
 | `github."user-assignments"`, `events`, `github_app_installations`, `github_app_webhooks`, `pending_org_sync`                      | yes | S      | SIUD   | —                                            |
 | `github.github_org_members`                                                                                                       | no  | S      | SIUD   | —                                            |
+| `gitgazer.integrations`                                                                                                           | yes | S      | SIUD   | S on `integration_id`, `label`, `created_at` |
 | `gitgazer.integration_apps`, `integration_app_github_settings`, `integration_app_slack_settings`                                  | yes | S      | SIUD   | —                                            |
 | `gitgazer.notification_handles`, `webhook_handle_details`, `slack_handle_details`                                                 | yes | S      | SIUD   | —                                            |
 | `gitgazer.notification_rules`, `notification_rule_destinations`, `integration_invitations`, `event_log_entries`, `ws_connections` | yes | S      | SIUD   | —                                            |

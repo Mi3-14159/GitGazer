@@ -27,6 +27,7 @@ vi.mock('@gitgazer/db/schema/gitgazer', () => ({
         secret: Symbol('integrationAppGithubSettings.secret'),
     },
     integrationApps: Symbol('integrationApps'),
+    integrations: {integrationId: Symbol('integrations.integrationId'), ownerId: Symbol('integrations.ownerId')},
 }));
 
 const mockGetGithubSettings = vi.fn();
@@ -45,7 +46,6 @@ vi.mock('@gitgazer/db/schema/app', () => ({
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
     githubAppWebhooks: Symbol('githubAppWebhooks'),
-    integrations: {integrationId: Symbol('integrations.integrationId'), ownerId: Symbol('integrations.ownerId')},
     userAssignments: Symbol('userAssignments'),
 }));
 
@@ -275,7 +275,7 @@ describe('integrations controller', () => {
         });
 
         it('lets any owner delete, not only the creator', async () => {
-            const {integrations} = await import('@gitgazer/db/schema/github/workflows');
+            const {integrations} = await import('@gitgazer/db/schema/gitgazer');
             mockFindSlackTeamId.mockResolvedValue(undefined);
 
             await controller.deleteIntegration('int-1', ['int-1'], 7);
