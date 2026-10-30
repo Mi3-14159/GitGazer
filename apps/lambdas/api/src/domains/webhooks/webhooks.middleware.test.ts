@@ -29,11 +29,11 @@ async function mockSettings(rows: unknown[]) {
     });
 }
 
-async function post(headers: Record<string, string>, body?: string, path = '/test/int-1') {
+async function post(headers: Record<string, string>, body?: string, path = '/api/import/int-1') {
     const {verifyGithubSign} = await import('./webhooks.middleware');
     const next = vi.fn();
     const app = new Hono<AppEnv>();
-    app.post('/test/:integrationId', verifyGithubSign, async (c) => {
+    app.post('/api/import/:integrationId', verifyGithubSign, async (c) => {
         next();
         return c.json({received: await c.req.json()});
     });
@@ -50,12 +50,12 @@ describe('verifyGithubSign middleware', () => {
         const {verifyGithubSign} = await import('./webhooks.middleware');
         const next = vi.fn();
         const app = new Hono<AppEnv>();
-        app.post('/test', verifyGithubSign, (c) => {
+        app.post('/api/github/webhook', verifyGithubSign, (c) => {
             next();
             return c.json({});
         });
 
-        const res = await testRequest(app, 'POST', '/test', {body: 'x'});
+        const res = await testRequest(app, 'POST', '/api/github/webhook', {body: 'x'});
 
         expect(res.status).toBe(400);
         expect(await res.json()).toMatchObject({message: 'Missing integration ID in path parameters'});

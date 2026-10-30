@@ -4,6 +4,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import router from '@/domains/members/members.routes';
 import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import type {MemberRole} from '@gitgazer/db/types';
 
 const app = new Hono<AppEnv>().route('/api', router);
 
@@ -22,18 +23,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/domains/members/members.controller', () => mocks);
-vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async (
-        c: {var: {appContext?: {integrations?: string[]; integrationRoles?: Record<string, string>}}},
-        next: () => Promise<void>,
-    ) => {
-        c.var.appContext!.integrationRoles = {'int-1': mocks.role, ...mocks.otherRoles};
-        c.var.appContext!.integrations = Object.keys(c.var.appContext!.integrationRoles);
-        await next();
-    },
-}));
 
-const appContext = () => ({userId: 7, username: '', email: '', name: '', nickname: '', picture: ''});
+const appContext = () => {
+    const integrationRoles = {'int-1': mocks.role, ...mocks.otherRoles} as Record<string, MemberRole>;
+    return {userId: 7, username: '', email: '', name: '', nickname: '', picture: '', integrations: Object.keys(integrationRoles), integrationRoles};
+};
 const base = '/api/integrations/int-1';
 
 describe('members routes', () => {

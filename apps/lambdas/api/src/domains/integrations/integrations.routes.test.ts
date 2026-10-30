@@ -1,6 +1,7 @@
 import router from '@/domains/integrations/integrations.routes';
 import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import type {MemberRole} from '@gitgazer/db/types';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -43,15 +44,20 @@ vi.mock('@/domains/integrations/integrations.controller', () => ({
     updateOrgSyncSettings: vi.fn(),
     upsertIntegration: vi.fn(),
 }));
-vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async (c: {set: (key: string, value: unknown) => void}, next: () => Promise<void>) => {
-        c.set('appContext', {userId: 1, integrations: ['i1'], integrationRoles: {i1: mocks.role.current}});
-        await next();
-    },
-}));
 vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLogEntry: vi.fn()}));
 vi.mock('@gitgazer/backend-services/org-member-resolver', () => ({resolveAndAssignOrgMembers: vi.fn()}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
+
+const callerContext = () => ({
+    userId: 1,
+    username: '',
+    email: '',
+    name: '',
+    nickname: '',
+    picture: '',
+    integrations: ['i1'],
+    integrationRoles: {i1: mocks.role.current} as Record<string, MemberRole>,
+});
 
 describe('DELETE /api/integrations/:integrationId', () => {
     beforeEach(() => {
@@ -62,21 +68,21 @@ describe('DELETE /api/integrations/:integrationId', () => {
     it.each(['admin', 'member', 'viewer'])('refuses an %s before the controller runs', async (role) => {
         mocks.role.current = role;
 
-        const res = await testRequest(app, 'DELETE', '/api/integrations/i1');
+        const res = await testRequest(app, 'DELETE', '/api/integrations/i1', {appContext: callerContext()});
 
         expect(res.status).toBe(403);
         expect(mocks.deleteIntegration).not.toHaveBeenCalled();
     });
 
     it('deletes for an owner', async () => {
-        const res = await testRequest(app, 'DELETE', '/api/integrations/i1');
+        const res = await testRequest(app, 'DELETE', '/api/integrations/i1', {appContext: callerContext()});
 
         expect(res.status).toBe(204);
         expect(mocks.deleteIntegration).toHaveBeenCalledWith('i1', ['i1'], 1);
     });
 });
 
-const link = async () => testRequest(app, 'POST', '/api/integrations/i1/github-app', {body: {installation_id: 42}});
+const link = async () => testRequest(app, 'POST', '/api/integrations/i1/github-app', {appContext: callerContext(), body: {installation_id: 42}});
 
 const installation = {installationId: 42, integrationId: null, accountLogin: 'acme', accountType: 'Organization', accountId: 500, senderId: 7};
 

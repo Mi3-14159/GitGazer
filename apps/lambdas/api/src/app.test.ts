@@ -1,11 +1,12 @@
-import {Hono} from 'hono';
+import {Hono, type Context} from 'hono';
 import {gunzipSync} from 'zlib';
-import {describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {AppEnv} from '@/shared/hono/env';
 
 const mocks = vi.hoisted(() => ({
     returning: vi.fn(async () => [{id: 7}]),
+    handler: vi.fn(),
     bigPayload: {items: Array.from({length: 200}, (_, i) => `item-${i}`)},
 }));
 
@@ -22,10 +23,14 @@ vi.mock('@/shared/middleware/token-verifier', () => ({
         idTokenVerifier: {verify: async () => ({sub: 'sub-1', email: 'octo@example.com', nickname: 'octo'})},
     }),
 }));
-vi.mock('@/shared/middleware/authorization', () => ({authorize: async (_c: unknown, next: () => Promise<void>) => next()}));
+// Stub routes sit on paths that are in the permission table, since authorize refuses any other
 vi.mock('@/domains/users/users.routes', async () => {
     const {Hono} = await import('hono');
-    return {default: new Hono().get('/big', (c) => c.json(mocks.bigPayload))};
+    return {default: new Hono().get('/user', (c) => mocks.handler(c))};
+});
+vi.mock('@/domains/members/members.routes', async () => {
+    const {Hono} = await import('hono');
+    return {default: new Hono().post('/invitations/accept', (c) => mocks.handler(c))};
 });
 
 import {createApp} from '@/app';
@@ -41,6 +46,10 @@ const send = (app: Hono<AppEnv>, method: string, path: string, headers: Record<s
     app.request(path, {method, headers: {cookie: authCookie, ...headers}});
 
 describe('createApp', () => {
+    beforeEach(() => {
+        mocks.handler.mockImplementation((c: Context) => c.json({ok: true}));
+    });
+
     it('returns a JSON 404 body for an unknown route', async () => {
         const res = await send(createApp(), 'GET', '/api/nope');
 
@@ -49,33 +58,28 @@ describe('createApp', () => {
     });
 
     it('matches routes with a trailing slash', async () => {
-        const app = createApp();
-        app.get('/api/test', (c) => c.json({ok: true}));
-
-        const res = await send(app, 'GET', '/api/test/');
+        const res = await send(createApp(), 'GET', '/api/user/');
 
         expect(res.status).toBe(200);
     });
 
     it('serializes thrown HttpErrors', async () => {
-        const app = createApp();
-        app.get('/api/test', () => {
+        mocks.handler.mockImplementation(() => {
             throw new BadRequestError('x', {a: 1});
         });
 
-        const res = await send(app, 'GET', '/api/test');
+        const res = await send(createApp(), 'GET', '/api/user');
 
         expect(res.status).toBe(400);
         expect(await res.json()).toEqual({statusCode: 400, error: 'BadRequestError', message: 'x', details: {a: 1}});
     });
 
     it('keeps the message of a NotFoundError thrown by a route', async () => {
-        const app = createApp();
-        app.get('/api/test', () => {
+        mocks.handler.mockImplementation(() => {
             throw new NotFoundError('App not found');
         });
 
-        const res = await send(app, 'GET', '/api/test');
+        const res = await send(createApp(), 'GET', '/api/user');
 
         expect(res.status).toBe(404);
         expect(await res.json()).toEqual({statusCode: 404, error: 'NotFoundError', message: 'App not found'});
@@ -84,12 +88,11 @@ describe('createApp', () => {
     it('hides unknown errors', async () => {
         const logger = {debug: vi.fn(), info: vi.fn(), error: vi.fn()};
         vi.mocked(getLogger).mockReturnValue(logger as never);
-        const app = createApp();
-        app.get('/api/test', () => {
+        mocks.handler.mockImplementation(() => {
             throw new Error('secret');
         });
 
-        const res = await send(app, 'GET', '/api/test');
+        const res = await send(createApp(), 'GET', '/api/user');
         const body = await res.text();
 
         expect(logger.error).toHaveBeenCalledWith('Unhandled error processing the request', expect.objectContaining({message: 'secret'}));
@@ -100,19 +103,17 @@ describe('createApp', () => {
     });
 
     it('exposes the appContext from authenticate', async () => {
-        const app = createApp();
-        app.get('/api/test', (c) => c.json({userId: c.var.appContext?.userId, email: c.var.appContext?.email}));
+        mocks.handler.mockImplementation((c: Context<AppEnv>) => c.json({userId: c.var.appContext?.userId, email: c.var.appContext?.email}));
 
-        const res = await send(app, 'GET', '/api/test');
+        const res = await send(createApp(), 'GET', '/api/user');
 
         expect(await res.json()).toEqual({userId: 7, email: 'octo@example.com'});
     });
 
     it('runs authenticate before routes and unknown paths', async () => {
         const app = createApp();
-        app.get('/api/test', (c) => c.json({ok: true}));
 
-        const route = await app.request('/api/test');
+        const route = await app.request('/api/user');
         const unknown = await app.request('/api/nope');
 
         expect(route.status).toBe(401);
@@ -139,13 +140,11 @@ describe('createApp', () => {
 
     it('rejects state-changing requests from foreign origins', async () => {
         const app = createApp();
-        app.post('/api/test', (c) => c.json({ok: true}));
-        app.get('/api/test', (c) => c.json({ok: true}));
 
-        const foreign = await send(app, 'POST', '/api/test', {origin: 'https://evil.example.com'});
-        const allowed = await send(app, 'POST', '/api/test', {origin: allowedOrigin});
-        const noOrigin = await send(app, 'POST', '/api/test');
-        const safeMethod = await send(app, 'GET', '/api/test', {origin: 'https://evil.example.com'});
+        const foreign = await send(app, 'POST', '/api/invitations/accept', {origin: 'https://evil.example.com'});
+        const allowed = await send(app, 'POST', '/api/invitations/accept', {origin: allowedOrigin});
+        const noOrigin = await send(app, 'POST', '/api/invitations/accept');
+        const safeMethod = await send(app, 'GET', '/api/user', {origin: 'https://evil.example.com'});
         const publicRoute = await app.request('/api/github/nope', {method: 'POST', headers: {origin: 'https://evil.example.com'}});
 
         expect(foreign.status).toBe(403);
@@ -158,14 +157,13 @@ describe('createApp', () => {
 
     it('answers CORS preflight for allowed origins only', async () => {
         const app = createApp();
-        app.get('/api/test', (c) => c.json({ok: true}));
         const preflight = (origin: string) =>
             app.request('/api/integrations', {method: 'OPTIONS', headers: {origin, 'access-control-request-method': 'POST'}});
 
         const res = await preflight(allowedOrigin);
         const denied = await preflight('https://evil.example.com');
-        const simple = await send(app, 'GET', '/api/test', {origin: allowedOrigin});
-        const unauthorized = await app.request('/api/test', {headers: {origin: allowedOrigin}});
+        const simple = await send(app, 'GET', '/api/user', {origin: allowedOrigin});
+        const unauthorized = await app.request('/api/user', {headers: {origin: allowedOrigin}});
 
         expect(res.status).toBe(204);
         expect(res.headers.get('access-control-allow-origin')).toBe(allowedOrigin);
@@ -176,10 +174,11 @@ describe('createApp', () => {
     });
 
     it('gzips responses when the client accepts it', async () => {
+        mocks.handler.mockImplementation((c: Context) => c.json(mocks.bigPayload));
         const app = createApp();
 
-        const encoded = await send(app, 'GET', '/api/big', {'accept-encoding': 'gzip'});
-        const plain = await send(app, 'GET', '/api/big');
+        const encoded = await send(app, 'GET', '/api/user', {'accept-encoding': 'gzip'});
+        const plain = await send(app, 'GET', '/api/user');
 
         expect(encoded.status).toBe(200);
         expect(encoded.headers.get('content-encoding')).toBe('gzip');
@@ -194,11 +193,11 @@ const appContext: AppContext = {userId: 7, username: 'octo', email: 'octo@exampl
 describe('testRequest', () => {
     it('sends cookies, headers and a JSON body', async () => {
         const app = new Hono<AppEnv>();
-        app.post('/test', async (c) =>
+        app.post('/integrations', async (c) =>
             c.json({cookie: c.req.header('cookie'), custom: c.req.header('x-custom'), type: c.req.header('content-type'), body: await c.req.json()}),
         );
 
-        const res = await testRequest(new Hono<AppEnv>().route('/api', app), 'POST', '/api/test', {
+        const res = await testRequest(new Hono<AppEnv>().route('/api', app), 'POST', '/api/integrations', {
             cookies: ['a=1', 'b=2'],
             headers: {'x-custom': 'yes'},
             body: {hello: 'world'},
@@ -209,15 +208,15 @@ describe('testRequest', () => {
 
     it('gives a bare domain router the appContext and JSON error bodies', async () => {
         const router = new Hono<AppEnv>();
-        router.get('/test', (c) => c.json({userId: c.var.appContext?.userId}));
-        router.get('/fail', () => {
+        router.get('/user', (c) => c.json({userId: c.var.appContext?.userId}));
+        router.get('/workflows', () => {
             throw new BadRequestError('x');
         });
 
         const app = new Hono<AppEnv>().route('/api', router);
 
-        const ok = await testRequest(app, 'GET', '/api/test', {appContext});
-        const failed = await testRequest(app, 'GET', '/api/fail');
+        const ok = await testRequest(app, 'GET', '/api/user', {appContext});
+        const failed = await testRequest(app, 'GET', '/api/workflows');
         const unknown = await testRequest(app, 'GET', '/api/nope');
 
         expect(await ok.json()).toEqual({userId: 7});

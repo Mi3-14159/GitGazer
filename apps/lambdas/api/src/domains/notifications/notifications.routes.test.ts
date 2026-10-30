@@ -10,18 +10,17 @@ const app = new Hono<AppEnv>().route('/api', router);
 const mocks = vi.hoisted(() => ({getNotificationRules: vi.fn(), upsertNotificationRule: vi.fn(), deleteNotificationRule: vi.fn()}));
 
 vi.mock('@/domains/notifications/notifications.controller', () => mocks);
-vi.mock('@/domains/integrations/integrations.middleware', () => ({
-    addUserIntegrationsToCtx: async (
-        c: {var: {appContext?: {integrations?: string[]; integrationRoles?: Record<string, string>}}},
-        next: () => Promise<void>,
-    ) => {
-        c.var.appContext!.integrations = ['int-1'];
-        c.var.appContext!.integrationRoles = {'int-1': 'member'};
-        await next();
-    },
-}));
 
-const appContext = {userId: 1, username: '', email: '', name: '', nickname: '', picture: ''};
+const appContext = {
+    userId: 1,
+    username: '',
+    email: '',
+    name: '',
+    nickname: '',
+    picture: '',
+    integrations: ['int-1'],
+    integrationRoles: {'int-1': 'member'} as const,
+};
 const rule = {
     label: 'CI',
     enabled: true,

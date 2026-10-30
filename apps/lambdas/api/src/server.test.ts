@@ -23,22 +23,22 @@ vi.mock('@/shared/middleware/authentication', () => ({
         await next();
     }) satisfies MiddlewareHandler<AppEnv>,
 }));
-vi.mock('@/shared/middleware/authorization', () => ({authorize: async (_c: unknown, next: () => Promise<void>) => next()}));
+// The stub routes use a path that is in the permission table, since authorize refuses any other
 vi.mock('@/domains/users/users.routes', async () => {
     const {Hono} = await import('hono');
     const {getLogger} = await import('@gitgazer/backend-core/logger');
     const router = new Hono<AppEnv>();
-    router.get('/slow', async (c) => {
+    router.get('/user', async (c) => {
+        if (c.req.query('cookies')) {
+            c.header('set-cookie', 'accessToken=a; Secure', {append: true});
+            c.header('set-cookie', 'idToken=i; Secure', {append: true});
+            c.header('set-cookie', 'refreshToken=r; Secure', {append: true});
+            return c.body(null, 204);
+        }
         mocks.slowRouteEntered();
         await new Promise((resolve) => setTimeout(resolve, 50));
         getLogger().info('slow route done', {userId: c.var.appContext?.userId});
         return c.json({userId: c.var.appContext?.userId});
-    });
-    router.get('/cookies', (c) => {
-        c.header('set-cookie', 'accessToken=a; Secure', {append: true});
-        c.header('set-cookie', 'idToken=i; Secure', {append: true});
-        c.header('set-cookie', 'refreshToken=r; Secure', {append: true});
-        return c.body(null, 204);
     });
     return {default: router};
 });
@@ -52,7 +52,7 @@ const freePort = async (): Promise<number> => {
 };
 
 const getSlow = (port: number, userId: number, headers: Record<string, string> = {}) =>
-    fetch(`http://127.0.0.1:${port}/api/slow`, {headers: {'x-test-user': String(userId), ...headers}}).then((res) => res.json());
+    fetch(`http://127.0.0.1:${port}/api/user`, {headers: {'x-test-user': String(userId), ...headers}}).then((res) => res.json());
 
 describe('server', () => {
     let sigtermListeners: unknown[];
@@ -113,7 +113,7 @@ describe('server', () => {
     it('sends each cookie as its own Set-Cookie header', async () => {
         const {port} = await start('127.0.0.1:0');
 
-        const res = await fetch(`http://127.0.0.1:${port}/api/cookies`, {headers: {'x-test-user': '1'}});
+        const res = await fetch(`http://127.0.0.1:${port}/api/user?cookies=1`, {headers: {'x-test-user': '1'}});
 
         expect(res.headers.getSetCookie()).toEqual(['accessToken=a; Secure', 'idToken=i; Secure', 'refreshToken=r; Secure']);
     });

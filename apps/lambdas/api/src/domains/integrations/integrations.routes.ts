@@ -14,7 +14,6 @@ import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {BadRequestError, ConflictError, ForbiddenError, HttpStatusCodes} from '@/shared/errors';
 import type {AppEnv} from '@/shared/hono/env';
-import {requireRole} from '@/shared/middleware/require-role';
 import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
@@ -70,7 +69,7 @@ router.post('/', addUserIntegrationsToCtx, async (c) => {
     return c.json(integration);
 });
 
-router.put('/:integrationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.put('/:integrationId', addUserIntegrationsToCtx, async (c) => {
     const requestBody = await readJsonBody(c);
 
     if (!requestBody.label || typeof requestBody.label !== 'string') {
@@ -88,7 +87,7 @@ router.put('/:integrationId', addUserIntegrationsToCtx, requireRole('admin'), as
     return c.json(updatedIntegration);
 });
 
-router.delete('/:integrationId', addUserIntegrationsToCtx, requireRole('owner'), async (c) => {
+router.delete('/:integrationId', addUserIntegrationsToCtx, async (c) => {
     const integrationIds = c.var.appContext?.integrations ?? [];
     await deleteIntegration(c.req.param('integrationId'), integrationIds, c.var.appContext?.userId!);
 
@@ -97,7 +96,7 @@ router.delete('/:integrationId', addUserIntegrationsToCtx, requireRole('owner'),
     });
 });
 
-router.post('/:integrationId/rotate-secret', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/:integrationId/rotate-secret', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 
@@ -106,7 +105,7 @@ router.post('/:integrationId/rotate-secret', addUserIntegrationsToCtx, requireRo
     return c.json(integration);
 });
 
-router.post('/:integrationId/github-app', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.post('/:integrationId/github-app', addUserIntegrationsToCtx, async (c) => {
     const logger = getLogger();
     const integrationId = c.req.param('integrationId');
 
@@ -212,7 +211,7 @@ router.post('/:integrationId/github-app', addUserIntegrationsToCtx, requireRole(
     });
 });
 
-router.delete('/:integrationId/github-app/:installationId', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.delete('/:integrationId/github-app/:installationId', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const installationId = parseInt(c.req.param('installationId'), 10);
 
@@ -227,7 +226,7 @@ router.delete('/:integrationId/github-app/:installationId', addUserIntegrationsT
     });
 });
 
-router.patch('/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.patch('/:integrationId/github-app/:installationId/events', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const installationId = parseInt(c.req.param('installationId'), 10);
 
@@ -269,7 +268,7 @@ router.patch('/:integrationId/github-app/:installationId/events', addUserIntegra
     return c.json({events: requestBody.events});
 });
 
-router.patch('/:integrationId/org-sync-settings', addUserIntegrationsToCtx, requireRole('admin'), async (c) => {
+router.patch('/:integrationId/org-sync-settings', addUserIntegrationsToCtx, async (c) => {
     const integrationId = c.req.param('integrationId');
     const integrationIds = c.var.appContext?.integrations ?? [];
 

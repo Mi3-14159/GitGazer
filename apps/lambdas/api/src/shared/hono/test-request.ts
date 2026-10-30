@@ -1,5 +1,6 @@
 import {createBaseApp} from '@/app';
 import type {AppEnv} from '@/shared/hono/env';
+import {authorize} from '@/shared/middleware/authorization';
 import type {AppContext} from '@gitgazer/backend-core/types';
 import type {Hono} from 'hono';
 
@@ -27,5 +28,6 @@ export const testRequest = async (
         c.set('appContext', init.appContext);
         await next();
     });
+    base.use(authorize);
     return base.route(init.basePath ?? '/', app).request(path, {method, headers, body});
 };
