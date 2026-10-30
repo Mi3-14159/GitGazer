@@ -19,7 +19,7 @@ export const authorize: MiddlewareHandler<AppEnv> = async (c, next) => {
     const operation = ROUTES[key as keyof typeof ROUTES];
     const appContext = c.var.appContext!;
     if (!operation) {
-        getLogger().info('authz', {userId: appContext.userId, action: key, allowed: false, reason: 'no permission entry'});
+        getLogger().info('authz', {userId: appContext?.userId, action: key, allowed: false, reason: 'no permission entry'});
         throw new ForbiddenError('Insufficient permissions');
     }
 
