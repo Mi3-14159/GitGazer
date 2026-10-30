@@ -273,6 +273,14 @@ describe('handleToken', () => {
         expect(sent.get('grant_type')).toBe('authorization_code');
     });
 
+    it('does not forward a client-supplied scope to Cognito', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ok: true, status: 200, text: () => Promise.resolve('{}')});
+        vi.stubGlobal('fetch', fetchMock);
+        await ctrl.handleToken(origin, 'grant_type=refresh_token&refresh_token=RT&scope=gitgazer-mcp%2Fwrite');
+        const sent = new URLSearchParams((fetchMock.mock.calls[0][1] as {body: string}).body);
+        expect(sent.has('scope')).toBe(false);
+    });
+
     it('relays a non-OK status from Cognito', async () => {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ok: false, status: 400, text: () => Promise.resolve('{"error":"invalid_grant"}')}));
         const res = await ctrl.handleToken(origin, 'grant_type=authorization_code');

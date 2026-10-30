@@ -205,6 +205,7 @@ export const handleToken = async (requestOrigin: string, rawBody: string): Promi
     const {domain, mcpClientId} = config.get('cognito');
 
     params.set('client_id', mcpClientId);
+    params.delete('scope');
     if (params.get('grant_type') === 'authorization_code') {
         params.set('redirect_uri', callbackUrl(requestOrigin));
     }
