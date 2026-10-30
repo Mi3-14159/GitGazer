@@ -1,15 +1,9 @@
 import App from '@/App.vue';
 import {flushPromises, mount} from '@vue/test-utils';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {createMemoryHistory, createRouter} from 'vue-router';
 
-const push = vi.fn();
-const currentRoute = {value: {path: '/'}};
 const isAuthenticated = vi.fn();
-
-vi.mock('vue-router', () => ({
-    RouterView: {template: '<div />'},
-    useRouter: () => ({push, currentRoute}),
-}));
 
 vi.mock('@/composables/useAuth', () => ({
     useAuth: () => ({isAuthenticated}),
@@ -19,25 +13,30 @@ vi.mock('@/stores/settings', () => ({
     useSettingsStore: vi.fn(),
 }));
 
+const coldLoad = async (fullPath: string) => {
+    const history = createMemoryHistory();
+    history.replace(fullPath);
+    const router = createRouter({history, routes: [{path: '/:pathMatch(.*)*', component: {template: '<div />'}}]});
+    // Like main.ts: mount without awaiting the initial navigation.
+    mount(App, {global: {plugins: [router]}});
+    await flushPromises();
+    return router;
+};
+
 describe('App auth redirect', () => {
     beforeEach(() => {
-        push.mockClear();
         isAuthenticated.mockReset().mockResolvedValue(false);
     });
 
-    it.each(['/login', '/invite/abc', '/mcp/connect'])('does not redirect a logged-out user away from %s', async (path) => {
-        currentRoute.value.path = path;
-        mount(App);
-        await flushPromises();
+    it.each(['/login', '/invite/abc', '/mcp/connect?request=x'])('does not redirect a logged-out user away from %s', async (fullPath) => {
+        const router = await coldLoad(fullPath);
 
-        expect(push).not.toHaveBeenCalled();
+        expect(router.currentRoute.value.fullPath).toBe(fullPath);
     });
 
     it.each(['/workflows', '/mcp/connectors', '/mcp/connect-x', '/mcp/connect/x'])('redirects a logged-out user from %s to /login', async (path) => {
-        currentRoute.value.path = path;
-        mount(App);
-        await flushPromises();
+        const router = await coldLoad(path);
 
-        expect(push).toHaveBeenCalledWith('/login');
+        expect(router.currentRoute.value.path).toBe('/login');
     });
 });
