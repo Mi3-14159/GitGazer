@@ -14,7 +14,6 @@
 
     const initializeAuth = async () => {
         // On a cold load the initial navigation is still pending, so currentRoute is the start location '/'.
-        // On a cold load the initial navigation is still pending, so currentRoute is the start location '/'.
         await router.isReady();
         // Skip auth redirect for pages that handle their own auth flow
         const publicPaths = ['/login', '/invite/', '/mcp/connect'];
