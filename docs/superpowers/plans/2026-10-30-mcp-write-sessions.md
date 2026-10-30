@@ -24,7 +24,7 @@
 
 ## Review Focus
 
-- A client that sends `scope=gitgazer-mcp/write`, or no `scope`, to `GET /api/mcp/oauth/authorize` must still end up with read-only scopes (Task 2 test).
+- A client that sends `scope=gitgazer-mcp/write` (or any or no `scope`) to `GET /api/mcp/oauth/authorize` and the user picks read only must end up with read-only scopes: the client's `scope` is ignored (Task 2 test).
 - `POST /api/mcp/oauth/authorize` with a missing, `null` or foreign `Origin` is rejected; a callback without the matching `oauthState` cookie is rejected (Task 2 tests).
 - A signed connect-request presented as the Cognito `state` (and a web-login/Slack state presented to the MCP callback) is rejected (Task 2 test).
 - A read-scope token calling `delete_notification_rule` by name gets an error and nothing is deleted (Task 4 route test).
@@ -79,7 +79,7 @@
 **Interfaces:**
 - Consumes: `mintSignedState`, `verifySignedState` (`@/domains/auth/auth.controller`); `buildStateCookie`, `buildClearStateCookie`, `extractTokenFromCookies`, `getRequestCookies`, `OAUTH_STATE_COOKIE_NAME` (`@/shared/helpers/cookies`).
 - Produces:
-  - `mcp-scope.ts`: `MCP_SCOPE = 'gitgazer-mcp/read'`, `MCP_WRITE_SCOPE = 'gitgazer-mcp/write'`, `CLIENT_SCOPES = ['openid', 'email', 'profile', MCP_SCOPE]`, `ADVERTISED_SCOPES = [...CLIENT_SCOPES, MCP_WRITE_SCOPE]`.
+  - `mcp-scope.ts`: `MCP_SCOPE = 'gitgazer-mcp/read'`, `MCP_WRITE_SCOPE = 'gitgazer-mcp/write'`, `READ_SESSION_SCOPES = ['openid', 'email', 'profile', MCP_SCOPE]`, `ADVERTISED_SCOPES = [...READ_SESSION_SCOPES, MCP_WRITE_SCOPE]`.
   - `isAllowedFrontendOrigin(origin: string | undefined): boolean` — false for undefined, `'null'`, unparsable, or not in `allowedFrontendOrigins`.
   - `handleAuthorize(requestOrigin, q): string` — now returns `${mcpOrigin(requestOrigin)}/mcp/connect?request=<signed connect-request>`.
   - `handleAuthorizeConfirm(requestOrigin: string, origin: string | undefined, form: {request?: string; session?: string}): {location: string; stateCookie: string}`.
@@ -89,7 +89,7 @@
 - [ ] **Step 1: Write failing tests.**
   - `mcp-oauth.controller.test.ts` (update existing `handleAuthorize`/`handleCallback` tests to the new shapes; add `allowedFrontendOrigins: ['https://app.gitgazer.com']` to the config mock):
     - `handleAuthorize redirects to the connect page with a signed request` — Location origin+path `https://app.gitgazer.com/mcp/connect`, has `request`.
-    - `handleAuthorize never lets the client request the write scope` — for `scope` of `gitgazer-mcp/write`, `''`, `undefined`, and `openid gitgazer-mcp/write`, confirming with `session: 'read'` yields a Cognito `scope` without `gitgazer-mcp/write` and with `gitgazer-mcp/read`.
+    - `ignores the client's scope` — for `scope` of `gitgazer-mcp/write`, `''`, `undefined`, and `openid`, confirming with `session: 'read'` yields Cognito `scope` exactly `openid email profile gitgazer-mcp/read`; with `session: 'write'` exactly that plus ` gitgazer-mcp/write`. Replace the existing `requestedScope` clamp tests.
     - `handleAuthorizeConfirm redirects to Cognito with PKCE, our callback and a bound state` — `session: 'read'`; Cognito URL has `client_id`, `redirect_uri` = our callback, `code_challenge`, `identity_provider=Github`; `stateCookie` starts with `oauthState=`.
     - `handleAuthorizeConfirm adds the write scope only for session write`.
     - `handleAuthorizeConfirm rejects a missing, null or foreign Origin` — `undefined`, `'null'`, `'https://evil.example'` → `ForbiddenError`.
@@ -103,9 +103,9 @@
   - `mcp.routes.test.ts`: `POST /api/mcp/oauth/authorize` answers 303 with `Location` on the Cognito domain and a `Set-Cookie: oauthState=…`; `GET /api/mcp/oauth/callback` without the cookie answers 400; with it answers 302 and clears the cookie (`Max-Age=0`).
 - [ ] **Step 2: Run** the touched test files — FAIL.
 - [ ] **Step 3: Implement.**
-  - Rename `signProxyState`/`verifyProxyState` to `signConnectRequest`/`verifyConnectRequest`; payload `{purpose: 'mcp_connect', redirectUri, clientState, codeChallenge, scopes: string[], exp, nonce}`; verify checks purpose, expiry and the redirect allowlist.
-  - `handleAuthorize`: same validation as today; clamp `q.scope` to `CLIENT_SCOPES` (default `CLIENT_SCOPES`, always add `MCP_SCOPE`); return the connect page URL.
-  - `handleAuthorizeConfirm`: `isAllowedFrontendOrigin(origin)` else `ForbiddenError('Origin not allowed')`; verify request else `BadRequestError('Invalid or expired connect request')`; `session` must be `read`/`write` else `BadRequestError`; `mintSignedState({purpose: 'mcp_authorize', redirectUri, clientState, write})`; build the Cognito URL as today's `handleAuthorize` did (scopes from the request, plus `MCP_WRITE_SCOPE` when write); return `{location, stateCookie: buildStateCookie(nonce)}`.
+  - Rename `signProxyState`/`verifyProxyState` to `signConnectRequest`/`verifyConnectRequest`; payload `{purpose: 'mcp_connect', redirectUri, clientState, codeChallenge, exp, nonce}`; verify checks purpose, expiry and the redirect allowlist.
+  - `handleAuthorize`: same validation as today; ignore `q.scope` (delete the clamp/`requestedScope` logic); return the connect page URL.
+  - `handleAuthorizeConfirm`: `isAllowedFrontendOrigin(origin)` else `ForbiddenError('Origin not allowed')`; verify request else `BadRequestError('Invalid or expired connect request')`; `session` must be `read`/`write` else `BadRequestError`; `mintSignedState({purpose: 'mcp_authorize', redirectUri, clientState, write})`; build the Cognito URL as today's `handleAuthorize` did, with scope `READ_SESSION_SCOPES` plus `MCP_WRITE_SCOPE` when write; return `{location, stateCookie: buildStateCookie(nonce)}`.
   - `handleCallback`: `verifySignedState` with the cookie nonce, require `purpose === 'mcp_authorize'` and an allowlisted `redirectUri`, else `BadRequestError('Invalid or expired OAuth state')`; relay as today.
   - Routes: `router.post('/oauth/authorize', …)` reads `await c.req.parseBody()` and `c.req.header('origin')`, answers 303 with `Location`, `Set-Cookie` and `Cache-Control: no-store` (one `Set-Cookie` header per cookie, as in `auth.routes.ts`); callback reads the nonce with `extractTokenFromCookies(getRequestCookies(c), OAUTH_STATE_COOKIE_NAME)` and appends `buildClearStateCookie()`.
   - `table.ts`: `'POST /api/mcp/oauth/authorize': 'mcp.oauthAuthorizeConfirm'` with `'mcp.oauthAuthorizeConfirm': {access: 'public'}`.

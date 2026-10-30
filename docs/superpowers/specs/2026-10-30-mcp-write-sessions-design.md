@@ -97,15 +97,10 @@ the proxy must make sure the code is only relayed when **this browser** went thr
 
 #### Scope lists
 
-Today `handleAuthorize` keeps any requested scope in `SUPPORTED_SCOPES` and grants all of them when
-none is requested. Split this into two lists:
-
-- **advertised** scopes (metadata `scopes_supported`): `openid email profile gitgazer-mcp/read
-  gitgazer-mcp/write`;
-- scopes **requestable by clients** (the clamp on the client's `scope` parameter and the default when it
-  sends none): `openid email profile gitgazer-mcp/read`.
-
-`gitgazer-mcp/write` is added only by the POST, only when the user picked "Read & write".
+The client's `scope` parameter is **ignored** (decided with the user): the screen decides the session
+type, so the proxy always requests `openid email profile gitgazer-mcp/read` from Cognito, plus
+`gitgazer-mcp/write` only when the user picked "Read & write". The clamp logic goes away. Metadata
+`scopes_supported` advertises `openid email profile gitgazer-mcp/read gitgazer-mcp/write`.
 
 ### Scopes and infra
 
