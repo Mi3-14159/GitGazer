@@ -9,7 +9,7 @@ first.
 
 Before any write tool is built, role checks move to **one table** that both entry points use:
 
-- a **router middleware** checks every API request against the table;
+- an **`authorize` middleware**, next to `authenticate`, checks every API request against the table;
 - a **tool wrapper** checks every MCP tool call against the same table.
 
 This is a behaviour-preserving refactor of today's API. The write tools themselves come later and are
@@ -95,17 +95,18 @@ one entry. The table is plain typed data
 
 ### The check
 
-One function, `authorize(caller, operation, integrationId?)`, compares the caller's role (from
+One function, `checkAccess(caller, operation, integrationId?)`, compares the caller's role (from
 `integrationRoles`, ranked with `ROLE_RANK`/`hasRole`) with the operation's level, logs the decision
 with today's `authz` fields (`userId`, `integrationId`, `role`, `minimumRole`, `action`, `allowed`,
 `reason`) and returns it. The middleware and the tool wrapper turn a refusal into their response;
 the middleware's are today's `403 Not a member of this integration` and `403 Insufficient
 permissions`.
 
-### API: router middleware
+### API: `authorize` middleware
 
-One middleware (not one per route) finds the operation for the matched route, then calls
-`authorize`. It is mounted on the app right after `authenticate`, so it also sees the routes mounted
+One middleware, `authorize` in `apps/lambdas/api/src/shared/middleware/authorization.ts` (next to
+`authentication.ts`), finds the operation for the matched route, then calls `checkAccess`. It is
+mounted on the app right after `authenticate`, so it also sees the routes mounted
 at `/`. For a `minRole` level it uses the matched route's `:integrationId`. It loads the caller's roles
 itself, only when the operation needs them, and still sets `appContext.role` for the controllers.
 Routes no longer declare `requireRole`. Unknown paths keep answering `404`.
@@ -120,16 +121,16 @@ change for no gain in this refactor.
 **The Slack install callback keeps its redirect (my call, from the "behaves exactly as today"
 goal).** Its table entry has `{minRole: 'admin'}` and is marked as checked by its handler, so the
 middleware lets it through without a `:integrationId` in the path. After decoding the signed state,
-the callback calls `authorize(caller, 'slackApp.installCallback', integrationIdFromState)` and, on a
+the callback calls `checkAccess(caller, 'slackApp.installCallback', integrationIdFromState)` and, on a
 refusal, redirects with the "failed" result as today. The `logger.warn` becomes the `authz` log entry
-that `authorize` writes. Whether the call sits in the route handler or stays in
+that `checkAccess` writes. Whether the call sits in the route handler or stays in
 `completeSlackInstall` is the builder's choice.
 
 `'authenticated'` never refuses a caller with no integrations; they get empty results, as today.
 
 ### MCP: tool wrapper
 
-`registerTool` takes the operation for the tool and calls `authorize` on every call, before the tool
+`registerTool` takes the operation for the tool and calls `checkAccess` on every call, before the tool
 runs. A tool can't be registered without an operation (enforced by the type). A refused call returns
 an in-band tool error like other tool failures, and is logged as `authz`. For future write tools,
 the integration comes from a tool argument (`integration_id`); the wrapper reads it from there.
@@ -138,15 +139,20 @@ the integration comes from a tool argument (`integration_id`); the wrapper reads
 
 ### Fail closed
 
-- Runtime: the middleware refuses a route without an entry (`403`, logged as `authz` with reason
-  "no permission entry"); the wrapper refuses an unknown tool the same way.
+- Runtime: the middleware tells two cases apart. No route matches the path: it steps aside and the
+  app's not-found handler answers `404`, as today (an unauthenticated request outside the public
+  prefixes still gets `401` from `authenticate` first). A route matches but has no table entry: it
+  answers `403` and logs `authz` with reason "no permission entry".
+- Tools: a name that isn't registered never reaches our code; the MCP SDK answers "tool not found",
+  as today. A registered tool always has an entry, because registering requires the operation and the
+  compiler checks that it exists.
 - CI: a test walks every registered route of the api app and every registered MCP tool and fails if
   one lacks an entry, if an entry matches no route or tool, or if the `public` entries and
   `publicPrefixes` disagree.
 
 ### Roll-out
 
-One PR: table, `authorize`, middleware, tool wrapper, removal of `requireRole`, tests. The table is
+One PR: table, `checkAccess`, the `authorize` middleware, tool wrapper, removal of `requireRole`, tests. The table is
 about fifty entries and the change is mechanical; a staged roll-out would mean running both checks
 side by side. (My call.)
 
