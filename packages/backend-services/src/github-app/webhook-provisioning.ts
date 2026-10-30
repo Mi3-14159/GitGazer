@@ -353,10 +353,16 @@ export const updateAllWebhookEvents = async (integrationId: string, installation
     }
 
     // Only reached when every per-webhook update succeeded.
-    await db
-        .update(githubAppInstallations)
-        .set({webhookEvents: events, updatedAt: new Date()})
-        .where(eq(githubAppInstallations.installationId, installationId));
+    await withRlsTransaction({
+        integrationIds: [integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => {
+            await tx
+                .update(githubAppInstallations)
+                .set({webhookEvents: events, updatedAt: new Date()})
+                .where(and(eq(githubAppInstallations.integrationId, integrationId), eq(githubAppInstallations.installationId, installationId)));
+        },
+    });
 
     logger.info(`Updated webhook events for installation ${installationId}`);
 };

@@ -15,7 +15,11 @@ const mocks = vi.hoisted(() => {
     const txUpdate = vi.fn(() => ({set: () => ({where: () => ({returning})})}));
     const tx = {update: txUpdate};
     const transaction = vi.fn(async (callback: (t: typeof tx) => unknown) => callback(tx));
+    const withRlsTransaction = vi.fn();
     return {
+        withRlsTransaction,
+        updateAllWebhookEvents: vi.fn(),
+        createEventLogEntry: vi.fn(),
         where,
         select,
         update,
@@ -30,11 +34,14 @@ const mocks = vi.hoisted(() => {
     };
 });
 
-vi.mock('@gitgazer/db/client', () => ({db: {select: mocks.select, update: mocks.update, transaction: mocks.transaction}}));
+vi.mock('@gitgazer/db/client', () => ({
+    db: {select: mocks.select, update: mocks.update, transaction: mocks.transaction},
+    withRlsTransaction: mocks.withRlsTransaction,
+}));
 vi.mock('@gitgazer/backend-services/github-app/github-settings', () => ({getGithubSettings: mocks.getGithubSettings}));
 vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
     provisionWebhooks: mocks.provisionWebhooks,
-    updateAllWebhookEvents: vi.fn(),
+    updateAllWebhookEvents: mocks.updateAllWebhookEvents,
 }));
 vi.mock('@/domains/github-app/unlink-installation', () => ({unlinkInstallation: vi.fn()}));
 vi.mock('@/domains/integrations/integrations.controller', () => ({
@@ -44,7 +51,7 @@ vi.mock('@/domains/integrations/integrations.controller', () => ({
     updateOrgSyncSettings: vi.fn(),
     upsertIntegration: vi.fn(),
 }));
-vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLogEntry: vi.fn()}));
+vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLogEntry: mocks.createEventLogEntry}));
 vi.mock('@gitgazer/backend-services/org-member-resolver', () => ({resolveAndAssignOrgMembers: vi.fn()}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => ({error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn()})}));
 
@@ -145,5 +152,34 @@ describe('POST /api/integrations/:integrationId/github-app', () => {
         expect(mocks.getGithubSettings).toHaveBeenCalledWith(mocks.tx, 'i1', 'share');
         expect(mocks.txUpdate).toHaveBeenCalledTimes(1);
         expect(mocks.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('PATCH /api/integrations/:integrationId/github-app/:installationId/events', () => {
+    const patch = () =>
+        testRequest(app, 'PATCH', '/api/integrations/i1/github-app/42/events', {appContext: callerContext(), body: {events: ['workflow_run']}});
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('rejects an installation that is not linked to the integration without calling GitHub or logging', async () => {
+        mocks.withRlsTransaction.mockResolvedValue([]);
+
+        const res = await patch();
+
+        expect(res.status).toBe(404);
+        expect(mocks.withRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['i1']}));
+        expect(mocks.updateAllWebhookEvents).not.toHaveBeenCalled();
+        expect(mocks.createEventLogEntry).not.toHaveBeenCalled();
+    });
+
+    it('updates the events of a linked installation', async () => {
+        mocks.withRlsTransaction.mockResolvedValue([{installationId: 42}]);
+
+        const res = await patch();
+
+        expect(res.status).toBe(200);
+        expect(mocks.updateAllWebhookEvents).toHaveBeenCalledWith('i1', 42, ['workflow_run']);
     });
 });

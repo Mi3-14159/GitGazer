@@ -15,10 +15,12 @@ const client = {
 vi.mock('@gitgazer/backend-core/clients/github-app.client', () => client);
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: () => 'https://example.test/webhooks'}}));
 const inArray = vi.hoisted(() => vi.fn());
+const eq = vi.hoisted(() => vi.fn());
 vi.mock('drizzle-orm', async (importOriginal) => {
     const actual = await importOriginal<typeof import('drizzle-orm')>();
     inArray.mockImplementation(actual.inArray as never);
-    return {...actual, inArray};
+    eq.mockImplementation(actual.eq as never);
+    return {...actual, inArray, eq};
 });
 vi.mock('@gitgazer/db/schema/app', () => ({gitgazerWriter: {name: 'gitgazer_writer'}}));
 const getGithubSettings = vi.fn();
@@ -66,10 +68,11 @@ const txInsertValues = vi.fn(async (row: Record<string, unknown>) => {
     storedWebhooks.push(row);
 });
 
+const txUpdateSet = vi.fn((_values: Record<string, unknown>) => ({where: async () => undefined}));
 const mockTx = {
     select: () => ({from: () => ({where: () => Object.assign(Promise.resolve(storedWebhooks), {for: installationLock})})}),
     insert: () => ({values: txInsertValues}),
-    update: () => ({set: () => ({where: async () => undefined})}),
+    update: () => ({set: txUpdateSet}),
     delete: () => ({where: async () => undefined}),
 };
 
@@ -91,7 +94,19 @@ describe('updateAllWebhookEvents', () => {
 
         expect(client.updateOrgWebhookEvents).toHaveBeenCalledTimes(1);
         expect(client.updateRepoWebhookEvents).toHaveBeenCalledTimes(1);
-        expect(dbUpdate).toHaveBeenCalledTimes(1); // installation-level write happened
+        expect(txUpdateSet).toHaveBeenCalledWith(expect.objectContaining({webhookEvents: ['workflow_run', 'workflow_job']})); // installation-level write happened
+    });
+
+    it('scopes the installation update to the integration under RLS', async () => {
+        await mod.updateAllWebhookEvents('int-1', 1, ['workflow_run']);
+
+        expect(withRlsTransaction).toHaveBeenLastCalledWith(expect.objectContaining({integrationIds: ['int-1'], userName: 'gitgazer_writer'}));
+        const installationEq = eq.mock.calls.slice(-2);
+        expect(installationEq).toEqual([
+            [expect.anything(), 'int-1'],
+            [expect.anything(), 1],
+        ]);
+        expect(dbUpdate).not.toHaveBeenCalled();
     });
 
     it('throws and does NOT update installation events when a webhook update fails', async () => {
@@ -99,7 +114,7 @@ describe('updateAllWebhookEvents', () => {
 
         await expect(mod.updateAllWebhookEvents('int-1', 1, ['workflow_run', 'workflow_job'])).rejects.toThrow(/Failed to update events on 1 of 2/);
 
-        expect(dbUpdate).not.toHaveBeenCalled(); // installation state NOT half-applied
+        expect(txUpdateSet).not.toHaveBeenCalledWith(expect.objectContaining({webhookEvents: expect.anything()})); // installation state NOT half-applied
     });
 });
 
