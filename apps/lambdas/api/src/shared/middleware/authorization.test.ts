@@ -10,7 +10,17 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@gitgazer/backend-core/bootstrap', () => ({}));
 vi.mock('@gitgazer/backend-core/config', () => ({default: {get: vi.fn(() => ['https://app.example.com'])}, loadConfig: vi.fn()}));
-vi.mock('@gitgazer/db/client', () => ({db: {}, initDb: vi.fn(), withRlsTransaction: vi.fn()}));
+vi.mock('@gitgazer/db/client', () => ({
+    db: {insert: () => ({values: () => ({onConflictDoUpdate: () => ({returning: async () => [{id: 7}]})})})},
+    initDb: vi.fn(),
+    withRlsTransaction: vi.fn(),
+}));
+vi.mock('@/shared/middleware/token-verifier', () => ({
+    getVerifiers: () => ({
+        accessTokenVerifier: {verify: async () => ({sub: 'sub-1', username: 'octo'})},
+        idTokenVerifier: {verify: async () => ({sub: 'sub-1', email: 'octo@example.com', nickname: 'octo'})},
+    }),
+}));
 vi.mock('@gitgazer/backend-core/logger', () => ({getLogger: () => mocks.logger}));
 vi.mock('@/domains/integrations/integrations.controller', async (importOriginal) => ({
     ...(await importOriginal<object>()),
@@ -117,6 +127,16 @@ describe('authorize', () => {
         });
 
         expect([401, 403]).not.toContain(res.status);
+    });
+
+    it('is mounted by createApp', async () => {
+        mocks.roles.mockResolvedValue({i1: 'viewer'});
+
+        const res = await createApp().request('/api/integrations/i1', {method: 'DELETE', headers: {cookie: 'accessToken=access; idToken=id'}});
+
+        expect(res.status).toBe(403);
+        expect((await res.json()).message).toBe('Insufficient permissions');
+        expect(mocks.logger.info).toHaveBeenCalledWith('authz', expect.objectContaining({action: 'integration.delete', allowed: false}));
     });
 
     it('answers 404 for an unknown path', async () => {
