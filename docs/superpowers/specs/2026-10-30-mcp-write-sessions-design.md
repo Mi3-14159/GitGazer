@@ -69,8 +69,11 @@ open the resulting Cognito URL in the user's browser. Cognito has no consent scr
 the proxy must make sure the code is only relayed when **this browser** went through our screen:
 
 - The POST generates a random nonce, puts it in the signed Cognito `state` together with the
-  approved session type, and sets it as a cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, path
-  `/api/mcp/oauth`, max-age = the state TTL (600 s).
+  approved session type, and sets it as a cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, max-age =
+  the state TTL (600 s). This reuses the existing web-login/Slack mechanism
+  (`mintSignedState`/`verifySignedState` in `domains/auth/auth.controller.ts`, the `oauthState`
+  cookie helpers in `shared/helpers/cookies.ts`); the MCP state carries its own `purpose`, so it can't
+  complete a web login or a Slack round trip and vice versa.
 - `/api/mcp/oauth/callback` rejects the request unless the cookie is present and equal to the nonce
   in the state (constant-time compare), then clears the cookie (one use). `SameSite=Lax` cookies are
   sent on the top-level redirect back from Cognito.
