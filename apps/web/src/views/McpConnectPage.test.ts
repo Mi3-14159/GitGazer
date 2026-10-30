@@ -18,6 +18,14 @@ describe('McpConnectPage', () => {
         expect(wrapper.find('button[type="submit"]').text()).toBe('Allow read access');
     });
 
+    it('ignores a session query param and stays read only', () => {
+        route.query = {request: 'x', session: 'write'};
+        const wrapper = mount(McpConnectPage);
+
+        expect((wrapper.find('input[value="read"]').element as HTMLInputElement).checked).toBe(true);
+        expect(wrapper.find('button[type="submit"]').text()).toBe('Allow read access');
+    });
+
     it('switches the button to "Allow read & write access" when read & write is chosen', async () => {
         route.query = {request: 'signed-blob'};
         const wrapper = mount(McpConnectPage);
