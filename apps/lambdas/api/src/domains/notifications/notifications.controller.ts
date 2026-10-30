@@ -1,7 +1,7 @@
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter, notificationHandles, notificationRuleDestinations, notificationRules} from '@gitgazer/db/schema';
-import {NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
-import {BadRequestError} from '@/shared/errors';
+import {isNotificationRuleUpdate, NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
+import {BadRequestError, NotFoundError} from '@/shared/errors';
 import {and, eq, inArray} from 'drizzle-orm';
 
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
@@ -51,94 +51,157 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
     );
 };
 
-export const upsertNotificationRule = async (params: {
-    rule: NotificationRuleUpdate;
-    integrationId: string;
-    createOnly?: boolean;
-    ruleId?: string;
-}): Promise<NotificationRule> => {
+export type ChangeSource = 'mcp';
+
+const viaSuffix = (source?: ChangeSource): string => (source === 'mcp' ? ' via MCP' : '');
+
+const writeRule = async (tx: RdsTransaction, params: {rule: NotificationRuleUpdate; integrationId: string; ruleId?: string}) => {
     // Omitted so the DB default applies on insert and the stored value is kept on update.
     const includeLogDetails = params.rule.include_log_details === undefined ? {} : {include_log_details: params.rule.include_log_details};
     const handleIds = [...new Set(params.rule.handleIds)];
-    const result = await withRlsTransaction({
-        integrationIds: [params.integrationId],
-        userName: gitgazerWriter.name,
-        callback: async (tx: RdsTransaction) => {
-            if (handleIds.length > 0) {
-                const known = await tx
-                    .select({handleId: notificationHandles.handleId})
-                    .from(notificationHandles)
-                    .where(and(eq(notificationHandles.integrationId, params.integrationId), inArray(notificationHandles.handleId, handleIds)));
-                if (known.length !== handleIds.length) {
-                    throw new BadRequestError('Unknown notification handle');
-                }
-            }
 
-            const [row] = await tx
-                .insert(notificationRules)
-                .values({
-                    integrationId: params.integrationId,
-                    id: params.ruleId,
-                    label: params.rule.label,
-                    enabled: params.rule.enabled,
-                    ignore_dependabot: params.rule.ignore_dependabot,
-                    ...includeLogDetails,
-                    rule: params.rule.rule,
-                })
-                .onConflictDoUpdate({
-                    target: [notificationRules.integrationId, notificationRules.id],
-                    set: {
-                        label: params.rule.label,
-                        enabled: params.rule.enabled,
-                        ignore_dependabot: params.rule.ignore_dependabot,
-                        ...includeLogDetails,
-                        rule: params.rule.rule,
-                        updatedAt: new Date(),
-                    },
-                })
-                .returning();
+    if (handleIds.length > 0) {
+        const known = await tx
+            .select({handleId: notificationHandles.handleId})
+            .from(notificationHandles)
+            .where(and(eq(notificationHandles.integrationId, params.integrationId), inArray(notificationHandles.handleId, handleIds)));
+        if (known.length !== handleIds.length) {
+            throw new BadRequestError('Unknown notification handle');
+        }
+    }
 
-            await tx
-                .delete(notificationRuleDestinations)
-                .where(and(eq(notificationRuleDestinations.integrationId, params.integrationId), eq(notificationRuleDestinations.ruleId, row.id)));
-            if (handleIds.length > 0) {
-                await tx
-                    .insert(notificationRuleDestinations)
-                    .values(handleIds.map((handleId) => ({integrationId: params.integrationId, ruleId: row.id, handleId})));
-            }
+    const [row] = await tx
+        .insert(notificationRules)
+        .values({
+            integrationId: params.integrationId,
+            id: params.ruleId,
+            label: params.rule.label,
+            enabled: params.rule.enabled,
+            ignore_dependabot: params.rule.ignore_dependabot,
+            ...includeLogDetails,
+            rule: params.rule.rule,
+        })
+        .onConflictDoUpdate({
+            target: [notificationRules.integrationId, notificationRules.id],
+            set: {
+                label: params.rule.label,
+                enabled: params.rule.enabled,
+                ignore_dependabot: params.rule.ignore_dependabot,
+                ...includeLogDetails,
+                rule: params.rule.rule,
+                updatedAt: new Date(),
+            },
+        })
+        .returning();
 
-            return row;
-        },
-    });
+    await tx
+        .delete(notificationRuleDestinations)
+        .where(and(eq(notificationRuleDestinations.integrationId, params.integrationId), eq(notificationRuleDestinations.ruleId, row.id)));
+    if (handleIds.length > 0) {
+        await tx
+            .insert(notificationRuleDestinations)
+            .values(handleIds.map((handleId) => ({integrationId: params.integrationId, ruleId: row.id, handleId})));
+    }
 
-    const saved = toNotificationRule(result, handleIds);
-    const action = params.createOnly ? 'created' : 'updated';
+    return {row, handleIds};
+};
+
+const logRuleChange = async (params: {rule: NotificationRuleUpdate; integrationId: string; action: 'created' | 'updated'; source?: ChangeSource}) => {
     const filterDesc = describeRuleFilter(params.rule.rule);
+    const destinations = new Set(params.rule.handleIds).size;
 
     try {
         await createEventLogEntry({
             integrationId: params.integrationId,
             category: 'notification',
             type: 'info',
-            title: `Notification rule ${action}`,
-            message: `Notification rule "${params.rule.label}" for ${filterDesc} was ${action} (destinations: ${handleIds.length}, enabled: ${params.rule.enabled})`,
+            title: `Notification rule ${params.action}`,
+            message: `Notification rule "${params.rule.label}" for ${filterDesc} was ${params.action}${viaSuffix(params.source)} (destinations: ${destinations}, enabled: ${params.rule.enabled})`,
             metadata: {integrationId: params.integrationId},
         });
     } catch (error) {
         getLogger().error('Failed to create event log entry for notification rule upsert', error as Error);
     }
-
-    return saved;
 };
 
-export const deleteNotificationRule = async (ruleId: string, integrationId: string): Promise<void> => {
-    await withRlsTransaction({
+export const upsertNotificationRule = async (params: {
+    rule: NotificationRuleUpdate;
+    integrationId: string;
+    createOnly?: boolean;
+    ruleId?: string;
+    source?: ChangeSource;
+}): Promise<NotificationRule> => {
+    const {row, handleIds} = await withRlsTransaction({
+        integrationIds: [params.integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) => await writeRule(tx, params),
+    });
+
+    await logRuleChange({...params, action: params.createOnly ? 'created' : 'updated'});
+
+    return toNotificationRule(row, handleIds);
+};
+
+export const updateNotificationRule = async (params: {
+    integrationId: string;
+    ruleId: string;
+    changes: Partial<NotificationRuleUpdate>;
+    source?: ChangeSource;
+}): Promise<NotificationRule> => {
+    const {integrationId, ruleId} = params;
+    const {merged, row, handleIds} = await withRlsTransaction({
         integrationIds: [integrationId],
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
-            await tx.delete(notificationRules).where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)));
+            const [stored] = await tx
+                .select()
+                .from(notificationRules)
+                .where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)))
+                .for('update');
+            if (!stored) {
+                throw new NotFoundError('Notification rule not found');
+            }
+
+            const destinations = await tx
+                .select({handleId: notificationRuleDestinations.handleId})
+                .from(notificationRuleDestinations)
+                .where(and(eq(notificationRuleDestinations.integrationId, integrationId), eq(notificationRuleDestinations.ruleId, ruleId)));
+
+            const merged = {
+                label: stored.label,
+                handleIds: destinations.map((d) => d.handleId),
+                enabled: stored.enabled,
+                ignore_dependabot: stored.ignore_dependabot,
+                include_log_details: stored.include_log_details,
+                rule: stored.rule,
+                ...params.changes,
+            };
+            if (!isNotificationRuleUpdate(merged)) {
+                throw new BadRequestError('Invalid notification rule update');
+            }
+
+            return {merged, ...(await writeRule(tx, {rule: merged, integrationId, ruleId}))};
         },
     });
+
+    await logRuleChange({rule: merged, integrationId, action: 'updated', source: params.source});
+
+    return toNotificationRule(row, handleIds);
+};
+
+export const deleteNotificationRule = async (ruleId: string, integrationId: string, source?: ChangeSource): Promise<boolean> => {
+    const deleted = await withRlsTransaction({
+        integrationIds: [integrationId],
+        userName: gitgazerWriter.name,
+        callback: async (tx: RdsTransaction) =>
+            await tx
+                .delete(notificationRules)
+                .where(and(eq(notificationRules.id, ruleId), eq(notificationRules.integrationId, integrationId)))
+                .returning({id: notificationRules.id}),
+    });
+    if (deleted.length === 0) {
+        return false;
+    }
 
     try {
         await createEventLogEntry({
@@ -146,10 +209,12 @@ export const deleteNotificationRule = async (ruleId: string, integrationId: stri
             category: 'notification',
             type: 'info',
             title: 'Notification rule deleted',
-            message: 'A notification rule was deleted',
+            message: `A notification rule was deleted${viaSuffix(source)}`,
             metadata: {integrationId},
         });
     } catch (error) {
         getLogger().error('Failed to create event log entry for notification rule deletion', error as Error);
     }
+
+    return true;
 };

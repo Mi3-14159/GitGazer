@@ -21,3 +21,14 @@ export const validateRedirectUrl = (url: string): string | null => {
         return null;
     }
 };
+
+/** True when `origin` (e.g. an Origin header) is exactly one of the configured frontend origins. */
+export const isAllowedFrontendOrigin = (origin: string | undefined): boolean => {
+    if (!origin) return false;
+    try {
+        const parsed = new URL(origin).origin;
+        return (config.get('allowedFrontendOrigins') as string[]).some((allowed) => new URL(allowed).origin === parsed);
+    } catch {
+        return false;
+    }
+};

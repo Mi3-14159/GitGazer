@@ -1,11 +1,14 @@
 import router from '@/domains/mcp/mcp.routes';
 import type {AppEnv} from '@/shared/hono/env';
 import {testRequest} from '@/shared/hono/test-request';
+import {mintSignedState} from '@/domains/auth/auth.controller';
+import config from '@gitgazer/backend-core/config';
 import {OAuthError, OAuthErrorCode} from '@modelcontextprotocol/server';
 import {Hono} from 'hono';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {verifyAccessToken, getUserIntegrationRoles, runReadOnlyQuery} = vi.hoisted(() => ({
+const {verifyAccessToken, getUserIntegrationRoles, runReadOnlyQuery, deleteNotificationRule} = vi.hoisted(() => ({
+    deleteNotificationRule: vi.fn(),
     verifyAccessToken: vi.fn(),
     getUserIntegrationRoles: vi.fn(),
     runReadOnlyQuery: vi.fn(),
@@ -17,6 +20,11 @@ vi.mock('@/domains/mcp/mcp.controller', async (importOriginal) => ({
     protectedResourceMetadataUrl: () => 'https://app.example.com/.well-known/oauth-protected-resource',
 }));
 vi.mock('@/domains/integrations/integrations.controller', () => ({getUserIntegrationRoles}));
+vi.mock('@/domains/notifications/notifications.controller', () => ({
+    upsertNotificationRule: vi.fn(),
+    updateNotificationRule: vi.fn(),
+    deleteNotificationRule,
+}));
 vi.mock('@gitgazer/db/queries', () => ({runReadOnlyQuery, ReadOnlyQueryError: class ReadOnlyQueryError extends Error {}}));
 vi.mock('@/domains/mcp/mcp.quota', () => ({
     reserveQueryBudget: vi.fn(),
@@ -111,6 +119,65 @@ describe('POST /api/mcp', () => {
         expect(result.tools.every((t: {annotations?: {readOnlyHint?: boolean}}) => t.annotations?.readOnlyHint)).toBe(true);
     });
 
+    describe.each([
+        {
+            path: 'legacy',
+            list: () => post(legacyBody('tools/list')),
+            call: (args: Record<string, unknown>) => post(legacyBody('tools/call', {name: 'delete_notification_rule', arguments: args})),
+        },
+        {
+            path: '2026-07-28',
+            list: () => post(modernBody('tools/list'), modernHeaders('tools/list')),
+            call: (args: Record<string, unknown>) =>
+                post(
+                    modernBody('tools/call', {name: 'delete_notification_rule', arguments: args}),
+                    modernHeaders('tools/call', 'delete_notification_rule'),
+                ),
+        },
+    ])('write tools on the $path path', ({list, call}) => {
+        const RULE_ID = '22222222-2222-4222-8222-222222222222';
+        const MEMBER_ID = '11111111-1111-4111-8111-111111111111';
+        const withScopes = async (scopes: string[]) => verifyAccessToken.mockResolvedValue({...(await verifyAccessToken()), scopes});
+
+        beforeEach(() => {
+            getUserIntegrationRoles.mockResolvedValue({[MEMBER_ID]: 'member'});
+            deleteNotificationRule.mockResolvedValue(true);
+        });
+
+        it('lists six tools for a write-scope token', async () => {
+            await withScopes(['gitgazer-mcp/read', 'gitgazer-mcp/write']);
+            const {result} = await (await list()).json();
+            expect(result.tools.map((t: {name: string}) => t.name)).toEqual([
+                'run_sql',
+                'list_tables',
+                'describe_table',
+                'create_notification_rule',
+                'update_notification_rule',
+                'delete_notification_rule',
+            ]);
+        });
+
+        it('lists three tools for a read token', async () => {
+            await withScopes(['gitgazer-mcp/read']);
+            const {result} = await (await list()).json();
+            expect(result.tools).toHaveLength(3);
+        });
+
+        it('does not know delete_notification_rule for a read token, even for a member with valid arguments', async () => {
+            await withScopes(['gitgazer-mcp/read']);
+            const body = await (await call({integration_id: MEMBER_ID, rule_id: RULE_ID})).json();
+            expect(body.error).toEqual({code: -32602, message: 'Tool delete_notification_rule not found'});
+            expect(deleteNotificationRule).not.toHaveBeenCalled();
+        });
+
+        it('runs delete_notification_rule for the same call with a write-scope token', async () => {
+            await withScopes(['gitgazer-mcp/read', 'gitgazer-mcp/write']);
+            const body = await (await call({integration_id: MEMBER_ID, rule_id: RULE_ID})).json();
+            expect(body.result.isError).toBeUndefined();
+            expect(deleteNotificationRule).toHaveBeenCalledWith(RULE_ID, MEMBER_ID, 'mcp');
+        });
+    });
+
     it('runs a legacy tools/call without a prior initialize, with the caller role map', async () => {
         getUserIntegrationRoles.mockResolvedValue({[ID_A]: 'admin'});
         const res = await post(legacyBody('tools/call', {name: 'list_tables', arguments: {}}));
@@ -140,5 +207,69 @@ describe('POST /api/mcp', () => {
         const body = await res.text();
         expect(body).toContain('"notifications":{}');
         expect(body).toContain('"resultType":"complete"');
+    });
+});
+
+describe('MCP OAuth connect flow', () => {
+    const configValues: Record<string, unknown> = {
+        mcpServerUrl: 'https://app.example.com/api/mcp',
+        stateSecret: 'test-state-secret-0123456789',
+        cognito: {domain: 'auth.example.com', mcpClientId: 'mcp-client-123'},
+        allowedFrontendOrigins: ['https://app.example.com'],
+        mcpAllowedRedirectHosts: [],
+    };
+    const authorizeQuery = new URLSearchParams({
+        response_type: 'code',
+        redirect_uri: 'http://127.0.0.1:33418/callback',
+        code_challenge: 'CHALLENGE',
+        code_challenge_method: 'S256',
+    });
+
+    beforeEach(() => {
+        vi.spyOn(config, 'get').mockImplementation(((key: string) => configValues[key]) as typeof config.get);
+    });
+
+    const connectRequest = async (): Promise<string> => {
+        const res = await testRequest(app, 'GET', `/api/mcp/oauth/authorize?${authorizeQuery}`);
+        return new URL(res.headers.get('location')!).searchParams.get('request')!;
+    };
+
+    const confirm = async (session: string) =>
+        testRequest(app, 'POST', '/api/mcp/oauth/authorize', {
+            headers: {'content-type': 'application/x-www-form-urlencoded', origin: 'https://app.example.com'},
+            body: new URLSearchParams({request: await connectRequest(), session}).toString(),
+        });
+
+    it('sends GET authorize to the connect page', async () => {
+        const res = await testRequest(app, 'GET', `/api/mcp/oauth/authorize?${authorizeQuery}`);
+        expect(res.status).toBe(302);
+        expect(res.headers.get('location')).toMatch(/^https:\/\/app\.example\.com\/mcp\/connect\?request=/);
+    });
+
+    it('answers POST authorize with a 303 to Cognito and the state cookie', async () => {
+        const res = await confirm('read');
+        expect(res.status).toBe(303);
+        expect(res.headers.get('location')).toMatch(/^https:\/\/auth\.example\.com\/oauth2\/authorize\?/);
+        expect(res.headers.getSetCookie()[0]).toMatch(/^oauthState=/);
+    });
+
+    it('rejects POST authorize from a foreign origin', async () => {
+        const res = await testRequest(app, 'POST', '/api/mcp/oauth/authorize', {
+            headers: {'content-type': 'application/x-www-form-urlencoded', origin: 'https://evil.example'},
+            body: new URLSearchParams({request: await connectRequest(), session: 'write'}).toString(),
+        });
+        expect(res.status).toBe(403);
+    });
+
+    it('rejects the callback without the state cookie and relays with it', async () => {
+        const bound = mintSignedState({purpose: 'mcp_authorize', redirectUri: 'http://127.0.0.1:33418/callback', write: false});
+
+        const missing = await testRequest(app, 'GET', `/api/mcp/oauth/callback?code=c&state=${bound.token}`);
+        expect(missing.status).toBe(400);
+
+        const ok = await testRequest(app, 'GET', `/api/mcp/oauth/callback?code=c&state=${bound.token}`, {cookies: [`oauthState=${bound.nonce}`]});
+        expect(ok.status).toBe(302);
+        expect(ok.headers.get('location')).toContain('http://127.0.0.1:33418/callback');
+        expect(ok.headers.getSetCookie()[0]).toMatch(/oauthState=;.*Max-Age=0/);
     });
 });

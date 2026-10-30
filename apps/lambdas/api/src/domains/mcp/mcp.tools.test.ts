@@ -58,7 +58,7 @@ describe('mcp tools', () => {
         const {registerMcpTools} = await import('@/domains/mcp/mcp.tools');
         tools = new Map();
         const server = {registerTool: (name: string, config: RegisteredTool['config'], cb: RegisteredTool['cb']) => tools.set(name, {config, cb})};
-        registerMcpTools(server as unknown as McpServer);
+        registerMcpTools(server as unknown as McpServer, {write: false});
 
         asMock(access.checkAccess).mockReturnValue({allowed: true});
         asMock(integrations.getUserIntegrationRoles).mockResolvedValue(ROLES);
@@ -72,6 +72,28 @@ describe('mcp tools', () => {
     it('registers exactly the read-only tools', () => {
         expect([...tools.keys()]).toEqual(['run_sql', 'list_tables', 'describe_table']);
         expect([...tools.values()].every((t) => t.config.annotations.readOnlyHint)).toBe(true);
+    });
+
+    it('registers the notification-rule tools in a write session', async () => {
+        const {registerMcpTools} = await import('@/domains/mcp/mcp.tools');
+        tools = new Map();
+        registerMcpTools(
+            {registerTool: (name: string, config: RegisteredTool['config']) => tools.set(name, {config, cb: vi.fn()})} as unknown as McpServer,
+            {
+                write: true,
+            },
+        );
+        expect([...tools.keys()]).toEqual([
+            'run_sql',
+            'list_tables',
+            'describe_table',
+            'create_notification_rule',
+            'update_notification_rule',
+            'delete_notification_rule',
+        ]);
+        expect(tools.get('create_notification_rule')!.config.annotations).toEqual({readOnlyHint: false});
+        expect(tools.get('update_notification_rule')!.config.annotations).toEqual({readOnlyHint: false});
+        expect(tools.get('delete_notification_rule')!.config.annotations).toEqual({readOnlyHint: false, destructiveHint: true});
     });
 
     it('checks every call against the tool operation in the permission table', async () => {
@@ -193,7 +215,7 @@ describe('mcp tools', () => {
         const {createMcpServer} = await import('@/domains/mcp/mcp.server');
         const {WebStandardStreamableHTTPServerTransport} = await import('@modelcontextprotocol/server');
         const transport = new WebStandardStreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
-        await createMcpServer().connect(transport);
+        await createMcpServer({write: false}).connect(transport);
         const request = new Request('https://app.example.com/api/mcp', {
             method: 'POST',
             headers: {'content-type': 'application/json', accept: 'application/json, text/event-stream'},

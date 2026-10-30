@@ -85,6 +85,12 @@ const router = createRouter({
             meta: {title: 'Accept Invitation'},
         },
         {
+            path: '/mcp/connect',
+            name: 'mcp-connect',
+            component: () => import('@/views/McpConnectPage.vue'),
+            meta: {title: 'Connect an MCP client'},
+        },
+        {
             path: '/:pathMatch(.*)*',
             name: 'not-found',
             redirect: '/overview',

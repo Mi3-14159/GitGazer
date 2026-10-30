@@ -11,7 +11,7 @@ const PROTECTED_RESOURCE_METADATA = {
     resource: 'https://app.gitgazer.com/api/mcp',
     authorization_servers: ['https://app.gitgazer.com'],
     bearer_methods_supported: ['header'],
-    scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
+    scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read', 'gitgazer-mcp/write'],
 };
 
 const AUTHORIZATION_SERVER_METADATA = {
@@ -24,7 +24,7 @@ const AUTHORIZATION_SERVER_METADATA = {
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
     authorization_response_iss_parameter_supported: true,
-    scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read'],
+    scopes_supported: ['openid', 'email', 'profile', 'gitgazer-mcp/read', 'gitgazer-mcp/write'],
 };
 
 // With no configured mcpServerUrl the origin is the host of the request URL.

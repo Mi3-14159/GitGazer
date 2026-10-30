@@ -18,6 +18,7 @@ export const OPERATIONS = {
     'mcp.endpoint': {access: 'public'},
     'mcp.oauthRegister': {access: 'public'},
     'mcp.oauthAuthorize': {access: 'public'},
+    'mcp.oauthAuthorizeConfirm': {access: 'public'},
     'mcp.oauthCallback': {access: 'public'},
     'mcp.oauthToken': {access: 'public'},
     'mcp.protectedResourceMetadata': {access: 'public'},
@@ -92,6 +93,7 @@ export const ROUTES = {
     'POST /api/mcp': 'mcp.endpoint',
     'POST /api/mcp/oauth/register': 'mcp.oauthRegister',
     'GET /api/mcp/oauth/authorize': 'mcp.oauthAuthorize',
+    'POST /api/mcp/oauth/authorize': 'mcp.oauthAuthorizeConfirm',
     'GET /api/mcp/oauth/callback': 'mcp.oauthCallback',
     'POST /api/mcp/oauth/token': 'mcp.oauthToken',
     'GET /.well-known/oauth-protected-resource': 'mcp.protectedResourceMetadata',
@@ -154,6 +156,9 @@ export const TOOLS = {
     run_sql: 'mcp.runSql',
     list_tables: 'mcp.listTables',
     describe_table: 'mcp.describeTable',
+    create_notification_rule: 'notificationRule.create',
+    update_notification_rule: 'notificationRule.update',
+    delete_notification_rule: 'notificationRule.delete',
 } as const satisfies Record<string, Operation>;
 
 export type ToolName = keyof typeof TOOLS;

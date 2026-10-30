@@ -1,5 +1,5 @@
 import {isNotificationRule, isNotificationRuleUpdate} from '@gitgazer/db/types';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi, type Mock} from 'vitest';
 
 const mockWithRlsTransaction = vi.fn();
 vi.mock('@gitgazer/db/client', () => ({
@@ -352,7 +352,7 @@ describe('notifications controller', () => {
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
                 delete: () => ({
-                    where: () => Promise.resolve(),
+                    where: () => ({returning: () => Promise.resolve([{id: 'rule-1'}])}),
                 }),
             };
             return params.callback(mockTx);
@@ -379,14 +379,143 @@ describe('notifications controller', () => {
         mockWithRlsTransaction.mockImplementation(async (params: {integrationIds: string[]; callback: Function}) => {
             const mockTx = {
                 delete: () => ({
-                    where: () => Promise.resolve(),
+                    where: () => ({returning: () => Promise.resolve([{id: 'rule-1'}])}),
                 }),
             };
             return params.callback(mockTx);
         });
         mockCreateEventLogEntry.mockRejectedValue(new Error('DB down'));
 
-        await expect(notifications.deleteNotificationRule('rule-1', 'integrationA')).resolves.toBeUndefined();
+        await expect(notifications.deleteNotificationRule('rule-1', 'integrationA')).resolves.toBe(true);
+    });
+
+    describe('delete result and source', () => {
+        const mockDelete = (rows: unknown[]) =>
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) =>
+                params.callback({delete: () => ({where: () => ({returning: () => Promise.resolve(rows)})})}),
+            );
+
+        it('deleteNotificationRule returns false and writes no event log when nothing was deleted', async () => {
+            mockDelete([]);
+
+            await expect(notifications.deleteNotificationRule('rule-1', 'integrationA')).resolves.toBe(false);
+            expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+        });
+
+        it('deleteNotificationRule returns true and logs "via MCP" with source mcp', async () => {
+            mockDelete([{id: 'rule-1'}]);
+
+            await expect(notifications.deleteNotificationRule('rule-1', 'integrationA', 'mcp')).resolves.toBe(true);
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message: 'A notification rule was deleted via MCP'}));
+        });
+    });
+
+    describe('updateNotificationRule and source', () => {
+        const HANDLE_ID = '11111111-1111-4111-8111-111111111111';
+        const now = new Date();
+        const stored = {
+            id: 'rule-1',
+            integrationId: 'integrationA',
+            label: 'Alerts',
+            enabled: true,
+            ignore_dependabot: true,
+            include_log_details: false,
+            rule: {owner: 'o'},
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        // select() #1 loads the rule (with .for), #2 its destinations
+        const mockUpdateTx = (storedRows: unknown[]) => {
+            const captured: {values?: any; insertedDestinations?: any; insert: Mock} = {insert: vi.fn()};
+            let selects = 0;
+            const tx = {
+                select: () => {
+                    selects += 1;
+                    if (selects === 1) return {from: () => ({where: () => ({for: () => Promise.resolve(storedRows)})})};
+                    return {from: () => ({where: () => Promise.resolve([{handleId: HANDLE_ID}])})};
+                },
+                insert: (table: unknown) => {
+                    captured.insert(table);
+                    return {
+                        values: (v: any) => {
+                            if (Array.isArray(v)) {
+                                captured.insertedDestinations = v;
+                                return Promise.resolve();
+                            }
+                            captured.values = v;
+                            return {onConflictDoUpdate: () => ({returning: () => Promise.resolve([{...stored, ...v}])})};
+                        },
+                    };
+                },
+                delete: () => ({where: () => Promise.resolve()}),
+            };
+            mockWithRlsTransaction.mockImplementation(async (params: {callback: Function}) => params.callback(tx));
+            return captured;
+        };
+
+        it('upsertNotificationRule with source mcp says "via MCP" in the event log', async () => {
+            mockUpdateTx([stored]);
+
+            await notifications.upsertNotificationRule({
+                rule: {label: 'Alerts', enabled: true, handleIds: [], ignore_dependabot: false, rule: {}},
+                integrationId: 'integrationA',
+                createOnly: true,
+                source: 'mcp',
+            });
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(expect.objectContaining({message: expect.stringContaining('was created via MCP')}));
+        });
+
+        it('updateNotificationRule merges changes into the stored rule', async () => {
+            const captured = mockUpdateTx([stored]);
+
+            const out = await notifications.updateNotificationRule({
+                integrationId: 'integrationA',
+                ruleId: 'rule-1',
+                changes: {enabled: false},
+                source: 'mcp',
+            });
+
+            expect(captured.values).toMatchObject({id: 'rule-1', enabled: false, label: 'Alerts', rule: {owner: 'o'}});
+            expect(captured.insertedDestinations).toEqual([{integrationId: 'integrationA', ruleId: 'rule-1', handleId: HANDLE_ID}]);
+            expect(out.enabled).toBe(false);
+            expect(out.handleIds).toEqual([HANDLE_ID]);
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({message: expect.stringContaining('was updated via MCP (destinations: 1, enabled: false)')}),
+            );
+        });
+
+        it('updateNotificationRule replaces the rule filter as a whole', async () => {
+            const captured = mockUpdateTx([stored]);
+
+            await notifications.updateNotificationRule({integrationId: 'integrationA', ruleId: 'rule-1', changes: {rule: {repository_name: 'r'}}});
+
+            expect(captured.values.rule).toEqual({repository_name: 'r'});
+        });
+
+        it('updateNotificationRule throws NotFoundError when the rule does not exist', async () => {
+            const captured = mockUpdateTx([]);
+
+            await expect(
+                notifications.updateNotificationRule({integrationId: 'integrationA', ruleId: 'nope', changes: {enabled: false}}),
+            ).rejects.toMatchObject({
+                name: 'NotFoundError',
+                message: 'Notification rule not found',
+            });
+            expect(captured.insert).not.toHaveBeenCalled();
+            expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+        });
+
+        it('updateNotificationRule rejects an invalid merged rule', async () => {
+            mockUpdateTx([stored]);
+
+            await expect(
+                notifications.updateNotificationRule({integrationId: 'integrationA', ruleId: 'rule-1', changes: {label: ''}}),
+            ).rejects.toMatchObject({
+                name: 'BadRequestError',
+            });
+        });
     });
 });
 

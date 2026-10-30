@@ -45,7 +45,7 @@ sequenceDiagram
 ### How It Works
 
 1. The SPA redirects the browser to `GET /api/auth/login?redirect_url=<app-origin>`. Sign-in is initiated **server-side** — the SPA no longer builds the Cognito authorize URL itself.
-2. The login endpoint validates the `redirect_url`, mints a **signed, single-use `state` token** bound to a random **nonce**, stores the nonce in a short-lived httpOnly cookie (`oauthStateNonce`, 10-minute TTL), and 302-redirects to Cognito's `/oauth2/authorize` with the signed token in the `state` parameter.
+2. The login endpoint validates the `redirect_url`, mints a **signed, single-use `state` token** bound to a random **nonce**, stores the nonce in a short-lived httpOnly cookie (`oauthState`, 10-minute TTL), and 302-redirects to Cognito's `/oauth2/authorize` with the signed token in the `state` parameter.
 3. Cognito redirects to GitHub for OAuth consent.
 4. After approval, Cognito receives an authorization code and redirects to `GET /api/auth/callback?code=...&state=...`.
 5. The callback handler **verifies the signed `state` token and nonce cookie before anything else** — checking the HMAC signature, the expiry, and that the nonce embedded in the token matches the nonce cookie. If any check fails it returns HTTP 403 and **never exchanges the code**.
@@ -57,7 +57,7 @@ sequenceDiagram
 The `state` parameter is not just an opaque redirect hint — it is a signed token that protects against login cross-site request forgery (an attacker tricking a victim into completing a login the attacker started).
 
 - **Signed payload** — the token is `base64url(payload).hmacSHA256(payload)`, where the payload carries the `redirect_url`, a random `nonce`, and an `exp` timestamp. It is signed with a dedicated `stateSecret`.
-- **Nonce binding** — the same nonce is stored in the httpOnly `oauthStateNonce` cookie. The callback only succeeds if the nonce inside the signed token matches the nonce in the cookie, so a `state` value cannot be replayed in another browser.
+- **Nonce binding** — the same nonce is stored in the httpOnly `oauthState` cookie. The callback only succeeds if the nonce inside the signed token matches the nonce in the cookie, so a `state` value cannot be replayed in another browser.
 - **Constant-time checks** — the signature and nonce are compared in constant time (both sides are SHA-256 hashed first) so neither length nor content leaks through timing.
 - **Fail closed** — if `stateSecret` is not configured, login initiation and callback both fail loudly rather than silently accepting forgeable tokens.
 - **Short-lived & single-use** — the token expires after 10 minutes (matching the cookie `Max-Age`), and the nonce cookie is cleared once the callback completes.
@@ -67,8 +67,16 @@ The `state` parameter is not just an opaque redirect hint — it is a signed tok
 The Slack app adds two redirect routes that Slack calls through the user's browser: `/api/slack/oauth/callback` (install) and `/api/slack/sign-in/callback` (Connect Slack). Unlike the Cognito callback, they are **not** public routes. They go through the normal `authenticate` middleware, so the user's session cookies must be present.
 
 - **Signed state with purpose** — the state token reuses the signed-state mechanism above and additionally carries a `purpose` (`slack_install` or `slack_sign_in`), the integration ID, and the user ID. A callback rejects a token whose purpose or user ID doesn't match.
-- **Nonce cookie** — the nonce is bound to the browser through the same `oauthStateNonce` cookie and cleared after the callback.
+- **Nonce cookie** — the nonce is bound to the browser through the same `oauthState` cookie and cleared after the callback.
 - **Fixed redirect URIs** — the redirect URIs are fixed API routes, never taken from the request.
+
+### MCP Sign-In State
+
+The MCP OAuth proxy reuses the signed-state mechanism for the sign-in of MCP clients. It is public, so it does not rely on session cookies, and it has two steps (details in [MCP Server](./mcp-server.md#connect-flow-and-binding)):
+
+- **Connect request** — `GET /api/mcp/oauth/authorize` signs the client's `redirect_uri`, `state` and `code_challenge` into a `request` with the purpose `mcp_connect` that expires after 10 minutes, and redirects to the public `/mcp/connect` page.
+- **Confirmation** — the page's form `POST` must carry an `Origin` header that exactly matches a configured frontend origin. The proxy then mints a state with the purpose `mcp_authorize`, binds its nonce to the browser through the `oauthState` cookie, and sends the user to Cognito. The MCP callback accepts only that purpose with a matching cookie, and the web login and Slack callbacks reject it, so a state minted for one flow cannot complete another.
+- **Scopes** — the client's `scope` parameter is ignored. The user's choice on the connect page decides whether `gitgazer-mcp/write` is requested in addition to `gitgazer-mcp/read`.
 
 ### GitHub Email Scope
 
@@ -149,16 +157,16 @@ For state-changing requests (`POST`, `PUT`, `DELETE`, `PATCH`) on non-public rou
 
 These route prefixes skip authentication because they have their own verification:
 
-| Prefix                                                                                         | Reason                                                                         |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `/api/auth/login`                                                                              | Sign-in start — no session yet, mints the signed `state`                       |
-| `/api/auth/callback`                                                                           | OAuth callback — no cookies yet, uses authorization code                       |
-| `/api/auth/refresh`                                                                            | Token refresh — uses refresh token cookie directly                             |
-| `/api/auth/cognito/`                                                                           | Cognito OIDC helper endpoints (token proxy, user info proxy)                   |
-| `/api/import/`                                                                                 | Integration webhooks — verified via HMAC signature (`X-Hub-Signature-256`)     |
-| `/api/github/`                                                                                 | GitHub App webhooks — verified via app-level HMAC signature                    |
-| `/api/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | MCP endpoint and OAuth proxy — Bearer token, see [MCP Server](./mcp-server.md) |
-| `/fe-failover/`                                                                                | Serves the web app's `index.html` as a fallback                                |
+| Prefix                                                                                         | Reason                                                                                                                      |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `/api/auth/login`                                                                              | Sign-in start — no session yet, mints the signed `state`                                                                    |
+| `/api/auth/callback`                                                                           | OAuth callback — no cookies yet, uses authorization code                                                                    |
+| `/api/auth/refresh`                                                                            | Token refresh — uses refresh token cookie directly                                                                          |
+| `/api/auth/cognito/`                                                                           | Cognito OIDC helper endpoints (token proxy, user info proxy)                                                                |
+| `/api/import/`                                                                                 | Integration webhooks — verified via HMAC signature (`X-Hub-Signature-256`)                                                  |
+| `/api/github/`                                                                                 | GitHub App webhooks — verified via app-level HMAC signature                                                                 |
+| `/api/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | MCP endpoint and OAuth proxy — Bearer token, or the proxy's own signed request and state, see [MCP Server](./mcp-server.md) |
+| `/fe-failover/`                                                                                | Serves the web app's `index.html` as a fallback                                                                             |
 
 Each domain declares its own `publicPrefixes` export, which are aggregated into a central registry.
 

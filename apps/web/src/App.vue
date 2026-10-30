@@ -13,9 +13,12 @@
     document.title = 'GitGazer';
 
     const initializeAuth = async () => {
+        // On a cold load the initial navigation is still pending, so currentRoute is the start location '/'.
+        await router.isReady();
         // Skip auth redirect for pages that handle their own auth flow
-        const publicPaths = ['/login', '/invite/'];
-        if (publicPaths.some((p) => router.currentRoute.value.path.startsWith(p))) {
+        const publicPaths = ['/login', '/invite/', '/mcp/connect'];
+        const path = router.currentRoute.value.path;
+        if (publicPaths.some((p) => path === p || (p.endsWith('/') && path.startsWith(p)))) {
             return;
         }
 

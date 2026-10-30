@@ -1,11 +1,13 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
 import {mcpUserId, type McpCaller} from '@/domains/mcp/mcp.controller';
 import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
+import {registerNotificationRuleTools} from '@/domains/mcp/mcp.notification-tools';
+import {HttpError} from '@/shared/errors';
 import {checkAccess, forbiddenFor} from '@/shared/permissions/check-access';
 import {TOOLS, type ToolName} from '@/shared/permissions/table';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {ReadOnlyQueryError, runReadOnlyQuery} from '@gitgazer/db/queries';
-import type {CallToolResult, McpServer, ServerContext, StandardSchemaWithJSON, ToolCallback} from '@modelcontextprotocol/server';
+import type {CallToolResult, McpServer, ServerContext, StandardSchemaWithJSON, ToolAnnotations, ToolCallback} from '@modelcontextprotocol/server';
 import {z} from 'zod';
 
 export class McpToolError extends Error {
@@ -22,15 +24,16 @@ const textResult = (text: string, isError?: true): CallToolResult => ({content: 
 
 // Only messages from trusted error types are echoed; anything else (raw DB/Postgres errors) is
 // logged server-side and returned generically so schema/role internals don't leak to the client.
-const isSafeError = (error: unknown): error is Error => error instanceof McpToolError || error instanceof ReadOnlyQueryError;
+const isSafeError = (error: unknown): error is Error =>
+    error instanceof McpToolError || error instanceof ReadOnlyQueryError || (error instanceof HttpError && error.statusCode < 500);
 
 type ToolArgs<Schema extends StandardSchemaWithJSON> = StandardSchemaWithJSON.InferOutput<Schema>;
 
-/** Registers a read-only tool whose handler resolves the caller and reports failures in-band (MCP convention) instead of as JSON-RPC errors. */
-const registerTool = <Schema extends StandardSchemaWithJSON>(
+/** Registers a tool (read-only unless `annotations` say otherwise) whose handler resolves the caller and reports failures in-band (MCP convention) instead of as JSON-RPC errors. */
+export const registerTool = <Schema extends StandardSchemaWithJSON>(
     server: McpServer,
     name: ToolName,
-    config: {description: string; inputSchema: Schema},
+    config: {description: string; inputSchema: Schema; annotations?: ToolAnnotations},
     run: (args: ToolArgs<Schema>, caller: McpCaller) => Promise<unknown>,
 ): void => {
     const handler = async (args: ToolArgs<Schema>, ctx: ServerContext): Promise<CallToolResult> => {
@@ -48,12 +51,12 @@ const registerTool = <Schema extends StandardSchemaWithJSON>(
         }
     };
     // ToolCallback is a conditional type that TS can't resolve while Schema is still generic.
-    server.registerTool(name, {...config, annotations: {readOnlyHint: true}}, handler as ToolCallback<Schema>);
+    server.registerTool(name, {annotations: {readOnlyHint: true}, ...config}, handler as ToolCallback<Schema>);
 };
 
-/** Registers the tools (all read-only). Every tool runs through `runReadOnlyQuery`, so the
- * gitgazer_mcp role GRANTs + RLS are the single enforcement point. */
-export const registerMcpTools = (server: McpServer): void => {
+/** Registers the read-only tools, which run through `runReadOnlyQuery` so the gitgazer_mcp role
+ * GRANTs + RLS are their enforcement point, plus the notification-rule write tools in a write session. */
+export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): void => {
     registerTool(
         server,
         'run_sql',
@@ -131,4 +134,6 @@ export const registerMcpTools = (server: McpServer): void => {
                 integrationRoles,
             }),
     );
+
+    if (write) registerNotificationRuleTools(server);
 };

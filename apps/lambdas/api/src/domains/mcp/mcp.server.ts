@@ -9,10 +9,16 @@ const INSTRUCTIONS = [
     'gitgazer.users_view and gitgazer.slack_workspaces_view are global with no integration_id; gitgazer.users_view holds GitGazer users and github."user" holds GitHub actors.',
 ].join(' ');
 
-export const createMcpServer = (): McpServer => {
+const WRITE_INSTRUCTIONS =
+    'This session can change notification rules with create_notification_rule, update_notification_rule and delete_notification_rule; look up rule ids in gitgazer.notification_rules_view and destination handle ids in gitgazer.notification_handles_view.';
+
+export const createMcpServer = ({write}: {write: boolean}): McpServer => {
     // The SDK defaults tools.listChanged to true, which makes subscriptions/listen hold an SSE stream open
     // until the Lambda times out; the tool list never changes, so there is nothing to listen for.
-    const server = new McpServer({name: 'gitgazer-mcp', version: '1.0.0'}, {instructions: INSTRUCTIONS, capabilities: {tools: {listChanged: false}}});
-    registerMcpTools(server);
+    const server = new McpServer(
+        {name: 'gitgazer-mcp', version: '1.0.0'},
+        {instructions: write ? `${INSTRUCTIONS} ${WRITE_INSTRUCTIONS}` : INSTRUCTIONS, capabilities: {tools: {listChanged: false}}},
+    );
+    registerMcpTools(server, {write});
     return server;
 };
