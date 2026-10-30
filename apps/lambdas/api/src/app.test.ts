@@ -22,6 +22,7 @@ vi.mock('@/shared/middleware/token-verifier', () => ({
         idTokenVerifier: {verify: async () => ({sub: 'sub-1', email: 'octo@example.com', nickname: 'octo'})},
     }),
 }));
+vi.mock('@/shared/middleware/authorization', () => ({authorize: async (_c: unknown, next: () => Promise<void>) => next()}));
 vi.mock('@/domains/users/users.routes', async () => {
     const {Hono} = await import('hono');
     return {default: new Hono().get('/big', (c) => c.json(mocks.bigPayload))};

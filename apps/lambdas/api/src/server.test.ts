@@ -23,6 +23,7 @@ vi.mock('@/shared/middleware/authentication', () => ({
         await next();
     }) satisfies MiddlewareHandler<AppEnv>,
 }));
+vi.mock('@/shared/middleware/authorization', () => ({authorize: async (_c: unknown, next: () => Promise<void>) => next()}));
 vi.mock('@/domains/users/users.routes', async () => {
     const {Hono} = await import('hono');
     const {getLogger} = await import('@gitgazer/backend-core/logger');

@@ -16,6 +16,7 @@ import feFailover from '@/shared/fe-failover';
 import type {AppEnv} from '@/shared/hono/env';
 import {HttpError, NotFoundError} from '@/shared/errors';
 import {authenticate} from '@/shared/middleware/authentication';
+import {authorize} from '@/shared/middleware/authorization';
 import {originCheck} from '@/shared/middleware/origin-check';
 import config, {loadConfig} from '@gitgazer/backend-core/config';
 import {getLogger} from '@gitgazer/backend-core/logger';
@@ -71,6 +72,7 @@ export const createApp = (): Hono<AppEnv> => {
     app.use(compress());
     app.use(cors({origin: config.get('corsOrigins')}));
     app.use(authenticate);
+    app.use(authorize);
     app.use(originCheck);
 
     app.route('/api', createApiRouter());

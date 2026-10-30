@@ -8,10 +8,12 @@ export const addUserIntegrationsToCtx: MiddlewareHandler<AppEnv> = async (c, nex
     logger.debug('running addUserIntegrationsToCtx middleware');
     const appContext = c.var.appContext!;
 
-    const integrationRoles = await getUserIntegrationRoles(appContext.userId);
-    appContext.integrationRoles = integrationRoles;
-    appContext.integrations = Object.keys(integrationRoles);
-    logger.debug('User integrations from RDS', {integrations: appContext.integrations});
+    if (!appContext.integrationRoles) {
+        const integrationRoles = await getUserIntegrationRoles(appContext.userId);
+        appContext.integrationRoles = integrationRoles;
+        appContext.integrations = Object.keys(integrationRoles);
+        logger.debug('User integrations from RDS', {integrations: appContext.integrations});
+    }
 
     await next();
 };
