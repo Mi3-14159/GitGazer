@@ -1,6 +1,7 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
 import {mcpUserId, type McpCaller} from '@/domains/mcp/mcp.controller';
 import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
+import {registerHandleTools, registerSlackChannelTool} from '@/domains/mcp/mcp.handle-tools';
 import {registerNotificationRuleTools} from '@/domains/mcp/mcp.notification-tools';
 import {HttpError} from '@/shared/errors';
 import {checkAccess, forbiddenFor} from '@/shared/permissions/check-access';
@@ -55,7 +56,7 @@ export const registerTool = <Schema extends StandardSchemaWithJSON>(
 };
 
 /** Registers the read-only tools, which run through `runReadOnlyQuery` so the gitgazer_mcp role
- * GRANTs + RLS are their enforcement point, plus the notification-rule write tools in a write session. */
+ * GRANTs + RLS are their enforcement point, plus the notification-rule and handle write tools in a write session. */
 export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): void => {
     registerTool(
         server,
@@ -135,5 +136,10 @@ export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): 
             }),
     );
 
-    if (write) registerNotificationRuleTools(server);
+    registerSlackChannelTool(server);
+
+    if (write) {
+        registerNotificationRuleTools(server);
+        registerHandleTools(server);
+    }
 };

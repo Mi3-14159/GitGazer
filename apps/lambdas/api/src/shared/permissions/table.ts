@@ -159,6 +159,10 @@ export const TOOLS = {
     create_notification_rule: 'notificationRule.create',
     update_notification_rule: 'notificationRule.update',
     delete_notification_rule: 'notificationRule.delete',
+    create_notification_handle: 'handle.create',
+    update_notification_handle: 'handle.update',
+    delete_notification_handle: 'handle.delete',
+    list_slack_channels: 'slackApp.channels',
 } as const satisfies Record<string, Operation>;
 
 export type ToolName = keyof typeof TOOLS;
