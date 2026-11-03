@@ -98,6 +98,7 @@ In a **read & write** session the assistant can make these changes, with the rol
 | Rename an integration                                    | admin       |
 | Choose which GitHub events the GitHub App sends          | admin       |
 | Mark event log entries as read or unread, or all as read | any role    |
+| List the channels of your Slack app (also read-only)     | admin       |
 
 For example:
 
@@ -107,7 +108,7 @@ For example:
 - "Rename the integration to 'Platform team'."
 - "Mark all my event log entries as read."
 
-The assistant looks up the ids it needs itself, and can list the channels of your Slack app. For integrations where your role is too low, the change is refused. Each change shows up in the event log marked **via MCP**, for example `A notification rule was deleted via MCP`. Changes to destinations are logged too, in the web app as well; for a webhook, the entry shows only the host of the URL, never the full address.
+The assistant looks up the ids it needs itself, and, when you are an admin, can list the channels of your Slack app, which also works in a read-only session. For integrations where your role is too low, the change is refused. Each change shows up in the event log marked **via MCP**, for example `A notification rule was deleted via MCP`. Changes to destinations are logged too, in the web app as well; for a webhook, the entry shows only the host of the URL, never the full address.
 
 Some things always stay in the web app, even in a read & write session:
 

@@ -109,7 +109,7 @@ That `POST` is the confirmation step:
 
 ## Tools
 
-Which tools a client sees depends on the scopes of its token: a token with `gitgazer-mcp/write` gets a write session, every other valid token a read session (`createMcpServer({write})`). A read session does not register the write tools at all, so calling one by name fails. The server `instructions` of a write session also name the write tools.
+Which tools a client sees depends on the scopes of its token: a token with `gitgazer-mcp/write` gets a write session, every other valid token a read session (`createMcpServer({write})`). A read session does not register the write tools at all, so calling one by name fails. The server `instructions` of a write session also name the write tools, say which views hold the ids they need (and that Slack channel ids come from `list_slack_channels`), and list what is only possible in the web app: members, invitations, app installation, and creating or deleting integrations.
 
 The data tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations. They are available in both session types, as is `list_slack_channels` (see below).
 
@@ -141,7 +141,7 @@ Only in a write session, except `list_slack_channels`, which only reads and is r
 
 Every tool except the two event log tools takes an `integration_id`, and the role is checked in that integration. The event log tools are not tied to one integration: the read flag is stored on the entry, so it changes for everyone in the integration. Ids come from `run_sql`: rules from `gitgazer.notification_rules_view`, handles from `gitgazer.notification_handles_view` (details in `gitgazer.webhook_handle_details_view` and `gitgazer.slack_handle_details_view`), apps from `gitgazer.integration_apps_view`, entries from `gitgazer.event_log_entries_view`, and the `installation_id` from `github.github_app_installations`.
 
-Each change writes an event log entry whose message carries the suffix ` via MCP`, for example `A notification rule was deleted via MCP`, so changes made by an assistant can be told apart from changes made in the web app. Creating, changing and deleting a notification handle writes an entry as well, in the web app and through MCP, because a webhook URL decides where workflow data is sent. The entry names the handle and, for a Webhook handle, only the **host** of the URL (old and new on a change), never the full URL: webhook URLs can carry secrets, only admins see them in `gitgazer.webhook_handle_details_view`, and every member can read the event log. The entry is written after the change commits; if writing it fails, the failure is logged and the change still counts as made.
+Each change except the two event log read-flag tools writes an event log entry whose message carries the suffix ` via MCP`, for example `A notification rule was deleted via MCP`, so changes made by an assistant can be told apart from changes made in the web app. Creating, changing and deleting a notification handle writes an entry as well, in the web app and through MCP, because a webhook URL decides where workflow data is sent. The entry names the handle and, for a Webhook handle, only the **host** of the URL (old and new on a change), never the full URL: webhook URLs can carry secrets, only admins see them in `gitgazer.webhook_handle_details_view`, and every member can read the event log. The entry is written after the change commits; if writing it fails, the failure is logged and the change still counts as made.
 
 #### Not available as tools
 

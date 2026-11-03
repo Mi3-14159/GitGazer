@@ -70,6 +70,12 @@ describe('mcp integration tools', () => {
         expect(schema.safeParse({integration_id: A, label: '  '}).success).toBe(false);
     });
 
+    it('rename_integration rejects a label longer than the column', () => {
+        const schema = tools.get('rename_integration')!.config.inputSchema;
+        expect(schema.safeParse({integration_id: A, label: 'a'.repeat(255)}).success).toBe(true);
+        expect(schema.safeParse({integration_id: A, label: 'a'.repeat(256)}).success).toBe(false);
+    });
+
     it('update_webhook_events passes the installation and events with source mcp', async () => {
         asMock(integrations.updateWebhookEvents).mockResolvedValue({events: ['workflow_run']});
         const res = await callTool('update_webhook_events', {integration_id: A, installation_id: 7, events: ['workflow_run']});
@@ -81,6 +87,11 @@ describe('mcp integration tools', () => {
         const schema = tools.get('update_webhook_events')!.config.inputSchema;
         expect(schema.safeParse({integration_id: A, installation_id: 7, events: ['workflow_run']}).success).toBe(true);
         expect(schema.safeParse({integration_id: A, installation_id: 7, events: ['push']}).success).toBe(false);
+    });
+
+    it('update_webhook_events rejects an empty event list', () => {
+        const schema = tools.get('update_webhook_events')!.config.inputSchema;
+        expect(schema.safeParse({integration_id: A, installation_id: 7, events: []}).success).toBe(false);
     });
 
     it('update_webhook_events reports an unknown installation in-band', async () => {

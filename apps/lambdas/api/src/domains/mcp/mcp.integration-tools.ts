@@ -13,7 +13,7 @@ export const registerIntegrationTools = (server: McpServer): void => {
         'rename_integration',
         {
             description: 'Rename an integration. Requires the admin role in the integration.',
-            inputSchema: z.object({integration_id: integrationId, label: z.string().trim().min(1)}),
+            inputSchema: z.object({integration_id: integrationId, label: z.string().trim().min(1).max(255)}),
             annotations: {readOnlyHint: false},
         },
         ({integration_id, label}) => upsertIntegration({id: integration_id, label, integrationIds: [integration_id], source: 'mcp'}),
@@ -24,11 +24,11 @@ export const registerIntegrationTools = (server: McpServer): void => {
         'update_webhook_events',
         {
             description:
-                'Set which GitHub webhook events a GitHub App installation delivers to the integration. Requires the admin role in the integration.',
+                'Set which GitHub webhook events a GitHub App installation delivers to the integration. Requires the admin role in the integration. Dropping workflow_run or workflow_job stops GitGazer from receiving GitHub Actions data.',
             inputSchema: z.object({
                 integration_id: integrationId,
                 installation_id: z.number().int().describe('From github.github_app_installations; look it up with run_sql.'),
-                events: z.array(z.enum(GITHUB_APP_WEBHOOK_EVENTS)),
+                events: z.array(z.enum(GITHUB_APP_WEBHOOK_EVENTS)).min(1),
             }),
             annotations: {readOnlyHint: false},
         },

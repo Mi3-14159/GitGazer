@@ -633,6 +633,26 @@ describe('apps controller', () => {
             expect(message).not.toContain('/services/');
         });
 
+        it('updateHandle words a same-host url change without repeating the host', async () => {
+            existing('Team', 'https://hooks.slack.com/services/T/B/x');
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Team', url: SLACK_URL, channelName: null}], []);
+
+            await controller.updateHandle({...base, handleId: 'h-1', url: SLACK_URL});
+
+            const {message} = logged()[0];
+            expect(message).toContain('webhook URL changed (host hooks.slack.com)');
+            expect(message).not.toContain('hooks.slack.com to');
+            expect(message).not.toContain('/services/');
+        });
+
+        it('updateHandle still succeeds when the stored url cannot be parsed', async () => {
+            existing('Team', 'not a url');
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Team', url: SLACK_URL, channelName: null}], []);
+
+            await expect(controller.updateHandle({...base, handleId: 'h-1', url: SLACK_URL})).resolves.toMatchObject({handleId: 'h-1'});
+            expect(logged()[0].message).toContain('webhook URL changed');
+        });
+
         it('updateHandle logs the old and new name of a rename', async () => {
             existing('Old', SLACK_URL);
             selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'New', url: SLACK_URL, channelName: null}], []);

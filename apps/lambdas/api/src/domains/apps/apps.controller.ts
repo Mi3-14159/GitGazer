@@ -504,6 +504,15 @@ const logHandleChange = async (params: {
     }
 };
 
+const describeUrlChange = (from: string, to: string): string => {
+    try {
+        const [fromHost, toHost] = [new URL(from).host, new URL(to).host];
+        return fromHost === toHost ? `webhook URL changed (host ${toHost})` : `host ${fromHost} to ${toHost}`;
+    } catch {
+        return 'webhook URL changed';
+    }
+};
+
 export const createHandle = async (
     params: Scope & {appId: string; source?: ChangeSource} & ({name: string; url: string} | {channelId: string}),
 ): Promise<NotificationHandle> => {
@@ -591,9 +600,9 @@ export const updateHandle = async (
         },
     });
 
-    const changes = [];
+    const changes: string[] = [];
     if (name !== undefined) changes.push(`name "${before.name}" to "${name}"`);
-    if (url !== undefined && before.url !== null) changes.push(`host ${new URL(before.url).host} to ${new URL(url).host}`);
+    if (url !== undefined && before.url !== null) changes.push(describeUrlChange(before.url, url));
     await logHandleChange({integrationId, handleId, action: 'updated', description: `"${after.name}" (${changes.join(', ')})`, source});
     return after;
 };
