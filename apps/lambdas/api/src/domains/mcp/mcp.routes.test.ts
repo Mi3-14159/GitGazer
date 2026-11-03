@@ -170,6 +170,10 @@ describe('POST /api/mcp', () => {
                 'create_notification_handle',
                 'update_notification_handle',
                 'delete_notification_handle',
+                'rename_integration',
+                'update_webhook_events',
+                'set_event_log_read',
+                'mark_all_event_log_read',
             ]);
         });
 

@@ -94,6 +94,10 @@ describe('mcp tools', () => {
             'create_notification_handle',
             'update_notification_handle',
             'delete_notification_handle',
+            'rename_integration',
+            'update_webhook_events',
+            'set_event_log_read',
+            'mark_all_event_log_read',
         ]);
         expect(tools.get('create_notification_rule')!.config.annotations).toEqual({readOnlyHint: false});
         expect(tools.get('update_notification_rule')!.config.annotations).toEqual({readOnlyHint: false});

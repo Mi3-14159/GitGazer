@@ -163,6 +163,10 @@ export const TOOLS = {
     update_notification_handle: 'handle.update',
     delete_notification_handle: 'handle.delete',
     list_slack_channels: 'slackApp.channels',
+    rename_integration: 'integration.rename',
+    update_webhook_events: 'githubApp.updateEvents',
+    set_event_log_read: 'eventLog.markRead',
+    mark_all_event_log_read: 'eventLog.markAllRead',
 } as const satisfies Record<string, Operation>;
 
 export type ToolName = keyof typeof TOOLS;

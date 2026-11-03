@@ -2,6 +2,7 @@ import {getUserIntegrationRoles} from '@/domains/integrations/integrations.contr
 import {mcpUserId, type McpCaller} from '@/domains/mcp/mcp.controller';
 import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
 import {registerHandleTools, registerSlackChannelTool} from '@/domains/mcp/mcp.handle-tools';
+import {registerIntegrationTools} from '@/domains/mcp/mcp.integration-tools';
 import {registerNotificationRuleTools} from '@/domains/mcp/mcp.notification-tools';
 import {HttpError} from '@/shared/errors';
 import {checkAccess, forbiddenFor} from '@/shared/permissions/check-access';
@@ -141,5 +142,6 @@ export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): 
     if (write) {
         registerNotificationRuleTools(server);
         registerHandleTools(server);
+        registerIntegrationTools(server);
     }
 };
