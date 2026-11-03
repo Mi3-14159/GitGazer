@@ -45,6 +45,10 @@ vi.mock('@gitgazer/db/schema/app', () => ({
 }));
 
 vi.mock('@gitgazer/db/schema/github/workflows', () => ({
+    githubAppInstallations: {
+        integrationId: Symbol('githubAppInstallations.integrationId'),
+        installationId: Symbol('githubAppInstallations.installationId'),
+    },
     githubAppWebhooks: Symbol('githubAppWebhooks'),
     userAssignments: Symbol('userAssignments'),
 }));
@@ -54,8 +58,10 @@ vi.mock('@gitgazer/backend-services/event-log.controller', () => ({
     createEventLogEntry: (...args: any[]) => mockCreateEventLogEntry(...args),
 }));
 
+const mockUpdateAllWebhookEvents = vi.fn();
 vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
     deprovisionAllWebhooks: vi.fn(),
+    updateAllWebhookEvents: (...args: any[]) => mockUpdateAllWebhookEvents(...args),
     updateWebhookSecrets: vi.fn(),
 }));
 
@@ -315,6 +321,69 @@ describe('integrations controller', () => {
 
             expect(order).toEqual(['delete']);
             expect(mockReleaseWorkspaceIfUnused).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('updateWebhookEvents', () => {
+        const update = (overrides: Partial<Parameters<typeof controller.updateWebhookEvents>[0]> = {}) =>
+            controller.updateWebhookEvents({integrationId: 'int-1', installationId: 42, events: ['workflow_run'], ...overrides});
+
+        beforeEach(() => {
+            mockWithRlsTransaction.mockResolvedValue([{installationId: 42}]);
+            mockUpdateAllWebhookEvents.mockResolvedValue(undefined);
+        });
+
+        it('rejects events outside the allowed list and lists the allowed ones', async () => {
+            await expect(update({events: ['nope']})).rejects.toThrow(/Invalid events\. Allowed: .*workflow_run/);
+            expect(mockUpdateAllWebhookEvents).not.toHaveBeenCalled();
+        });
+
+        it('rejects an installation that is not linked to the integration without calling GitHub or logging', async () => {
+            mockWithRlsTransaction.mockResolvedValue([]);
+
+            await expect(update()).rejects.toThrow('Installation not found');
+
+            expect(mockWithRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['int-1']}));
+            expect(mockUpdateAllWebhookEvents).not.toHaveBeenCalled();
+            expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+        });
+
+        it('writes a failure entry and rethrows when GitHub rejects', async () => {
+            const failure = new Error('github down');
+            mockUpdateAllWebhookEvents.mockRejectedValue(failure);
+
+            await expect(update({source: 'mcp'})).rejects.toBe(failure);
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    integrationId: 'int-1',
+                    type: 'failure',
+                    title: 'Webhook events update failed',
+                    message: 'Failed to update subscribed webhook events for installation 42 via MCP',
+                }),
+            );
+        });
+
+        it('updates the events, logs the change with the MCP suffix and returns them', async () => {
+            const result = await update({source: 'mcp'});
+
+            expect(result).toEqual({events: ['workflow_run']});
+            expect(mockUpdateAllWebhookEvents).toHaveBeenCalledWith('int-1', 42, ['workflow_run']);
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'info',
+                    title: 'Webhook events updated',
+                    message: 'Subscribed webhook events updated to: workflow_run via MCP',
+                }),
+            );
+        });
+
+        it('keeps the REST wording without a source', async () => {
+            await update();
+
+            expect(mockCreateEventLogEntry).toHaveBeenCalledWith(
+                expect.objectContaining({message: 'Subscribed webhook events updated to: workflow_run'}),
+            );
         });
     });
 });

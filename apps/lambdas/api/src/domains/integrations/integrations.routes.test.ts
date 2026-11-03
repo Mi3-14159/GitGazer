@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
     const withRlsTransaction = vi.fn();
     return {
         withRlsTransaction,
-        updateAllWebhookEvents: vi.fn(),
+        updateWebhookEvents: vi.fn(),
         createEventLogEntry: vi.fn(),
         where,
         select,
@@ -41,7 +41,6 @@ vi.mock('@gitgazer/db/client', () => ({
 vi.mock('@gitgazer/backend-services/github-app/github-settings', () => ({getGithubSettings: mocks.getGithubSettings}));
 vi.mock('@gitgazer/backend-services/github-app/webhook-provisioning', () => ({
     provisionWebhooks: mocks.provisionWebhooks,
-    updateAllWebhookEvents: mocks.updateAllWebhookEvents,
 }));
 vi.mock('@/domains/github-app/unlink-installation', () => ({unlinkInstallation: vi.fn()}));
 vi.mock('@/domains/integrations/integrations.controller', () => ({
@@ -49,6 +48,7 @@ vi.mock('@/domains/integrations/integrations.controller', () => ({
     getIntegrations: vi.fn(),
     rotateSecret: vi.fn(),
     updateOrgSyncSettings: vi.fn(),
+    updateWebhookEvents: mocks.updateWebhookEvents,
     upsertIntegration: vi.fn(),
 }));
 vi.mock('@gitgazer/backend-services/event-log.controller', () => ({createEventLogEntry: mocks.createEventLogEntry}));
@@ -163,23 +163,13 @@ describe('PATCH /api/integrations/:integrationId/github-app/:installationId/even
         vi.clearAllMocks();
     });
 
-    it('rejects an installation that is not linked to the integration without calling GitHub or logging', async () => {
-        mocks.withRlsTransaction.mockResolvedValue([]);
-
-        const res = await patch();
-
-        expect(res.status).toBe(404);
-        expect(mocks.withRlsTransaction).toHaveBeenCalledWith(expect.objectContaining({integrationIds: ['i1']}));
-        expect(mocks.updateAllWebhookEvents).not.toHaveBeenCalled();
-        expect(mocks.createEventLogEntry).not.toHaveBeenCalled();
-    });
-
-    it('updates the events of a linked installation', async () => {
-        mocks.withRlsTransaction.mockResolvedValue([{installationId: 42}]);
+    it('delegates to the controller', async () => {
+        mocks.updateWebhookEvents.mockResolvedValue({events: ['workflow_run']});
 
         const res = await patch();
 
         expect(res.status).toBe(200);
-        expect(mocks.updateAllWebhookEvents).toHaveBeenCalledWith('i1', 42, ['workflow_run']);
+        expect(await res.json()).toEqual({events: ['workflow_run']});
+        expect(mocks.updateWebhookEvents).toHaveBeenCalledWith({integrationId: 'i1', installationId: 42, events: ['workflow_run']});
     });
 });
