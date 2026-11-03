@@ -6,12 +6,12 @@ description: Connect VS Code, Claude, or any MCP client to ask questions about y
 
 # Querying Data with AI Assistants
 
-GitGazer provides a built-in **[Model Context Protocol](https://modelcontextprotocol.io) (MCP)** server, so you can point an AI assistant at your GitGazer data and ask questions in plain English. The assistant translates your question into a read-only query, runs it against your GitHub Actions data, and answers — all scoped to the integrations you have access to. If you choose, it can also change your notification rules.
+GitGazer provides a built-in **[Model Context Protocol](https://modelcontextprotocol.io) (MCP)** server, so you can point an AI assistant at your GitGazer data and ask questions in plain English. The assistant translates your question into a read-only query, runs it against your GitHub Actions data, and answers — all scoped to the integrations you have access to. If you choose, it can also change your notification rules and a few other settings.
 
 Works with **VS Code (Copilot)**, **Claude Code**, **Claude Desktop**, and any other MCP-compatible client.
 
 :::note Read only or read & write
-You choose what each connection may do when you sign in. A **read-only** session can only read your data. A **read & write** session can additionally create, change and delete [notification rules](./notifications.md). Neither can see other tenants' data or webhook secrets.
+You choose what each connection may do when you sign in. A **read-only** session can only read your data. A **read & write** session can additionally change [notification rules](./notifications.md) and destinations, rename an integration, choose GitHub webhook events and mark event log entries as read. Neither can see other tenants' data or webhook secrets.
 :::
 
 ## Before you begin
@@ -64,10 +64,10 @@ In the GitGazer web app, open the **help menu (?) → Connect an AI assistant**.
 
 Whenever a client signs in, GitGazer first shows a **Connect an MCP client** page with the question **Choose what this client may do**:
 
-| Option           | Description                                      | Button                        |
-| ---------------- | ------------------------------------------------ | ----------------------------- |
-| **Read only**    | Query workflows, PRs and configuration           | **Allow read access**         |
-| **Read & write** | Everything above, plus change notification rules | **Allow read & write access** |
+| Option           | Description                                                                       | Button                        |
+| ---------------- | --------------------------------------------------------------------------------- | ----------------------------- |
+| **Read only**    | Query workflows, PRs and configuration                                            | **Allow read access**         |
+| **Read & write** | Everything above, plus change notification rules, destinations and a few settings | **Allow read & write access** |
 
 **Read only** is selected by default. Pick an option, click the button, and sign in with GitHub as usual. The page is valid for 10 minutes; if it has expired, start the connection from your client again.
 
@@ -87,15 +87,34 @@ Once connected, just ask — the assistant discovers the available tables on its
 If an answer looks off, ask the assistant to "list the tables" or "describe the `workflow_runs` table" first — it will inspect the schema and refine the query.
 :::
 
-## Change notification rules
+## Change settings
 
-In a **read & write** session the assistant has three more tools: `create_notification_rule`, `update_notification_rule` and `delete_notification_rule`. For example:
+In a **read & write** session the assistant can make these changes, with the role you need in the integration:
+
+| What                                                     | Role needed |
+| -------------------------------------------------------- | ----------- |
+| Create, change and delete notification rules             | member      |
+| Create, change and delete notification destinations      | admin       |
+| Rename an integration                                    | admin       |
+| Choose which GitHub events the GitHub App sends          | admin       |
+| Mark event log entries as read or unread, or all as read | any role    |
+
+For example:
 
 - "Create a rule that notifies the `ops-alerts` handle when a workflow on `main` fails in `acme/api`."
 - "Disable the rule called 'nightly builds'."
-- "Delete the notification rule I created yesterday."
+- "Add the Slack channel `#builds` as a destination."
+- "Rename the integration to 'Platform team'."
+- "Mark all my event log entries as read."
 
-The assistant looks up rule and handle ids itself with `run_sql`. You need the **member** role (or higher) in the integration; for integrations where you are a viewer, the change is refused. Each change shows up in the event log marked **via MCP**, for example `A notification rule was deleted via MCP`.
+The assistant looks up the ids it needs itself, and can list the channels of your Slack app. For integrations where your role is too low, the change is refused. Each change shows up in the event log marked **via MCP**, for example `A notification rule was deleted via MCP`. Changes to destinations are logged too, in the web app as well; for a webhook, the entry shows only the host of the URL, never the full address.
+
+Some things always stay in the web app, even in a read & write session:
+
+- Managing members and invitations, and leaving an integration.
+- Creating or deleting an integration, and installing or removing apps (GitHub, Slack, webhook).
+- Linking or unlinking a GitHub App installation, rotating the webhook secret and the organization sync role.
+- Moving a Slack workspace and connecting your own Slack account.
 
 ## What the assistant can and can't see
 
@@ -103,7 +122,7 @@ The assistant looks up rule and handle ids itself with `run_sql`. You need the *
 - ✅ GitHub Actions data: workflow runs and jobs, pull requests, repositories, organizations, enterprises, and users.
 - ✅ Your integrations' GitGazer configuration (apps, notification rules and handles, members, pending and expired invitations and the event log), as your role allows: invitations from member up; webhook secrets and URLs, email addresses of members and invitees, and invite tokens only for admins and owners.
 - ❌ **Not** other tenants' data or Slack bot tokens.
-- ❌ **No** writes in a read-only session. A read & write session can only change notification rules, never anything else.
+- ❌ **No** writes in a read-only session. A read & write session can only make the changes listed under [Change settings](#change-settings), never anything else.
 
 ## Limits
 
@@ -120,7 +139,7 @@ Each query "costs" the time it takes to run, drawn from a rolling ~1-hour budget
 
 ## Troubleshooting
 
-- **The assistant says it has no tool to create or change notification rules.** The connection is read only. Sign in again and choose **Read & write**, see [Choose a session type](#choose-a-session-type).
+- **The assistant says it has no tool to change notification rules, destinations or settings.** The connection is read only. Sign in again and choose **Read & write**, see [Choose a session type](#choose-a-session-type).
 - **It asks me to sign in again after an update.** The MCP server only accepts tokens issued for it, so connections set up before that change must sign in once more. In Claude Code, run `/mcp` and choose **Authenticate**; other clients ask you to sign in again.
 - **It keeps asking me to sign in.** Confirm the URL is exactly `https://<your-gitgazer-domain>/api/mcp` and that you signed in with the GitHub account that has access to your integration.
 - **"relation does not exist".** GitHub tables live in the `github` schema and configuration views in `gitgazer`. Ask the assistant to qualify names (for example `github.workflow_runs` or `gitgazer.notification_rules_view`) or to call "list tables" first.
