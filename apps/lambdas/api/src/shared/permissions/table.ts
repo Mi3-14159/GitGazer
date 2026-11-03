@@ -170,3 +170,47 @@ export const TOOLS = {
 } as const satisfies Record<string, Operation>;
 
 export type ToolName = keyof typeof TOOLS;
+
+// A new operation must be classified here or in TOOLS, so exposing it to MCP is always a decision.
+export const NOT_IN_MCP = {
+    'integration.create': 'creates an integration and installs its GitHub app; setup happens in the UI',
+    'integration.delete': 'irreversible, deletes all integration data',
+    'githubApp.rotateSecret': 'security-sensitive, breaks webhook delivery until GitHub is updated',
+    'githubApp.linkInstallation': "needs GitHub's install flow in the browser",
+    'githubApp.unlinkInstallation': 'stops data ingest; re-linking needs the browser',
+    'githubApp.updateOrgSync': 'sets the role every synced org member gets (can be admin); people management',
+    'member.changeRole': 'people management stays in the UI',
+    'member.remove': 'people management stays in the UI',
+    'member.leave': 'irreversible for the caller',
+    'invitation.create': 'people management stays in the UI',
+    'invitation.resend': 'people management stays in the UI',
+    'invitation.revoke': 'people management stays in the UI',
+    'app.install': 'app installation is always a manual step in the UI',
+    'app.remove': 'app installation is always a manual step in the UI',
+    'slackApp.move': 'Slack OAuth / admin migration in the browser',
+    'slackUser.disconnect': 'personal Slack sign-in in the browser',
+
+    'integration.list': 'read through run_sql',
+    'workflow.list': 'read through run_sql',
+    'workflow.filterValues': 'read through run_sql',
+    'overview.get': 'read through run_sql',
+    'metrics.widget': 'read through run_sql',
+    'metrics.repositories': 'read through run_sql',
+    'metrics.topics': 'read through run_sql',
+    'eventLog.list': 'read through run_sql',
+    'eventLog.stats': 'read through run_sql',
+    'notificationRule.list': 'read through run_sql',
+    'member.list': 'read through run_sql',
+    'invitation.list': 'read through run_sql',
+    'app.list': 'read through run_sql',
+    'slackApp.moveCandidates': 'read through run_sql',
+
+    'slackApp.install': 'browser OAuth flow',
+    'slackApp.installCallback': 'browser OAuth flow',
+    'slackUser.connect': 'browser OAuth flow',
+    'slackUser.signInCallback': 'browser OAuth flow',
+    'invitation.accept': 'accepted in the browser',
+    'auth.logout': 'session plumbing',
+    'auth.wsToken': 'session plumbing',
+    'user.get': 'session plumbing',
+} as const satisfies Partial<Record<Operation, string>>;
