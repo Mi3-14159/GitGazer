@@ -88,7 +88,7 @@ const mockTx = {
             where: (condition: unknown) => {
                 deleteWhere.push(condition);
                 return Object.assign(Promise.resolve(undefined), {
-                    returning: () => Promise.resolve(deleteReturningQueue.shift() ?? [{handleId: 'h-1'}]),
+                    returning: () => Promise.resolve(deleteReturningQueue.shift() ?? [{handleId: 'h-1', name: 'Team'}]),
                 });
             },
         };
@@ -588,6 +588,82 @@ describe('apps controller', () => {
 
             expect(insertedValues.find((i) => i.table === notificationHandles)?.values).toMatchObject({name: 'Team', appId: 'app-w'});
             expect(handle).toMatchObject({handleId: 'handle-new', name: 'Team', url: SLACK_URL, ruleCount: 0});
+        });
+    });
+
+    describe('handle audit entries', () => {
+        const logged = () => mockCreateEventLogEntry.mock.calls.map((c) => c[0]);
+        const existing = (name: string, url: string | null) =>
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name, url, channelName: null}], [{handleId: 'h-1', ruleCount: 0}]);
+
+        it('createHandle logs a webhook with its host only, via MCP', async () => {
+            selectQueue.push([{appId: 'app-w', type: 'webhook'}], [{count: 0}]);
+
+            await controller.createHandle({...base, appId: 'app-w', name: 'ops', url: SLACK_URL, source: 'mcp'});
+
+            expect(logged()).toHaveLength(1);
+            const [entry] = logged();
+            expect(entry).toMatchObject({category: 'notification', metadata: {integrationId: 'int-1', handleId: 'handle-new'}});
+            expect(entry.message).toContain('"ops"');
+            expect(entry.message).toContain('hooks.slack.com');
+            expect(entry.message.endsWith('via MCP')).toBe(true);
+            expect(JSON.stringify(entry)).not.toContain('secret');
+            expect(JSON.stringify(entry)).not.toContain('/services/');
+        });
+
+        it('createHandle logs a Slack handle with its channel name and no suffix without a source', async () => {
+            selectQueue.push([{appId: 'app-s', type: 'slack'}], [{appId: 'app-s', type: 'slack'}], [{count: 0}]);
+
+            await controller.createHandle({...base, appId: 'app-s', channelId: 'C1'});
+
+            expect(logged()[0].message).toContain('#ops');
+            expect(logged()[0].message).not.toContain('via MCP');
+        });
+
+        it('updateHandle logs hosts of a url change, never paths', async () => {
+            existing('Team', 'https://a.example.com/x');
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Team', url: 'https://hooks.slack.com/services/T/B/y', channelName: null}], []);
+
+            await controller.updateHandle({...base, handleId: 'h-1', url: 'https://hooks.slack.com/services/T/B/y'});
+
+            const {message} = logged()[0];
+            expect(message).toContain('a.example.com');
+            expect(message).toContain('hooks.slack.com');
+            expect(message).not.toContain('/x');
+            expect(message).not.toContain('/services/');
+        });
+
+        it('updateHandle logs the old and new name of a rename', async () => {
+            existing('Old', SLACK_URL);
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'New', url: SLACK_URL, channelName: null}], []);
+
+            await controller.updateHandle({...base, handleId: 'h-1', name: 'New'});
+
+            expect(logged()[0].message).toContain('"Old"');
+            expect(logged()[0].message).toContain('"New"');
+        });
+
+        it('deleteHandle logs the name of the deleted handle', async () => {
+            deleteReturningQueue.push([{handleId: 'h-1', name: 'Team channel'}]);
+
+            await controller.deleteHandle({...base, handleId: 'h-1'});
+
+            expect(logged()[0].message).toContain('"Team channel"');
+            expect(logged()[0].title).toBe('Notification handle deleted');
+        });
+
+        it('deleteHandle on an unknown id throws and logs nothing', async () => {
+            deleteReturningQueue.push([]);
+
+            await expect(controller.deleteHandle({...base, handleId: 'nope'})).rejects.toThrow('Handle not found');
+            expect(mockCreateEventLogEntry).not.toHaveBeenCalled();
+        });
+
+        it('createHandle still resolves when the event log write fails', async () => {
+            selectQueue.push([{appId: 'app-w', type: 'webhook'}], [{count: 0}]);
+            mockCreateEventLogEntry.mockRejectedValue(new Error('db down'));
+
+            await expect(controller.createHandle({...base, appId: 'app-w', name: 'x', url: SLACK_URL})).resolves.toMatchObject({name: 'x'});
         });
     });
 

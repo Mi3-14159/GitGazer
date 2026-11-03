@@ -135,6 +135,30 @@ describe('integrations controller', () => {
         });
     });
 
+    describe('upsertIntegration rename', () => {
+        beforeEach(() => {
+            mockWithRlsTransaction.mockImplementation(async (params) => {
+                const tx = {
+                    update: () => ({set: () => ({where: () => ({returning: () => Promise.resolve([{integrationId: 'int-1'}])})})}),
+                    query: {integrations: {findMany: () => Promise.resolve([{integrationId: 'int-1'}])}},
+                };
+                return params.callback(tx);
+            });
+        });
+
+        it('suffixes the entry with via MCP for an MCP change', async () => {
+            await controller.upsertIntegration({id: 'int-1', label: 'New', integrationIds: ['int-1'], source: 'mcp'});
+
+            expect(mockCreateEventLogEntry.mock.calls[0][0].message).toBe('Integration label updated to "New" via MCP');
+        });
+
+        it('keeps the message unchanged without a source', async () => {
+            await controller.upsertIntegration({id: 'int-1', label: 'New', integrationIds: ['int-1']});
+
+            expect(mockCreateEventLogEntry.mock.calls[0][0].message).toBe('Integration label updated to "New"');
+        });
+    });
+
     describe('createIntegration', () => {
         it('creates a GitHub app with the integration', async () => {
             const inserts: {table: unknown; values: any}[] = [];

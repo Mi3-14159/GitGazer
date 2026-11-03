@@ -2,6 +2,7 @@ import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controll
 import {deprovisionAllWebhooks, RecordedWebhook, updateWebhookSecrets} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {findSlackTeamId, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {getGithubSettings, installGithubApp} from '@gitgazer/backend-services/github-app/github-settings';
+import {ChangeSource, viaSuffix} from '@/shared/change-source';
 import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError, ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
@@ -33,9 +34,15 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
     return results;
 };
 
-export const upsertIntegration = async (params: {id?: string; label?: string; userId?: number; integrationIds: string[]}): Promise<Integration> => {
+export const upsertIntegration = async (params: {
+    id?: string;
+    label?: string;
+    userId?: number;
+    integrationIds: string[];
+    source?: ChangeSource;
+}): Promise<Integration> => {
     const logger = getLogger();
-    const {id, label, userId, integrationIds} = params;
+    const {id, label, userId, integrationIds, source} = params;
 
     if (id) {
         logger.info(`Updating integration ${id} with label: ${label}`);
@@ -68,7 +75,7 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
             category: 'integration',
             type: 'info',
             title: 'Integration renamed',
-            message: `Integration label updated to "${label.trim()}"`,
+            message: `Integration label updated to "${label.trim()}"${viaSuffix(source)}`,
             metadata: {integrationId: id, integrationLabel: label.trim()},
         });
 

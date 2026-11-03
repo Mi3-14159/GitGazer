@@ -1,5 +1,6 @@
 import {getGithubSettings, installGithubApp} from '@gitgazer/backend-services/github-app/github-settings';
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
+import {ChangeSource, viaSuffix} from '@/shared/change-source';
 import {BadRequestError, ConflictError, NotFoundError} from '@/shared/errors';
 import {getChannel, listChannels, revokeToken, slackErrorReason} from '@gitgazer/backend-core/clients/slack.client';
 import {decryptToken} from '@gitgazer/backend-core/helpers/token-crypto';
@@ -480,17 +481,42 @@ const createSlackHandle = async (params: Scope & {appId: string; channelId: stri
     });
 };
 
-export const createHandle = async (
-    params: Scope & {appId: string} & ({name: string; url: string} | {channelId: string}),
-): Promise<NotificationHandle> => {
-    if ('channelId' in params) {
-        return await createSlackHandle(params);
+// Webhook urls carry secrets and event-log entries are visible to viewers, so only the host is ever logged.
+const logHandleChange = async (params: {
+    integrationId: string;
+    handleId: string;
+    action: 'created' | 'updated' | 'deleted';
+    description: string;
+    source?: ChangeSource;
+}): Promise<void> => {
+    const {integrationId, handleId, action, description, source} = params;
+    try {
+        await createEventLogEntry({
+            integrationId,
+            category: 'notification',
+            type: 'info',
+            title: `Notification handle ${action}`,
+            message: `Notification handle ${description} was ${action}${viaSuffix(source)}`,
+            metadata: {integrationId, handleId},
+        });
+    } catch (error) {
+        getLogger().error('Failed to create event log entry for handle change', {error, integrationId, handleId, action});
     }
-    const {integrationId, integrationIds, appId} = params;
+};
+
+export const createHandle = async (
+    params: Scope & {appId: string; source?: ChangeSource} & ({name: string; url: string} | {channelId: string}),
+): Promise<NotificationHandle> => {
+    const {integrationId, integrationIds, appId, source} = params;
+    if ('channelId' in params) {
+        const handle = await createSlackHandle(params);
+        await logHandleChange({integrationId, handleId: handle.handleId, action: 'created', description: `"${handle.name}"`, source});
+        return handle;
+    }
     const name = normalizeName(params.name);
     const url = assertWebhookUrl(params.url);
 
-    return await withRlsTransaction({
+    const handle = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
@@ -517,10 +543,21 @@ export const createHandle = async (
             return {handleId: handle.handleId, appId, name, url, channelName: null, ruleCount: 0};
         },
     });
+
+    await logHandleChange({
+        integrationId,
+        handleId: handle.handleId,
+        action: 'created',
+        description: `"${name}" (${new URL(url).host})`,
+        source,
+    });
+    return handle;
 };
 
-export const updateHandle = async (params: Scope & {handleId: string; name?: string; url?: string}): Promise<NotificationHandle> => {
-    const {integrationId, integrationIds, handleId} = params;
+export const updateHandle = async (
+    params: Scope & {handleId: string; name?: string; url?: string; source?: ChangeSource},
+): Promise<NotificationHandle> => {
+    const {integrationId, integrationIds, handleId, source} = params;
     const name = params.name === undefined ? undefined : normalizeName(params.name);
     const url = params.url === undefined ? undefined : assertWebhookUrl(params.url);
 
@@ -528,7 +565,7 @@ export const updateHandle = async (params: Scope & {handleId: string; name?: str
         throw new BadRequestError('Nothing to update');
     }
 
-    return await withRlsTransaction({
+    const {before, after} = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
@@ -550,25 +587,34 @@ export const updateHandle = async (params: Scope & {handleId: string; name?: str
                     .where(and(eq(webhookHandleDetails.integrationId, integrationId), eq(webhookHandleDetails.handleId, handleId)));
             }
 
-            return await loadHandle(tx, integrationId, handleId);
+            return {before: handle, after: await loadHandle(tx, integrationId, handleId)};
         },
     });
+
+    const changes = [];
+    if (name !== undefined) changes.push(`name "${before.name}" to "${name}"`);
+    if (url !== undefined && before.url !== null) changes.push(`host ${new URL(before.url).host} to ${new URL(url).host}`);
+    await logHandleChange({integrationId, handleId, action: 'updated', description: `"${after.name}" (${changes.join(', ')})`, source});
+    return after;
 };
 
-export const deleteHandle = async (params: Scope & {handleId: string}): Promise<void> => {
-    const {integrationId, integrationIds, handleId} = params;
+export const deleteHandle = async (params: Scope & {handleId: string; source?: ChangeSource}): Promise<void> => {
+    const {integrationId, integrationIds, handleId, source} = params;
 
-    await withRlsTransaction({
+    const deleted = await withRlsTransaction({
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
             const deleted = await tx
                 .delete(notificationHandles)
                 .where(and(eq(notificationHandles.integrationId, integrationId), eq(notificationHandles.handleId, handleId)))
-                .returning({handleId: notificationHandles.handleId});
+                .returning({handleId: notificationHandles.handleId, name: notificationHandles.name});
             if (deleted.length === 0) {
                 throw new NotFoundError('Handle not found');
             }
+            return deleted[0];
         },
     });
+
+    await logHandleChange({integrationId, handleId, action: 'deleted', description: `"${deleted.name}"`, source});
 };

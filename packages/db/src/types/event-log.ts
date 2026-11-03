@@ -29,6 +29,7 @@ export type EventLogEntryMetadata = {
     role?: string;
     previousRole?: string;
     invitationId?: string;
+    handleId?: string;
     githubUserId?: number;
     githubLogin?: string;
     matched?: number;
