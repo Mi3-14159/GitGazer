@@ -1,33 +1,80 @@
 {
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
   "id": "789b09b1-12fb-4359-a685-b2685d17f5ad",
   "prevIds": [
     "584f95b2-7fdb-4c2e-979c-81ff4736207a"
   ],
-  "version": "8",
-  "dialect": "postgres",
-  "ddl": [
+  "footprints": [
     {
-      "name": "gitgazer",
-      "entityType": "schemas"
+      "statementType": "create_schema",
+      "statementTarget": [
+        "schema",
+        "gitgazer"
+      ],
+      "writes": [
+        "s|sch|gitgazer",
+        "n|sch|gitgazer",
+        "e|sch|gitgazer"
+      ]
     },
     {
-      "name": "github",
-      "entityType": "schemas"
+      "statementType": "create_schema",
+      "statementTarget": [
+        "schema",
+        "github"
+      ],
+      "writes": [
+        "s|sch|github",
+        "n|sch|github",
+        "e|sch|github"
+      ]
     },
     {
-      "superuser": null,
-      "createDb": false,
-      "createRole": true,
-      "inherit": true,
-      "canLogin": null,
-      "replication": null,
-      "bypassRls": null,
-      "connLimit": null,
-      "password": null,
-      "validUntil": null,
-      "name": "gitgazer_user",
-      "entityType": "roles"
+      "statementType": "create_role",
+      "statementTarget": [
+        "role",
+        "gitgazer_user"
+      ],
+      "writes": [
+        "s|role|gitgazer_user",
+        "n|role|gitgazer_user",
+        "e|role|gitgazer_user"
+      ]
     }
   ],
-  "renames": []
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "name": "gitgazer",
+        "entityType": "schemas"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "name": "github",
+        "entityType": "schemas"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "name": "gitgazer_user",
+        "superuser": null,
+        "createDb": false,
+        "createRole": true,
+        "inherit": true,
+        "canLogin": null,
+        "replication": null,
+        "bypassRls": null,
+        "connLimit": null,
+        "password": null,
+        "validUntil": null,
+        "entityType": "roles"
+      }
+    }
+  ]
 }

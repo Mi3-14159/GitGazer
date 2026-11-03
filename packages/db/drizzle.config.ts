@@ -15,8 +15,8 @@ const database = process.env['RDS_DATABASE']!;
 const port = Number(process.env['RDS_PORT']);
 const user = process.env['RDS_DB_USER']!;
 
-// `generate` only diffs the schema against the snapshots, so it runs without AWS credentials.
-const needsDatabase = !process.argv.includes('generate');
+// `generate` and `up` only read and rewrite local snapshots, so they run without AWS credentials.
+const needsDatabase = !['generate', 'up'].some((command) => process.argv.includes(command));
 const password = needsDatabase
     ? execSync(`aws rds generate-db-auth-token --hostname ${hostname} --port 5432 --username ${user}`, {encoding: 'utf-8'}).trim()
     : '';
