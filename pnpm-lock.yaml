@@ -178,8 +178,8 @@ catalogs:
       specifier: ^21.0.4
       version: 21.0.4
     hono:
-      specifier: 4.13.13
-      version: 4.13.13
+      specifier: 4.13.14
+      version: 4.13.14
     nx:
       specifier: 23.3.0
       version: 23.3.0
@@ -372,7 +372,7 @@ importers:
         version: 3.1156.0
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 2.1.5(hono@4.13.13)
+        version: 2.1.5(hono@4.13.14)
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.4.0
@@ -390,7 +390,7 @@ importers:
         version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       hono:
         specifier: 'catalog:'
-        version: 4.13.13
+        version: 4.13.14
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.5)(typescript@6.0.3)
@@ -6179,8 +6179,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.13.13:
-    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
+  hono@4.13.14:
+    resolution: {integrity: sha512-yhRLQ21U6qa9Hsu2N7Qcbh8tE+WKEcoErjIo56LeSGiGXGp9sA7UpE86Ui9uexb61KakiGwuHMn2QdV7w6i6kQ==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -12292,9 +12292,9 @@ snapshots:
     dependencies:
       '@hapi/hoek': 9.3.0
 
-  '@hono/node-server@2.1.5(hono@4.13.13)':
+  '@hono/node-server@2.1.5(hono@4.13.14)':
     dependencies:
-      hono: 4.13.13
+      hono: 4.13.14
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -16343,7 +16343,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.13.13: {}
+  hono@4.13.14: {}
 
   hookable@5.5.3: {}
 
