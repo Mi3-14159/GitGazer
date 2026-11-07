@@ -34,7 +34,7 @@ catalog:
   '@mdx-js/react': '^3.0.0'
   '@modelcontextprotocol/server': '2.4.0'
   '@nx/eslint': '24.0.1'
-  '@nx/vite': '24.0.1'
+  '@nx/vite': '24.0.2'
   '@nx/vitest': '24.0.1'
   '@octokit/auth-app': '^8.3.1'
   '@octokit/rest': '^22.0.1'
