@@ -34,6 +34,11 @@ describe('runReadOnlyQuery', () => {
             expect(mod.assertReadOnlySelect('SELECT 1')).toBe('SELECT 1');
             expect(mod.assertReadOnlySelect('  select * from workflow_runs ;  ')).toBe('select * from workflow_runs');
             expect(mod.assertReadOnlySelect('WITH x AS (SELECT 1) SELECT * FROM x')).toBe('WITH x AS (SELECT 1) SELECT * FROM x');
+            expect(mod.assertReadOnlySelect('SELECT 1;;; ')).toBe('SELECT 1');
+        });
+
+        it('handles a long run of semicolons in linear time', () => {
+            expect(() => mod.assertReadOnlySelect(`SELECT 1${';'.repeat(100_000)} x`)).toThrow(/single statement/);
         });
 
         it('accepts a query preceded by comments', () => {
