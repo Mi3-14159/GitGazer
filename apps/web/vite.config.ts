@@ -7,6 +7,7 @@ import Components from 'unplugin-vue-components/vite';
 // Utilities
 import {resolve} from 'path';
 import {defineConfig} from 'vite';
+import {nxReadySignal} from '@nx/vite/plugins/nx-ready-signal.plugin';
 
 function figmaCapturePlugin() {
     return {
@@ -30,6 +31,7 @@ export default defineConfig({
             domains: ['app.gitgazer.localhost'],
             certDir: resolve(import.meta.dirname, 'certs'),
         }),
+        nxReadySignal(),
     ],
     define: {'process.env': {}},
     resolve: {

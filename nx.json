@@ -77,5 +77,8 @@
       "cache": false,
       "dependsOn": ["build"]
     }
+  },
+  "affected": {
+    "legacy": true
   }
 }
