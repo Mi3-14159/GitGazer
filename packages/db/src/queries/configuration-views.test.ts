@@ -656,7 +656,10 @@ describe('role-aware configuration views', () => {
                 'gitgazer.slack_handle_details_view',
                 'gitgazer.notification_rule_destinations_view',
             ])('%s returns nothing of D to a caller signed for another integration', async (view) => {
-                const rows = await asReader({[A]: 'owner'}, async (tx) => (await tx.execute(sql.raw(`SELECT integration_id FROM ${view}`))).rows);
+                const rows = await asReader(
+                    {[A]: 'owner'},
+                    async (tx) => (await tx.execute<Record<string, unknown>>(sql.raw(`SELECT integration_id FROM ${view}`))).rows,
+                );
                 expect(rows).toEqual([{integration_id: A}]);
             });
 
@@ -695,7 +698,9 @@ describe('role-aware configuration views', () => {
         });
 
         it('runs the reads as gitgazer_reader, which may not sign a context itself', async () => {
-            expect(await asReader({}, async (tx) => (await tx.execute(sql`SELECT current_user AS role`)).rows)).toEqual([{role: 'gitgazer_reader'}]);
+            expect(await asReader({}, async (tx) => (await tx.execute<Record<string, unknown>>(sql`SELECT current_user AS role`)).rows)).toEqual([
+                {role: 'gitgazer_reader'},
+            ]);
             await expect(asReader({}, (tx) => tx.execute(sql`SELECT gitgazer_internal.sign_context('x', 1, 1)`))).rejects.toThrow(
                 expect.objectContaining({
                     cause: expect.objectContaining({message: expect.stringMatching(/permission denied for schema gitgazer_internal/)}),

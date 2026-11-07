@@ -238,7 +238,7 @@ async function queryTimeBuckets(
     dateColumn: SQL,
 ): Promise<MetricDataPoint[]> {
     const truncated = dateTruncExpression(granularity, dateColumn);
-    const rows = await tx.execute(
+    const rows = await tx.execute<Record<string, unknown>>(
         sql`SELECT ${truncated} as period, ${selectExpr} as value FROM ${fromTable} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
     );
     return (rows.rows ?? []).map((r: any) => ({
@@ -409,7 +409,7 @@ export async function getDeploymentFrequency({integrationIds, filter}: MetricsPa
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
                 const truncated = dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) as value
                     FROM ${workflowRuns}
                     INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId}
@@ -443,14 +443,14 @@ export async function getLeadTimeForChanges({integrationIds, filter}: MetricsPar
 
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
                 return fillResultPeriods({metric: 'Lead Time for Changes', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT ${truncated} as period, avg(extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
@@ -472,14 +472,14 @@ export async function getChangeFailureRate({integrationIds, filter}: MetricsPara
 
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN (${FAILED_CONCLUSIONS})) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowRuns.repositoryId} AND ${repositories.integrationId} = ${workflowRuns.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
                 return fillResultPeriods({metric: 'Change Failure Rate', unit: '%', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${workflowRuns.conclusion} IN (${FAILED_CONCLUSIONS})) * 100.0 / NULLIF(count(*), 0) as value FROM ${workflowRuns} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
@@ -534,7 +534,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                     integrationSource: 'r',
                 });
 
-                const rows = await tx.execute(sql`
+                const rows = await tx.execute<Record<string, unknown>>(sql`
                     ${failedRunsCte}
                     SELECT ${groupSelect},
                            ${dateTruncExpression(granularity, sql`failed_at`)} as period,
@@ -551,7 +551,7 @@ export async function getMeanTimeToRecovery({integrationIds, filter}: MetricsPar
                 return fillResultPeriods({metric: 'Mean Time to Recovery', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(sql`
+            const rows = await tx.execute<Record<string, unknown>>(sql`
                 ${failedRunsCte}
                 SELECT ${dateTruncExpression(granularity, sql`failed_at`)} as period,
                        avg(extract(epoch from (recovered_at - failed_at)) / 3600) as value
@@ -581,14 +581,14 @@ export async function getPRMergeRate({integrationIds, filter}: MetricsParams): P
 
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
                 return fillResultPeriods({metric: 'PR Merge Rate', unit: '%', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT ${truncated} as period, count(*) FILTER (WHERE ${pullRequests.merged} = true) * 100.0 / NULLIF(count(*), 0) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
@@ -622,7 +622,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
 
             if (groupExprs) {
                 const repoTopicsFilter = groupExprs.topicsWhere ? sql`AND ${groupExprs.topicsWhere}` : sql``;
-                const rows = await tx.execute(sql`
+                const rows = await tx.execute<Record<string, unknown>>(sql`
                     SELECT group_key, group_label, period, sum(cnt) as value FROM (
                         SELECT ${groupExprs.select},
                                ${dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`)} as period, count(*) as cnt
@@ -651,7 +651,7 @@ export async function getActivityVolume({integrationIds, filter}: MetricsParams)
                 return fillResultPeriods({metric: 'Activity Volume', unit: 'events', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(sql`
+            const rows = await tx.execute<Record<string, unknown>>(sql`
                 SELECT period, sum(cnt) as value FROM (
                     SELECT ${dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`)} as period, count(*) as cnt
                     FROM ${workflowRuns}
@@ -701,7 +701,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
 
             if (groupExprs) {
                 const repoTopicsFilter = groupExprs.topicsWhere ? sql`AND ${groupExprs.topicsWhere}` : sql``;
-                const rows = await tx.execute(sql`
+                const rows = await tx.execute<Record<string, unknown>>(sql`
                     SELECT group_key, group_label, period, count(DISTINCT actor) as value FROM (
                         SELECT ${groupExprs.select},
                                ${dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`)} as period, ${workflowRuns.actorId} as actor
@@ -728,7 +728,7 @@ export async function getContributorCount({integrationIds, filter}: MetricsParam
                 return fillResultPeriods({metric: 'Contributor Count', unit: 'contributors', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(sql`
+            const rows = await tx.execute<Record<string, unknown>>(sql`
                 SELECT period, count(DISTINCT actor) as value FROM (
                     SELECT ${dateTruncExpression(granularity, sql`${workflowRuns.createdAt}`)} as period, ${workflowRuns.actorId} as actor
                     FROM ${workflowRuns}
@@ -764,14 +764,14 @@ export async function getCIDuration({integrationIds, filter}: MetricsParams): Pr
 
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} INNER JOIN ${repositories} ON ${repositories.id} = ${workflowJobs.repositoryId} AND ${repositories.integrationId} = ${workflowJobs.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
                 return fillResultPeriods({metric: 'CI Duration', unit: 'minutes', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT ${truncated} as period, avg(extract(epoch from (${workflowJobs.completedAt} - ${workflowJobs.startedAt})) / 60) as value FROM ${workflowJobs} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
@@ -795,14 +795,14 @@ export async function getPRCycleTime({integrationIds, filter}: MetricsParams): P
 
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId} ${groupExprs.join} WHERE ${and(...conditions)} GROUP BY group_key, group_label, period ORDER BY group_label, period`,
                 );
                 const series = groupRowsIntoSeries(parseGroupedRows(rows.rows ?? []));
                 return fillResultPeriods({metric: 'PR Cycle Time', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT ${truncated} as period, percentile_cont(0.5) within group (order by extract(epoch from (${pullRequests.mergedAt} - ${pullRequests.createdAt})) / 3600) as value FROM ${pullRequests} WHERE ${and(...conditions)} GROUP BY period ORDER BY period`,
             );
             const data = mapTimeBucketRows(rows.rows);
@@ -825,7 +825,7 @@ export async function getPRSize({integrationIds, filter}: MetricsParams): Promis
 
             if (groupExprs) {
                 if (groupExprs.topicsWhere) conditions.push(groupExprs.topicsWhere);
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT ${groupExprs.select}, ${truncated} as period, avg(${pullRequests.additions} + ${pullRequests.deletions}) as value
                     FROM ${pullRequests}
                     INNER JOIN ${repositories} ON ${repositories.id} = ${pullRequests.repositoryId} AND ${repositories.integrationId} = ${pullRequests.integrationId}
@@ -838,7 +838,7 @@ export async function getPRSize({integrationIds, filter}: MetricsParams): Promis
                 return fillResultPeriods({metric: 'PR Size', unit: 'lines', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT ${truncated} as period, avg(${pullRequests.additions} + ${pullRequests.deletions}) as value
                 FROM ${pullRequests}
                 WHERE ${and(...conditions)}
@@ -889,7 +889,7 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                     integrationSource: 'fr',
                 });
 
-                const rows = await tx.execute(sql`
+                const rows = await tx.execute<Record<string, unknown>>(sql`
                     ${reviewCte}
                     SELECT
                         ${groupSelect},
@@ -908,7 +908,7 @@ export async function getPRReviewTime({integrationIds, filter}: MetricsParams): 
                 return fillResultPeriods({metric: 'PR Review Time', unit: 'hours', data: [], series}, from, to, granularity);
             }
 
-            const rows = await tx.execute(sql`
+            const rows = await tx.execute<Record<string, unknown>>(sql`
                 ${reviewCte}
                 SELECT
                     ${dateTruncExpression(granularity, sql`fr.first_review_at`)} as period,
@@ -951,7 +951,7 @@ export async function listTopics({integrationIds}: {integrationIds: string[]}) {
     return withRlsTransaction({
         integrationIds,
         callback: async (tx) => {
-            const rows = await tx.execute(
+            const rows = await tx.execute<Record<string, unknown>>(
                 sql`SELECT DISTINCT t.topic FROM ${repositories} CROSS JOIN LATERAL jsonb_array_elements_text(${repositories.topics}) AS t(topic) ORDER BY 1`,
             );
             return (rows.rows ?? []).map((r: any) => String(r.topic));
