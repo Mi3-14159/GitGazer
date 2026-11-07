@@ -166,8 +166,8 @@ catalogs:
       specifier: 1.0.0-rc.5
       version: 1.0.0-rc.5
     drizzle-orm:
-      specifier: 1.0.0-rc.5-5935859
-      version: 1.0.0-rc.5-5935859
+      specifier: 1.0.0-rc.5
+      version: 1.0.0-rc.5
     echarts:
       specifier: ^6.1.0
       version: 6.1.0
@@ -387,7 +387,7 @@ importers:
         version: 5.2.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       hono:
         specifier: 'catalog:'
         version: 4.13.14
@@ -421,7 +421,7 @@ importers:
         version: 8.10.164
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.5)(typescript@6.0.3)
@@ -446,7 +446,7 @@ importers:
     devDependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   apps/lambdas/websocket:
     dependencies:
@@ -462,7 +462,7 @@ importers:
         version: 8.10.164
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   apps/lambdas/worker:
     dependencies:
@@ -608,7 +608,7 @@ importers:
         version: 6.2.5
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
     devDependencies:
       '@types/convict':
         specifier: 'catalog:'
@@ -630,7 +630,7 @@ importers:
         version: 14.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   packages/db:
     dependencies:
@@ -642,7 +642,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       pg:
         specifier: 'catalog:'
         version: 8.23.1
@@ -661,7 +661,7 @@ importers:
         version: 8.23.1
       drizzle-kit:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(drizzle-orm@1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7))
+        version: 1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7))
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.5)(typescript@6.0.3)
@@ -682,7 +682,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   packages/import:
     devDependencies:
@@ -5582,21 +5582,23 @@ packages:
       drizzle-orm:
         optional: true
 
-  drizzle-orm@1.0.0-rc.5-5935859:
-    resolution: {integrity: sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==}
+  drizzle-orm@1.0.0-rc.5:
+    resolution: {integrity: sha512-7BMYTsAZbQ9DcQCtLG4G202Hq6nc/e8o1EBKN6nBweRI8EGPFe/VdyvWQCsU9fuZSiRjNpELolUSi//JFBq+lw==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
+      '@aws/aurora-dsql-node-postgres-connector': '>=0.1.9'
+      '@aws/aurora-dsql-postgresjs-connector': '>=0.3.0'
       '@cloudflare/workers-types': '>=4'
-      '@drizzle-team/minipg': '>=0.3.2'
-      '@effect/sql-d1': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-libsql': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-mysql2': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-pg': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-pglite': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-bun': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-do': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-node': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-wasm': '>=4.0.0-beta.105 || >=4.0.0'
+      '@drizzle-team/minipg': '>=0.4.2'
+      '@effect/sql-d1': '>=4.0.0'
+      '@effect/sql-libsql': '>=4.0.0'
+      '@effect/sql-mysql2': '>=4.0.0'
+      '@effect/sql-pg': '>=4.0.0'
+      '@effect/sql-pglite': '>=4.0.0'
+      '@effect/sql-sqlite-bun': '>=4.0.0'
+      '@effect/sql-sqlite-do': '>=4.0.0'
+      '@effect/sql-sqlite-node': '>=4.0.0'
+      '@effect/sql-sqlite-wasm': '>=4.0.0'
       '@electric-sql/pglite': '>=0.2.0'
       '@libsql/client': '>=0.10.0'
       '@libsql/client-wasm': '>=0.10.0'
@@ -5622,7 +5624,7 @@ packages:
       arktype: '>=2.0.0'
       better-sqlite3: '>=9.3.0'
       bun-types: '*'
-      effect: '>=4.0.0-beta.105 || >=4.0.0'
+      effect: '>=4.0.0'
       expo-sqlite: '>=14.0.0'
       mssql: ^11.0.1
       mysql2: '>=2'
@@ -5635,6 +5637,10 @@ packages:
       zod: ^3.25.0 || ^4.0.0
     peerDependenciesMeta:
       '@aws-sdk/client-rds-data':
+        optional: true
+      '@aws/aurora-dsql-node-postgres-connector':
+        optional: true
+      '@aws/aurora-dsql-postgresjs-connector':
         optional: true
       '@cloudflare/workers-types':
         optional: true
@@ -15843,11 +15849,11 @@ snapshots:
 
   dotenv@16.4.7: {}
 
-  drizzle-kit@1.0.0-rc.5(drizzle-orm@1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)):
+  drizzle-kit@1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)):
     optionalDependencies:
-      drizzle-orm: 1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+      drizzle-orm: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
-  drizzle-orm@1.0.0-rc.5-5935859(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7):
+  drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1156.0)(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7):
     optionalDependencies:
       '@aws-sdk/client-rds-data': 3.1156.0
       '@electric-sql/pglite': 0.5.12
