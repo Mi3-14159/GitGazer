@@ -101,7 +101,6 @@ overrides:
   # Security fixes for transitive dependencies whose parents' ranges exclude the patched version.
   'colord@<2.9.4': '^2.9.4'
   'katex@<0.18.2': '^0.18.2'
-  'minimatch@>=7.0.0 <11.0.1': '^11.0.1'
   'qs@<6.16.1': '^6.16.1'
   'serialize-javascript@<7.1.3': '^7.1.3'
   'tinypool@<2.1.2': '^2.1.2'
