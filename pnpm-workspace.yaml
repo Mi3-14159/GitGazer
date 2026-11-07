@@ -33,9 +33,9 @@ catalog:
   '@lucide/vue': '^1.61.0'
   '@mdx-js/react': '^3.0.0'
   '@modelcontextprotocol/server': '2.4.0'
-  '@nx/eslint': '24.0.1'
-  '@nx/vite': '24.0.2'
-  '@nx/vitest': '24.0.1'
+  '@nx/eslint': '24.0.4'
+  '@nx/vite': '24.0.4'
+  '@nx/vitest': '24.0.4'
   '@octokit/auth-app': '^8.3.1'
   '@octokit/rest': '^22.0.1'
   '@octokit/webhooks': '^14.2.0'
@@ -65,7 +65,7 @@ catalog:
   'eslint': '^10.13.0'
   'happy-dom': '^21.0.4'
   'hono': '4.13.14'
-  'nx': '24.0.2'
+  'nx': '24.0.4'
   'pg': '^8.23.1'
   'pinia': '^4.1.0'
   'prettier': '^3.9.10'
@@ -98,6 +98,14 @@ catalog:
 # catalog entry above, so a Dependabot bump there needs no change here.
 overrides:
   '@types/node': 'catalog:'
+  # Security fixes for transitive dependencies whose parents' ranges exclude the patched version.
+  'colord@<2.9.4': '^2.9.4'
+  'katex@<0.18.2': '^0.18.2'
+  'minimatch@>=7.0.0 <11.0.1': '^11.0.1'
+  'qs@<6.16.1': '^6.16.1'
+  'serialize-javascript@<7.1.3': '^7.1.3'
+  'tinypool@<2.1.2': '^2.1.2'
+  'sockjs>uuid': '^11.1.1'
 
 allowBuilds:
   '@swc/core': true
