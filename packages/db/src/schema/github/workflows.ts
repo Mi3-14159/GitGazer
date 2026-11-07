@@ -370,6 +370,7 @@ export const githubAppInstallations = githubSchema.table(
         index('github_app_installations_integration_id_idx').on(table.integrationId),
         writerTenantSeparationPolicy(),
         readerTenantSeparationPolicy(),
+        mcpTenantSeparationPolicy(),
     ],
 );
 

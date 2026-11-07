@@ -69,12 +69,12 @@ describe('mcp tools', () => {
 
     const lastSql = (): string => asMock(readonly.runReadOnlyQuery).mock.calls[0][0].sql;
 
-    it('registers exactly the read-only tools', () => {
-        expect([...tools.keys()]).toEqual(['run_sql', 'list_tables', 'describe_table']);
+    it('registers exactly the read-only tools and the Slack channel lookup', () => {
+        expect([...tools.keys()]).toEqual(['run_sql', 'list_tables', 'describe_table', 'list_slack_channels']);
         expect([...tools.values()].every((t) => t.config.annotations.readOnlyHint)).toBe(true);
     });
 
-    it('registers the notification-rule tools in a write session', async () => {
+    it('registers the notification-rule and handle tools in a write session', async () => {
         const {registerMcpTools} = await import('@/domains/mcp/mcp.tools');
         tools = new Map();
         registerMcpTools(
@@ -87,9 +87,17 @@ describe('mcp tools', () => {
             'run_sql',
             'list_tables',
             'describe_table',
+            'list_slack_channels',
             'create_notification_rule',
             'update_notification_rule',
             'delete_notification_rule',
+            'create_notification_handle',
+            'update_notification_handle',
+            'delete_notification_handle',
+            'rename_integration',
+            'update_webhook_events',
+            'set_event_log_read',
+            'mark_all_event_log_read',
         ]);
         expect(tools.get('create_notification_rule')!.config.annotations).toEqual({readOnlyHint: false});
         expect(tools.get('update_notification_rule')!.config.annotations).toEqual({readOnlyHint: false});

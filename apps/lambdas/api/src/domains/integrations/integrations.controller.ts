@@ -1,15 +1,21 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
-import {deprovisionAllWebhooks, RecordedWebhook, updateWebhookSecrets} from '@gitgazer/backend-services/github-app/webhook-provisioning';
+import {
+    deprovisionAllWebhooks,
+    RecordedWebhook,
+    updateAllWebhookEvents,
+    updateWebhookSecrets,
+} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {findSlackTeamId, releaseWorkspaceIfUnused} from '@/domains/apps/apps.controller';
 import {getGithubSettings, installGithubApp} from '@gitgazer/backend-services/github-app/github-settings';
+import {ChangeSource, viaSuffix} from '@/shared/change-source';
 import {BadRequestError, InternalServerError, NotFoundError, UnauthorizedError, ensureHttpError} from '@/shared/errors';
 import {getLogger} from '@gitgazer/backend-core/logger';
 import {db, RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {integrationsQueryRelations} from '@gitgazer/db/queries';
 import {gitgazerWriter} from '@gitgazer/db/schema/app';
 import {integrationAppGithubSettings, integrations} from '@gitgazer/db/schema/gitgazer';
-import {githubAppWebhooks, userAssignments} from '@gitgazer/db/schema/github/workflows';
-import {Integration, isMemberRole, type MemberRole, type OrgSyncDefaultRole} from '@gitgazer/db/types';
+import {githubAppInstallations, githubAppWebhooks, userAssignments} from '@gitgazer/db/schema/github/workflows';
+import {GITHUB_APP_WEBHOOK_EVENTS, Integration, isMemberRole, type MemberRole, type OrgSyncDefaultRole} from '@gitgazer/db/types';
 import {and, eq, sql} from 'drizzle-orm';
 
 export const getIntegrations = async (params: {integrationIds: string[]}): Promise<Integration[]> => {
@@ -33,9 +39,15 @@ export const getIntegrations = async (params: {integrationIds: string[]}): Promi
     return results;
 };
 
-export const upsertIntegration = async (params: {id?: string; label?: string; userId?: number; integrationIds: string[]}): Promise<Integration> => {
+export const upsertIntegration = async (params: {
+    id?: string;
+    label?: string;
+    userId?: number;
+    integrationIds: string[];
+    source?: ChangeSource;
+}): Promise<Integration> => {
     const logger = getLogger();
-    const {id, label, userId, integrationIds} = params;
+    const {id, label, userId, integrationIds, source} = params;
 
     if (id) {
         logger.info(`Updating integration ${id} with label: ${label}`);
@@ -68,7 +80,7 @@ export const upsertIntegration = async (params: {id?: string; label?: string; us
             category: 'integration',
             type: 'info',
             title: 'Integration renamed',
-            message: `Integration label updated to "${label.trim()}"`,
+            message: `Integration label updated to "${label.trim()}"${viaSuffix(source)}`,
             metadata: {integrationId: id, integrationLabel: label.trim()},
         });
 
@@ -318,4 +330,56 @@ export const updateOrgSyncSettings = async (params: {
         message: `Default role for org-synced members changed to "${defaultRole}"`,
         metadata: {defaultRole},
     });
+};
+
+export const updateWebhookEvents = async (params: {
+    integrationId: string;
+    installationId: number;
+    events: string[];
+    source?: ChangeSource;
+}): Promise<{events: string[]}> => {
+    const {integrationId, installationId, events, source} = params;
+
+    const allowedEvents: readonly string[] = GITHUB_APP_WEBHOOK_EVENTS;
+    if (!events.every((e) => allowedEvents.includes(e))) {
+        throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
+    }
+
+    const linked = await withRlsTransaction({
+        integrationIds: [integrationId],
+        callback: (tx) =>
+            tx
+                .select({installationId: githubAppInstallations.installationId})
+                .from(githubAppInstallations)
+                .where(and(eq(githubAppInstallations.integrationId, integrationId), eq(githubAppInstallations.installationId, installationId))),
+    });
+    if (linked.length === 0) {
+        throw new NotFoundError('Installation not found');
+    }
+
+    try {
+        await updateAllWebhookEvents(integrationId, installationId, events);
+    } catch (error) {
+        getLogger().error('Failed to update webhook events', {error});
+        await createEventLogEntry({
+            integrationId,
+            category: 'integration',
+            type: 'failure',
+            title: 'Webhook events update failed',
+            message: `Failed to update subscribed webhook events for installation ${installationId}${viaSuffix(source)}`,
+            metadata: {integrationId, installationId, webhookEvents: events},
+        });
+        throw error;
+    }
+
+    await createEventLogEntry({
+        integrationId,
+        category: 'integration',
+        type: 'info',
+        title: 'Webhook events updated',
+        message: `Subscribed webhook events updated to: ${events.join(', ')}${viaSuffix(source)}`,
+        metadata: {integrationId, installationId, webhookEvents: events},
+    });
+
+    return {events};
 };

@@ -1,6 +1,8 @@
 import {getUserIntegrationRoles} from '@/domains/integrations/integrations.controller';
 import {mcpUserId, type McpCaller} from '@/domains/mcp/mcp.controller';
 import {chargeQueryBudget, QuotaExceededError, reserveQueryBudget} from '@/domains/mcp/mcp.quota';
+import {registerHandleTools, registerSlackChannelTool} from '@/domains/mcp/mcp.handle-tools';
+import {registerIntegrationTools} from '@/domains/mcp/mcp.integration-tools';
 import {registerNotificationRuleTools} from '@/domains/mcp/mcp.notification-tools';
 import {HttpError} from '@/shared/errors';
 import {checkAccess, forbiddenFor} from '@/shared/permissions/check-access';
@@ -55,7 +57,7 @@ export const registerTool = <Schema extends StandardSchemaWithJSON>(
 };
 
 /** Registers the read-only tools, which run through `runReadOnlyQuery` so the gitgazer_mcp role
- * GRANTs + RLS are their enforcement point, plus the notification-rule write tools in a write session. */
+ * GRANTs + RLS are their enforcement point, plus the notification-rule and handle write tools in a write session. */
 export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): void => {
     registerTool(
         server,
@@ -65,7 +67,7 @@ export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): 
                 'Run a single read-only SQL SELECT (or WITH … SELECT) against your GitGazer data. Schema-qualify every table and view name. ' +
                 'Tables in the "github" schema: ' +
                 'workflow_runs, workflow_jobs, workflow_run_pull_requests, pull_requests, repositories, organizations, ' +
-                'enterprises, pull_request_reviews and "user". The integrations themselves are in gitgazer.integrations. Configuration views: ' +
+                'enterprises, pull_request_reviews, github_app_installations and "user". The integrations themselves are in gitgazer.integrations. Configuration views: ' +
                 'gitgazer.integration_apps_view, gitgazer.integration_app_github_settings_view, gitgazer.integration_app_slack_settings_view, ' +
                 'gitgazer.notification_handles_view, gitgazer.webhook_handle_details_view, gitgazer.slack_handle_details_view, ' +
                 'gitgazer.notification_rules_view, gitgazer.notification_rule_destinations_view, gitgazer.integration_invitations_view, ' +
@@ -135,5 +137,11 @@ export const registerMcpTools = (server: McpServer, {write}: {write: boolean}): 
             }),
     );
 
-    if (write) registerNotificationRuleTools(server);
+    registerSlackChannelTool(server);
+
+    if (write) {
+        registerNotificationRuleTools(server);
+        registerHandleTools(server);
+        registerIntegrationTools(server);
+    }
 };

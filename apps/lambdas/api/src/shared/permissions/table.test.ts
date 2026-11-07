@@ -8,7 +8,7 @@ vi.mock('@/shared/middleware/token-verifier', () => ({getVerifiers: vi.fn()}));
 import {createApp} from '@/app';
 import {registerMcpTools} from '@/domains/mcp/mcp.tools';
 import {publicRoutePrefixes} from '@/shared/middleware/public-routes';
-import {OPERATIONS, ROUTES, TOOLS} from '@/shared/permissions/table';
+import {NOT_IN_MCP, OPERATIONS, ROUTES, TOOLS} from '@/shared/permissions/table';
 import type {McpServer} from '@modelcontextprotocol/server';
 
 const tableKeys = Object.keys(ROUTES);
@@ -83,6 +83,21 @@ describe('permission table', () => {
         const used = new Set<string>([...Object.values(ROUTES), ...Object.values(TOOLS)]);
 
         expect(Object.keys(OPERATIONS).filter((name) => !used.has(name))).toEqual([]);
+    });
+
+    it('classifies every non-public operation as an mcp tool or excluded, never both', () => {
+        const tools: string[] = Object.values(TOOLS);
+        const excluded = Object.keys(NOT_IN_MCP);
+        const nonPublic = Object.entries(OPERATIONS)
+            .filter(([, entry]) => entry.access !== 'public')
+            .map(([name]) => name);
+
+        expect(nonPublic.filter((name) => tools.includes(name) === excluded.includes(name))).toEqual([]);
+        expect(excluded.filter((name) => !nonPublic.includes(name))).toEqual([]);
+    });
+
+    it('gives every exclusion a reason', () => {
+        expect(Object.entries(NOT_IN_MCP).filter(([, reason]) => !reason.trim())).toEqual([]);
     });
 
     it('has no two routes of the same method that match the same path', () => {

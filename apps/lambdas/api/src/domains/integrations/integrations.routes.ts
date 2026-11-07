@@ -1,20 +1,21 @@
 import {createEventLogEntry} from '@gitgazer/backend-services/event-log.controller';
 import {unlinkInstallation} from '@/domains/github-app/unlink-installation';
-import {provisionWebhooks, updateAllWebhookEvents} from '@gitgazer/backend-services/github-app/webhook-provisioning';
+import {provisionWebhooks} from '@gitgazer/backend-services/github-app/webhook-provisioning';
 import {
     deleteIntegration,
     getIntegrations,
     rotateSecret,
     updateOrgSyncSettings,
+    updateWebhookEvents,
     upsertIntegration,
 } from '@/domains/integrations/integrations.controller';
 import {getGithubSettings} from '@gitgazer/backend-services/github-app/github-settings';
 import {addUserIntegrationsToCtx} from '@/domains/integrations/integrations.middleware';
 import {resolveAndAssignOrgMembers} from '@gitgazer/backend-services/org-member-resolver';
 import {getLogger} from '@gitgazer/backend-core/logger';
-import {BadRequestError, ConflictError, ForbiddenError, HttpStatusCodes, NotFoundError} from '@/shared/errors';
+import {BadRequestError, ConflictError, ForbiddenError, HttpStatusCodes} from '@/shared/errors';
 import type {AppEnv} from '@/shared/hono/env';
-import {db, withRlsTransaction} from '@gitgazer/db/client';
+import {db} from '@gitgazer/db/client';
 import {users} from '@gitgazer/db/schema/gitgazer';
 import {githubAppInstallations} from '@gitgazer/db/schema/github/workflows';
 import {GITHUB_APP_WEBHOOK_EVENTS, isOrgSyncDefaultRole, ORG_SYNC_DEFAULT_ROLES, type IntegrationWithRole} from '@gitgazer/db/types';
@@ -236,48 +237,11 @@ router.patch('/:integrationId/github-app/:installationId/events', addUserIntegra
 
     const requestBody = await readJsonBody(c);
 
-    const allowedEvents: readonly string[] = GITHUB_APP_WEBHOOK_EVENTS;
-    if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string' && allowedEvents.includes(e))) {
-        throw new BadRequestError(`Invalid events. Allowed: ${allowedEvents.join(', ')}`);
+    if (!Array.isArray(requestBody.events) || !requestBody.events.every((e: unknown) => typeof e === 'string')) {
+        throw new BadRequestError('Invalid events');
     }
 
-    const linked = await withRlsTransaction({
-        integrationIds: [integrationId],
-        callback: (tx) =>
-            tx
-                .select({installationId: githubAppInstallations.installationId})
-                .from(githubAppInstallations)
-                .where(and(eq(githubAppInstallations.integrationId, integrationId), eq(githubAppInstallations.installationId, installationId))),
-    });
-    if (linked.length === 0) {
-        throw new NotFoundError('Installation not found');
-    }
-
-    try {
-        await updateAllWebhookEvents(integrationId, installationId, requestBody.events);
-    } catch (error) {
-        getLogger().error('Failed to update webhook events', {error});
-        await createEventLogEntry({
-            integrationId,
-            category: 'integration',
-            type: 'failure',
-            title: 'Webhook events update failed',
-            message: `Failed to update subscribed webhook events for installation ${installationId}`,
-            metadata: {integrationId, installationId, webhookEvents: requestBody.events},
-        });
-        throw error;
-    }
-
-    await createEventLogEntry({
-        integrationId,
-        category: 'integration',
-        type: 'info',
-        title: 'Webhook events updated',
-        message: `Subscribed webhook events updated to: ${requestBody.events.join(', ')}`,
-        metadata: {integrationId, installationId, webhookEvents: requestBody.events},
-    });
-
-    return c.json({events: requestBody.events});
+    return c.json(await updateWebhookEvents({integrationId, installationId, events: requestBody.events}));
 });
 
 router.patch('/:integrationId/org-sync-settings', addUserIntegrationsToCtx, async (c) => {

@@ -1,6 +1,7 @@
 import {RdsTransaction, withRlsTransaction} from '@gitgazer/db/client';
 import {gitgazerWriter, notificationHandles, notificationRuleDestinations, notificationRules} from '@gitgazer/db/schema';
 import {isNotificationRuleUpdate, NotificationRule, NotificationRuleUpdate} from '@gitgazer/db/types';
+import {ChangeSource, viaSuffix} from '@/shared/change-source';
 import {BadRequestError, NotFoundError} from '@/shared/errors';
 import {and, eq, inArray} from 'drizzle-orm';
 
@@ -50,10 +51,6 @@ export const getNotificationRules = async (params: {integrationIds: string[]; li
         ),
     );
 };
-
-export type ChangeSource = 'mcp';
-
-const viaSuffix = (source?: ChangeSource): string => (source === 'mcp' ? ' via MCP' : '');
 
 const writeRule = async (tx: RdsTransaction, params: {rule: NotificationRuleUpdate; integrationId: string; ruleId?: string}) => {
     // Omitted so the DB default applies on insert and the stored value is kept on update.

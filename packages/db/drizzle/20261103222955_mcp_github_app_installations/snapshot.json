@@ -1,0 +1,48 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "56d9cb0a-5bdb-4fb3-a475-8fdef8e9e75e",
+  "prevIds": [
+    "d7618dec-7ccc-4af3-af91-0e2d985e7557"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "github",
+        "github_app_installations"
+      ],
+      "writes": [
+        "s|pol|github.github_app_installations.tenant separation mcp",
+        "n|pol|github.github_app_installations.tenant separation mcp",
+        "e|pol|github.github_app_installations.tenant separation mcp"
+      ],
+      "reads": [
+        "n|tbl|github.github_app_installations",
+        "n|sch|github",
+        "n|role|gitgazer_mcp",
+        "e|rls|github.github_app_installations"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "github",
+        "table": "github_app_installations",
+        "name": "tenant separation mcp",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "gitgazer_mcp"
+        ],
+        "using": "integration_id = ANY ((SELECT github.integration_ids())::uuid[])",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

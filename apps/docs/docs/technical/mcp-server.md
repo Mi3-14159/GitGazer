@@ -1,14 +1,14 @@
 ---
 sidebar_position: 5
 title: MCP Server
-description: Remote Model Context Protocol server for read-only SQL access to GitGazer data and, in write sessions, notification rule changes, secured with OAuth 2.1 and PostgreSQL-enforced tenant isolation.
+description: Remote Model Context Protocol server for read-only SQL access to GitGazer data and, in write sessions, changes to notification rules and handles, integration settings and the event log, secured with OAuth 2.1 and PostgreSQL-enforced tenant isolation.
 ---
 
 # MCP Server
 
 GitGazer exposes a remote **[Model Context Protocol](https://modelcontextprotocol.io) (MCP)** server so AI assistants — VS Code Copilot, Claude Code, Claude Desktop, Cursor, and any other MCP client — can query a tenant's GitHub Actions data on the user's behalf.
 
-Data access is **read-only**, and a user can additionally allow a **write session** that changes notification rules. It is authenticated with **OAuth 2.1**, and every query is bounded by the querying user's PostgreSQL role permissions, row-level security, and a usage budget. There is nothing to install: it is served by the `api` Lambda as its `mcp` domain.
+Data access is **read-only**, and a user can additionally allow a **write session** that changes notification rules and handles, the integration name, GitHub App webhook events and the read state of event log entries. It is authenticated with **OAuth 2.1**, and every query is bounded by the querying user's PostgreSQL role permissions, row-level security, and a usage budget. There is nothing to install: it is served by the `api` Lambda as its `mcp` domain.
 
 For the end-user walkthrough (how to connect a client), see [Querying Data with AI Assistants](../user-guide/ai-assistants.md).
 
@@ -109,9 +109,9 @@ That `POST` is the confirmation step:
 
 ## Tools
 
-Which tools a client sees depends on the scopes of its token: a token with `gitgazer-mcp/write` gets a write session, every other valid token a read session (`createMcpServer({write})`). A read session does not register the write tools at all, so calling one by name fails. The server `instructions` of a write session also name the write tools.
+Which tools a client sees depends on the scopes of its token: a token with `gitgazer-mcp/write` gets a write session, every other valid token a read session (`createMcpServer({write})`). A read session does not register the write tools at all, so calling one by name fails. The server `instructions` of a write session also name the write tools, say which views hold the ids they need (and that Slack channel ids come from `list_slack_channels`), and list what is only possible in the web app: members, invitations, app installation, and creating or deleting integrations.
 
-The data tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations. They are available in both session types.
+The data tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, scoped by row-level security to the caller's integrations. They are available in both session types, as is `list_slack_channels` (see below).
 
 | Tool             | Input       | Description                                        | Counts against budget |
 | ---------------- | ----------- | -------------------------------------------------- | --------------------- |
@@ -123,32 +123,63 @@ The data tools are read-only and run under the `gitgazer_mcp` PostgreSQL role, s
 
 ### Write tools
 
-Only in a write session. They go through the same controller functions as the REST routes for notification rules, so validation is identical, and each is authorized like the route: the permission table maps the tool to the route's operation and `registerTool` calls `checkAccess` on every call (see [Roles & Permissions](./roles-and-permissions.md)).
+Only in a write session, except `list_slack_channels`, which only reads and is registered in both session types. The tools go through the same controller functions as the REST routes, so validation is identical, and each is authorized like the route: the permission table maps the tool to the route's operation and `registerTool` calls `checkAccess` on every call (see [Roles & Permissions](./roles-and-permissions.md)).
 
-| Tool                       | Operation                 | Minimum role | Annotations                                    | Notes                                                                                                                                                                        |
-| -------------------------- | ------------------------- | ------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `create_notification_rule` | `notificationRule.create` | member       | `readOnlyHint: false`                          | Always creates a new rule.                                                                                                                                                   |
-| `update_notification_rule` | `notificationRule.update` | member       | `readOnlyHint: false`                          | Changes only the fields passed; `rule` and `handle_ids` replace the stored value as a whole. An unknown `rule_id` returns "Notification rule not found" and creates nothing. |
-| `delete_notification_rule` | `notificationRule.delete` | member       | `readOnlyHint: false`, `destructiveHint: true` | Permanently deletes a rule; an unknown `rule_id` returns "Notification rule not found".                                                                                      |
+| Tool                         | Operation                 | Minimum role | Session      | Annotations                                    | Notes                                                                                                                                                                                                 |
+| ---------------------------- | ------------------------- | ------------ | ------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `create_notification_rule`   | `notificationRule.create` | member       | read & write | `readOnlyHint: false`                          | Always creates a new rule.                                                                                                                                                                            |
+| `update_notification_rule`   | `notificationRule.update` | member       | read & write | `readOnlyHint: false`                          | Changes only the fields passed; `rule` and `handle_ids` replace the stored value as a whole. An unknown `rule_id` returns "Notification rule not found" and creates nothing.                          |
+| `delete_notification_rule`   | `notificationRule.delete` | member       | read & write | `readOnlyHint: false`, `destructiveHint: true` | Permanently deletes a rule; an unknown `rule_id` returns "Notification rule not found".                                                                                                               |
+| `create_notification_handle` | `handle.create`           | admin        | read & write | `readOnlyHint: false`                          | Takes `app_id` and either `channel_id` (Slack app) or `name` and `url` (Webhook app). The app must already be installed; the app type check, handle limits and the webhook URL check apply unchanged. |
+| `update_notification_handle` | `handle.update`           | admin        | read & write | `readOnlyHint: false`                          | Changes the `name` and, for a Webhook handle, the `url`. Nothing to change, or a `url` on a Slack handle, returns an error.                                                                           |
+| `delete_notification_handle` | `handle.delete`           | admin        | read & write | `readOnlyHint: false`, `destructiveHint: true` | Rules lose this destination. An unknown `handle_id` returns "Handle not found".                                                                                                                       |
+| `rename_integration`         | `integration.rename`      | admin        | read & write | `readOnlyHint: false`                          | Takes `label`.                                                                                                                                                                                        |
+| `update_webhook_events`      | `githubApp.updateEvents`  | admin        | read & write | `readOnlyHint: false`                          | Takes `installation_id` and `events`. An installation that is not linked to the integration returns "Installation not found" before any GitHub call.                                                  |
+| `set_event_log_read`         | `eventLog.markRead`       | any role     | read & write | `readOnlyHint: false`                          | Takes `id` and `read`. No `integration_id`; RLS limits it to the caller's integrations.                                                                                                               |
+| `mark_all_event_log_read`    | `eventLog.markAllRead`    | any role     | read & write | `readOnlyHint: false`                          | No input. Marks every unread entry in all the caller's integrations and returns the count.                                                                                                            |
+| `list_slack_channels`        | `slackApp.channels`       | admin        | both         | `readOnlyHint: true`                           | Takes `app_id`. Slack channels are not visible through `run_sql`; the ids are for `create_notification_handle`.                                                                                       |
 
-All three take an `integration_id`; the member role is checked in that integration. Rule and handle ids come from `gitgazer.notification_rules_view` and `gitgazer.notification_handles_view` through `run_sql`. Each change writes an event log entry whose message carries the suffix ` via MCP`, for example `A notification rule was deleted via MCP`, so changes made by an assistant can be told apart from changes made in the web app.
+Every tool except the two event log tools takes an `integration_id`, and the role is checked in that integration. The event log tools are not tied to one integration: the read flag is stored on the entry, so it changes for everyone in the integration. Ids come from `run_sql`: rules from `gitgazer.notification_rules_view`, handles from `gitgazer.notification_handles_view` (details in `gitgazer.webhook_handle_details_view` and `gitgazer.slack_handle_details_view`), apps from `gitgazer.integration_apps_view`, entries from `gitgazer.event_log_entries_view`, and the `installation_id` from `github.github_app_installations`.
+
+Each change except the two event log read-flag tools writes an event log entry whose message carries the suffix ` via MCP`, for example `A notification rule was deleted via MCP`, so changes made by an assistant can be told apart from changes made in the web app. Creating, changing and deleting a notification handle writes an entry as well, in the web app and through MCP, because a webhook URL decides where workflow data is sent. The entry names the handle and, for a Webhook handle, only the **host** of the URL (old and new on a change), never the full URL: webhook URLs can carry secrets, only admins see them in `gitgazer.webhook_handle_details_view`, and every member can read the event log. The entry is written after the change commits; if writing it fails, the failure is logged and the change still counts as made.
+
+#### Not available as tools
+
+These API operations have no MCP tool, not even in a write session; each is classified with its reason in `NOT_IN_MCP` (`apps/lambdas/api/src/shared/permissions/table.ts`), and a test fails when an operation is in neither `TOOLS` nor `NOT_IN_MCP`.
+
+| Operation                                                     | Reason                                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `integration.create`                                          | Creates an integration and installs its GitHub app; setup happens in the UI.     |
+| `integration.delete`                                          | Irreversible; deletes all integration data.                                      |
+| `githubApp.rotateSecret`                                      | Security-sensitive; breaks webhook delivery until GitHub is updated.             |
+| `githubApp.linkInstallation`, `githubApp.unlinkInstallation`  | Linking needs GitHub's install flow in the browser; unlinking stops data ingest. |
+| `githubApp.updateOrgSync`                                     | Sets the role every synced org member gets (can be admin); people management.    |
+| `member.changeRole`, `member.remove`                          | People management stays in the UI.                                               |
+| `member.leave`                                                | Irreversible for the caller.                                                     |
+| `invitation.create`, `invitation.resend`, `invitation.revoke` | People management stays in the UI.                                               |
+| `app.install`, `app.remove`                                   | App installation is always a manual step in the UI.                              |
+| `slackApp.move`                                               | Slack OAuth and admin migration in the browser.                                  |
+| `slackUser.disconnect`                                        | Personal Slack sign-in in the browser.                                           |
+
+Reads are covered by `run_sql`, and browser flows (Slack OAuth, invitation acceptance), logout and the WebSocket token are not tools either; they are listed in `NOT_IN_MCP` with those reasons.
 
 ## Queryable data
 
 Queries run against the `github` schema, `gitgazer.integrations` and the configuration views in `gitgazer`. Because no default `search_path` is set for the role, **tables and views must be schema-qualified** (`github.workflow_runs`, not `workflow_runs`).
 
-| Table                               | Notes                                                          |
-| ----------------------------------- | -------------------------------------------------------------- |
-| `github.workflow_runs`              | GitHub Actions runs (`conclusion`, `status`, `created_at`, …). |
-| `github.workflow_jobs`              | Jobs within runs.                                              |
-| `github.workflow_run_pull_requests` | Join table between runs and pull requests.                     |
-| `github.pull_requests`              | Pull requests.                                                 |
-| `github.pull_request_reviews`       | Pull request reviews.                                          |
-| `github.repositories`               | Repositories.                                                  |
-| `github.organizations`              | Organizations.                                                 |
-| `github.enterprises`                | Enterprises.                                                   |
-| `github."user"`                     | GitHub users/actors. `user` is a reserved word — **quote it**. |
-| `gitgazer.integrations`             | Column-scoped: only `integration_id`, `label`, `created_at`.   |
+| Table                               | Notes                                                                                    |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| `github.workflow_runs`              | GitHub Actions runs (`conclusion`, `status`, `created_at`, …).                           |
+| `github.workflow_jobs`              | Jobs within runs.                                                                        |
+| `github.workflow_run_pull_requests` | Join table between runs and pull requests.                                               |
+| `github.pull_requests`              | Pull requests.                                                                           |
+| `github.pull_request_reviews`       | Pull request reviews.                                                                    |
+| `github.repositories`               | Repositories.                                                                            |
+| `github.organizations`              | Organizations.                                                                           |
+| `github.enterprises`                | Enterprises.                                                                             |
+| `github."user"`                     | GitHub users/actors. `user` is a reserved word — **quote it**.                           |
+| `github.github_app_installations`   | GitHub App installations, with the `installation_id` that `update_webhook_events` needs. |
+| `gitgazer.integrations`             | Column-scoped: only `integration_id`, `label`, `created_at`.                             |
 
 The configuration lives in tables the MCP cannot read, mostly in `gitgazer`. Each is exposed through a `<table>_view` in the table's own schema. Each view returns the rows and fields the GitGazer API shows the same person. The minimum role is per integration; a column below its role is `NULL` while the row stays visible.
 
@@ -192,7 +223,7 @@ Use `list_tables` and `describe_table` to discover the exact columns before writ
 
 The raw-SQL path is defended in layers, so a crafted query cannot escape the caller's tenant or read data it was never granted:
 
-1. **OAuth-validated identity** — a valid Cognito access token from the MCP client with the scope `gitgazer-mcp/read` is required; the `sub` resolves to a GitGazer user and their integrations. The write tools additionally need `gitgazer-mcp/write` on the token and the member role in the integration.
+1. **OAuth-validated identity** — a valid Cognito access token from the MCP client with the scope `gitgazer-mcp/read` is required; the `sub` resolves to a GitGazer user and their integrations. The write tools additionally need `gitgazer-mcp/write` on the token and the role their operation needs in the integration.
 2. **Own login and role GRANTs** — queries run on a separate connection that logs in as `gitgazer_mcp` (IAM auth; `NOINHERIT`, not a superuser or table owner), so the session cannot switch to a role that owns the tables or bypasses RLS. Its `GRANT SELECT` list _is_ the allowlist of readable tables and columns. The Data API mode (`DB_CONNECTION_MODE=data-api`) has no separate login, so a session there could switch back to the app login and reach the signing key: `run_sql`, `list_tables` and `describe_table` refuse to run in that mode.
 3. **Row-level security on a signed tenant context** — every exposed table carries a tenant policy that reads the caller's integrations from `rls.signed_context`, which the database trusts only with a valid signature:
     - The key lives in the database (`gitgazer_internal.context_key`, generated at migration time and readable only by the migration user, which in AWS is the login the app uses), never in the repository, Terraform or the app config.
@@ -201,7 +232,7 @@ The raw-SQL path is defended in layers, so a crafted query cannot escape the cal
     - The key and the sign function live in schema `gitgazer_internal`, where no role but its owner has `USAGE`. `gitgazer_mcp` needs `USAGE` on `gitgazer` for the configuration views, so in `gitgazer` the function's ACL alone would protect it, and a re-created or new `SECURITY DEFINER` function there gets `EXECUTE` for `PUBLIC` by default.
     - `github.signed_context()` verifies the signature once per protected table the query references, not per row (each policy calls it through a sub-select, which Postgres runs as one InitPlan per relation).
     - A missing, malformed, altered or replayed context (copied from another session or transaction) yields no rows, never other tenants' rows, and no error.
-4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL. This covers the SQL tools: the write tools never run SQL from the client; they call the notification rule controller functions, the same code as the REST routes.
+4. **Read-only transaction** — `SET TRANSACTION READ ONLY`, and the transaction always ends in `ROLLBACK`; no writes or DDL. This covers the SQL tools: the write tools never run SQL from the client; they call the controller functions of the REST routes, the same code.
 5. **Single-statement guard** — the query is wrapped as a subquery whose byte budget and row cap are bind parameters. Bind parameters make the driver use the extended query protocol, in which Postgres refuses more than one statement, so statement stacking fails at the database. The wrap also gives the query a `SELECT` context, and a query that is not a single `SELECT`/`WITH`, or that contains `;` or a `$1`-style placeholder, is rejected before it runs.
 6. **Blocked-function + escape guard** — `set_config` and `pg_settings`, functions that run a SQL string (`*_to_xml*`, `dblink*`, `ts_stat`, `ts_rewrite`), advisory locks (a session lock would outlive the transaction on the pooled connection), `pg_sleep*`, `pg_stat_*`, file, large-object and backend-control functions, nested block comments at the start of the query, and SQL-standard Unicode-escape syntax (`U&"…"`) are rejected. This is a blocklist: a mitigation, not a proof that `set_config` is unreachable.
 7. **`set_config` stays executable** — migration `20260721204116_tough_black_bolt` attempts to revoke it, but on Aurora the revoke is a no-op (verified 2026-10-28): `set_config` is granted to `PUBLIC` by an owner the cluster user cannot override. A query that reached `set_config` could write `rls.signed_context`, but not make it valid (layer 3), so layers 5 and 6 are defence in depth.

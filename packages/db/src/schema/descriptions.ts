@@ -124,7 +124,7 @@ export const descriptions: Description[] = [
         'Links workflow runs to the pull requests they ran for. A pull_request_id can be missing from github.pull_requests when no pull request event was received.',
         {pullRequestId: 'github.pull_requests.id (not the number), joined together with integration_id.'},
     ),
-    describe(githubAppInstallations, 'GitHub App installations linked to an integration.', {
+    describe(githubAppInstallations, 'GitHub App installations linked to an integration; installation_id is what update_webhook_events takes.', {
         accountType: 'Organization or User the app is installed on.',
         repositorySelection: 'all or selected.',
         webhookEvents: 'JSON array of the webhook events the installation subscribes to.',
