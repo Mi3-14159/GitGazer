@@ -139,7 +139,7 @@ export const getWorkflowFilterValues = async ({
                     ? sql`INNER JOIN ${workflowRuns} ON ${workflowRuns.repositoryId} = ${repositories.id} AND ${workflowRuns.integrationId} = ${repositories.integrationId}`
                     : sql``;
                 const whereClause = conditions.length ? sql`WHERE ${sql.join(conditions, sql` AND `)}` : sql``;
-                const rows = await tx.execute(
+                const rows = await tx.execute<Record<string, unknown>>(
                     sql`SELECT t.topic AS value, COUNT(DISTINCT ${repositories.id})::int AS count
                         FROM ${repositories}
                         CROSS JOIN LATERAL jsonb_array_elements_text(${repositories.topics}) AS t(topic)
