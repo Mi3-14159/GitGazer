@@ -59,11 +59,15 @@ const UNICODE_ESCAPE = /u&['"]/i;
  * Rejecting an embedded `;` is defence in depth with a clear message: the bind parameters in
  * wrapReadOnlyQuery are what stop a caller from stacking a second statement after the wrap.
  */
+// A loop because a regex like /;+$/ backtracks quadratically on a long run of `;` that is not at the end.
+const stripTrailingSemicolons = (text: string): string => {
+    let end = text.length;
+    while (end > 0 && text[end - 1] === ';') end--;
+    return text.slice(0, end);
+};
+
 export function assertReadOnlySelect(rawSql: string): string {
-    const trimmed = rawSql
-        .trim()
-        .replace(/;+\s*$/, '')
-        .trim();
+    const trimmed = stripTrailingSemicolons(rawSql.trim()).trim();
     if (!trimmed) {
         throw new ReadOnlyQueryError('Query is empty');
     }
