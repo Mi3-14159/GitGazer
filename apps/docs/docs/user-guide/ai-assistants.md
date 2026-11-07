@@ -67,7 +67,7 @@ Whenever a client signs in, GitGazer first shows a **Connect an MCP client** pag
 | Option           | Description                                                                       | Button                        |
 | ---------------- | --------------------------------------------------------------------------------- | ----------------------------- |
 | **Read only**    | Query workflows, PRs and configuration                                            | **Allow read access**         |
-| **Read & write** | Everything above, plus change notification rules, destinations and a few settings | **Allow read & write access** |
+| **Read & write** | Everything above, plus change notification settings and integration configuration | **Allow read & write access** |
 
 **Read only** is selected by default. Pick an option, click the button, and sign in with GitHub as usual. The page is valid for 10 minutes; if it has expired, start the connection from your client again.
 

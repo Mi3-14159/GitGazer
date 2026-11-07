@@ -35,6 +35,13 @@ describe('McpConnectPage', () => {
         expect(wrapper.find('button[type="submit"]').text()).toBe('Allow read & write access');
     });
 
+    it('discloses the destination and webhook-event changes a read & write session allows', () => {
+        route.query = {request: 'signed-blob'};
+        const writeOption = mount(McpConnectPage).find('input[value="write"]').element.closest('label')!;
+
+        expect(writeOption.textContent).toContain('destinations, webhook events and integration name (admin role)');
+    });
+
     it('posts the request and session to the authorize endpoint', () => {
         route.query = {request: 'signed-blob'};
         const wrapper = mount(McpConnectPage);

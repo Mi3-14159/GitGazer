@@ -15,12 +15,17 @@
     const action = `${import.meta.env.VITE_REST_API_ENDPOINT}/mcp/oauth/authorize`;
 
     const options = [
-        {value: 'read', label: 'Read only', description: 'Query workflows, PRs and configuration', tools: 'run_sql, list_tables, describe_table'},
+        {
+            value: 'read',
+            label: 'Read only',
+            description: 'Query workflows, PRs and configuration',
+            tools: 'run_sql, list_tables, describe_table, list_slack_channels',
+        },
         {
             value: 'write',
             label: 'Read & write',
-            description: 'Everything above, plus change notification rules',
-            tools: 'create / update / delete notification rules, needs the member role in that integration',
+            description: 'Everything above, plus change notification settings and integration configuration',
+            tools: 'notification rules (member role); destinations, webhook events and integration name (admin role); mark event log entries read. Members, invitations and apps stay in the web app.',
         },
     ] as const;
 
