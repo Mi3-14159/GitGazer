@@ -578,6 +578,12 @@ export const updateHandle = async (
         integrationIds,
         userName: gitgazerWriter.name,
         callback: async (tx: RdsTransaction) => {
+            // Serialises concurrent edits of this handle so the audit entry's old values are the ones this update replaced
+            await tx
+                .select({handleId: notificationHandles.handleId})
+                .from(notificationHandles)
+                .where(and(eq(notificationHandles.integrationId, integrationId), eq(notificationHandles.handleId, handleId)))
+                .for('update');
             const handle = await loadHandle(tx, integrationId, handleId);
             if (url !== undefined && handle.url === null) {
                 throw new BadRequestError('Only Webhook handles have a URL');

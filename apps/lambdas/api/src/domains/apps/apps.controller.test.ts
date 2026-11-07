@@ -528,13 +528,14 @@ describe('apps controller', () => {
         });
 
         it('updateHandle only renames a channel handle', async () => {
-            selectQueue.push([{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops'}], []);
+            selectQueue.push([{handleId: 'h-2'}], [{handleId: 'h-2', appId: 'app-s', name: '#ops', url: null, channelName: 'ops'}], []);
 
             await expect(controller.updateHandle({...base, handleId: 'h-2', url: SLACK_URL})).rejects.toBeInstanceOf(BadRequestError);
         });
 
         // gitgazer_writer has no grant on the views, and the admin-only route needs the url unmasked anyway
         it('updateHandle reads the handle from the base tables, unmasked', async () => {
+            selectQueue.push([{handleId: 'h-1'}]);
             selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Team', url: SLACK_URL, channelName: null}], [{handleId: 'h-1', ruleCount: 1}]);
             selectQueue.push(
                 [{handleId: 'h-1', appId: 'app-w', name: 'Renamed', url: SLACK_URL, channelName: null}],
@@ -545,7 +546,17 @@ describe('apps controller', () => {
 
             expect(handle).toEqual({handleId: 'h-1', appId: 'app-w', name: 'Renamed', url: SLACK_URL, channelName: null, ruleCount: 1});
             const handleTables = [notificationHandles, webhookHandleDetails, slackHandleDetails, notificationRuleDestinations];
-            expect(txTables).toEqual([...handleTables, ...handleTables]);
+            expect(txTables).toEqual([notificationHandles, ...handleTables, ...handleTables]);
+        });
+
+        it('updateHandle locks the handle row before reading its old values', async () => {
+            selectQueue.push([{handleId: 'h-1'}]);
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Team', url: SLACK_URL, channelName: null}], [{handleId: 'h-1', ruleCount: 0}]);
+            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name: 'Renamed', url: SLACK_URL, channelName: null}], []);
+
+            await controller.updateHandle({...base, handleId: 'h-1', name: 'Renamed'});
+
+            expect(queryLog.slice(0, 3)).toEqual(['select', 'for:update', 'select']);
         });
     });
 
@@ -594,7 +605,11 @@ describe('apps controller', () => {
     describe('handle audit entries', () => {
         const logged = () => mockCreateEventLogEntry.mock.calls.map((c) => c[0]);
         const existing = (name: string, url: string | null) =>
-            selectQueue.push([{handleId: 'h-1', appId: 'app-w', name, url, channelName: null}], [{handleId: 'h-1', ruleCount: 0}]);
+            selectQueue.push(
+                [{handleId: 'h-1'}],
+                [{handleId: 'h-1', appId: 'app-w', name, url, channelName: null}],
+                [{handleId: 'h-1', ruleCount: 0}],
+            );
 
         it('createHandle logs a webhook with its host only, via MCP', async () => {
             selectQueue.push([{appId: 'app-w', type: 'webhook'}], [{count: 0}]);
