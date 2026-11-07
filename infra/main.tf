@@ -25,10 +25,6 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_ssoadmin_instances" "this" {}
-
-data "aws_lakeformation_data_lake_settings" "this" {}
-
 locals {
   default_tags = {
     gitgazer  = true

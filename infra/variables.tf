@@ -126,7 +126,7 @@ variable "db_max_connections" {
 
 variable "db_config" {
   type = object({
-    engine_version              = optional(string, "17.7")
+    engine_version              = optional(string, "17.9")
     engine_mode                 = optional(string, "provisioned")
     instance_class              = optional(string, "db.serverless")
     vpc_id                      = optional(string)
