@@ -73,8 +73,8 @@ catalogs:
       specifier: ^0.55.2
       version: 0.55.3
     '@electric-sql/pglite':
-      specifier: ^0.5.13
-      version: 0.5.13
+      specifier: ^0.5.14
+      version: 0.5.14
     '@hono/node-server':
       specifier: 2.1.5
       version: 2.1.5
@@ -178,8 +178,8 @@ catalogs:
       specifier: ^21.0.4
       version: 21.0.4
     hono:
-      specifier: 4.13.14
-      version: 4.13.14
+      specifier: 4.13.16
+      version: 4.13.16
     nx:
       specifier: 24.0.4
       version: 24.0.4
@@ -378,7 +378,7 @@ importers:
         version: 3.1161.0
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 2.1.5(hono@4.13.14)
+        version: 2.1.5(hono@4.13.16)
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.4.0
@@ -393,10 +393,10 @@ importers:
         version: 5.2.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       hono:
         specifier: 'catalog:'
-        version: 4.13.14
+        version: 4.13.16
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.6)(typescript@6.0.3)
@@ -427,7 +427,7 @@ importers:
         version: 8.10.164
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.6)(typescript@6.0.3)
@@ -452,7 +452,7 @@ importers:
     devDependencies:
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   apps/lambdas/websocket:
     dependencies:
@@ -468,7 +468,7 @@ importers:
         version: 8.10.164
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   apps/lambdas/worker:
     dependencies:
@@ -614,7 +614,7 @@ importers:
         version: 6.2.5
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
     devDependencies:
       '@types/convict':
         specifier: 'catalog:'
@@ -636,7 +636,7 @@ importers:
         version: 14.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   packages/db:
     dependencies:
@@ -648,7 +648,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
       pg:
         specifier: 'catalog:'
         version: 8.23.1
@@ -661,13 +661,13 @@ importers:
         version: 3.1161.0
       '@electric-sql/pglite':
         specifier: 'catalog:'
-        version: 0.5.13
+        version: 0.5.14
       '@types/pg':
         specifier: 'catalog:'
         version: 8.23.1
       drizzle-kit:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7))
+        version: 1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7))
       ts-node:
         specifier: 'catalog:'
         version: 10.9.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(@types/node@26.6.6)(typescript@6.0.3)
@@ -688,7 +688,7 @@ importers:
         version: 7.6.1
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+        version: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
   packages/import:
     devDependencies:
@@ -2125,8 +2125,8 @@ packages:
       open-ask-ai:
         optional: true
 
-  '@electric-sql/pglite@0.5.13':
-    resolution: {integrity: sha512-4rZuxK1k07w6sSpJzjMri0B9+HuXuC7V9pxVB51pR0T9KPqXg6TD0mdaEwBA9rkcL4jdht4tGDf/wYzAiGhT7g==}
+  '@electric-sql/pglite@0.5.14':
+    resolution: {integrity: sha512-aAQe7iArcFB2w1xtx91l3l9trxhMzD6aZf+WnosSHNhwgp70EJz80Igw/bHnW14fUEFYWPBoQ1sGom8Xc0Jttg==}
 
   '@emnapi/core@1.11.3':
     resolution: {integrity: sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg==}
@@ -6201,8 +6201,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.13.14:
-    resolution: {integrity: sha512-yhRLQ21U6qa9Hsu2N7Qcbh8tE+WKEcoErjIo56LeSGiGXGp9sA7UpE86Ui9uexb61KakiGwuHMn2QdV7w6i6kQ==}
+  hono@4.13.16:
+    resolution: {integrity: sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -12151,7 +12151,7 @@ snapshots:
       - utf-8-validate
       - webpack-cli
 
-  '@electric-sql/pglite@0.5.13': {}
+  '@electric-sql/pglite@0.5.14': {}
 
   '@emnapi/core@1.11.3':
     dependencies:
@@ -12313,9 +12313,9 @@ snapshots:
     dependencies:
       '@hapi/hoek': 9.3.0
 
-  '@hono/node-server@2.1.5(hono@4.13.14)':
+  '@hono/node-server@2.1.5(hono@4.13.16)':
     dependencies:
-      hono: 4.13.14
+      hono: 4.13.16
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -15671,14 +15671,14 @@ snapshots:
 
   dotenv@16.4.7: {}
 
-  drizzle-kit@1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)):
+  drizzle-kit@1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)):
     optionalDependencies:
-      drizzle-orm: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
+      drizzle-orm: 1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7)
 
-  drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.13)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7):
+  drizzle-orm@1.0.0-rc.5(@aws-sdk/client-rds-data@3.1161.0)(@electric-sql/pglite@0.5.14)(@types/pg@8.23.1)(pg@8.23.1)(zod@4.6.7):
     optionalDependencies:
       '@aws-sdk/client-rds-data': 3.1161.0
-      '@electric-sql/pglite': 0.5.13
+      '@electric-sql/pglite': 0.5.14
       '@types/pg': 8.23.1
       pg: 8.23.1
       zod: 4.6.7
@@ -16374,7 +16374,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.13.14: {}
+  hono@4.13.16: {}
 
   hookable@5.5.3: {}
 
