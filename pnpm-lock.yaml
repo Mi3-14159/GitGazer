@@ -76,8 +76,8 @@ catalogs:
       specifier: ^0.5.14
       version: 0.5.14
     '@hono/node-server':
-      specifier: 2.1.5
-      version: 2.1.5
+      specifier: 2.1.6
+      version: 2.1.6
     '@lucide/vue':
       specifier: ^1.66.0
       version: 1.66.0
@@ -378,7 +378,7 @@ importers:
         version: 3.1161.0
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 2.1.5(hono@4.13.16)
+        version: 2.1.6(hono@4.13.16)
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.4.0
@@ -2350,8 +2350,8 @@ packages:
   '@hapi/topo@5.1.0':
     resolution: {integrity: sha512-foQZKJig7Ob0BMAYBfcJk8d77QtOe7Wo4ox7ff1lQYoNNAb6jwcY1ncdoy2e9wQZzvNy7ODZCYJkK8kzmcAnAg==}
 
-  '@hono/node-server@2.1.5':
-    resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
+  '@hono/node-server@2.1.6':
+    resolution: {integrity: sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
@@ -12313,7 +12313,7 @@ snapshots:
     dependencies:
       '@hapi/hoek': 9.3.0
 
-  '@hono/node-server@2.1.5(hono@4.13.16)':
+  '@hono/node-server@2.1.6(hono@4.13.16)':
     dependencies:
       hono: 4.13.16
 
